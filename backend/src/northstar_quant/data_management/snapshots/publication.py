@@ -8,7 +8,10 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-SNAPSHOT_MANIFEST_SCHEMA_VERSION = "2.0.0"
+from northstar_quant.accounting.settlement import SettlementFact
+from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
+
+SNAPSHOT_MANIFEST_SCHEMA_VERSION = "4.0.0"
 SNAPSHOT_DATASET_KIND = "FUTURES_OHLCV"
 SNAPSHOT_CANONICAL_SCHEMA_VERSION = "canonical_ohlcv/1.0.0"
 MAX_SNAPSHOT_PARTITIONS = 32
@@ -104,6 +107,8 @@ class PublishDatasetSnapshotCommand:
     idempotency_key: str
     correlation_id: str
     causation_id: str | None = None
+    settlements: tuple[SettlementFact, ...] = ()
+    terms: tuple[FuturesTerms, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -156,6 +161,26 @@ def validate_publish_dataset_snapshot_command(
             f"{MAX_SNAPSHOT_IMPORT_QUALITY_PINS} import-quality pins",
         )
 
+    if (
+        len(command.settlements) > MAX_SNAPSHOT_PARTITIONS
+        or any(not isinstance(item, SettlementFact) for item in command.settlements)
+        or len({item.settlement_id for item in command.settlements}) != len(command.settlements)
+        or len({(item.contract_id, item.trading_day) for item in command.settlements})
+        != len(command.settlements)
+        or any(item.available_at > cutoff for item in command.settlements)
+    ):
+        raise DatasetSnapshotPublicationError(
+            "SNAPSHOT_SETTLEMENT_INVALID",
+            "settlement facts must be bounded, unique per contract/day and available at cutoff",
+        )
+
+    try:
+        terms = ordered_terms(command.terms)
+        if any(item.available_at > cutoff for item in terms):
+            raise ValueError("terms are unavailable at publication cutoff")
+    except ValueError as error:
+        raise DatasetSnapshotPublicationError("SNAPSHOT_TERMS_INVALID", str(error)) from error
+
     normalized_partitions = tuple(
         _normalize_partition_selection(item) for item in command.partitions
     )
@@ -181,6 +206,10 @@ def validate_publish_dataset_snapshot_command(
 
     return PublishDatasetSnapshotCommand(
         available_at_cutoff=cutoff,
+        terms=terms,
+        settlements=tuple(
+            sorted(command.settlements, key=lambda item: (item.available_at, item.settlement_id))
+        ),
         partitions=normalized_partitions,
         import_quality_pins=normalized_pins,
         idempotency_key=require_snapshot_opaque_identifier(

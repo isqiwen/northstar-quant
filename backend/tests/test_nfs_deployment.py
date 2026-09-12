@@ -20,7 +20,6 @@ def nfs(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "MARKET", tmp_path / "market")
     monkeypatch.setattr(module, "STATE", tmp_path / "state")
     monkeypatch.setattr(module, "UNITS", tmp_path / "units")
-    monkeypatch.setattr(module, "EXPORTS", tmp_path / "exports")
     return module
 
 
@@ -34,7 +33,7 @@ def test_selected_server_preserves_data_writer_and_reader(nfs, host):
             ("research", "research.local"),
         ]
     }
-    settings["nfs"] = {"host": host, "user": "qiwen", "port": 22}
+    settings["nfs"] = {"host": host}
     plan = nfs.topology(settings)
     assert plan["server"] == host
     assert plan["writer"] == "core.local" and plan["reader"] == "research.local"
@@ -53,7 +52,7 @@ def test_nonempty_directory_rejected_before_install_or_mount(nfs, monkeypatch):
     evidence.write_bytes(b"fixed evidence")
     monkeypatch.setattr(nfs, "mounted", lambda: None)
     monkeypatch.setattr(
-        nfs, "install", lambda *a: pytest.fail("dependency mutation before preflight")
+        nfs, "require_client", lambda *a: pytest.fail("dependency mutation before preflight")
     )
     with pytest.raises(ValueError, match="非空"):
         nfs.prepare_client(
@@ -88,14 +87,14 @@ def test_client_boot_order_identity_and_idempotent_setup(nfs, monkeypatch, host,
     nfs.STATE.mkdir()
     identity = str(uuid4())
     (nfs.MARKET / ".northstar-storage-id").write_text(identity + "\n")
-    source = f"storage.local:{nfs.MARKET}"
+    source = "storage.local:/quant"
     monkeypatch.setattr(
         nfs,
         "mounted",
         lambda: {"source": source, "fstype": "nfs4", "options": f"{mode},hard,vers=4"},
     )
     calls = []
-    monkeypatch.setattr(nfs, "install", lambda p: calls.append(("install", p)))
+    monkeypatch.setattr(nfs, "require_client", lambda: calls.append(("require_client",)))
     monkeypatch.setattr(nfs, "run", lambda *a: calls.append(a))
     request = {"host": host, "server": "storage.local", "writer": "core.local"}
     nfs.prepare_client(request)
@@ -149,85 +148,49 @@ def test_published_objects_readable_but_raw_sources_remain_private(tmp_path):
     assert stat.S_IMODE(publication.stat().st_mode) == 0o644
 
 
-def test_server_exports_only_selected_clients_and_retains_existing_identity(nfs, monkeypatch):
-    import os
-    from types import SimpleNamespace
-
+@pytest.mark.parametrize("host", ["storage.local", "core.local"])
+def test_writer_initializes_empty_external_share_once(nfs, monkeypatch, host):
     nfs.MARKET.mkdir()
     nfs.STATE.mkdir()
-    retained_id = str(uuid4())
-    (nfs.MARKET / ".northstar-storage-id").write_text(retained_id + "\n")
-    evidence = nfs.MARKET / "fixed.parquet"
-    evidence.write_bytes(b"retained evidence")
-    evidence.chmod(0o600)
+    monkeypatch.setattr(
+        nfs,
+        "mounted",
+        lambda: {"source": "storage.local:/quant", "fstype": "nfs4", "options": "rw,hard,vers=4"},
+    )
+    packages = []
+    monkeypatch.setattr(nfs, "require_client", lambda: packages.append("checked"))
+    monkeypatch.setattr(nfs, "run", lambda *a: None)
+    monkeypatch.setattr(nfs.os, "geteuid", lambda: 0)
+    request = {"host": host, "server": "storage.local", "writer": host}
+    nfs.prepare(request)
+    first = nfs.identity()
+    nfs.prepare(request)
+    assert nfs.identity() == first
+    assert packages == ["checked", "checked"]
+
+
+def test_reader_cannot_initialize_missing_share_identity(nfs, monkeypatch):
+    nfs.MARKET.mkdir()
+    nfs.STATE.mkdir()
+    monkeypatch.setattr(
+        nfs,
+        "mounted",
+        lambda: {"source": "storage.local:/quant", "fstype": "nfs4", "options": "ro,hard,vers=4"},
+    )
+    monkeypatch.setattr(nfs, "require_client", lambda: None)
+    monkeypatch.setattr(nfs, "run", lambda *a: None)
+    with pytest.raises(ValueError, match="首次请先部署"):
+        nfs.prepare_client(
+            {"host": "research.local", "server": "storage.local", "writer": "core.local"}
+        )
+    assert not list(nfs.MARKET.iterdir())
+
+
+def test_missing_client_dependency_does_not_create_mount_configuration(nfs, monkeypatch):
     monkeypatch.setattr(nfs, "mounted", lambda: None)
-    monkeypatch.setattr(nfs, "install", lambda p: None)
-    monkeypatch.setattr(
-        nfs.pwd, "getpwnam", lambda name: SimpleNamespace(pw_uid=os.getuid(), pw_gid=os.getgid())
-    )
-    monkeypatch.setattr(
-        nfs.socket,
-        "gethostbyname",
-        lambda host: {"core.local": "192.0.2.1", "research.local": "192.0.2.2"}[host],
-    )
-    monkeypatch.setattr(nfs.shutil, "which", lambda p: None)
-    calls = []
-    monkeypatch.setattr(nfs, "run", lambda *a: calls.append(a))
-    request = {"server": "storage.local", "writer": "core.local", "reader": "research.local"}
-    nfs.prepare_server(request)
-    first = nfs.EXPORTS.read_text()
-    assert "192.0.2.1(rw," in first and "192.0.2.2(ro," in first
-    assert "all_squash" in first and "no_root_squash" not in first
-    assert evidence.read_bytes() == b"retained evidence"
-    assert nfs.identity() == retained_id
-    assert evidence.stat().st_mode & 0o004
-    nfs.prepare_server(request)
-    assert nfs.EXPORTS.read_text() == first
-    assert not any("restart" in call for call in calls)
-
-
-@pytest.mark.parametrize("action", ["start", "restart", "stop"])
-def test_service_lifecycle_preserves_files_and_only_controls_nfs(nfs, monkeypatch, action):
-    from types import SimpleNamespace
-
-    nfs.MARKET.mkdir()
-    nfs.STATE.mkdir()
-    value = str(uuid4())
-    (nfs.MARKET / ".northstar-storage-id").write_text(value + "\n")
-    (nfs.STATE / "server-storage-id").write_text(value + "\n")
-    nfs.EXPORTS.write_text("retained exports\n")
-    evidence = nfs.MARKET / "fixed.parquet"
-    evidence.write_bytes(b"unchanged")
-    monkeypatch.setattr(nfs.os, "geteuid", lambda: 0)
-    calls = []
-    monkeypatch.setattr(
-        nfs.subprocess,
-        "run",
-        lambda args, **kw: calls.append(args) or SimpleNamespace(returncode=0),
-    )
-    assert nfs.manage({"action": action}) == 0
-    assert calls == [["systemctl", action, "nfs-server.service"]]
-    assert evidence.read_bytes() == b"unchanged"
-    if action != "stop":
-        (nfs.MARKET / ".northstar-storage-id").write_text(str(uuid4()) + "\n")
-        calls.clear()
-        with pytest.raises(ValueError, match="UUID"):
-            nfs.manage({"action": action})
-        assert calls == []
-
-
-def test_status_and_follow_logs_propagate_service_exit_code(nfs, monkeypatch):
-    from types import SimpleNamespace
-
-    monkeypatch.setattr(nfs.os, "geteuid", lambda: 0)
-    calls = []
-    monkeypatch.setattr(
-        nfs.subprocess,
-        "run",
-        lambda args, **kw: calls.append(args) or SimpleNamespace(returncode=3),
-    )
-    assert nfs.manage({"action": "status"}) == 3
-    assert nfs.manage({"action": "logs", "follow": True}) == 3
-    assert calls[0] == ["systemctl", "status", "--no-pager", "nfs-server.service"]
-    assert calls[1][0] == "journalctl" and "--follow" in calls[1]
-    assert not nfs.STATE.exists()
+    monkeypatch.setattr(nfs.shutil, "which", lambda name: None)
+    monkeypatch.setattr(nfs, "run", lambda *args: pytest.fail("unexpected systemd change"))
+    with pytest.raises(ValueError, match="预先安装 NFS 客户端"):
+        nfs.prepare_client({"host": "core.local", "server": "nas.local", "writer": "core.local"})
+    assert not nfs.UNITS.exists()
+    assert not nfs.MARKET.exists()

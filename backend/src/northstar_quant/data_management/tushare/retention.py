@@ -9,7 +9,9 @@ from . import publication
 
 
 def references(connection: Connection) -> list[dict[str, object]]:
-    result: list[dict[str, object]] = []
+    from ..compaction import references as compacted_references
+
+    result: list[dict[str, object]] = compacted_references(connection)
     for row in connection.execute(text("SELECT * FROM data_sync_receipts")).mappings():
         for role in ("manifest", "parquet"):
             result.append(
@@ -24,6 +26,11 @@ def references(connection: Connection) -> list[dict[str, object]]:
 
 def restore_publications(engine: Engine, files: SourceFiles) -> None:
     with engine.connect() as connection:
+        from ..compaction import references as compacted_references
+
+        for item in compacted_references(connection):
+            target = publication.storage()
+            target.store(files.read(str(item["content_hash"]), int(item["byte_count"])))
         for row in connection.execute(text("SELECT * FROM data_sync_receipts")).mappings():
             target = publication.storage()
             for role in ("parquet", "manifest"):

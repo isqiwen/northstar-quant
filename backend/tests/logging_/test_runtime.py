@@ -92,7 +92,11 @@ def test_separate_owners_rotate_and_keep_safe_bounded_records(tmp_path: Path) ->
     try:
         for runtime in owners:
             for _ in range(20):
-                runtime.handler.handle(record("password=%s payload=%s", ("private", Payload())))
+                runtime.handler.handle(
+                    record(
+                        "password=%s payload=%s", ("test-password-do-not-retain-72a9", Payload())
+                    )
+                )
             runtime.handler.handle(record("%999999999s", ("small",)))
             try:
                 raise ValueError("exception secret must not be retained")
@@ -106,7 +110,7 @@ def test_separate_owners_rotate_and_keep_safe_bounded_records(tmp_path: Path) ->
         data = [f for f in files if not f.name.endswith(".lock")]
         assert len(data) <= 3
         text = "".join(f.read_text() for f in data)
-        assert "private" not in text and "exception secret" not in text
+        assert "test-password-do-not-retain-72a9" not in text and "exception secret" not in text
         events = [json.loads(line) for line in text.splitlines()]
         assert all(e["application"] == runtime.application for e in events)
         assert all(e["component"] == runtime.component for e in events)

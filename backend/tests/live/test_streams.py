@@ -22,14 +22,16 @@ from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import Credentials
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.factors.definition import content_id
 from northstar_quant.live import streams as module
+from northstar_quant.live.materials import StrategyMaterials
 from northstar_quant.live.streams import LiveStreams
-from northstar_quant.research.artifacts import ResearchUsages
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.configurations import ConfigurationStore
+from northstar_quant.strategies.artifacts import CANDIDATE_FORMAT
 from northstar_quant.strategies.configuration import StrategyConfig
 from tests.accounting.test_ledger import ledger_query, position_baseline, trade
 from tests.apps.browser import ProtocolClient as TestClient
+from tests.apps.browser import login_response
 from tests.live.test_market import OPEN, tick
 
 
@@ -53,15 +55,44 @@ def prepare(
     monkeypatch.setenv("NORTHSTAR_SIMNOW_PASSWORD", "secret")
     monkeypatch.setenv("NORTHSTAR_SIMNOW_APP_ID", "test")
     monkeypatch.setenv("NORTHSTAR_SIMNOW_AUTH_CODE", "code")
-    library = DataLibrary(engine, SourceFiles(root / "archive"), usages=ResearchUsages(engine).list)
+    library = DataLibrary(engine, SourceFiles(root / "archive"))
     position_baseline(engine, day=trading_day)
     source = ledger_query(engine, day=trading_day)
-    configuration = ConfigurationStore(engine).save_configuration(
-        "shadow",
-        ResearchConfig(
-            strategy=StrategyConfig.create(supplied={"threshold": str(Decimal("0.001"))})
-        ),
-    )
+    # Synthetic candidate protocol evidence only; not a historical or broker acceptance.
+    clean = "a" * 40
+    for name in (
+        "northstar_quant.factors.evaluation",
+        "northstar_quant.strategies.configuration",
+        "northstar_quant.strategies.evaluation",
+        "northstar_quant.strategies.artifacts",
+    ):
+        monkeypatch.setattr(name + ".code_revision", lambda: clean)
+    config = ResearchConfig(
+        strategy=StrategyConfig.create(supplied={"threshold": str(Decimal("0.001"))})
+    ).to_dict()
+    configuration = {"name": "shadow", "config": config}
+    configuration["configuration_id"] = content_id(configuration)
+    evidence = {
+        "code_revision": clean,
+        "snapshot": {"synthetic": True},
+        "config": config,
+        "result": {"synthetic": True},
+    }
+    evidence["run_id"] = content_id(evidence)
+    document = {
+        "configuration": configuration,
+        "code_revision": clean,
+        "evidence": [evidence],
+        "validation": {"synthetic": True},
+    }
+    candidate = {
+        "format": CANDIDATE_FORMAT,
+        "version_id": content_id(document),
+        "document": document,
+        "same_clean_revision": True,
+    }
+    candidate["candidate_id"] = content_id(candidate)
+    StrategyMaterials(engine).accept(candidate)
     calls: dict[str, Any] = {"count": 0, "ready": Event()}
 
     def receive(*args: Any, **kwargs: Any) -> None:
@@ -375,13 +406,11 @@ def test_query_cannot_overtake_pending_market_receipt_clock_regression(
 
 def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
     live_web_app,
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    del clean_database
-    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    library, source, configuration, calls = prepare(live_engine, tmp_path, monkeypatch)
     identifier = uuid4()
     payload = {
         "query_batch_id": str(source),
@@ -390,10 +419,21 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
         "duration_seconds": 300,
         "allow_retention": True,
         "use_basis": "Synthetic engineering acceptance",
+        "schedule": {
+            "source_reference": "synthetic API session evidence",
+            "available_at": "2026-09-06T00:00:00+00:00",
+            "windows": [
+                {
+                    "trading_day": "2026-09-07",
+                    "opens_at": "2026-09-07T01:00:00+00:00",
+                    "closes_at": "2026-09-07T02:15:00+00:00",
+                }
+            ],
+        },
     }
-    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        assert client.post("/api/streams", json=payload).status_code == 403
-        page = client.get("/api/browser-session")
+    with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as client:
+        assert client.post("/api/streams", json=payload).status_code == 401
+        page = login_response(client)
         assert page.status_code == 200 and calls["count"] == 0
         token = page.json()["csrf"]
         client.headers["X-Northstar-CSRF"] = token
@@ -410,7 +450,9 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
         assert client.post("/api/streams", json=payload).status_code == 201
         assert calls["ready"].wait(3)
         logins(calls["accept"])
-        assert client.get(f"/api/streams/{identifier}").status_code == 200
+        retained = client.get(f"/api/streams/{identifier}")
+        assert retained.status_code == 200
+        assert retained.json()["binding"]["request"]["schedule"] == payload["schedule"]
         assert len(client.get(f"/api/streams/{identifier}/events").json()) == 2
         stopped = client.post(
             f"/api/streams/{identifier}/control",
@@ -423,17 +465,15 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
 
 def test_identity_error_cannot_resume_and_stop_keeps_tail_callbacks(
     live_web_app,
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    del clean_database
-    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
-    streams, identifier = LiveStreams(postgres_engine, library), uuid4()
+    library, source, configuration, calls = prepare(live_engine, tmp_path, monkeypatch)
+    streams, identifier = LiveStreams(live_engine, library), uuid4()
     # Account callbacks follow the fixed baseline and source query, independently
     # of the calendar date on which this synthetic trading day is replayed.
-    finished_at = BrokerRecords(postgres_engine).get(source)["capture"]["finished_at"]
+    finished_at = BrokerRecords(live_engine).get(source)["capture"]["finished_at"]
     Clock.at = datetime.fromisoformat(finished_at) + timedelta(microseconds=1)
     try:
         start(streams, source, configuration, identifier)
@@ -460,10 +500,10 @@ def test_identity_error_cannot_resume_and_stop_keeps_tail_callbacks(
     report = streams.get(identifier)
     assert report["status"] == "STOPPED" and report["received"] == report["cursor"] == 4
     assert streams.events(identifier)[-1]["event"] == calls["tail"].to_dict()
-    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        assert client.get(f"/api/streams/{identifier}").status_code == 403
+    with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as client:
+        assert client.get(f"/api/streams/{identifier}").status_code == 401
         assert client.get("/streams").status_code == 404
-        assert client.get("/api/browser-session").status_code == 200
+        assert login_response(client).status_code == 200
         result = client.get(f"/api/streams/{identifier}").json()
         assert result["paused"] and result["connection"] == "NOT_ATTACHED"
         assert calls["count"] == 1

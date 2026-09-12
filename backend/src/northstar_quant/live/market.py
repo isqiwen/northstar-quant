@@ -10,8 +10,10 @@ from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.broker.market import DAY, FRESH, SHANGHAI
 from northstar_quant.broker.sampling import sample_market
 from northstar_quant.market_data import MarketBar
+from northstar_quant.market_data.engine import BarStream
+from northstar_quant.market_data.sessions import SessionSchedule
 from northstar_quant.strategies.configuration import StrategyConfig
-from northstar_quant.strategies.runtime import StrategyRuntime
+from northstar_quant.strategies.trader import StrategyBinding, Trader
 
 
 def advance_market(
@@ -23,6 +25,7 @@ def advance_market(
     price_tick: Decimal,
     config: StrategyConfig,
     now: datetime,
+    schedule: SessionSchedule | None = None,
 ) -> dict[str, Any]:
     strategy = config.to_dict()
     if state and state["binding"].get("strategy") != strategy:
@@ -41,6 +44,7 @@ def advance_market(
         contract_id=contract_id,
         price_tick=price_tick,
         now=now,
+        schedule=schedule,
     )
     result["binding"]["strategy"] = strategy
     reset = result["status"] == "HALTED" or result["reason"] in {
@@ -53,14 +57,17 @@ def advance_market(
     completed = result["completed_bar"]
     decision = {"kind": "INPUT_UNAVAILABLE", "reason": "NO_COMPLETED_BAR", "factors": {}}
     if completed is not None:
-        runtime = StrategyRuntime(
-            config, contract_id, history=tuple(_bar(item) for item in recent), state=strategy_state
+        stream = BarStream(contract_id, 60)
+        runtime = Trader(
+            (StrategyBinding("main", config, stream),),
+            history={stream: tuple(_bar(item) for item in recent)},
+            states={"main": strategy_state},
         )
-        signal = runtime.advance(_bar(completed), at=now)
+        signal = runtime.advance(stream, _bar(completed), at=now).get("main")
         if signal is None:
             raise ValueError("sampler repeated a completed bar")
         recent.append(dict(completed))
-        recent = recent[-len(runtime.history) :]
+        recent = recent[-len(runtime.history("main")) :]
         strategy_state = signal.decision.state
         decision = {
             "kind": signal.decision.kind.value,
@@ -108,7 +115,7 @@ def _bar(item: dict[str, Any]) -> MarketBar:
 
 
 def idle_reason(state: dict[str, Any] | None, *, now: datetime) -> str | None:
-    """Classify absent SHFE DAY input without changing its verified checkpoint.
+    """Classify absent SHFE input against its fixed sessions without changing state.
 
     No accepted quote means no inferred TradingDay or session status. A planned
     break/end requires the previous segment's final five seconds to have been
@@ -130,12 +137,23 @@ def idle_reason(state: dict[str, Any] | None, *, now: datetime) -> str | None:
     observed, received = _at(quote["event_time"]), _at(quote["received_at"])
     local_now = now.astimezone(SHANGHAI)
     segment = quote["segment"]
-    end = datetime.combine(day, DAY[segment][1], SHANGHAI)
-    if local_now.date() == day and timedelta(0) < end - observed <= FRESH:
-        if segment == len(DAY) - 1 and local_now >= end:
-            return "DAY_SESSION_ENDED"
-        if segment < len(DAY) - 1:
-            next_start = datetime.combine(day, DAY[segment + 1][0], SHANGHAI)
+    declared = state["binding"].get("schedule")
+    schedule = None if declared is None else SessionSchedule.from_dict(declared)
+    end = (
+        datetime.combine(day, DAY[segment][1], SHANGHAI)
+        if schedule is None
+        else schedule.windows[segment].closes_at
+    )
+    count = len(DAY) if schedule is None else len(schedule.windows)
+    if (schedule is not None or local_now.date() == day) and timedelta(0) < end - observed <= FRESH:
+        if segment == count - 1 and local_now >= end:
+            return "DAY_SESSION_ENDED" if schedule is None else "SESSION_SCHEDULE_ENDED"
+        if segment < count - 1:
+            next_start = (
+                datetime.combine(day, DAY[segment + 1][0], SHANGHAI)
+                if schedule is None
+                else schedule.windows[segment + 1].opens_at
+            )
             if end <= local_now < next_start:
                 return "SCHEDULED_BREAK"
     if now - observed > FRESH or now - received > FRESH:

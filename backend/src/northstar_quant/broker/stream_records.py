@@ -13,8 +13,9 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.sql.selectable import TextualSelect
 
 from northstar_quant.broker.events import BrokerEvent
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.data_management.broker import verify_broker_contract
+from northstar_quant.persistence.sql import UTCDateTime
 
 _ARCHIVE_BYTES = 5 * 1024 * 1024
 
@@ -33,9 +34,9 @@ def text(statement: str) -> TextualSelect:
         account_entry_id=Uuid,
         request_id=Uuid,
         entry_id=Uuid,
-        created_at=EvidenceTimestamp(),
-        updated_at=EvidenceTimestamp(),
-        committed_at=EvidenceTimestamp(),
+        created_at=UTCDateTime(),
+        updated_at=UTCDateTime(),
+        committed_at=UTCDateTime(),
     )
 
 
@@ -57,6 +58,27 @@ def read_stream_source(connection: Connection, identifier: UUID) -> dict[str, ob
     if _hash(result["binding"]) != result["binding_hash"]:
         raise ValueError("stream binding integrity failed")
     return result
+
+
+def read_stream_event(connection: Connection, identifier: UUID, sequence: int) -> BrokerEvent:
+    """Read one already committed copied event with its original content identity."""
+    row = (
+        connection.execute(
+            text(
+                "SELECT event, event_hash FROM broker_stream_events "
+                "WHERE stream_id=:id AND sequence=:seq"
+            ),
+            {"id": identifier, "seq": sequence},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is None or _hash(row["event"]) != row["event_hash"]:
+        raise ValueError("stream event source is missing or damaged")
+    event = BrokerEvent.from_dict(row["event"])
+    if event.sequence != sequence:
+        raise ValueError("stream event source sequence differs")
+    return event
 
 
 def append_stream_event(

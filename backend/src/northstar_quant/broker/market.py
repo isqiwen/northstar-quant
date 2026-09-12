@@ -1,4 +1,4 @@
-"""Decode explicit CTP SHFE daytime quotes and their source/receipt clocks."""
+"""Decode CTP SHFE quotes against explicit civil clocks and trading sessions."""
 
 import hashlib
 import json
@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.market_data.sessions import SessionSchedule, resolve_trading_day
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 DAY = ((time(9), time(10, 15)), (time(10, 30), time(11, 30)), (time(13, 30), time(15)))
@@ -19,17 +20,32 @@ _CLOCK = timedelta(seconds=1)
 
 
 def decode_quote(
-    event: BrokerEvent, instrument: str, tick: Decimal, now: datetime
+    event: BrokerEvent,
+    instrument: str,
+    tick: Decimal,
+    now: datetime,
+    schedule: SessionSchedule | None = None,
 ) -> dict[str, Any]:
     row = event.data or {}
     if str(row.get("InstrumentID", "")).upper() != instrument.upper():
         raise ValueError("INSTRUMENT_MISMATCH")
     if row.get("ExchangeID") not in (None, "", "SHFE"):
         raise ValueError("EXCHANGE_MISMATCH")
-    local = ctp_day_quote_time(row).astimezone(SHANGHAI)
+    local = ctp_quote_time(row, schedule=schedule).astimezone(SHANGHAI)
     day = row["TradingDay"]
-    segment = next(
-        (index for index, (start, end) in enumerate(DAY) if start <= local.time() < end), None
+    if schedule is not None and schedule.available_at > min(now, local):
+        raise ValueError("SESSION_SCHEDULE_NOT_AVAILABLE")
+    segment = (
+        next((index for index, (start, end) in enumerate(DAY) if start <= local.time() < end), None)
+        if schedule is None
+        else next(
+            (
+                index
+                for index, window in enumerate(schedule.windows)
+                if window.opens_at <= local < window.closes_at
+            ),
+            None,
+        )
     )
     if segment is None:
         raise ValueError("OUTSIDE_SHFE_DAY")
@@ -66,14 +82,13 @@ def decode_quote(
     }
 
 
-def ctp_day_quote_time(row: Mapping[str, Any]) -> datetime:
-    """Resolve the source clock used by DAY sampling and opening-budget freshness.
-
-    Receipt or calculation time never substitutes for a missing CTP source clock.
-    This only resolves explicit same-day timestamps, not a night-session calendar.
-    """
+def ctp_quote_time(row: Mapping[str, Any], *, schedule: SessionSchedule | None = None) -> datetime:
+    """Resolve ActionDay as civil time and separately verify declared TradingDay."""
     day, action = row.get("TradingDay"), row.get("ActionDay")
-    if not isinstance(day, str) or re.fullmatch(r"[0-9]{8}", day) is None or action != day:
+    if any(
+        not isinstance(value, str) or re.fullmatch(r"[0-9]{8}", value) is None
+        for value in (day, action)
+    ) or (schedule is None and action != day):
         raise ValueError("SOURCE_DATES_NOT_CONFIRMED")
     clock, millis = row.get("UpdateTime"), row.get("UpdateMillisec")
     if (
@@ -84,10 +99,18 @@ def ctp_day_quote_time(row: Mapping[str, Any]) -> datetime:
     ):
         raise ValueError("SOURCE_TIME_NOT_CONFIRMED")
     try:
-        local = datetime.combine(date.fromisoformat(day), time.fromisoformat(clock), SHANGHAI)
+        local = datetime.combine(
+            date.fromisoformat(str(action)), time.fromisoformat(clock), SHANGHAI
+        )
     except ValueError as error:
         raise ValueError("SOURCE_TIME_NOT_CONFIRMED") from error
     local += timedelta(milliseconds=millis)
+    if schedule is not None and schedule.available_at > local:
+        raise ValueError("SESSION_SCHEDULE_NOT_AVAILABLE")
+    if schedule is not None and resolve_trading_day(local, schedule.windows) != date.fromisoformat(
+        str(day)
+    ):
+        raise ValueError("SOURCE_SESSION_NOT_CONFIRMED")
     return local.astimezone(UTC)
 
 

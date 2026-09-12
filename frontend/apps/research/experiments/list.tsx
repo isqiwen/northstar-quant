@@ -6,6 +6,7 @@ import { query, mutate, type CommandResponse } from "../api/client";
 import { useData } from "../../../shared/data";
 import { Heading, Failure, Identity } from "../../../shared/ui";
 import { TaskTable } from "./tasks";
+import Studies from "./studies";
 function parameters(value: unknown, path = ""): Record<string, string> {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
     return Object.assign(
@@ -53,6 +54,7 @@ export default function Experiments() {
       <Failure error={tasks.error || runs.error} />
       <Tabs
         items={[
+          { key: "studies", label: "参数实验", children: <Studies /> },
           {
             key: "tasks",
             label: "运行任务",

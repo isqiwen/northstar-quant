@@ -17,6 +17,7 @@ from northstar_quant.data_management.tushare import (
     publication,
     settings,
 )
+from tests.apps.browser import login_response
 
 TOKEN = "private-test-token-never-returned"
 
@@ -232,9 +233,9 @@ def test_ui_token_is_write_only_and_manual_interfaces_are_absent(automatic, monk
     }
     app = create_app(automatic._engine, automatic)
     with TestClient(app, base_url="http://127.0.0.1") as client:
-        assert client.post("/api/sync/reprocess", json=replay).status_code == 403
-        assert client.post("/api/sync/token", json={"token": TOKEN}).status_code == 403
-        csrf = client.get("/api/browser-session").json()["csrf"]
+        assert client.post("/api/sync/reprocess", json=replay).status_code == 401
+        assert client.post("/api/sync/token", json={"token": TOKEN}).status_code == 401
+        csrf = login_response(client).json()["csrf"]
         client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
         saved = client.post("/api/sync/token", json={"token": TOKEN})
         assert saved.status_code == 200, saved.text
@@ -383,7 +384,7 @@ def test_daily_missing_middle_day_cannot_advance_coverage(automatic, monkeypatch
 
 
 def test_joint_restore_preserves_downloads_and_fixed_publication(automatic, monkeypatch, tmp_path):
-    from northstar_quant.apps.maintenance import backup, restore
+    from northstar_quant.data_management.backup import backup, restore
     from tests.apps.test_maintenance import _empty_restore_database
 
     pending(automatic)

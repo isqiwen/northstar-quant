@@ -10,7 +10,9 @@ from northstar_quant.apps.live.instances import Instances
 from northstar_quant.live.auth import LiveAuth
 from northstar_quant.live.client import LiveClient
 from northstar_quant.live.instances import Instance
+from northstar_quant.web import auth_pb2
 from northstar_quant.web.protobuf import decode
+from tests.apps.browser import login_response
 
 
 def test_protobuf_commands_reject_unscoped_or_malformed_requests_before_owner() -> None:
@@ -33,10 +35,10 @@ def test_protobuf_commands_reject_unscoped_or_malformed_requests_before_owner() 
             client.post(
                 path, content=valid, headers={"Content-Type": "application/protobuf"}
             ).status_code
-            == 403
+            == 401
         )
-        session = client.get("/api/browser-session")
-        csrf = decode(api_pb2.BrowserSession.DESCRIPTOR, session.content)["csrf"]
+        session = login_response(client)
+        csrf = decode(auth_pb2.BrowserSession.DESCRIPTOR, session.content)["csrf"]
         client.headers.update(
             {
                 "X-Northstar-CSRF": csrf,

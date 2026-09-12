@@ -46,19 +46,6 @@
       "array": false,
       "evidence": false
     },
-    "northstar.research.BrowserSession": {
-      "fields": {
-        "csrf": {
-          "id": 1,
-          "presence": true,
-          "type": "string",
-          "required": true,
-          "nullable": false
-        }
-      },
-      "array": false,
-      "evidence": false
-    },
     "northstar.research.Catalog": {
       "fields": {
         "factors": {
@@ -372,6 +359,22 @@
           "required": false,
           "nullable": false,
           "rule": "repeated"
+        },
+        "settlements": {
+          "id": 20,
+          "presence": false,
+          "type": "northstar.accounting.SettlementFact",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "terms": {
+          "id": 21,
+          "presence": false,
+          "type": "northstar.accounting.FuturesTerms",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
         }
       },
       "array": false,
@@ -521,6 +524,175 @@
           "required": false,
           "nullable": false,
           "keyType": "string"
+        },
+        "close": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "cash": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "position_lots": {
+          "id": 6,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "realized_pnl": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "unrealized_pnl": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "total_fees": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "drawdown": {
+          "id": 10,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "drawdown_fraction": {
+          "id": 11,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "long_lots": {
+          "id": 12,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "short_lots": {
+          "id": 13,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "net_exposure": {
+          "id": 14,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "gross_exposure": {
+          "id": 15,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "settlement_pnl": {
+          "id": 16,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trade_realized_pnl": {
+          "id": 17,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "terms_id": {
+          "id": 18,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "margin_used": {
+          "id": 19,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "available": {
+          "id": 20,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "reserved_fee": {
+          "id": 21,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "reserved_margin": {
+          "id": 22,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "reserved_close_lots": {
+          "id": 23,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "available_after_reservations": {
+          "id": 24,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "reserved_gross": {
+          "id": 25,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "reserved_loss": {
+          "id": 26,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
         }
       },
       "array": false,
@@ -667,6 +839,206 @@
           "required": true,
           "nullable": false,
           "rule": "repeated"
+        },
+        "analysis": {
+          "id": 4,
+          "presence": true,
+          "type": "northstar.research.FactorAnalysis",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.ForwardGroup": {
+      "fields": {
+        "group": {
+          "id": 1,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "samples": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "mean_forward_return": {
+          "id": 3,
+          "presence": true,
+          "type": "double",
+          "required": true,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.ForwardDay": {
+      "fields": {
+        "trading_day": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "samples": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "spearman": {
+          "id": 3,
+          "presence": true,
+          "type": "double",
+          "required": true,
+          "nullable": true
+        },
+        "mean_forward_return": {
+          "id": 4,
+          "presence": true,
+          "type": "double",
+          "required": true,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.FactorHorizon": {
+      "fields": {
+        "bars": {
+          "id": 1,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "samples": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "excluded": {
+          "id": 3,
+          "presence": false,
+          "type": "int64",
+          "required": true,
+          "nullable": false,
+          "keyType": "string"
+        },
+        "status": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "pearson": {
+          "id": 5,
+          "presence": true,
+          "type": "double",
+          "required": true,
+          "nullable": true
+        },
+        "spearman": {
+          "id": 6,
+          "presence": true,
+          "type": "double",
+          "required": true,
+          "nullable": true
+        },
+        "group_change_fraction": {
+          "id": 7,
+          "presence": true,
+          "type": "double",
+          "required": true,
+          "nullable": true
+        },
+        "groups": {
+          "id": 8,
+          "presence": false,
+          "type": "northstar.research.ForwardGroup",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "days": {
+          "id": 9,
+          "presence": false,
+          "type": "northstar.research.ForwardDay",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.FactorAnalysis": {
+      "fields": {
+        "plan": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "numeric": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "horizons": {
+          "id": 3,
+          "presence": false,
+          "type": "northstar.research.FactorHorizon",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "limitations": {
+          "id": 4,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
         }
       },
       "array": false,
@@ -722,6 +1094,20 @@
     },
     "northstar.research.FactorRun": {
       "fields": {
+        "total": {
+          "id": 10,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "done": {
+          "id": 11,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
         "attempt_id": {
           "id": 1,
           "presence": true,
@@ -807,6 +1193,13 @@
     },
     "northstar.research.FactorRunRequest": {
       "fields": {
+        "request_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
         "revision_id": {
           "id": 1,
           "presence": true,
@@ -1065,6 +1458,13 @@
     },
     "northstar.research.ImportSpecification": {
       "fields": {
+        "interval": {
+          "id": 17,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
         "session_kind": {
           "id": 16,
           "presence": true,
@@ -1486,10 +1886,32 @@
     },
     "northstar.research.ResearchResultDocument": {
       "fields": {
+        "performance": {
+          "id": 9,
+          "presence": true,
+          "type": "northstar.research.PerformanceReport",
+          "required": true,
+          "nullable": false
+        },
+        "evaluation": {
+          "id": 8,
+          "presence": true,
+          "type": "northstar.research.EvaluationResult",
+          "required": true,
+          "nullable": false
+        },
+        "orders": {
+          "id": 7,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
         "data": {
           "id": 1,
           "presence": true,
-          "type": "google.protobuf.Struct",
+          "type": "northstar.research.DatasetDetails",
           "required": true,
           "nullable": true
         },
@@ -1537,6 +1959,14 @@
           "presence": false,
           "type": "string",
           "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "settlements": {
+          "id": 6,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
           "nullable": false,
           "rule": "repeated"
         }
@@ -1878,6 +2308,13 @@
     },
     "northstar.research.SimulationInput": {
       "fields": {
+        "max_volume_participation": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
         "fee_per_lot": {
           "id": 1,
           "presence": true,
@@ -1954,7 +2391,7 @@
           "required": true,
           "nullable": false
         },
-        "production_eligible": {
+        "same_clean_revision": {
           "id": 4,
           "presence": true,
           "type": "bool",
@@ -2496,6 +2933,245 @@
       "array": false,
       "evidence": false
     },
+    "northstar.research.ExperimentRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "hypothesis": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "train_snapshot": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "validation_snapshot": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "test_snapshot": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "configurations": {
+          "id": 6,
+          "presence": false,
+          "type": "northstar.research.ResearchConfigurationInput",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.LearningRecipeInput": {
+      "fields": {
+        "fast_bars": {
+          "id": 1,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "slow_bars": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "horizon_bars": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "penalties": {
+          "id": 4,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "threshold": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "target_fraction": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.LearningExperimentRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "hypothesis": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "train_snapshot": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "validation_snapshot": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "test_snapshot": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "configurations": {
+          "id": 6,
+          "presence": false,
+          "type": "northstar.research.ResearchConfigurationInput",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "learning": {
+          "id": 7,
+          "presence": true,
+          "type": "northstar.research.LearningRecipeInput",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.Experiment": {
+      "fields": {
+        "fitted": {
+          "id": 8,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": true
+        },
+        "experiment_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "plan_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "created_at": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "plan": {
+          "id": 5,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "selection": {
+          "id": 6,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": true
+        },
+        "trials": {
+          "id": 7,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.ExperimentList": {
+      "fields": {
+        "items": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.research.Experiment",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": true,
+      "evidence": false
+    },
     "northstar.research.TaskList": {
       "fields": {
         "items": {
@@ -2508,6 +3184,415 @@
         }
       },
       "array": true,
+      "evidence": false
+    },
+    "northstar.research.EvaluationPlan": {
+      "fields": {
+        "plan_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "revision": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "snapshot_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "content_hash": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "window": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "event_start": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "event_end": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "expected_bars": {
+          "id": 8,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": true
+        },
+        "benchmark": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "annualization": {
+          "id": 10,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "risk_free_rate": {
+          "id": 11,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "sample_use": {
+          "id": 12,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.EvaluationResult": {
+      "fields": {
+        "plan": {
+          "id": 1,
+          "presence": true,
+          "type": "northstar.research.EvaluationPlan",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "observed_bars": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "benchmark_ending_equity": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "benchmark_return": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "excess_return": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "annualized_return": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "sharpe": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "limitations": {
+          "id": 9,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.PerformancePeriod": {
+      "fields": {
+        "period": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start_at": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end_at": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "opening_equity": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "closing_equity": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "pnl": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "return_fraction": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "observations": {
+          "id": 8,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.DrawdownPeriod": {
+      "fields": {
+        "peak_at": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start_at": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trough_at": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end_at": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "peak_equity": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trough_equity": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "drawdown": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "drawdown_fraction": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "elapsed_seconds": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "recovered": {
+          "id": 10,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.RollingReturn": {
+      "fields": {
+        "start_day": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end_day": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "observed_days": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "return_fraction": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.PerformanceReport": {
+      "fields": {
+        "daily": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.research.PerformancePeriod",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "monthly": {
+          "id": 2,
+          "presence": false,
+          "type": "northstar.research.PerformancePeriod",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "drawdowns": {
+          "id": 3,
+          "presence": false,
+          "type": "northstar.research.DrawdownPeriod",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "rolling": {
+          "id": 4,
+          "presence": false,
+          "type": "northstar.research.RollingReturn",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "basis": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
       "evidence": false
     },
     "northstar.web.Empty": {
@@ -2562,9 +3647,320 @@
       },
       "array": false,
       "evidence": false
+    },
+    "northstar.web.auth.BrowserSession": {
+      "fields": {
+        "setup_required": {
+          "id": 5,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "authenticated": {
+          "id": 1,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "csrf": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "operator": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "expires_at": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.web.auth.LoginRequest": {
+      "fields": {
+        "username": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "password": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.accounting.ChargeRate": {
+      "fields": {
+        "by_money": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "by_volume": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.accounting.FuturesTerms": {
+      "fields": {
+        "terms_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "contract_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "effective_from": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "effective_until": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "available_at": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_reference": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "open_fee": {
+          "id": 7,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "close_today_fee": {
+          "id": 8,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "close_yesterday_fee": {
+          "id": 9,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "long_margin": {
+          "id": 10,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "short_margin": {
+          "id": 11,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "lower_limit": {
+          "id": 12,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "upper_limit": {
+          "id": 13,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "money_quantum": {
+          "id": 14,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "fee_rounding": {
+          "id": 15,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.accounting.SettlementFact": {
+      "fields": {
+        "settlement_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "contract_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trading_day": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "next_trading_day": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "settled_at": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "available_at": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "price": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_reference": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/experiments/learn",
+      "input": "northstar.research.LearningExperimentRequest",
+      "output": "northstar.research.Experiment",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/experiments",
+      "input": "northstar.research.ExperimentRequest",
+      "output": "northstar.research.Experiment",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/experiments",
+      "input": "northstar.web.Empty",
+      "output": "northstar.research.ExperimentList",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/experiments/{experiment_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.research.Experiment",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/setup",
+      "input": "northstar.web.auth.LoginRequest",
+      "output": "northstar.web.auth.BrowserSession",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/login",
+      "input": "northstar.web.auth.LoginRequest",
+      "output": "northstar.web.auth.BrowserSession",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/logout",
+      "input": "northstar.web.Empty",
+      "output": "northstar.web.auth.BrowserSession",
+      "runtime": false
+    },
     {
       "method": "POST",
       "path": "/api/tasks",
@@ -2597,7 +3993,7 @@
       "method": "GET",
       "path": "/api/browser-session",
       "input": "northstar.web.Empty",
-      "output": "northstar.research.BrowserSession",
+      "output": "northstar.web.auth.BrowserSession",
       "runtime": false
     },
     {
@@ -2688,6 +4084,13 @@
       "method": "POST",
       "path": "/api/factor-runs",
       "input": "northstar.research.FactorRunRequest",
+      "output": "northstar.research.FactorRun",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/factor-runs/{attempt_id}/cancel",
+      "input": "northstar.research.PublishRequest",
       "output": "northstar.research.FactorRun",
       "runtime": false
     },

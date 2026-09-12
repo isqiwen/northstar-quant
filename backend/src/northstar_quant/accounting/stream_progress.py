@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import nullcontext
 from datetime import UTC
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid5
@@ -19,10 +20,13 @@ from sqlalchemy.sql.selectable import TextualSelect
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.ledger import _hash, _time
-from northstar_quant.broker.events import BrokerEvent
-from northstar_quant.broker.records import EvidenceTimestamp
+from northstar_quant.broker.events import (
+    ACCOUNT_ACTIVITY_CALLBACKS,
+    TRANSFER_CALLBACKS,
+    BrokerEvent,
+)
 from northstar_quant.broker.stream_records import read_stream_source
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 if TYPE_CHECKING:
     from northstar_quant.accounting.ledger import BrokerLedger
@@ -42,9 +46,9 @@ def text(statement: str) -> TextualSelect:
         account_entry_id=Uuid,
         request_id=Uuid,
         entry_id=Uuid,
-        created_at=EvidenceTimestamp(),
-        updated_at=EvidenceTimestamp(),
-        committed_at=EvidenceTimestamp(),
+        created_at=UTCDateTime(),
+        updated_at=UTCDateTime(),
+        committed_at=UTCDateTime(),
     )
 
 
@@ -116,7 +120,7 @@ def _initial(binding: dict[str, Any]) -> dict[str, Any]:
 
 
 def _material(event: BrokerEvent, binding: dict[str, Any]) -> bool:
-    if event.callback in {"OnRtnTrade", "OnRtnOrder"}:
+    if event.callback in ACCOUNT_ACTIVITY_CALLBACKS:
         return True
     if event.channel != "TD":
         return False
@@ -124,7 +128,7 @@ def _material(event: BrokerEvent, binding: dict[str, Any]) -> bool:
         return True
     if event.callback == "OnRspUserLogin":
         data = event.data or {}
-        return any(
+        return event.is_last is not True or any(
             data.get(field) != binding[key]
             for field, key in (
                 ("UserID", "account_id"),
@@ -163,6 +167,8 @@ def _apply(checkpoint: dict[str, Any], binding: dict[str, Any], item: dict[str, 
         checkpoint.update(
             td_confirmed=False, status="UNKNOWN", reason="STREAM_ACCOUNT_CONNECTION_ERROR"
         )
+    if event.callback in TRANSFER_CALLBACKS:
+        checkpoint.update(status="UNKNOWN", reason="STREAM_CASHFLOW_RECONCILIATION_REQUIRED")
     if checkpoint["last_received_at"] is not None and _time(event.received_at) < _time(
         checkpoint["last_received_at"]
     ):
@@ -351,10 +357,14 @@ class _StreamAccount:
             {"id": stream_id, "after": after, "through": through},
         ).mappings()
 
-    def advance(self, stream_id: UUID, through_sequence: int) -> dict[str, Any]:
+    def advance(
+        self, stream_id: UUID, through_sequence: int, *, transaction: Connection | None = None
+    ) -> dict[str, Any]:
         if type(through_sequence) is not int or not 0 <= through_sequence <= 100000:
             raise ValueError("account catchup requires a bounded saved sequence")
-        with write_transaction(self.engine) as connection:
+        with (
+            nullcontext(transaction) if transaction is not None else write_transaction(self.engine)
+        ) as connection:
             self._lock(connection, stream_id)
             row = self._read(connection, stream_id)
             if row["baseline_id"] is None:

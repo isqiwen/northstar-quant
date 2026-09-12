@@ -34,7 +34,8 @@ parameters = { window_bars = 1 }
 [research.strategy.parameters]
 threshold = "0.005"
 target_fraction = "0.5"
-order_lifetime_seconds = 120
+# Leave time for a complete post-order minute and its explicit delivery delay.
+order_lifetime_seconds = 180
 
 [research.risk]
 max_lots = 10

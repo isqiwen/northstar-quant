@@ -3,16 +3,14 @@ package northstar.data_hub;
 import "google/protobuf/struct.proto";
 import "api_options.proto";
 import "common.proto";
+import "web_auth.proto";
+import "accounting.proto";
 
 message AdmissionRejection {
   option (northstar.web.evidence) = true;
   optional string reason = 1 [json_name = "reason", (northstar.web.required_field) = true];
   optional string rejection_id = 2 [json_name = "rejection_id", (northstar.web.required_field) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
-}
-
-message BrowserSession {
-  optional string csrf = 1 [json_name = "csrf", (northstar.web.required_field) = true];
 }
 
 message DatasetDetails {
@@ -36,6 +34,8 @@ message DatasetDetails {
   optional string symbol = 18 [json_name = "symbol", (northstar.web.required_field) = true];
   repeated string trading_days = 19 [json_name = "trading_days", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
+  repeated northstar.accounting.SettlementFact settlements = 20 [json_name = "settlements", (northstar.web.required_field) = true];
+  repeated northstar.accounting.FuturesTerms terms = 21 [json_name = "terms", (northstar.web.required_field) = true];
 }
 
 message DatasetLineage {
@@ -70,6 +70,7 @@ message HttpError {
 
 
 message ImportSpecification {
+  optional string interval = 17 [json_name = "interval", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"1m\",\"5m\",\"15m\",\"30m\",\"60m\"]"];
   optional string session_kind = 16 [json_name = "session_kind", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"DAY\",\"NIGHT\"]"];
   optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
   optional string availability_note = 2 [json_name = "availability_note", (northstar.web.required_field) = true];
@@ -249,6 +250,7 @@ message ExplorerRows {
   repeated google.protobuf.Struct fields = 11 [(northstar.web.required_field) = true];
   repeated google.protobuf.Struct versions = 12 [(northstar.web.required_field) = true];
   optional string note = 13 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct scan = 17 [(northstar.web.required_field) = true];
 }
 
 message RevisionRequest {
@@ -270,7 +272,49 @@ message RevisionComparison {
   optional string note = 11 [(northstar.web.required_field) = true];
 }
 
+message CompactionRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string dataset = 2 [(northstar.web.required_field) = true];
+  optional string scope = 3 [(northstar.web.required_field) = true];
+  optional string start = 4 [(northstar.web.required_field) = true];
+  optional string end = 5 [(northstar.web.required_field) = true];
+  repeated string receipt_ids = 6 [(northstar.web.required_field) = true];
+}
+message Compaction {
+  optional string compaction_id = 1 [(northstar.web.required_field) = true];
+  optional string plan_id = 2 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct plan = 3 [(northstar.web.required_field) = true];
+  optional string created_at = 4 [(northstar.web.required_field) = true];
+  optional string status = 5 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct result = 6 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string error = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+message CompactionPage {
+  optional int64 offset = 1 [(northstar.web.required_field) = true];
+  optional int64 limit = 2 [(northstar.web.required_field) = true];
+}
+message CompactionList { option (northstar.web.root_array) = true; repeated Compaction items = 1; }
+
 service BrowserApi {
+  rpc SubmitCompaction(CompactionRequest) returns (Compaction) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions"; }
+  rpc ListCompactions(northstar.web.Empty) returns (CompactionList) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer/compactions"; }
+  rpc GetCompaction(northstar.web.Empty) returns (Compaction) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}"; }
+  rpc ReadCompaction(CompactionPage) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}/query"; }
+  rpc ExportCompaction(CompactionPage) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}/export"; }
+
+  rpc PostApiSetup(northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/setup";
+  }
+  rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/login";
+  }
+  rpc PostApiLogout (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/logout";
+  }
   rpc CompareRevisions (RevisionRequest) returns (RevisionComparison) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/explorer/compare";
@@ -326,7 +370,7 @@ service BrowserApi {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/attempts/{attempt_id}";
   }
-  rpc GetApiBrowserSession (northstar.web.Empty) returns (BrowserSession) {
+  rpc GetApiBrowserSession (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/browser-session";
   }

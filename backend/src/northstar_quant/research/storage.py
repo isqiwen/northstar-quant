@@ -3,22 +3,12 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
-from contextlib import contextmanager
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Connection, DateTime, Engine, create_engine, event, inspect
-from sqlalchemy.types import TypeDecorator
+from sqlalchemy import Connection, Engine, event, inspect
 
-
-class UTCDateTime(TypeDecorator[datetime]):
-    impl = DateTime(timezone=True)
-    cache_ok = True
-
-    def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
-        return value.replace(tzinfo=UTC) if value is not None and value.tzinfo is None else value
+from northstar_quant.persistence.sql import sqlite_engine, write_transaction
 
 
 def open_store(path: Path | None = None) -> Engine:
@@ -52,7 +42,7 @@ def open_store(path: Path | None = None) -> Engine:
             os.fsync(directory)
         finally:
             os.close(directory)
-    engine = create_engine("sqlite+pysqlite:///" + str(path), connect_args={"timeout": 5})
+    engine = sqlite_engine(path, timeout=5)
 
     @event.listens_for(engine, "connect")
     def connect(dbapi: Any, _record: Any) -> None:
@@ -62,25 +52,7 @@ def open_store(path: Path | None = None) -> Engine:
         dbapi.execute("PRAGMA synchronous=FULL")
         dbapi.execute("PRAGMA busy_timeout=5000")
 
-    @event.listens_for(engine, "begin")
-    def begin(connection: Connection) -> None:
-        # Readers retain a snapshot without reserving SQLite's sole writer.
-        statement = (
-            "BEGIN IMMEDIATE"
-            if connection.get_execution_options().get("research_write")
-            else "BEGIN"
-        )
-        connection.exec_driver_sql(statement)
-
     return engine
-
-
-@contextmanager
-def write_transaction(engine: Engine) -> Iterator[Connection]:
-    """Reserve the SQLite writer before reading state that this operation will change."""
-    with engine.connect().execution_options(research_write=True) as connection:
-        with connection.begin():
-            yield connection
 
 
 def immutable(connection: Connection, table: str) -> None:
@@ -143,6 +115,9 @@ def require_current(engine: Engine) -> None:
         required = {
             "northstar_store",
             "research_jobs",
+            "research_experiments",
+            "research_experiment_fits",
+            "research_experiment_selections",
             "research_job_attempts",
             "research_runs",
             "research_attempts",
@@ -162,3 +137,16 @@ def require_current(engine: Engine) -> None:
             != "research"
         ):
             raise ValueError("Research storage requires current initialization")
+        replay_columns = {
+            item["name"] for item in inspect(connection).get_columns("paper_sessions")
+        }
+        if "interval_seconds" not in replay_columns:
+            raise ValueError("Research storage requires current fixed stream initialization")
+        columns = {item["name"] for item in inspect(connection).get_columns("factor_runs")}
+        if not {"inputs", "total", "done"} <= columns:
+            raise ValueError("Research storage requires current factor task initialization")
+        fit_columns = {
+            item["name"] for item in inspect(connection).get_columns("research_experiment_fits")
+        }
+        if "status" not in fit_columns:
+            raise ValueError("Research storage requires current fit task initialization")

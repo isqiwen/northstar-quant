@@ -7,7 +7,7 @@ Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管�
 
 在 `deploy/hosts.toml` 填写 Live 主机的 `host`、`user` 和 SSH `port`。
 `user` 仅用于首次登录和提权，初始化后由脚本创建的 `northstar` 用户管理部署。
-目标主机需具备 SSH 和 Python 3.11+；部署脚本自动安装缺失的部署依赖。
+目标主机默认 SSH 登录和部署依赖须可用，deploy 自动准备 northstar 账号，见[部署前置要求](../README.md#部署与访问)。
 
 应用配置统一放在 [deploy/live/.env](.env)：
 
@@ -33,7 +33,6 @@ Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管�
 
 ```sh
 # 首次初始化主机
-./scripts/northstarctl.py init-host live
 
 # 部署已提交代码，首次自动上传本地 deploy/live/.env
 ./scripts/northstarctl.py deploy live
@@ -55,6 +54,12 @@ Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管�
 默认保留已有远程配置；`start`、`restart` 使用已部署版本，不重新构建。
 整套 `restart`、`stop` 会影响内核，`stop` 保留持久数据。
 前端和管理 API 单独重启不负责停止内核。
+
+每个实例另有 `live-monitor` 容器，使用单独的只读凭据，每 5 秒查询内核、本地存储与全量订单健康。
+UNKNOWN 订单、事实冲突、未确认费用和存储异常均会报告。状态变化立即输出 JSON 告警，不变时每分钟输出心跳；通过上述 `logs live` 可见。
+它不访问账户数据库、不持有柜台或控制凭据，也不启动、重启或授权内核。
+`restart live --instance sim` 只重启交易内核，观察进程继续报告中断与恢复。
+目前出口是容器日志，尚未配置外部告警接收方；整台主机失联必须由另一台机器上的观察者检测，不能由本机进程保证。
 
 ## 访问与目录
 
@@ -116,3 +121,12 @@ SQLite 使用 WAL、FULL 同步和短写事务；实例进程锁不随时间过�
 恢复保留实例、环境和账户绑定，不自动重新连接或授权发送。当前没有旧 PostgreSQL 数据自动转换工具。
 
 运行环境固定为 `BACKTEST` / `SANDBOX` / `LIVE`。两个 SimNow profile 都属于 SANDBOX，仍使用外部 CTP 柜台；生产资金属于 LIVE。部署按 profile 自动注入 `NORTHSTAR_ENVIRONMENT` 和 `NORTHSTAR_BROKER_PROFILE`；独立启动也必须匹配这两个值。修改配置不能切换已有数据库的账户绑定。
+
+
+## 固定策略材料
+
+在 Research 发布候选 JSON，在 Live 的“固定策略材料”页面接收。核验通过后，
+其配置会出现在“持续行情与影子策略”的本地配置列表；Research 停机不影响读取。
+会话固定具体候选，后续接收不会改写旧绑定。接收材料不授权下单。
+
+工作台首次访问创建唯一用户。普通重启保留账号；每次 deploy 清除账号，重新访问创建。

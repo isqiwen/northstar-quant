@@ -42,7 +42,7 @@ def write(path: Path, content: bytes, mode: int, uid: int, gid: int) -> None:
 def initialize(public_key: str) -> None:
     os.environ["PATH"] += os.pathsep + "/usr/sbin:/sbin"
     if os.geteuid() != 0:
-        raise ValueError("init-host 必须以 root 执行")
+        raise ValueError("账号准备必须以 root 执行")
     if len(public_key) > 16384 or len(public_key.splitlines()) != 1:
         raise ValueError("请提供单行 SSH 公钥")
     fields = public_key.split()
@@ -53,13 +53,7 @@ def initialize(public_key: str) -> None:
         key.write_text(public_key + "\n")
         subprocess.run(["ssh-keygen", "-lf", str(key)], check=True, stdout=subprocess.DEVNULL)
         if shutil.which("sudo") is None or shutil.which("visudo") is None:
-            if shutil.which("apt-get") is None:
-                raise ValueError("请先安装 sudo；自动安装仅支持 apt 主机")
-            subprocess.run(["apt-get", "update"], check=True)
-            subprocess.run(
-                ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", "sudo"],
-                check=True,
-            )
+            raise ValueError("应用主机需要预先安装 sudo/visudo")
         policy = Path(temporary) / "sudoers"
         policy.write_bytes(RULE)
         subprocess.run(["visudo", "-cf", str(policy)], check=True)
@@ -98,12 +92,15 @@ def initialize(public_key: str) -> None:
         if SUDOERS.parent.resolve() != SUDOERS.parent:
             raise ValueError("sudoers 目录不能使用符号链接")
         SUDOERS.parent.mkdir(mode=0o755, exist_ok=True)
-        write(SUDOERS, RULE, 0o440, 0, 0)
+        if SUDOERS.exists() and SUDOERS.read_bytes() != RULE:
+            raise ValueError("已有 northstar sudo 策略不同，拒绝覆盖")
+        if not SUDOERS.exists():
+            write(SUDOERS, RULE, 0o440, 0, 0)
         subprocess.run(["visudo", "-c"], check=True)
         try:
             grp.getgrnam("docker")
         except KeyError:
-            pass  # First Docker installation adds the group during deploy.
+            raise ValueError("请先安装并准备 Docker 用户组")
         else:
             subprocess.run(["usermod", "--append", "--groups", "docker", DEPLOY_USER], check=True)
     print("northstar 账号、SSH 公钥和免密码 sudo 已准备", flush=True)

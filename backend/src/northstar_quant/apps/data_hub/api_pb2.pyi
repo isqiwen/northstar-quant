@@ -1,6 +1,8 @@
 from google.protobuf import struct_pb2 as _struct_pb2
 from northstar_quant.web import api_options_pb2 as _api_options_pb2
 from northstar_quant.web import common_pb2 as _common_pb2
+from northstar_quant.web import auth_pb2 as _web_auth_pb2
+from northstar_quant.accounting import protocol_pb2 as _accounting_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -26,14 +28,8 @@ class AdmissionRejection(_message.Message):
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     def __init__(self, reason: _Optional[str] = ..., rejection_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
-class BrowserSession(_message.Message):
-    __slots__ = ("csrf",)
-    CSRF_FIELD_NUMBER: _ClassVar[int]
-    csrf: str
-    def __init__(self, csrf: _Optional[str] = ...) -> None: ...
-
 class DatasetDetails(_message.Message):
-    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields")
+    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields", "settlements", "terms")
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
     BAR_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -54,6 +50,8 @@ class DatasetDetails(_message.Message):
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
     TRADING_DAYS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENTS_FIELD_NUMBER: _ClassVar[int]
+    TERMS_FIELD_NUMBER: _ClassVar[int]
     availability_basis: str
     availability_note: str
     bar_count: int
@@ -74,7 +72,9 @@ class DatasetDetails(_message.Message):
     symbol: str
     trading_days: _containers.RepeatedScalarFieldContainer[str]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    settlements: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.SettlementFact]
+    terms: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.FuturesTerms]
+    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_accounting_pb2.SettlementFact, _Mapping]]] = ..., terms: _Optional[_Iterable[_Union[_accounting_pb2.FuturesTerms, _Mapping]]] = ...) -> None: ...
 
 class DatasetLineage(_message.Message):
     __slots__ = ("attempts", "snapshot_id", "sources", "usages")
@@ -131,7 +131,8 @@ class HttpError(_message.Message):
     def __init__(self, detail: _Optional[str] = ..., rejection_id: _Optional[str] = ..., request_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., status: _Optional[str] = ..., url: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ImportSpecification(_message.Message):
-    __slots__ = ("session_kind", "availability_basis", "availability_note", "currency", "exchange", "multiplier", "price_tick", "product", "quantity_unit", "session_close", "session_open", "source_name", "source_reference", "symbol", "timezone", "trading_day")
+    __slots__ = ("interval", "session_kind", "availability_basis", "availability_note", "currency", "exchange", "multiplier", "price_tick", "product", "quantity_unit", "session_close", "session_open", "source_name", "source_reference", "symbol", "timezone", "trading_day")
+    INTERVAL_FIELD_NUMBER: _ClassVar[int]
     SESSION_KIND_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
@@ -148,6 +149,7 @@ class ImportSpecification(_message.Message):
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
     TIMEZONE_FIELD_NUMBER: _ClassVar[int]
     TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    interval: str
     session_kind: str
     availability_basis: str
     availability_note: str
@@ -164,7 +166,7 @@ class ImportSpecification(_message.Message):
     symbol: str
     timezone: str
     trading_day: str
-    def __init__(self, session_kind: _Optional[str] = ..., availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., currency: _Optional[str] = ..., exchange: _Optional[str] = ..., multiplier: _Optional[str] = ..., price_tick: _Optional[str] = ..., product: _Optional[str] = ..., quantity_unit: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., source_name: _Optional[str] = ..., source_reference: _Optional[str] = ..., symbol: _Optional[str] = ..., timezone: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
+    def __init__(self, interval: _Optional[str] = ..., session_kind: _Optional[str] = ..., availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., currency: _Optional[str] = ..., exchange: _Optional[str] = ..., multiplier: _Optional[str] = ..., price_tick: _Optional[str] = ..., product: _Optional[str] = ..., quantity_unit: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., source_name: _Optional[str] = ..., source_reference: _Optional[str] = ..., symbol: _Optional[str] = ..., timezone: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
 
 class ProcessingAttempt(_message.Message):
     __slots__ = ("attempt_id", "created_at", "error", "parameters", "snapshot_id", "source_id", "stage", "status", "evidence_fields", "null_fields")
@@ -430,7 +432,7 @@ class ExplorerCoverage(_message.Message):
     def __init__(self, days: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., jobs: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., note: _Optional[str] = ...) -> None: ...
 
 class ExplorerRows(_message.Message):
-    __slots__ = ("sources", "export_allowed", "dataset", "scope", "start", "end", "receipt_ids", "view_id", "rows", "total", "offset", "limit", "fields", "versions", "note")
+    __slots__ = ("sources", "export_allowed", "dataset", "scope", "start", "end", "receipt_ids", "view_id", "rows", "total", "offset", "limit", "fields", "versions", "note", "scan")
     SOURCES_FIELD_NUMBER: _ClassVar[int]
     EXPORT_ALLOWED_FIELD_NUMBER: _ClassVar[int]
     DATASET_FIELD_NUMBER: _ClassVar[int]
@@ -446,6 +448,7 @@ class ExplorerRows(_message.Message):
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     VERSIONS_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
+    SCAN_FIELD_NUMBER: _ClassVar[int]
     sources: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     export_allowed: bool
     dataset: str
@@ -461,7 +464,8 @@ class ExplorerRows(_message.Message):
     fields: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     versions: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     note: str
-    def __init__(self, sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., export_allowed: _Optional[bool] = ..., dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ..., view_id: _Optional[str] = ..., rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., fields: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., versions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., note: _Optional[str] = ...) -> None: ...
+    scan: _struct_pb2.Struct
+    def __init__(self, sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., export_allowed: _Optional[bool] = ..., dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ..., view_id: _Optional[str] = ..., rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., fields: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., versions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., note: _Optional[str] = ..., scan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class RevisionRequest(_message.Message):
     __slots__ = ("before_id", "after_id", "offset")
@@ -498,3 +502,53 @@ class RevisionComparison(_message.Message):
     offset: int
     note: str
     def __init__(self, comparison_id: _Optional[str] = ..., rule: _Optional[str] = ..., before: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., after: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., source_changed: _Optional[bool] = ..., rules_changed: _Optional[bool] = ..., counts: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., changes: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., note: _Optional[str] = ...) -> None: ...
+
+class CompactionRequest(_message.Message):
+    __slots__ = ("request_id", "dataset", "scope", "start", "end", "receipt_ids")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_IDS_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    dataset: str
+    scope: str
+    start: str
+    end: str
+    receipt_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, request_id: _Optional[str] = ..., dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class Compaction(_message.Message):
+    __slots__ = ("compaction_id", "plan_id", "plan", "created_at", "status", "result", "error", "null_fields")
+    COMPACTION_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    compaction_id: str
+    plan_id: str
+    plan: _struct_pb2.Struct
+    created_at: str
+    status: str
+    result: _struct_pb2.Struct
+    error: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, compaction_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., plan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., created_at: _Optional[str] = ..., status: _Optional[str] = ..., result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., error: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CompactionPage(_message.Message):
+    __slots__ = ("offset", "limit")
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    offset: int
+    limit: int
+    def __init__(self, offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class CompactionList(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[Compaction]
+    def __init__(self, items: _Optional[_Iterable[_Union[Compaction, _Mapping]]] = ...) -> None: ...

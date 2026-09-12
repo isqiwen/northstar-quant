@@ -3,6 +3,8 @@ package northstar.live;
 import "google/protobuf/struct.proto";
 import "api_options.proto";
 import "common.proto";
+import "web_auth.proto";
+import "accounting.proto";
 
 message InstanceRecord {
   optional string instance_id = 1 [json_name = "instance_id", (northstar.web.required_field) = true];
@@ -59,6 +61,8 @@ message ArchiveDataset {
   optional string symbol = 19 [json_name = "symbol", (northstar.web.required_field) = true];
   repeated string trading_days = 20 [json_name = "trading_days", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
+  repeated northstar.accounting.SettlementFact settlements = 21 [json_name = "settlements", (northstar.web.required_field) = true];
+  repeated northstar.accounting.FuturesTerms terms = 22 [json_name = "terms", (northstar.web.required_field) = true];
 }
 
 message ArchiveReprocessRequest {
@@ -114,10 +118,6 @@ message BrokerStatus {
   repeated google.protobuf.Struct profiles = 4 [json_name = "profiles", (northstar.web.required_field) = true];
   optional google.protobuf.Struct sdk = 5 [json_name = "sdk", (northstar.web.required_field) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
-}
-
-message BrowserSession {
-  optional string csrf = 1 [json_name = "csrf", (northstar.web.required_field) = true];
 }
 
 message BudgetContext {
@@ -192,6 +192,7 @@ message HttpError {
 }
 
 message ImportSpecification {
+  optional string interval = 17 [json_name = "interval", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"1m\",\"5m\",\"15m\",\"30m\",\"60m\"]"];
   optional string session_kind = 16 [json_name = "session_kind", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"DAY\",\"NIGHT\"]"];
   optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
   optional string availability_note = 2 [json_name = "availability_note", (northstar.web.required_field) = true];
@@ -210,18 +211,33 @@ message ImportSpecification {
   optional string trading_day = 15 [json_name = "trading_day", (northstar.web.required_field) = true];
 }
 
+message BrokerAccountProjection {
+  option (northstar.web.evidence) = true;
+  optional string status = 1 [json_name = "status", (northstar.web.required_field) = true];
+  optional string through_entry_id = 2 [json_name = "through_entry_id", (northstar.web.required_field) = true];
+  optional string realized_pnl_before_fees = 3 [json_name = "realized_pnl_before_fees"];
+  optional string cash = 4 [json_name = "cash", (northstar.web.nullable) = true];
+  optional string total_fees = 5 [json_name = "total_fees", (northstar.web.nullable) = true];
+  repeated string pending_fee_fill_ids = 6 [json_name = "pending_fee_fill_ids"];
+  optional int64 fill_count = 7 [json_name = "fill_count"];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
 message LedgerContext {
   option (northstar.web.evidence) = true;
   optional BaselineRecord baseline = 1 [json_name = "baseline", (northstar.web.nullable) = true];
   optional string baseline_id = 2 [json_name = "baseline_id", (northstar.web.nullable) = true];
   repeated CheckRecord checks = 3 [json_name = "checks"];
   repeated PositionEntry entries = 4 [json_name = "entries"];
+  optional BrokerAccountProjection accounting_projection = 5 [json_name = "accounting_projection", (northstar.web.nullable) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
   repeated string null_fields = 2046;
 }
 
 message LiveConfiguration {
   option (northstar.web.evidence) = true;
+  optional string candidate_id = 4 [json_name = "candidate_id", (northstar.web.required_field) = true];
   optional google.protobuf.Struct config = 1 [json_name = "config", (northstar.web.required_field) = true];
   optional string configuration_id = 2 [json_name = "configuration_id", (northstar.web.required_field) = true];
   optional string name = 3 [json_name = "name", (northstar.web.required_field) = true];
@@ -372,6 +388,18 @@ message StreamPositionsRequest {
   optional int64 through_sequence = 3 [json_name = "through_sequence", (northstar.web.required_field) = true];
 }
 
+message SessionWindow {
+  optional string trading_day = 1 [(northstar.web.required_field) = true];
+  optional string opens_at = 2 [(northstar.web.required_field) = true];
+  optional string closes_at = 3 [(northstar.web.required_field) = true];
+}
+
+message SessionSchedule {
+  optional string source_reference = 1 [(northstar.web.required_field) = true];
+  optional string available_at = 2 [(northstar.web.required_field) = true];
+  repeated SessionWindow windows = 3 [(northstar.web.required_field) = true];
+}
+
 message StreamRequest {
   optional bool allow_retention = 1 [json_name = "allow_retention", (northstar.web.required_field) = true];
   optional string configuration_id = 2 [json_name = "configuration_id", (northstar.web.required_field) = true];
@@ -379,6 +407,7 @@ message StreamRequest {
   optional string query_batch_id = 4 [json_name = "query_batch_id", (northstar.web.required_field) = true];
   optional string request_id = 5 [json_name = "request_id", (northstar.web.required_field) = true];
   optional string use_basis = 6 [json_name = "use_basis", (northstar.web.required_field) = true];
+  optional SessionSchedule schedule = 7 [(northstar.web.nullable) = true];
 }
 
 message StreamStep {
@@ -426,7 +455,120 @@ message GetApiStreamsStreamIdEventsResponse {
   repeated StreamEvent items = 1;
 }
 
+message OrderReservation {
+  optional string reserved_fee = 1 [(northstar.web.required_field) = true];
+  optional string reserved_margin = 2 [(northstar.web.required_field) = true];
+  optional string reserved_gross = 3 [(northstar.web.required_field) = true];
+  optional string reserved_loss = 4 [(northstar.web.required_field) = true];
+  optional int64 reserved_close_lots = 5 [(northstar.web.required_field) = true];
+}
+message LocalOrder {
+  option (northstar.web.evidence) = true;
+  optional string order_id = 1 [(northstar.web.required_field) = true];
+  optional string contract_id = 2 [(northstar.web.required_field) = true];
+  optional string authorization_id = 3 [(northstar.web.required_field) = true];
+  optional string runtime_id = 4 [(northstar.web.required_field) = true];
+  optional string attempt_id = 5 [(northstar.web.required_field) = true];
+  optional string status = 6 [(northstar.web.required_field) = true];
+  optional int64 quantity_lots = 7 [(northstar.web.required_field) = true];
+  optional int64 filled_lots = 8 [(northstar.web.required_field) = true];
+  optional bool requires_reconciliation = 9 [(northstar.web.required_field) = true];
+  optional OrderReservation reservation = 10 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct order = 11 [(northstar.web.required_field) = true];
+  optional int64 fee_pending_lots = 12 [(northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+message LocalOrderEvent {
+  optional int64 sequence = 1 [(northstar.web.required_field) = true];
+  optional string event_id = 2 [(northstar.web.required_field) = true];
+  optional string order_id = 3 [(northstar.web.required_field) = true];
+  optional string kind = 4 [(northstar.web.required_field) = true];
+  optional string recorded_at = 5 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct document = 6 [(northstar.web.required_field) = true];
+}
+message LocalOrderPage {
+  option (northstar.web.evidence) = true;
+  repeated LocalOrder orders = 1 [(northstar.web.required_field) = true];
+  optional int64 next_before = 2 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+message LocalOrderDetail {
+  option (northstar.web.evidence) = true;
+  optional LocalOrder record = 1 [(northstar.web.required_field) = true];
+  repeated LocalOrderEvent events = 2 [(northstar.web.required_field) = true];
+  optional int64 next_after = 3 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
+message ExecutionConsent {
+  option (northstar.web.evidence) = true;
+  optional string authorization_id = 1 [(northstar.web.required_field) = true];
+  optional string status = 2 [(northstar.web.required_field) = true];
+  optional bool requires_current_admission = 3 [(northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+message ConsentPage {
+  option (northstar.web.evidence) = true;
+  repeated ExecutionConsent authorizations = 1 [(northstar.web.required_field) = true];
+  optional int64 next_before = 2 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+message ConsentRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string expires_at = 2 [(northstar.web.required_field) = true];
+  optional int64 max_order_lots = 3 [(northstar.web.required_field) = true];
+  optional int64 max_total_lots = 4 [(northstar.web.required_field) = true];
+  optional string fee = 5 [(northstar.web.required_field) = true];
+  optional string margin = 6 [(northstar.web.required_field) = true];
+  optional string gross = 7 [(northstar.web.required_field) = true];
+  optional string loss = 8 [(northstar.web.required_field) = true];
+}
+message RevokeConsent {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+}
+
 service BrowserApi {
+  rpc GetApiStreamsStreamIdAuthorizations (northstar.web.Empty) returns (ConsentPage) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/authorizations";
+  }
+  rpc PostApiStreamsStreamIdAuthorizations (ConsentRequest) returns (ExecutionConsent) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/authorizations";
+  }
+  rpc GetApiAuthorizationsIdentifier (northstar.web.Empty) returns (ExecutionConsent) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/authorizations/{identifier}";
+  }
+  rpc PostApiAuthorizationsIdentifierRevoke (RevokeConsent) returns (ExecutionConsent) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/authorizations/{identifier}/revoke";
+  }
+
+  rpc GetApiOrders (northstar.web.Empty) returns (LocalOrderPage) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/orders";
+  }
+  rpc GetApiOrdersOrderId (northstar.web.Empty) returns (LocalOrderDetail) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/orders/{order_id}";
+  }
+
+  rpc PostApiSetup(northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/setup";
+  }
+  rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/login";
+  }
+  rpc PostApiLogout (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/logout";
+  }
   rpc GetApiLiveInstances (northstar.web.Empty) returns (InstanceCatalog) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/live/instances";
@@ -518,7 +660,7 @@ service BrowserApi {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/broker/status";
   }
-  rpc GetApiBrowserSession (northstar.web.Empty) returns (BrowserSession) {
+  rpc GetApiBrowserSession (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/browser-session";
   }

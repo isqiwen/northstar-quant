@@ -20,6 +20,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PendingNotice } from "./ui";
 import "./theme.css";
+import { AuthGate, Logout } from "./auth";
 export function Shell({
   name,
   subtitle,
@@ -80,6 +81,7 @@ export function Shell({
           />
           <div>
             <Tag bordered={false}>{name}</Tag>
+            <Logout />
             {items.find((item) => item.key === active)?.label}
           </div>
         </Layout.Header>
@@ -114,7 +116,13 @@ function SpaceHeader({
     </div>
   );
 }
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+  name,
+}: {
+  children: ReactNode;
+  name: string;
+}) {
   return (
     <ConfigProvider
       locale={zhCN}
@@ -132,7 +140,9 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }}
     >
-      <App>{children}</App>
+      <App>
+        <AuthGate name={name}>{children}</AuthGate>
+      </App>
     </ConfigProvider>
   );
 }

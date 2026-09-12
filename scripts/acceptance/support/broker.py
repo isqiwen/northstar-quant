@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
-from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
@@ -16,23 +14,6 @@ from support.processes import InstalledApplication
 def check_broker_access(
     application: InstalledApplication, base_url: str, configuration: dict[str, Any]
 ) -> None:
-    subprocess.run(
-        [
-            str(Path(application.executable).parent / "python"),
-            "-c",
-            "import json,sys; from northstar_quant.apps.storage import open_database; "
-            "from northstar_quant.research.configurations import ConfigurationStore; "
-            "from northstar_quant.research.configuration import ResearchConfig; "
-            "v=json.load(sys.stdin); ConfigurationStore(open_database()).save_configuration("
-            "v['name'],ResearchConfig.from_mapping(v['config']))",
-        ],
-        input=json.dumps(configuration),
-        text=True,
-        env=application.live_environment,
-        check=True,
-        capture_output=True,
-        timeout=30,
-    )
     command, request, opener = application.command, application.request, application.opener
     assert request(f"{base_url}/health/ready")
     broker_status = json.loads(request(f"{base_url}/api/broker/status"))
@@ -55,7 +36,7 @@ def check_broker_access(
         f"/api/streams/{missing_query}",
         f"/api/streams/{missing_query}/events",
     ):
-        for browser, expected_status in ((anonymous, 403), (opener, 404)):
+        for browser, expected_status in ((anonymous, 401), (opener, 404)):
             try:
                 with browser.open(f"{base_url}{path}", timeout=15):
                     pass
@@ -153,12 +134,12 @@ def check_broker_access(
             data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"},
         )
-        for browser in (anonymous, opener):
+        for browser, expected_status in ((anonymous, 401), (opener, 403)):
             try:
                 with browser.open(unprotected, timeout=15):
                     pass
             except HTTPError as error:
-                assert error.code == 403
+                assert error.code == expected_status
             else:
                 raise AssertionError("broker mutation requires a session and CSRF")
     assert command("advanced", "broker", "list") == saved_queries

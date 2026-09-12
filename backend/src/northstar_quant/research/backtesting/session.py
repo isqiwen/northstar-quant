@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import re
+from bisect import bisect_right
+from collections.abc import Sequence
 from copy import copy
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
@@ -11,17 +13,28 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
-from northstar_quant.accounting.fifo import Account, AppliedFill, FillFact
-from northstar_quant.accounting.portfolio import PortfolioState
+from northstar_quant.accounting.fifo import Account
+from northstar_quant.accounting.fills import AppliedFill, FillFact
+from northstar_quant.accounting.portfolio import value_portfolio, value_single_contract
 from northstar_quant.accounting.positions import Position
+from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
+from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
 from northstar_quant.data_management.research import DatasetDetails
-from northstar_quant.execution.orders import PendingOrder, intraday_offset
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.execution.engine import ExecutionEngine
+from northstar_quant.execution.orders import (
+    OrderUpdate,
+    PendingOrder,
+    order_slice,
+    reservation,
+)
+from northstar_quant.market_data import Instrument, MarketBar
+from northstar_quant.market_data.engine import BarStream
 from northstar_quant.messaging import Endpoint, Topic
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.risk import evaluate_risk
+from northstar_quant.research.evaluation import EvaluationPlan
+from northstar_quant.risk.engine import RiskEngine
 from northstar_quant.simulation import simulate_fill
-from northstar_quant.strategies.runtime import StrategyRuntime
+from northstar_quant.strategies.trader import StrategyBinding, Trader
 from northstar_quant.trading.environment import Environment
 from northstar_quant.trading.kernel import FailurePolicy, TradingKernel
 
@@ -34,6 +47,8 @@ class TradingStep:
     _decision: str | None
     fill: AppliedFill | None
     new_order: PendingOrder | None
+    settlements: tuple[AppliedSettlement, ...]
+    orders: tuple[OrderUpdate, ...]
 
     def __init__(
         self,
@@ -41,6 +56,8 @@ class TradingStep:
         decision: dict[str, object] | None,
         fill: AppliedFill | None,
         new_order: PendingOrder | None,
+        settlements: tuple[AppliedSettlement, ...] = (),
+        orders: tuple[OrderUpdate, ...] = (),
     ) -> None:
         # Like ResearchResult, canonical bytes protect nested factor/metric values.
         object.__setattr__(self, "_point", json.dumps(point, sort_keys=True, allow_nan=False))
@@ -51,6 +68,8 @@ class TradingStep:
         )
         object.__setattr__(self, "fill", fill)
         object.__setattr__(self, "new_order", new_order)
+        object.__setattr__(self, "settlements", settlements)
+        object.__setattr__(self, "orders", orders)
 
     @property
     def point(self) -> dict[str, object]:
@@ -66,6 +85,8 @@ class TradingStep:
 
     def to_dict(self) -> dict[str, object]:
         return {
+            "settlements": [item.to_dict() for item in self.settlements],
+            "orders": [item.to_dict() for item in self.orders],
             "point": dict(self.point),
             "decision": None if self.decision is None else dict(self.decision),
             "fill": None if self.fill is None else self.fill.to_dict(),
@@ -75,8 +96,8 @@ class TradingStep:
     @classmethod
     def from_dict(cls, value: dict[str, object]) -> TradingStep:
         try:
-            if set(value) != {"point", "decision", "fill", "new_order"}:
-                raise ValueError("trading step must contain its four fact fields")
+            if set(value) != {"point", "decision", "fill", "new_order", "settlements", "orders"}:
+                raise ValueError("trading step must contain all of its fact fields")
             raw_fill = value["fill"]
             fill = None
             if raw_fill is not None:
@@ -92,6 +113,21 @@ class TradingStep:
                     _money(item["total_fees"]),
                     Position.from_dict(_object(item["gross_position"])),
                 )
+            raw_orders = value["orders"]
+            if not isinstance(raw_orders, list):
+                raise ValueError("order updates must be an ordered list")
+            orders = tuple(OrderUpdate.from_dict(_object(item)) for item in raw_orders)
+            raw_settlements = value["settlements"]
+            if not isinstance(raw_settlements, list):
+                raise ValueError("settlements must be an ordered list of facts")
+            settlements = tuple(
+                AppliedSettlement(
+                    SettlementFact.from_dict(_object(item)),
+                    _money(_object(item)["variation_pnl"]),
+                    _money(_object(item)["cash"]),
+                )
+                for item in raw_settlements
+            )
             return cls(
                 dict(_object(value["point"])),
                 None if value["decision"] is None else dict(_object(value["decision"])),
@@ -99,6 +135,8 @@ class TradingStep:
                 None
                 if value["new_order"] is None
                 else PendingOrder.from_dict(_object(value["new_order"])),
+                settlements,
+                orders,
             )
         except (KeyError, TypeError, ArithmeticError) as error:
             raise ValueError("invalid persisted trading step") from error
@@ -111,8 +149,8 @@ STEP_COMPLETED: Topic[TradingStep] = Topic("research.step.completed", TradingSte
 class TradingSession:
     """Bounded shared research/Paper core: simulate, account, strategy, then Risk.
 
-    There is at most one pending target. A new decision replaces an unfilled
-    prior target, so two decisions never spend the same account capacity.
+    There is at most one pending target. Compatible decisions retain its fixed
+    authorization; changes explicitly cancel its remainder before a new request.
     Recent identical observations are no-ops; older retries are owned by the
     caller's persistent input identity. Changed or time-regressing facts fail
     before mutation. History is bounded by lookback, not the number of steps.
@@ -120,13 +158,14 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "6"
+    REVISION = "23"
 
     def __init__(
         self,
-        market: Market,
+        market: Instrument,
         config: ResearchConfig,
         *,
+        interval_seconds: int,
         snapshot_id: UUID,
         content_hash: str,
         data_details: DatasetDetails | None = None,
@@ -141,8 +180,8 @@ class TradingSession:
             or not market.multiplier.is_finite()
             or market.price_tick <= 0
             or market.multiplier <= 0
-            or type(market.interval_seconds) is not int
-            or market.interval_seconds <= 0
+            or type(interval_seconds) is not int
+            or interval_seconds <= 0
         ):
             raise ValueError("market must have exact positive economics and interval")
         for value in (market.price_tick, market.multiplier):
@@ -154,6 +193,7 @@ class TradingSession:
                 or value.adjusted() > 33
             ):
                 raise ValueError("market economics exceed the 34-digit/18-place financial domain")
+        self.interval_seconds = interval_seconds
         self.market, self.config = market, config
         self.snapshot_id, self.content_hash = snapshot_id, content_hash
         if data_details is not None and (
@@ -161,13 +201,33 @@ class TradingSession:
             or data_details.summary.content_hash != content_hash
         ):
             raise ValueError("source evidence does not belong to this research snapshot")
+        if data_details is not None and data_details.volume_unit != "LOT":
+            raise ValueError("simulation requires explicitly declared per-bar volume in lots")
         self._data_details = data_details
-        self.account = Account(config.simulation.initial_cash, market)
-        self.pending: PendingOrder | None = None
-        self._policy = config.risk_policy()
-        self._trader = StrategyRuntime(
-            config.strategy, market.contract_id, market.interval_seconds, source_scope=content_hash
-        )
+        self.evaluation = EvaluationPlan.bind(snapshot_id, content_hash, data_details)
+        self._terms = ordered_terms(() if data_details is None else data_details.terms)
+        self._term_starts = tuple(item.effective_from for item in self._terms)
+        with localcontext() as context:
+            context.prec = 192
+            if any(
+                item.contract_id != market.contract_id
+                or item.lower_limit % market.price_tick
+                or item.upper_limit % market.price_tick
+                for item in self._terms
+            ):
+                raise ValueError("fixed terms require the same contract and tick-aligned limits")
+        self._settlements = () if data_details is None else data_details.settlements
+        if any(fact.contract_id != market.contract_id for fact in self._settlements) or len(
+            {fact.trading_day for fact in self._settlements}
+        ) != len(self._settlements):
+            raise ValueError(
+                "research settlement facts must belong uniquely to the fixed contract/day"
+            )
+        self.account = Account(config.simulation.initial_cash, (market,))
+        self._execution = ExecutionEngine()
+        self._risk = RiskEngine(market, config.risk_policy(), self._terms)
+        self._stream = BarStream(market.contract_id, interval_seconds, content_hash)
+        self._trader = Trader((StrategyBinding("main", config.strategy, self._stream),))
         self._trading_day: date | None = None
         self._last: MarketBar | None = None
         self._bar_count = 0
@@ -185,20 +245,65 @@ class TradingSession:
         )
         self.kernel.start()
 
+    @property
+    def pending(self) -> PendingOrder | None:
+        return self._execution.pending_for(self.market.contract_id)
+
     def advance(self, bar: MarketBar) -> TradingStep | None:
         return self.kernel.advance(bar)
 
+    def validate_inputs(self, bars: Sequence[MarketBar]) -> None:
+        """Reject missing cross-day evidence before creating a durable run."""
+        if self.evaluation.expected_bars is not None and len(bars) != self.evaluation.expected_bars:
+            raise ValueError("research inputs differ from the fixed evaluation window count")
+        for bar in bars:
+            if (
+                self.evaluation.event_start is not None
+                and bar.event_time < self.evaluation.event_start
+                or self.evaluation.event_end is not None
+                and bar.completed_at > self.evaluation.event_end
+            ):
+                raise ValueError("research input lies outside the fixed evaluation window")
+            self._terms_for(bar)
+        for before, after in zip(bars, bars[1:]):
+            if before.trading_day != after.trading_day:
+                self._settlement_between(before, after)
+
+    def _terms_for(self, bar: MarketBar) -> FuturesTerms | None:
+        if not self._terms:
+            return None  # Explicit configuration assumptions for engineering/exploratory runs.
+        index = bisect_right(self._term_starts, bar.event_time) - 1
+        if index < 0:
+            raise ValueError("fixed terms do not cover this market event")
+        terms = self._terms[index]
+        terms.require_available(bar.available_at, start=bar.event_time)
+        if not terms.lower_limit <= bar.close <= terms.upper_limit:
+            raise ValueError("market event is outside fixed daily price limits")
+        return terms
+
+    def _settlement_between(self, before: MarketBar, after: MarketBar) -> SettlementFact:
+        matches = tuple(
+            fact for fact in self._settlements if fact.trading_day == before.trading_day
+        )
+        if (
+            len(matches) != 1
+            or matches[0].next_trading_day != after.trading_day
+            or not before.completed_at
+            <= matches[0].settled_at
+            <= matches[0].available_at
+            <= after.event_time
+        ):
+            raise ValueError("trading-day transition requires a fixed, causal settlement fact")
+        return matches[0]
+
     def close(self) -> None:
         self.kernel.close()
+        self._trader.close()
 
     def _process(self, bar: MarketBar) -> TradingStep | None:
         self._validate_bar(bar)
-        if not self._trader.accepts(bar):
+        if not self._trader.accepts(self._stream, bar):
             return None
-        if self._trading_day is not None and self._trading_day != bar.trading_day:
-            raise ValueError(
-                "research currently supports one trading day; settlement is not modeled"
-            )
 
         with localcontext() as context:
             context.prec = 96
@@ -215,24 +320,55 @@ class TradingSession:
         return result
 
     def _advance(self, bar: MarketBar) -> TradingStep:
+        terms = self._terms_for(bar)
+        settlements: tuple[AppliedSettlement, ...] = ()
+        orders: list[OrderUpdate] = []
+        if self._trading_day is not None and self._trading_day != bar.trading_day:
+            assert self._last is not None
+            settlement = self._settlement_between(self._last, bar)
+            if self.pending is not None:
+                if self.pending.expires_at > settlement.settled_at:
+                    raise ValueError("unexpired simulated order cannot cross settlement")
+                update = self.pending.expire(
+                    at=settlement.settled_at, reason="EXPIRED_BEFORE_SETTLEMENT"
+                )
+                self._execution = self._execution.record(update)
+                orders.append(update)
+            settlements = (self.account.settle(settlement, at=bar.event_time),)
         self._trading_day = bar.trading_day
         fill = None
         if self.pending is not None:
-            fact = simulate_fill(
+            attempt = simulate_fill(
                 self.pending,
                 bar,
                 self.market,
                 fee_per_lot=self.config.simulation.fee_per_lot,
                 slippage_ticks=self.config.simulation.slippage_ticks,
+                max_volume_participation=self.config.simulation.max_volume_participation,
+                terms=terms,
+                interval_seconds=self.interval_seconds,
             )
-            if fact is not None:
-                fill = self.account.apply(fact)
-                self.pending = None
-            elif bar.available_at > self.pending.expires_at:
-                self.pending = None
+            if attempt.fill is not None:
+                fill = self.account.apply(attempt.fill)
+                update = self.pending.record_fill(
+                    attempt.fill.quantity_lots, at=bar.available_at, reason=attempt.reason
+                )
+                orders.append(update)
+                self._execution = self._execution.record(
+                    update, accepted_fill_lots=attempt.fill.quantity_lots
+                )
+            elif attempt.reason == "EXPIRED":
+                update = self.pending.expire(at=bar.available_at, reason=attempt.reason)
+                self._execution = self._execution.record(update)
+                orders.append(update)
+            else:
+                update = self.pending.observe(at=bar.available_at, reason=attempt.reason)
+                self._execution = self._execution.record(update)
+                orders.append(update)
         self._bar_count += 1
         self._last = bar
-        equity = self.account.equity(bar.close)
+        valuation = value_single_contract(self.account, bar.close, at=bar.available_at, terms=terms)
+        equity = valuation.equity
         self._peak = max(self._peak, equity)
         drawdown = self._peak - equity
         drawdown_fraction = drawdown / self._peak
@@ -241,18 +377,15 @@ class TradingSession:
         point: dict[str, object] = {
             "observation_id": str(bar.observation_id),
             "at": bar.available_at.isoformat(),
+            "event_time": bar.event_time.isoformat(),
+            "trading_day": bar.trading_day.isoformat(),
             "close": decimal_text(bar.close),
-            "cash": decimal_text(self.account.cash),
-            "position_lots": self.account.position_lots,
-            "realized_pnl": decimal_text(self.account.realized_pnl),
-            "unrealized_pnl": decimal_text(self.account.unrealized_pnl(bar.close)),
-            "total_fees": decimal_text(self.account.total_fees),
-            "equity": decimal_text(equity),
+            **valuation.to_dict(),
             "drawdown": decimal_text(drawdown),
             "drawdown_fraction": decimal_text(drawdown_fraction),
         }
         decision: dict[str, object] | None = None
-        signal = self._trader.advance(bar)
+        signal = self._trader.advance(self._stream, bar)["main"]
         assert signal is not None
         point["strategy"] = {
             "kind": signal.decision.kind.value,
@@ -262,12 +395,16 @@ class TradingSession:
         intent = signal.intent
         if intent is not None:
             self._last_decision = (intent.observation_id, intent.generated_at)
-            self.pending = None  # A new explicit target replaces the prior simulated target.
-            risk = evaluate_risk(
+            risk = self._risk.evaluate_portfolio(
                 intent,
-                PortfolioState(bar.available_at, equity, self.account.position_lots, bar.close),
-                self._policy,
-                self.market,
+                value_portfolio(
+                    self.account,
+                    {self.market.contract_id: bar.close},
+                    at=bar.available_at,
+                    terms=None if terms is None else {self.market.contract_id: terms},
+                ),
+                at=bar.available_at,
+                terms=terms,
             )
             decision = {
                 "observation_id": str(bar.observation_id),
@@ -291,21 +428,78 @@ class TradingSession:
                 "expires_at": risk.expires_at.isoformat(),
             }
             self._decision_count += 1
+            plan = None
             if risk.quantity_lots:
                 assert risk.side is not None
                 assert risk.minimum_fill_price is not None and risk.maximum_fill_price is not None
-                self.pending = PendingOrder(
+                plan = order_slice(
+                    self.account.position(self.market.contract_id), risk.side, risk.quantity_lots
+                )
+            desired = None
+            if plan is not None:
+                assert risk.side is not None
+                assert risk.minimum_fill_price is not None and risk.maximum_fill_price is not None
+                offset, quantity = plan
+                budget = self._risk.budget(
+                    side=risk.side,
+                    offset=offset,
+                    maximum_fill_price=risk.maximum_fill_price,
+                    terms=terms,
+                )
+                desired = PendingOrder(
                     intent.intent_id,
                     bar.observation_id,
                     bar.available_at,
                     risk.expires_at,
                     risk.side,
-                    intraday_offset(self.account.position_lots, risk.side, risk.quantity_lots),
-                    risk.quantity_lots,
+                    offset,
+                    quantity,
                     risk.minimum_fill_price,
                     risk.maximum_fill_price,
+                    contract_id=self.market.contract_id,
+                    budget=budget,
                 )
-        return TradingStep(point, decision, fill, self.pending)
+            retained_budget = None
+            if self.pending is not None and desired is not None:
+                retained_budget = self._risk.budget(
+                    side=self.pending.side,
+                    offset=self.pending.offset,
+                    maximum_fill_price=self.pending.maximum_fill_price,
+                    terms=terms,
+                )
+            replacement = self._execution.plan(
+                self.market.contract_id, desired, retained_budget=retained_budget
+            )
+            if replacement.retained is not None:
+                decision["retained_order_id"] = replacement.retained.order_id
+                update = replacement.retained.observe(
+                    at=bar.available_at, reason="AUTHORIZATION_RETAINED"
+                )
+                self._execution = self._execution.record(update)
+                orders.append(update)
+            if replacement.cancel is not None:
+                # Historical simulation confirms this cancellation synchronously.
+                # An external broker must retain the working order until its report.
+                update = replacement.cancel.cancel(at=bar.available_at, reason="TARGET_REPLACED")
+                self._execution = self._execution.record(update)
+                orders.append(update)
+            if replacement.submit is not None:
+                submitted = replacement.submit
+                decision["order_quantity_lots"] = submitted.quantity_lots
+                decision["order_offset"] = submitted.offset.value
+                update = submitted.observe(at=bar.available_at, reason="RISK_AUTHORIZED")
+                self._execution = self._execution.record(update)
+                orders.append(update)
+        point.update(reservation(self.pending))
+        if valuation.margin_used is not None:
+            point["available_after_reservations"] = decimal_text(
+                equity
+                - valuation.margin_used
+                - Decimal(str(point["reserved_fee"]))
+                - Decimal(str(point["reserved_margin"]))
+                - Decimal(str(point["reserved_loss"]))
+            )
+        return TradingStep(point, decision, fill, self.pending, settlements, tuple(orders))
 
     def summary(self) -> dict[str, object]:
         """Current metrics, including a genuinely empty initialized account."""
@@ -314,7 +508,9 @@ class TradingSession:
             context.prec = 96
             context.rounding = ROUND_HALF_EVEN
             unrealized = (
-                Decimal(0) if self._last is None else self.account.unrealized_pnl(self._last.close)
+                Decimal(0)
+                if self._last is None
+                else self.account.unrealized_pnl({self.market.contract_id: self._last.close})
             )
             equity = self.account.cash + unrealized
             return {
@@ -323,7 +519,7 @@ class TradingSession:
                 "fill_count": self.account.fill_count,
                 "initial_cash": decimal_text(self.config.simulation.initial_cash),
                 "ending_cash": decimal_text(self.account.cash),
-                "ending_position_lots": self.account.position_lots,
+                "ending_position_lots": self.account.position(self.market.contract_id).net_lots,
                 "realized_pnl": decimal_text(self.account.realized_pnl),
                 "unrealized_pnl": decimal_text(unrealized),
                 "total_fees": decimal_text(self.account.total_fees),
@@ -343,8 +539,9 @@ class TradingSession:
 
         return {
             "engine_revision": self.REVISION,
+            "evaluation_plan": self.evaluation.to_dict(),
             "environment": self.kernel.status.environment.value,
-            "strategy_state": dict(self._trader.state),
+            "strategy_state": dict(self._trader.state("main")),
             "last_decision": None
             if self._last_decision is None
             else {
@@ -361,9 +558,10 @@ class TradingSession:
                 else value
                 for name, value in asdict(self.market).items()
             },
+            "interval_seconds": self.interval_seconds,
             "config": self.config.to_dict(),
             "account": self.account.checkpoint(),
-            "history": [_bar_dict(bar) for bar in self._trader.history],
+            "history": [_bar_dict(bar) for bar in self._trader.history("main")],
             "last": None if self._last is None else _bar_dict(self._last),
             "trading_day": None if self._trading_day is None else self._trading_day.isoformat(),
             "pending": None if self.pending is None else self.pending.to_dict(),
@@ -377,9 +575,10 @@ class TradingSession:
     @classmethod
     def from_checkpoint(
         cls,
-        market: Market,
+        market: Instrument,
         config: ResearchConfig,
         *,
+        interval_seconds: int,
         snapshot_id: UUID,
         content_hash: str,
         checkpoint: dict[str, object],
@@ -399,15 +598,24 @@ class TradingSession:
             snapshot_id=snapshot_id,
             content_hash=content_hash,
             data_details=data_details,
+            interval_seconds=interval_seconds,
         )
         initial = session.checkpoint()
         if not isinstance(checkpoint, dict) or set(checkpoint) != set(initial):
             raise ValueError("checkpoint fields do not match the current trading implementation")
-        for name in ("engine_revision", "snapshot_id", "content_hash", "market", "config"):
+        for name in (
+            "engine_revision",
+            "evaluation_plan",
+            "snapshot_id",
+            "content_hash",
+            "market",
+            "interval_seconds",
+            "config",
+        ):
             if checkpoint[name] != initial[name]:
                 raise ValueError("checkpoint differs from its fixed input or configuration")
         if (
-            account.market != market
+            account.markets != (market,)
             or account.initial_cash != config.simulation.initial_cash
             or checkpoint["account"] != account.checkpoint()
         ):
@@ -418,7 +626,7 @@ class TradingSession:
             or not 0 <= count <= 100000
             or type(decisions) is not int
             or not 0 <= decisions <= count
-            or account.fill_count > max(0, decisions - 1)
+            or account.fill_count > max(0, count - 1)
         ):
             raise ValueError("checkpoint counters differ from the trading sequence")
         history = checkpoint["history"]
@@ -438,12 +646,20 @@ class TradingSession:
             if previous is not None and (
                 bar.event_time <= previous.event_time
                 or bar.available_at < previous.available_at
-                or bar.trading_day != previous.trading_day
+                or bar.trading_day < previous.trading_day
                 or bar.observation_id == previous.observation_id
             ):
-                raise ValueError("checkpoint history is not one ordered trading day")
+                raise ValueError("checkpoint history is not causally ordered")
             accepted_history.append(bar)
             previous = bar
+        for before, after in zip(accepted_history, accepted_history[1:]):
+            if before.trading_day != after.trading_day and not any(
+                fact.trading_day == before.trading_day
+                and fact.next_trading_day == after.trading_day
+                and before.completed_at <= fact.settled_at <= fact.available_at <= after.event_time
+                for fact in session._settlements
+            ):
+                raise ValueError("checkpoint day transition lacks fixed settlement evidence")
         session._last = previous
         session._trading_day = None if previous is None else previous.trading_day
         if checkpoint["last"] != (None if previous is None else _bar_dict(previous)) or checkpoint[
@@ -466,17 +682,24 @@ class TradingSession:
         if (decisions == 0) != (last_decision is None):
             raise ValueError("checkpoint counters differ from its last decision")
         pending = checkpoint["pending"]
-        session.pending = None if pending is None else PendingOrder.from_dict(_object(pending))
+        session._execution = ExecutionEngine(
+            () if pending is None else (PendingOrder.from_dict(_object(pending)),),
+            None if previous is None else previous.available_at,
+        )
         if session.pending is not None and (
             previous is None
+            or session.pending.contract_id != market.contract_id
             or not decisions
-            or session._last_decision
-            != (session.pending.observation_id, session.pending.submitted_at)
+            or session._last_decision is None
+            or session.pending.submitted_at > session._last_decision[1]
+            or session.pending.remaining_lots == 0
             or session.pending.quantity_lots > config.risk.max_lots
             or session.pending.offset
-            is not intraday_offset(
-                account.position_lots, session.pending.side, session.pending.quantity_lots
-            )
+            is not order_slice(
+                account.position(market.contract_id),
+                session.pending.side,
+                session.pending.remaining_lots,
+            )[0]
         ):
             raise ValueError("checkpoint pending order differs from its last decision")
         session.account = account
@@ -484,13 +707,10 @@ class TradingSession:
         raw_state = _object(checkpoint["strategy_state"])
         if any(type(value) not in {str, int} for value in raw_state.values()):
             raise ValueError("invalid strategy checkpoint state")
-        session._trader = StrategyRuntime(
-            config.strategy,
-            market.contract_id,
-            market.interval_seconds,
-            source_scope=content_hash,
-            history=tuple(accepted_history),
-            state=tuple((key, value) for key, value in raw_state.items()),  # type: ignore[misc]
+        session._trader = Trader(
+            (StrategyBinding("main", config.strategy, session._stream),),
+            history={session._stream: tuple(accepted_history)},
+            states={"main": tuple((key, value) for key, value in raw_state.items())},  # type: ignore[misc]
         )
         session._peak = _money(checkpoint["peak"])
         session._maximum_drawdown = _money(checkpoint["maximum_drawdown"])
@@ -505,7 +725,7 @@ class TradingSession:
             with localcontext() as context:
                 context.prec = 96
                 context.rounding = ROUND_HALF_EVEN
-                equity = account.equity(previous.close)
+                equity = account.equity({market.contract_id: previous.close})
                 current_drawdown = session._peak - equity
                 if (
                     current_drawdown < 0
@@ -522,9 +742,7 @@ class TradingSession:
     def _validate_bar(self, bar: MarketBar) -> None:
         if not isinstance(bar, MarketBar):
             raise ValueError("research requires canonical observations")
-        bar.validate(
-            interval_seconds=self.market.interval_seconds, price_tick=self.market.price_tick
-        )
+        bar.validate(interval_seconds=self.interval_seconds, price_tick=self.market.price_tick)
 
 
 def _object(value: object) -> dict[str, object]:

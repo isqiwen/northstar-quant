@@ -13,6 +13,7 @@ from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
 
 from northstar_quant.accounting.baselines import BrokerBaselines
+from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
 from tests.broker.test_records import _capture
@@ -27,6 +28,7 @@ def saved_query(
     failure: str | None = None,
     profile: str = "simnow_dev",
     account: str = "123456",
+    cashflow: bool = False,
 ) -> UUID:
     """Synthetic CTP callbacks through the public record writer; no SDK or credentials."""
     records = BrokerRecords(engine)
@@ -62,6 +64,28 @@ def saved_query(
             if day is not None and "TradingDay" in data:
                 data["TradingDay"] = day
         events.append(replace(event, data=data, received_at=capture.started_at))
+    if cashflow:
+        events.append(
+            BrokerEvent(
+                len(events) + 1,
+                "TD",
+                "OnRtnFromBankToFutureByBank",
+                None,
+                None,
+                capture.started_at,
+                0,
+                {
+                    "BrokerID": "9999",
+                    "AccountID": account,
+                    "TradingDay": day or "20260907",
+                    "CurrencyID": "CNY",
+                    "TradeAmount": "5",
+                    "PlateSerial": 27,
+                    "TransferStatus": "0",
+                    "ErrorID": 0,
+                },
+            )
+        )
     records.finish(
         identifier,
         replace(

@@ -14,11 +14,12 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from sqlalchemy import Engine, select, text
+from sqlalchemy import Connection, Engine, select, text
 from sqlalchemy.orm import Session
 
 from northstar_quant.data_management.catalog.models import Exchange, FuturesContract, FuturesProduct
 from northstar_quant.data_management.catalog.services import CatalogCommands
+from northstar_quant.market_data import Instrument
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,7 @@ class BrokerContract:
     contract_id: UUID
     exchange: str
     symbol: str
+    market: Instrument
 
 
 def _date_field(value: object, name: str, *, required: bool) -> date | None:
@@ -41,7 +43,9 @@ def _date_field(value: object, name: str, *, required: bool) -> date | None:
         raise ValueError(f"broker instrument {name} is not a calendar date") from error
 
 
-def resolve_broker_contract(engine: Engine, instrument: dict[str, object]) -> BrokerContract:
+def resolve_broker_contract(
+    engine: Engine | Connection, instrument: dict[str, object]
+) -> BrokerContract:
     """Reuse or register one observed contract, without changing existing facts.
 
     Required Instrument fields are ExchangeID, ProductClass, InstrumentID,
@@ -55,7 +59,7 @@ def resolve_broker_contract(engine: Engine, instrument: dict[str, object]) -> Br
 
 
 def verify_broker_contract(
-    engine: Engine, contract_id: UUID, instrument: dict[str, object]
+    engine: Engine | Connection, contract_id: UUID, instrument: dict[str, object]
 ) -> BrokerContract:
     """Read and verify a retained mapping; never register or repair missing facts.
 
@@ -69,7 +73,7 @@ def verify_broker_contract(
 
 
 def _contract(
-    engine: Engine, instrument: dict[str, object], *, expected_id: UUID | None
+    engine: Engine | Connection, instrument: dict[str, object], *, expected_id: UUID | None
 ) -> BrokerContract:
     if not isinstance(instrument, dict):
         raise ValueError("broker instrument must be a saved query row")
@@ -113,10 +117,13 @@ def _contract(
 
     with (
         Session(
-            engine.execution_options(live_write=True)
-            if engine.dialect.name == "sqlite" and expected_id is None
+            engine.execution_options(northstar_write=True)
+            if isinstance(engine, Engine)
+            and engine.dialect.name == "sqlite"
+            and expected_id is None
             else engine,
             expire_on_commit=False,
+            join_transaction_mode="create_savepoint",
         ) as session,
         session.begin(),
     ):
@@ -172,4 +179,17 @@ def _contract(
             and contract.listed_on != listed
         ):
             raise ValueError("broker instrument dates conflict with the registered contract")
-        return BrokerContract(contract.id, exchange.code, contract.contract_code)
+        return BrokerContract(
+            contract.id,
+            exchange.code,
+            contract.contract_code,
+            Instrument(
+                contract.id,
+                contract.contract_code,
+                exchange.timezone_name,
+                product.currency,
+                product.quantity_unit,
+                product.price_tick,
+                product.contract_multiplier,
+            ),
+        )

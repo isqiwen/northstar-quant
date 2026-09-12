@@ -1,4 +1,4 @@
-"""Private native implementation for one explicitly requested SimNow read.
+"""Private native CTP query/reception and explicitly supplied order transport.
 
 CTP owns callback pointers only while the callback runs. Copy permitted scalar
 fields immediately, then drain a bounded queue from the worker's Python thread.
@@ -20,7 +20,8 @@ from datetime import UTC, datetime
 from multiprocessing.connection import Connection
 from typing import Any, cast
 
-from northstar_quant.broker.events import CALLBACK_FIELDS, BrokerEvent
+from northstar_quant.broker.events import CALLBACK_FIELDS, TRANSFER_CALLBACKS, BrokerEvent
+from northstar_quant.broker.query_projection import QUERY_TYPES
 from northstar_quant.broker.settings import Credentials, SimnowProfile
 
 _MAX_EVENTS = 10_000
@@ -30,15 +31,6 @@ _STREAM_BYTES = 128 * 1024 * 1024
 _STREAM_QUEUE = 256
 _MAX_MESSAGE = 64 * 1024
 _QUERY_INTERVAL = 1.1
-_TD_QUERIES = (
-    ("account", "TradingAccount"),
-    ("positions", "InvestorPosition"),
-    ("orders", "Order"),
-    ("trades", "Trade"),
-    ("instrument", "Instrument"),
-    ("margin", "InstrumentMarginRate"),
-    ("commission", "InstrumentCommissionRate"),
-)
 
 
 def _copy_fields(callback: str, native: object | None) -> dict[str, object] | None:
@@ -90,6 +82,7 @@ class _Receiver:
         self.expected_responses: set[tuple[str, str, int]] = set()
         self.quote_seen = False
         self.closed = False
+        self.poll_orders: Callable[[], None] | None = None
 
     def event(
         self,
@@ -142,7 +135,12 @@ class _Receiver:
                 self.failure = self.failure or "DISCONNECTED"
             elif callback == "OnHeartBeatWarning" and self.streaming:
                 self.failure = self.failure or "HEARTBEAT_WARNING"
-            elif error_id:
+            elif error_id and callback not in {
+                "OnRspOrderInsert",
+                "OnRspOrderAction",
+                "OnErrRtnOrderInsert",
+                "OnErrRtnOrderAction",
+            }:
                 self.failure = self.failure or "CTP_RESPONSE_ERROR"
             if is_last and (channel, callback, request_id) in self.expected_responses:
                 assert request_id is not None
@@ -186,6 +184,10 @@ class _Receiver:
     def wait(self, condition: Callable[[], bool], seconds: float | None = None) -> bool:
         deadline = min(self.deadline, time.monotonic() + seconds) if seconds else self.deadline
         while time.monotonic() < deadline:
+            if self.stop_signal is not None and self.stop_signal.is_set():
+                raise _Stopped
+            if self.poll_orders is not None and not self.failure:
+                self.poll_orders()
             self.drain()
             if self.failure:
                 return False
@@ -260,10 +262,24 @@ def _native_class(base: Any, receiver: _Receiver, channel: str) -> Any:
         "OnRspUserLogin": _response(receiver, channel, "OnRspUserLogin"),
     }
     if channel == "TD":
-        for suffix in ("Authenticate", *("Qry" + query for _, query in _TD_QUERIES)):
+        for suffix in (
+            "Authenticate",
+            "OrderInsert",
+            "OrderAction",
+            *("Qry" + query for _, query in QUERY_TYPES),
+        ):
             callback = "OnRsp" + suffix
             methods[callback] = _response(receiver, channel, callback)
-        for callback in ("OnRtnOrder", "OnRtnTrade"):
+
+        def reject(callback: str) -> Any:
+            def respond(_self: object, native: object, error: object) -> None:
+                receiver.callback(channel, callback, native, error)
+
+            return respond
+
+        for callback in ("OnErrRtnOrderInsert", "OnErrRtnOrderAction"):
+            methods[callback] = reject(callback)
+        for callback in ("OnRtnOrder", "OnRtnTrade", *sorted(TRANSFER_CALLBACKS)):
             methods[callback] = _notification(receiver, channel, callback)
     else:
         methods["OnRspSubMarketData"] = _response(receiver, channel, "OnRspSubMarketData")
@@ -316,7 +332,7 @@ def _account_queries(
     structures: Any, *, broker_id: str, investor_id: str, instrument: str
 ) -> list[tuple[str, str, Any]]:
     queries = []
-    for section, suffix in _TD_QUERIES:
+    for section, suffix in QUERY_TYPES:
         fields = (
             {} if section == "instrument" else {"BrokerID": broker_id, "InvestorID": investor_id}
         )
@@ -348,6 +364,63 @@ def check_native(connection: Connection) -> None:
         structures = importlib.import_module("ctpwrapper.ApiStructure")
         # Synthetic identifiers, never operator credentials or a request send.
         _account_queries(structures, broker_id="9999", investor_id="0", instrument="rb2610")
+        from datetime import timedelta
+        from decimal import Decimal
+        from uuid import UUID
+
+        from northstar_quant.broker.order_transport import CtpSession, insert_fields, native_request
+        from northstar_quant.execution.orders import Offset, OrderBudget, PendingOrder, Side
+
+        now = datetime.now(UTC)
+        order = PendingOrder(
+            str(UUID(int=1)),
+            UUID(int=2),
+            now,
+            now + timedelta(minutes=1),
+            Side.BUY,
+            Offset.OPEN,
+            1,
+            Decimal(99),
+            Decimal(101),
+            contract_id=UUID(int=3),
+            budget=OrderBudget(*(Decimal(0) for _ in range(4))),
+        )
+        fields = insert_fields(
+            order,
+            CtpSession("simnow_dev", "9999", "0", now.date(), 0, 0, 0),
+            dict(
+                contract_id=str(order.contract_id),
+                ExchangeID="SHFE",
+                InstrumentID="rb2610",
+                PriceTick="1",
+                ProductClass="1",
+                MinLimitOrderVolume=1,
+                MaxLimitOrderVolume=100,
+            ),
+            order_ref=1,
+            limit_price=Decimal(100),
+        )
+        native_request(structures, "ReqOrderInsert", fields)
+        native_request(
+            structures,
+            "ReqOrderAction",
+            {
+                **{
+                    key: fields[key]
+                    for key in (
+                        "BrokerID",
+                        "InvestorID",
+                        "UserID",
+                        "InstrumentID",
+                        "ExchangeID",
+                        "OrderRef",
+                    )
+                },
+                "FrontID": 0,
+                "SessionID": 0,
+                "ActionFlag": "0",
+            },
+        )
         with tempfile.TemporaryDirectory(prefix="northstar-ctp-check-") as directory:
             trader, market = sdk.TraderApiPy(), sdk.MdApiPy()
             trader.Create(directory + "/td-")
@@ -387,6 +460,7 @@ def stream(
     directory: str,
     duration: float,
     stop_signal: Any,
+    order_queues: tuple[Any, Any] | None = None,
 ) -> None:
     _capture(
         connection,
@@ -397,6 +471,7 @@ def stream(
         duration,
         streaming=True,
         stop_signal=stop_signal,
+        order_queues=order_queues,
     )
 
 
@@ -410,6 +485,7 @@ def _capture(
     *,
     streaming: bool = False,
     stop_signal: Any = None,
+    order_queues: tuple[Any, Any] | None = None,
 ) -> None:
     # Native libraries can print directly through C stdio. Suppress both output
     # descriptors before importing them; only our typed evidence leaves the child.
@@ -548,6 +624,19 @@ def _capture(
             if subscription is None or subscription.get("InstrumentID") != instrument:
                 receiver.failure = "SUBSCRIPTION_IDENTITY_MISMATCH"
                 return
+            if order_queues is not None:
+                from northstar_quant.broker.order_channel import drain_order
+
+                seen: set[int] = set()
+                receiver.poll_orders = lambda: drain_order(
+                    *order_queues,
+                    trader=trader,
+                    structures=structures,
+                    broker_id=credentials.broker_id,
+                    account_id=credentials.user_id,
+                    seen=seen,
+                    record=receiver.event,
+                )
             receiver.deadline = stream_deadline
             receiver.wait(lambda: False)
         else:

@@ -22,34 +22,30 @@
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 应用持久目录固定在 `/opt/northstar/`；本机磁盘或主机预先挂载的共享使用同一套配置。
 配置文件在 `deploy/{database,data_hub,research,live}/.env`，数据库密码默认为 `123456`，发布接口无需 token，实际凭据放私有运行副本。
-部署脚本自动准备 NFS、Docker、目录和权限；默认 Research 提供行情共享，core 读写、Research 容器只读。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
+主机依赖由外部准备，部署脚本自动准备 northstar 账号、检查依赖、准备应用目录和挂载 NFS；外部 NFS 服务须提前导出 `/quant`，Data Hub 读写挂载、Research 只读挂载。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
 
 可使用统一远程入口（填写 `deploy/hosts.toml` 后提交代码，首次部署自动上传所属 `.env`）：
 
 ```sh
-./scripts/northstarctl.py init-host
-./scripts/northstarctl.py deploy nfs
 ./scripts/northstarctl.py deploy database
 ./scripts/northstarctl.py deploy data-hub
 ./scripts/northstarctl.py deploy research
 ./scripts/northstarctl.py deploy live
 ```
 
-远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx。
-同时将仓库 `scripts/operations/docker_configuration.py` 中的四个镜像源合并到 `/etc/docker/daemon.json`，
-保留其他 Docker 设置，校验后热加载并确认生效，不重启容器。
+目标主机须能用 `ssh <host>` 登录，默认账号可通过 sudo 提权（或为 root），并预装 Python 3.11+、sudo、Git、uv、Docker/Compose/Buildx；使用共享的主机还需 NFS 客户端。Docker 须已启动；脚本自动授予 northstar Docker 组权限，镜像源由外部配置。
 主机上的存储检查和版本读取直接使用 Python，不安装后端业务依赖；业务依赖在镜像中安装。
 中断部署或 SSH 连接关闭后，远程部署会清理本次子进程并释放锁；已启动容器保留，重试 `deploy` 继续部署。
-管理对象为 `database`、`nfs`、`data-hub`、`research`、`live`；NFS 使用主机服务和 journalctl 日志，不使用 `.env` 或 Docker 镜像。
+管理对象为 `database`、`data-hub`、`research`、`live`；数据库固定与 Data Hub 同机，仍独立部署。项目不管理 NFS 服务端。
 
-`hosts.toml` 填写各主机 host/user/port，`[nfs]` 同样填写服务端 host/user/port（默认 research.local），自动判断共享角色；user 仅供 `init-host` 登录和提权，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
+`hosts.toml` 各节只填写 host，不配置 `[database]`。首次 `deploy` 按本机 SSH 默认账号登录并按需提示 sudo 密码，准备并验证 northstar 后继续部署；后续使用 northstar，端口始终沿用本机 SSH 配置；NFS 固定挂载到 `/opt/northstar/files/market`。
 Research 部署会在主机上解析发布接口的 `.local` 地址，并为容器生成主机映射；部署主机必须能解析该地址，IP 变化后执行 `restart research` 刷新映射。
 之后部署固定使用 northstar，首次运行配置自动上传，默认保留已有配置；目标先具备 SSH、Python 3.11+。
 脚本部署当前已提交版本；可用 `deploy data-hub --env-file /本地路径/data-hub.env` 指定应用配置并更新远程运行副本。
 不指定时默认首次上传仓库中的 `.env`，后续保留远程配置；支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
 部署前会校验当前应用允许的参数：未知/废弃、重复、缺失或无效配置拒绝部署；保留的远程配置也必须通过当前版本校验。
 `.env` 使用单行 `KEY=value`；需要字面 `$变量` 的密码使用单引号，不允许依赖主机环境展开变量。
-显式 `--env-file` 整体替换配置；配置与源码在同一次受部署锁保护的传输中处理，校验通过后才激活。
+显式 `--env-file` 替换配置（未提供新工作台密码摘要时保留已安装摘要）；配置与源码在同一次受部署锁保护的传输中处理，校验通过后才激活。
 
 `status` 显示 `apps/<应用>/deployment.json`：目标 SHA、配置 SHA256、部署阶段、最后成功组合和实际容器镜像身份。
 部署失败保留新配置及失败记录，不宣称容器或数据库已原子回滚；请修正后重新 `deploy`。
@@ -57,7 +53,7 @@ Research 部署会在主机上解析发布接口的 `.local` 地址，并为容�
 清理失败单独标记 `cleanup_failed`，与应用启动失败区分。修改数据库密码配置不会自动更改已有数据库账号密码。
 
 `start`/`restart` 使用已部署版本，不重新构建。所有应用统一操作整个部署对象；`restart live` 会重启前端、API和内核；SQLite 文件保留。
-也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker）：
+也可以在对应主机的仓库根目录执行（需要 Git、uv、Docker）：
 
 ```sh
 # core.local：先初始化独立 PostgreSQL 和已准备的存储目录
@@ -69,6 +65,10 @@ make up-research
 # Live 所在主机，仍使用当前独立部署
 make up-live
 ```
+
+三个工作台各自支持一个用户。首次访问时创建用户名和密码；没有预设密码或环境变量摘要。
+普通启动、停止和重启保留账号；每次 `deploy` 清除该应用账号，下一次访问重新创建。
+账号保存在本机私有凭据目录，密码只保存 scrypt 摘要。登录不会连接柜台或开启交易。
 
 本机 Make 命令读取 `/opt/northstar/config/<应用>.env`，不提供路径覆盖。
 正式构建要求工作区干净；未提交修改时在对应命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`。
@@ -126,9 +126,10 @@ core 上的数据库单独使用 `make ps-database` / `down-database`；停止�
 core PostgreSQL 仅保存 Data Hub 元数据；Research 的任务与结果保存在 research 本机 SQLite。
 Research 用 Data Hub API 获取固定清单，通过只读市场目录和本机 DuckDB 读取 Parquet。
 配置 `NORTHSTAR_DATA_HUB_URL` 即可访问只读发布接口，无需 token，也不向 Research 分发 core 数据库口令。
-Live 当前仍独立存储，不依赖其他主机的存储；最小恢复日志与异步归档是下一项改造。
+Live 使用实例本地 SQLite 与来源文件；启动和联合恢复检查已保存事实，恢复不会自动连接柜台或重新授权。
+每实例独立 `live-monitor` 输出内核、存储和订单健康 JSON 告警；外部通知与整机失联检测尚未验收。
 Research 回测由独立 `research-worker` 执行；前端和 API 重启不结束已接收的任务。
-进程隔离不代表已经完成任务检查点恢复，也不能隔离整台主机故障。
+进程隔离不能隔离整台主机故障；实际外部柜台闭环仍需单独验收。
 
 ### 后端日志
 
@@ -185,8 +186,9 @@ Data Hub 对应 `dev:data`、后端 `19082`；Live 对应 `dev:live`、后端 `1
 本机 Python 入口为 `uv run --project backend northstar serve data-api`、`uv run --project backend northstar serve research-api`、
 `uv run --project backend northstar serve live-api`（Live 管理 API）和 `uv run --project backend northstar serve live-kernel`（内核）。
 `uv run --project backend northstar serve data-worker` 启动独立数据执行器，需要与 Data API 使用相同数据库、来源目录和代码版本。
+`uv run --project backend northstar serve live-monitor` 启动独立只读健康观察，使用初始化生成的 `monitor/read.toml` 和所属实例的内核地址。
 前三个默认监听表中的 `190xx` 端口；不要与同端口容器同时启动。
-各后端需配置所属 `NORTHSTAR_DATABASE_URL`；Data Hub/Research 另需对应市场、研究目录及存储 UUID（见部署模板）。
+Data Hub 配置 `NORTHSTAR_DATABASE_URL`；Research 使用 `NORTHSTAR_RESEARCH_DATABASE` 本机 SQLite，Live 使用实例本地状态目录（见部署模板）。
 Data Hub 与当前 Live 内核使用 `NORTHSTAR_DATA_DIR`；Research 不访问来源目录。
 Live 管理 API 使用 `NORTHSTAR_LIVE_URL` 与 `NORTHSTAR_LIVE_AUTH` 访问内核。
 
@@ -249,7 +251,7 @@ Compose 自动启动独立 `research-worker`；本机可用 `uv run --project ba
 与 API 使用同一份 Research 本地 SQLite 和市场/研究存储配置。没有 worker 时任务排队，浏览器关闭不丢任务。
 取消先记录请求，计算确认后才显示已取消；保存结果阶段取消窗口关闭。中断保留尝试，可显式重试相同输入；代码变化须新建任务。
 已有 CLI `research run` 是明确的前台有界运行，仍调用同一研究计算。
-当前支持单交易日快照，跨日结算、样本外评价和参数优化仍待交付。
+支持固定快照及显式结算事实驱动的跨日计算；真实有效条款、完整保证金、样本外评价和参数优化仍待交付。
 
 ## 验证
 
@@ -288,8 +290,13 @@ make backup-database
 恢复不会覆盖已有数据库，也不会自动恢复行情连接或交易权限。
 `maintenance init-db` 只接受当前存储结构，不自动重置已有数据；存储结构不匹配时应先保全所需证据，再明确处理。
 
-当前回测与 Paper 的模拟范围是单合约、显式日内时段和分钟数据，费用、滑点、保证金为显式假设；
-没有完整模拟部分成交、市场冲击或交易所结算，也不会在数据结束时自动平仓。
+Data Hub 的固定查询结果可提交后台合并，旧版本和逐行来源保持可读。
+清理先运行 `northstar maintenance prune-data` 查看无引用对象，再用
+`northstar maintenance prune-data --apply <plan_id>` 执行该清单；引用变化时拒绝。
+一次最多 500 个对象，保留所有来源/发布/备份引用，不处理临时 staging，也不因合并删除旧版本。
+
+当前回测与 Paper 支持单合约、固定多日时段、跨日结算、有效费用/保证金条款和受量约束的部分成交；
+仍不模拟真实排队优先级或市场冲击，也不会在数据结束时自动平仓。真实历史条款与 Tushare 研究清单联合验收尚未完成。
 金额使用十进制值，结果绑定固定数据、配置及 Git 身份；`-dirty` 结果无法仅凭提交号还原未提交源码。
 
 Live 默认不发送订单。未知结果不能盲目重发；实时执行最终必须由用户在完成核对与验证后明确授权。
@@ -312,3 +319,7 @@ Live 默认不发送订单。未知结果不能盲目重发；实时执行最终
 CI 无论成功或失败均保留 `acceptance-<SHA>-<attempt>` 产物 14 天，避免临时目录清理后丢失失败诊断。
 源码 SHA、主机当前版本、镜像 ID 和验收结论应分别记录，旧部署健康不代表新提交已验收。
 三个工作台的身份认证现状见 [API 边界](docs/API.md#工作台身份边界)。
+
+
+彻底卸载使用 `python3 scripts/northstarctl.py purge-host <应用> --yes`，会删除该应用所在主机的全部 Northstar 部署和本地数据（含同机数据库）；可先用 `--dry-run` 查看目标。
+NAS 共享只卸载、不删除远端数据。详见[完全卸载](deploy/README.md#完全卸载应用主机)。

@@ -16,38 +16,31 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-APPLICATIONS = ("database", "nfs", "data-hub", "research", "live")
+APPLICATIONS = ("database", "data-hub", "research", "live")
 
 
 def configuration(path: Path, app: str) -> dict:
-    item = tomllib.loads(path.read_text()).get(app.replace("-", "_"), {})
+    settings = tomllib.loads(path.read_text())
+    if "database" in settings:
+        raise ValueError("请删除 [database]；数据库固定使用 [data_hub] 主机配置")
+    owner = "data_hub" if app == "database" else app.replace("-", "_")
+    item = settings.get(owner, {})
     host = item.get("host")
     if not isinstance(host, str) or not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_.:-]*", host):
         raise ValueError(f"{app}.host 必须填写有效的 SSH 主机地址，不带协议前缀")
-    user = item.get("user")
-    if not isinstance(user, str) or not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_.-]*", user):
-        raise ValueError(f"{app}.user 必须填写用于初始化登录及提权的用户名")
-    port = item.get("port", 22)
-    if type(port) is not int or not 1 <= port <= 65535:
-        raise ValueError("SSH port 必须在 1–65535 范围内")
-    if set(item) - {"host", "user", "port"}:
-        raise ValueError("主机配置只接受 host/user/port；部署账号固定为 northstar")
+    if set(item) - {"host"}:
+        raise ValueError("主机配置只接受 host；SSH 账号固定为 northstar，端口使用本机 SSH 配置")
     return {
         "host": host,
         "user": "northstar",
-        "bootstrap_user": user,
-        "port": port,
         "directory": f"/opt/northstar/apps/{app}",
         "env_file": f"/opt/northstar/config/{app}.env",
     }
 
 
-def ssh(config: dict, program: str, argument: str, *, initialize: bool = False) -> list[str]:
-    interactive = initialize and sys.stdin.isatty()
-    login = config["bootstrap_user"] if initialize else "northstar"
+def ssh(config: dict, program: str, argument: str, *, bootstrap: bool = False) -> list[str]:
     execute = ["python3", "-c", program, argument]
-    if initialize and login != "root":
-        execute = ["sudo", *([] if interactive else ["-n"]), "--", *execute]
+    interactive = bootstrap and sys.stdin.isatty()
     return [
         "ssh",
         "-tt" if interactive else "-T",
@@ -63,83 +56,68 @@ def ssh(config: dict, program: str, argument: str, *, initialize: bool = False) 
         "ServerAliveInterval=15",
         "-o",
         "ServerAliveCountMax=3",
-        "-p",
-        str(config["port"]),
-        "-l",
-        login,
+        *([] if bootstrap else ["-l", "northstar"]),
         config["host"],
         shlex.join(execute),
     ]
 
 
-def initialize_hosts(args: argparse.Namespace) -> int:
-    settings = tomllib.loads(args.config.read_text())
-    apps = (
-        [args.app]
-        if args.app
-        else [app for app in APPLICATIONS if settings.get(app.replace("-", "_"), {}).get("host")]
+def deployment_key(config: dict) -> str:
+    """Use identities available to the subsequent northstar SSH connection."""
+    resolved = subprocess.check_output(["ssh", "-G", "-l", "northstar", config["host"]], text=True)
+    for line in resolved.splitlines():
+        key, _, value = line.partition(" ")
+        if key != "identityfile" or value == "none":
+            continue
+        public = Path(value).expanduser()
+        if public.suffix != ".pub":
+            public = Path(str(public) + ".pub")
+        if public.is_file():
+            return public.read_text().strip()
+    agent = subprocess.run(["ssh-add", "-L"], capture_output=True, text=True, check=False)
+    if agent.returncode == 0 and agent.stdout.strip():
+        return agent.stdout.splitlines()[0].strip()
+    raise ValueError(
+        "未找到部署 SSH 公钥；请为该主机配置 IdentityFile 的 .pub 或向 ssh-agent 加载密钥"
     )
-    if args.app in {"database", "data-hub", "research"} and settings.get("nfs"):
-        apps = [*apps, "nfs"]
-    targets = {}
-    for app in apps:
-        config = configuration(args.config, app)
-        identity = (config["host"], config["port"])
-        if identity in targets and targets[identity]["bootstrap_user"] != config["bootstrap_user"]:
-            raise ValueError("同一主机的初始化 user 必须一致")
-        targets[identity] = config
-    if not targets:
-        raise ValueError("没有已配置的目标主机")
-    if args.dry_run:
-        for (host, port), config in targets.items():
-            print(f"init-host → {config['bootstrap_user']}@{host}:{port}，准备 northstar 部署账号")
-        return 0
-    key = next(
-        (
-            p
-            for p in (Path.home() / ".ssh/id_ed25519.pub", Path.home() / ".ssh/id_rsa.pub")
-            if p.is_file()
-        ),
-        None,
+
+
+def prepare_account(config: dict) -> None:
+    probe = ssh(
+        config,
+        "import pwd,os,subprocess; assert pwd.getpwuid(os.getuid()).pw_name == 'northstar'; "
+        "subprocess.run(['sudo','-n','true'],check=True); "
+        "subprocess.run(['docker','info'],check=True,stdout=subprocess.DEVNULL)",
+        json.dumps({"northstar_account_check": True}),
     )
-    if key is None:
-        raise ValueError("未找到 SSH 公钥，请先执行 ssh-keygen -t ed25519 创建密钥")
-    public_key = key.read_text().strip()
-    fields = public_key.split()
     if (
-        len(public_key.splitlines()) != 1
-        or len(public_key) > 16384
-        or len(fields) < 2
-        or not fields[0].startswith(("ssh-", "ecdsa-", "sk-"))
-    ):
-        raise ValueError("请提供单行 SSH 公钥，不能提供私钥")
-    subprocess.run(["ssh-keygen", "-lf", str(key)], check=True, stdout=subprocess.DEVNULL)
-    for config in targets.values():
-        print(
-            f"init-host → {config['bootstrap_user']}@{config['host']}:{config['port']}", flush=True
-        )
         subprocess.run(
-            ssh(
-                config,
-                (ROOT / "scripts/operations/host_account.py").read_text(),
-                json.dumps({"public_key": public_key}),
-                initialize=True,
-            ),
-            stdin=None if sys.stdin.isatty() else subprocess.DEVNULL,
-            check=True,
-        )
-        subprocess.run(
-            ssh(
-                config,
-                "import os, subprocess; assert os.geteuid() != 0; "
-                "subprocess.run(['sudo', '-n', 'true'], check=True)",
-                "",
-            ),
+            probe,
             stdin=subprocess.DEVNULL,
-            check=True,
-        )
-        print(f"{config['host']}：northstar 密钥登录和 sudo 验证通过", flush=True)
-    return 0
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    ):
+        return
+    public_key = deployment_key(config)
+    program = (ROOT / "scripts/operations/host_account.py").read_text()
+    # Default SSH user authenticates first; sudo reads from its terminal, never a payload.
+    elevated = (
+        "import os,subprocess,sys; "
+        "command=['python3','-c'," + repr(program) + ",sys.argv[1]]; "
+        "prefix=[] if os.geteuid()==0 else ['sudo',"
+        "*([] if sys.stdin.isatty() else ['-n']),'--']; "
+        "sys.exit(subprocess.call(prefix+command))"
+    )
+    print(f"准备 northstar 账号 → {config['host']}（使用 SSH 默认登录账号，按需 sudo）", flush=True)
+    subprocess.run(
+        ssh(config, elevated, json.dumps({"public_key": public_key}), bootstrap=True),
+        stdin=None if sys.stdin.isatty() else subprocess.DEVNULL,
+        check=True,
+    )
+    subprocess.run(probe, stdin=subprocess.DEVNULL, check=True)
 
 
 def git(*args: str) -> str:
@@ -148,16 +126,14 @@ def git(*args: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="通过 SSH 管理 Northstar 数据库、NFS 和应用的部署、启停、状态及日志"
+        description="通过 SSH 管理 Northstar 数据库和应用的部署、启停、状态及日志"
     )
     parser.add_argument(
         "action",
-        choices=("init-host", "deploy", "start", "restart", "status", "logs", "stop"),
-        help="首次主机初始化、部署（自动准备主机依赖）、启动、重启、状态、日志、停止（保留数据）",
+        choices=("deploy", "start", "restart", "status", "logs", "stop", "purge-host"),
+        help="部署（检查已准备的主机依赖）、启动、重启、状态、日志、停止（保留数据）、整机卸载（删除全部本地数据）",
     )
-    parser.add_argument(
-        "app", nargs="?", choices=APPLICATIONS, help="init-host 省略时初始化所有已配置主机"
-    )
+    parser.add_argument("app", choices=APPLICATIONS, help="需要管理的应用")
     parser.add_argument(
         "--config",
         type=Path,
@@ -172,63 +148,47 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="仅显示目标，不连接 SSH")
     parser.add_argument("--follow", action="store_true", help="持续查看日志（仅 logs）")
     parser.add_argument("--instance", help="仅管理指定 Live 实例的启停、状态和日志")
+    parser.add_argument(
+        "--yes", action="store_true", help="确认 purge-host 删除目标主机全部 Northstar 本地数据"
+    )
     args = parser.parse_args()
+    if args.yes and args.action != "purge-host":
+        parser.error("--yes 仅用于 purge-host")
+    if args.action == "purge-host" and not (args.yes or args.dry_run):
+        parser.error("整机卸载会停止该主机所有 Northstar 应用并删除本地数据；确认后加 --yes")
     if args.instance and (
         args.app != "live" or args.action not in {"start", "restart", "stop", "status", "logs"}
     ):
         parser.error("--instance 仅用于 Live 实例启停、状态和日志")
-    if args.app == "nfs" and args.env_file is not None:
-        parser.error("NFS 使用 hosts.toml，不使用 .env")
     if args.env_file is not None and args.action != "deploy":
         parser.error("--env-file 仅用于 deploy；其他命令使用已部署的运行配置")
     if args.follow and args.action != "logs":
         parser.error("--follow 仅用于 logs")
-    if args.action != "init-host" and args.app is None:
-        parser.error("应用管理命令必须指定应用")
     try:
-        if args.action == "init-host":
-            return initialize_hosts(args)
         config = configuration(args.config, args.app)
-        settings = tomllib.loads(args.config.read_text())
-        if args.app == "nfs":
-            plan = {}
-            if args.action == "deploy":
-                plan = runpy.run_path(str(ROOT / "scripts/operations/nfs.py"))["topology"](settings)
-                assert plan is not None
-                for key in ("data-hub", "research"):
-                    configuration(args.config, key)
-            print(f"{args.action} nfs → northstar@{config['host']}:{config['port']}", flush=True)
+        if args.action == "purge-host":
+            settings = tomllib.loads(args.config.read_text())
+            if settings.get("nfs", {}).get("host") == config["host"]:
+                raise ValueError("目标同时被配置为 NFS 服务端，拒绝整机卸载；请检查应用主机配置")
+            print(
+                f"整机卸载 → northstar@{config['host']}："
+                "该主机全部 Northstar 容器、专属资源和 /opt/northstar 本地数据；外部共享保留",
+                flush=True,
+            )
             if args.dry_run:
                 return 0
-            program = (ROOT / "scripts/operations/nfs.py").read_text()
+            program = (ROOT / "scripts/operations/purge_host.py").read_text()
             elevated = (
                 "import subprocess,sys; sys.exit(subprocess.call(['sudo','-n','--',"
-                "'python3','-c'," + repr(program) + ",sys.argv[1]]))"
+                "'python3','-c'," + repr(program) + "]))"
             )
             return subprocess.run(
-                ssh(
-                    config,
-                    elevated,
-                    json.dumps(
-                        plan
-                        | {
-                            "host": config["host"],
-                            "action": args.action,
-                            "follow": args.follow,
-                        }
-                    ),
-                ),
-                stdin=subprocess.DEVNULL,
-                check=False,
+                ssh(config, elevated, ""), stdin=subprocess.DEVNULL, check=False
             ).returncode
+        settings = tomllib.loads(args.config.read_text())
         nfs = None
-        server_config = None
         if args.app in {"database", "data-hub", "research"}:
             nfs = runpy.run_path(str(ROOT / "scripts/operations/nfs.py"))["topology"](settings)
-            if nfs:
-                for key in ("data_hub", "research", "nfs"):
-                    configuration(args.config, key.replace("_", "-"))
-                server_config = configuration(args.config, "nfs")
         revision = None
         custom_environment = None
         environment_path = args.env_file or ROOT / "deploy" / args.app.replace("-", "_") / ".env"
@@ -255,7 +215,7 @@ def main() -> int:
             "instance": args.instance,
         }
         print(
-            f"{args.action} {args.app} → {config['user']}@{config['host']}:{config['port']} "
+            f"{args.action} {args.app} → {config['user']}@{config['host']} "
             f"{config['directory']}" + (f" @{revision}" if revision else ""),
             flush=True,
         )
@@ -275,7 +235,10 @@ def main() -> int:
                 flush=True,
             )
         if args.action == "deploy" and nfs:
-            print(f"NFS：{nfs['server']} 提供行情；{nfs['writer']} 读写，{nfs['reader']} 只读消费")
+            print(
+                f"NFS：{nfs['server']}:/quant → /opt/northstar/files/market；"
+                f"{nfs['writer']} 读写，{nfs['reader']} 只读消费"
+            )
         if args.dry_run:
             return 0
         command = ssh(
@@ -283,33 +246,23 @@ def main() -> int:
         )
         if args.action != "deploy":
             return subprocess.run(command, stdin=subprocess.DEVNULL, check=False).returncode
+        prepare_account(config)
         if nfs:
-            assert server_config is not None
             program = (ROOT / "scripts/operations/nfs.py").read_text()
-            # Refuse hiding existing client data before changing the server at all.
             subprocess.run(
                 ssh(config, program, json.dumps(nfs | {"host": config["host"], "preflight": True})),
                 stdin=subprocess.DEVNULL,
                 check=True,
             )
-            # NFS server dependencies/permissions belong exclusively to deploy nfs.
-            for target, operation in [
-                (server_config, "check-server"),
-                *([(config, "deploy")] if config["host"] != server_config["host"] else []),
-            ]:
-                elevated = (
-                    "import subprocess,sys; subprocess.run(['sudo','-n','--',"
-                    "'python3','-c'," + repr(program) + ",sys.argv[1]],check=True)"
-                )
-                subprocess.run(
-                    ssh(
-                        target,
-                        elevated,
-                        json.dumps(nfs | {"host": target["host"], "action": operation}),
-                    ),
-                    stdin=subprocess.DEVNULL,
-                    check=True,
-                )
+            elevated = (
+                "import subprocess,sys; subprocess.run(['sudo','-n','--',"
+                "'python3','-c'," + repr(program) + ",sys.argv[1]],check=True)"
+            )
+            subprocess.run(
+                ssh(config, elevated, json.dumps(nfs | {"host": config["host"]})),
+                stdin=subprocess.DEVNULL,
+                check=True,
+            )
         bootstrap = command[:-1] + [
             shlex.join(
                 [
@@ -322,9 +275,6 @@ def main() -> int:
                             "directory_program": (
                                 ROOT / "scripts/operations/host_directories.py"
                             ).read_text(),
-                            "docker_program": (
-                                ROOT / "scripts/operations/docker_configuration.py"
-                            ).read_text(),
                         }
                     ),
                 ]
@@ -334,7 +284,7 @@ def main() -> int:
         if interactive:
             bootstrap[1] = "-tt"
         subprocess.run(bootstrap, stdin=None if interactive else subprocess.DEVNULL, check=True)
-        # Reconnect so Docker group membership from first installation takes effect.
+        # Transfer the committed source after host prerequisites have passed.
         with tempfile.TemporaryDirectory(prefix="northstar-deploy-") as temporary:
             bundle = Path(temporary) / "source.bundle"
             subprocess.run(

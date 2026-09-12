@@ -23,6 +23,7 @@ from northstar_quant.data_management.library import DataLibrary
 from tests.accounting.test_baselines import saved_query
 from tests.accounting.test_ledger import ledger_query, position_baseline, trade
 from tests.apps.browser import ProtocolClient as TestClient
+from tests.apps.browser import login_response
 
 
 def money_query(
@@ -224,11 +225,10 @@ def test_changed_money_or_source_evidence_is_refused_on_read(
 
 
 def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
-    live_web_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
+    live_web_app, live_engine: Engine, tmp_path: Path
 ) -> None:
-    del clean_database
-    baseline = money_baseline(postgres_engine)
-    source = money_query(postgres_engine, money={"Commission": "5", "Balance": "99995"})
+    baseline = money_baseline(live_engine)
+    source = money_query(live_engine, money={"Commission": "5", "Balance": "99995"})
     command = uuid4()
     payload = {
         "baseline_id": str(baseline),
@@ -236,13 +236,13 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
         "request_id": str(command),
     }
     application = live_web_app(
-        postgres_engine, DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+        live_engine, DataLibrary(live_engine, SourceFiles(tmp_path / "archive"))
     )
     with TestClient(application, base_url="http://127.0.0.1") as client:
         path = f"/api/broker/funds-entries/{command}"
-        assert client.get(path).status_code == 403
-        assert client.post("/api/broker/funds-entries", json=payload).status_code == 403
-        page = client.get("/api/browser-session")
+        assert client.get(path).status_code == 401
+        assert client.post("/api/broker/funds-entries", json=payload).status_code == 401
+        page = login_response(client)
         token = page.json()["csrf"]
         assert client.post("/api/broker/funds-entries", json=payload).status_code == 403
         client.headers["X-Northstar-CSRF"] = token
@@ -259,5 +259,169 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
         result = posted.json()
         assert client.get(path).json() == result
         assert client.post("/api/broker/funds-entries", json=payload).json() == result
-        page = client.get("/api/browser-session")
-        assert BrokerFunds(postgres_engine).verify_all() == 1
+        page = login_response(client)
+        assert BrokerFunds(live_engine).verify_all() == 1
+
+
+@pytest.mark.parametrize("damage", ["amount", "delta", "status", "authority", "receipt"])
+def test_recovery_recomputes_money_evidence_even_when_projection_hash_is_valid(
+    live_engine: Engine, damage: str, tmp_path: Path
+) -> None:
+    import hashlib
+    import json
+
+    from northstar_quant.apps.live.kernel import create_app
+    from northstar_quant.live.auth import LiveAuth
+    from northstar_quant.live.recovery import verify
+
+    files = SourceFiles(tmp_path / "recovery-files")
+    baseline = money_baseline(live_engine)
+    funds = BrokerFunds(live_engine)
+    first = money_query(live_engine, money={"Commission": "8", "Balance": "99992"})
+    funds.observe(baseline, first, request_id=uuid4())
+    source = money_query(live_engine, money={"Commission": "3", "Balance": "99997"})
+    command = uuid4()
+    entry = funds.observe(baseline, source, request_id=command)
+    verify(live_engine, DataLibrary(live_engine, files))
+    assert entry["status"] == "UNKNOWN"
+    assert "CUMULATIVE_COMMISSION_ADJUSTMENT_UNRESOLVED" in entry["problems"]
+    if damage == "amount":
+        entry["observation"]["amounts"]["Balance"] = "1000000"
+    elif damage == "delta":
+        entry["interval"]["deltas"]["Commission"] = "0"
+    elif damage == "status":
+        entry["status"], entry["problems"] = "OBSERVED", []
+    elif damage == "authority":
+        entry["reconciliation"] = "MATCHED"
+        entry["execution"]["order_sending"] = True
+    else:
+        entry["interval_start"]["account_receipts"] = []
+    content = json.dumps(entry, sort_keys=True, allow_nan=False, separators=(",", ":"))
+    digest = hashlib.sha256(content.encode()).hexdigest()
+    # Simulate a corrupt restored projection with an internally consistent checksum.
+    # The original query remains intact and must remain the reconstruction authority.
+    with live_engine.begin() as connection:
+        connection.exec_driver_sql("DROP TRIGGER immutable_broker_funds_entries_UPDATE")
+        connection.exec_driver_sql(
+            "UPDATE broker_funds_entries SET document=?, sha256=? WHERE entry_id=?",
+            (content, digest, command.hex),
+        )
+    restarted = BrokerFunds(live_engine)
+    for operation in (
+        lambda: restarted.get(command),
+        lambda: restarted.context(source),
+        lambda: restarted.observe(baseline, source, request_id=command),
+        restarted.verify_all,
+        lambda: verify(live_engine, DataLibrary(live_engine, files)),
+        lambda: create_app(
+            live_engine, DataLibrary(live_engine, files), LiveAuth("r" * 48, "c" * 48)
+        ),
+    ):
+        with pytest.raises(ValueError, match="projection differs"):
+            operation()
+    assert BrokerRecords(live_engine).get(source)["capture"] is not None
+
+
+@pytest.mark.parametrize("damage", ["later", "other_account", "ordinal"])
+def test_money_cannot_borrow_a_valid_position_from_another_scope_or_the_future(
+    live_engine: Engine, tmp_path: Path, damage: str
+) -> None:
+    import hashlib
+    import json
+
+    from northstar_quant.live.recovery import verify
+
+    baseline = position_baseline(live_engine)
+    ledger, funds = BrokerLedger(live_engine), BrokerFunds(live_engine)
+    original = ledger.ingest(baseline, ledger_query(live_engine), request_id=uuid4())
+    other_baseline = uuid4()
+    BrokerBaselines(live_engine).establish(
+        money_query(live_engine, profile="simnow_trading"), request_id=other_baseline
+    )
+    other = ledger.ingest(
+        other_baseline, ledger_query(live_engine, profile="simnow_trading"), request_id=uuid4()
+    )
+    source, command = money_query(live_engine), uuid4()
+    entry = funds.observe(baseline, source, request_id=command)
+    later = ledger.ingest(baseline, ledger_query(live_engine), request_id=uuid4())
+    assert funds.get(command) == entry  # New observations do not change the original reference.
+    replacement = later if damage == "later" else other if damage == "other_account" else original
+
+    def digest(value):
+        return hashlib.sha256(
+            json.dumps(value, sort_keys=True, allow_nan=False, separators=(",", ":")).encode()
+        ).hexdigest()
+
+    entry["position_reference"] = dict(
+        entry_id=replacement["entry_id"],
+        ordinal=replacement["ordinal"] + (1 if damage == "ordinal" else 0),
+        sha256=digest(replacement),
+    )
+    # Both the referenced record and the outer hash remain intact: the relation is false.
+    with live_engine.begin() as connection:
+        connection.exec_driver_sql("DROP TRIGGER immutable_broker_funds_entries_UPDATE")
+        connection.exec_driver_sql(
+            "UPDATE broker_funds_entries SET document=?, sha256=? WHERE entry_id=?",
+            (json.dumps(entry), digest(entry), command.hex),
+        )
+    for operation in (
+        lambda: BrokerFunds(live_engine).get(command),
+        lambda: funds.observe(baseline, source, request_id=command),
+        lambda: verify(live_engine, DataLibrary(live_engine, SourceFiles(tmp_path / "files"))),
+    ):
+        with pytest.raises(ValueError, match="position reference"):
+            operation()
+    assert ledger.get(UUID(original["entry_id"])) == original
+
+
+def test_clock_regression_cannot_commit_money_before_its_observed_position(
+    live_engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    baseline = position_baseline(live_engine)
+    source = money_query(live_engine)
+    position = BrokerLedger(live_engine).ingest(
+        baseline, ledger_query(live_engine), request_id=uuid4()
+    )
+    capture = BrokerRecords(live_engine).get(source)["capture"]
+    finished = datetime.fromisoformat(capture["finished_at"])
+    recorded = datetime.fromisoformat(position["recorded_at"])
+    assert finished < recorded
+
+    class EarlierClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return (finished + (recorded - finished) / 2).astimezone(tz)
+
+    monkeypatch.setattr("northstar_quant.accounting.funds.datetime", EarlierClock)
+    command = uuid4()
+    with pytest.raises(ValueError, match="position reference"):
+        BrokerFunds(live_engine).observe(baseline, source, request_id=command)
+    with pytest.raises(LookupError):
+        BrokerFunds(live_engine).get(command)
+    assert BrokerFunds(live_engine).verify_all() == 0
+
+
+def test_activity_during_query_is_retained_as_uncertainty_on_both_interval_endpoints(live_engine):
+    baseline = money_baseline(live_engine)
+    source = saved_query(live_engine, money={"BizType": "1", "SettlementID": 1}, cashflow=True)
+    funds = BrokerFunds(live_engine)
+    first = funds.observe(baseline, source, request_id=uuid4())
+    assert first["status"] == "UNKNOWN"
+    assert first["observation"]["scope_confirmed"] is True
+    assert "ACCOUNT_ACTIVITY_DURING_QUERY" in first["problems"]
+    next_source = money_query(live_engine)
+    second = funds.observe(baseline, next_source, request_id=uuid4())
+    assert second["status"] == "UNKNOWN"  # Its interval starts at the uncertain observation.
+    assert second["observation"]["problems"] == []
+    assert second["observation"]["amounts"]["Balance"] == "100000"
+    assert BrokerFunds(live_engine).get(UUID(first["entry_id"])) == first
+    assert BrokerFunds(live_engine).get(UUID(second["entry_id"])) == second
+    assert funds.verify_all() == 2
+    ledger = BrokerLedger(live_engine)
+    entry = ledger.ingest(baseline, source, request_id=uuid4())
+    assert entry["status"] == "UNKNOWN" and entry["position_projection"]["status"] == "KNOWN"
+    assert entry["fill_count"] == 0
+    assert any(
+        item["code"] == "QUERY_CASHFLOW_RECONCILIATION_REQUIRED" for item in entry["problems"]
+    )
+    assert ledger.verify_all()["position_entries_count"] == 1

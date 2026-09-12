@@ -1,7 +1,7 @@
 """Retain one bounded, read-only CTP query without inventing an account ledger.
 
-Callback identity, field selection and request completion live beside the evidence
-they explain. A complete query is not an atomic account snapshot or reconciliation.
+Persistence owns fixed source identity and integrity. Native receipt interpretation
+is shared with recovery through query_projection; a complete query is not reconciliation.
 This Module contains no network calls, order sender or simulated account importer.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -17,19 +17,17 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     Connection,
-    DateTime,
     Engine,
     MetaData,
     String,
     Table,
+    Uuid,
     select,
     update,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.types import TypeDecorator
 
 from northstar_quant import code_revision
 from northstar_quant.broker.events import (
@@ -38,52 +36,21 @@ from northstar_quant.broker.events import (
     parse_time,
     timestamp,
 )
+from northstar_quant.broker.query_projection import project_query
 from northstar_quant.broker.settings import get_profile, validate_instrument
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
-
-class EvidenceTimestamp(TypeDecorator[datetime]):
-    """Broker evidence clocks are UTC even when the local DB stores no timezone."""
-
-    impl = DateTime(timezone=True)
-    cache_ok = True
-
-    def process_bind_param(self, value: datetime | None, dialect: Any) -> datetime | None:
-        if value is None:
-            return None
-        if value.tzinfo is None or value.utcoffset() is None:
-            raise ValueError("Evidence timestamps must be timezone-aware")
-        return value.astimezone(UTC)
-
-    def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
-        return (
-            (value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC))
-            if value is not None
-            else None
-        )
-
-
-_QUERIES = {
-    "account": ("ReqQryTradingAccount", "OnRspQryTradingAccount"),
-    "positions": ("ReqQryInvestorPosition", "OnRspQryInvestorPosition"),
-    "orders": ("ReqQryOrder", "OnRspQryOrder"),
-    "trades": ("ReqQryTrade", "OnRspQryTrade"),
-    "instrument": ("ReqQryInstrument", "OnRspQryInstrument"),
-    "margin": ("ReqQryInstrumentMarginRate", "OnRspQryInstrumentMarginRate"),
-    "commission": ("ReqQryInstrumentCommissionRate", "OnRspQryInstrumentCommissionRate"),
-}
-_ACCOUNT_ROWS = {"account", "positions", "orders", "trades"}
 _metadata = MetaData()
 _batches = Table(
     "broker_query_batches",
     _metadata,
-    Column("batch_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("batch_id", Uuid(as_uuid=True), primary_key=True),
     Column("profile_name", String(32), nullable=False),
     Column("profile", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("account_id", String(12), nullable=False),
     Column("instrument", String(32), nullable=False),
     Column("query_scope", JSON().with_variant(JSONB, "postgresql"), nullable=False),
-    Column("created_at", EvidenceTimestamp(), nullable=False),
+    Column("created_at", UTCDateTime(), nullable=False),
     Column("code_revision", String(64), nullable=False),
     Column("request_hash", String(64), nullable=False),
     Column("binding_hash", String(64), nullable=False),
@@ -253,7 +220,7 @@ class BrokerRecords:
                 if saved["capture"] != capture.to_dict():
                     raise ValueError("broker query completion conflicts with saved evidence")
                 return saved
-            result = _result(binding, capture)
+            result = project_query(binding, capture)
             result_hash = capture_hash({"binding": binding, "result": result})
             connection.execute(
                 update(_batches)
@@ -342,7 +309,7 @@ def _stored(row: dict[str, object]) -> dict[str, object]:
     if row["status"] == "PENDING":
         if row["result"] is not None or row["result_hash"] is not None:
             raise ValueError("unfinished broker query contains conflicting completion evidence")
-        return {**binding, **_result(binding, None)}
+        return {**binding, **project_query(binding, None)}
     result = row["result"]
     if (
         not isinstance(result, dict)
@@ -350,322 +317,9 @@ def _stored(row: dict[str, object]) -> dict[str, object]:
         or capture_hash({"binding": binding, "result": result}) != row["result_hash"]
     ):
         raise ValueError("saved broker query result no longer matches its evidence")
+    capture = QueryCapture.from_dict(result["capture"])
+    if parse_time(capture.started_at) < parse_time(
+        str(binding["created_at"])
+    ) or result != project_query(binding, capture):
+        raise ValueError("saved broker query projection differs from its retained callbacks")
     return {**binding, **result}
-
-
-def _result(binding: dict[str, object], capture: QueryCapture | None) -> dict[str, object]:
-    sections: dict[str, dict[str, object]] = {
-        name: {
-            "status": "NOT_OBSERVED",
-            "request_id": None,
-            "rows": None,
-            "first_received_at": None,
-            "last_received_at": None,
-            "error_ids": [],
-        }
-        for name in _QUERIES
-    }
-    sections["instrument"]["identity"] = "UNKNOWN"
-    reasons: set[str] = set()
-    unknown: set[str] = {
-        "TRADING_SESSION_TIMES_NOT_VERIFIED",
-        "LOCAL_LEDGER_NOT_ESTABLISHED",
-        "QUERY_WINDOW_IS_NOT_AN_ATOMIC_ACCOUNT_SNAPSHOT",
-    }
-    # This is the TD account identity. MD may omit account fields entirely;
-    # observing that public market session cannot undo verified account facts.
-    identity = "UNKNOWN"
-    trading_day: str | None = None
-    market: dict[str, object] = {
-        "status": "NOT_OBSERVED",
-        "login": None,
-        "login_identity": "UNKNOWN",
-        "depth": None,
-        "continuous_feed": False,
-    }
-    fatal = False
-    if capture is not None:
-        requests: dict[tuple[str, int], tuple[str, int]] = {}
-        terminated: set[tuple[str, int]] = set()
-        profile = cast(dict[str, object], binding["profile"])
-        account_id, instrument = binding["account_id"], binding["instrument"]
-        td_connected = False
-        context_seen = False
-        for event in capture.events:
-            data = event.data
-            key = None if event.request_id is None else (event.channel, event.request_id)
-            if event.error_id:
-                reasons.add("BROKER_REPORTED_ERROR")
-                fatal = True
-            if event.callback == "CaptureStarted":
-                expected_context = {
-                    "profile_name": profile["name"],
-                    "td_front": profile["td_front"],
-                    "md_front": profile["md_front"],
-                    "broker_id": profile["broker_id"],
-                    "account_id": account_id,
-                    "instrument": instrument,
-                }
-                if (
-                    context_seen
-                    or event.sequence != 1
-                    or event.channel != "TD"
-                    or data != expected_context
-                ):
-                    reasons.add("CAPTURE_ENVIRONMENT_BINDING_MISMATCH")
-                    fatal = True
-                else:
-                    context_seen = True
-            if event.callback == "OnFrontConnected" and event.channel == "TD":
-                td_connected = True
-            if event.callback == "OnFrontDisconnected":
-                reasons.add(f"{event.channel}_DISCONNECTED_DURING_CAPTURE")
-                fatal = True
-            if event.callback == "OnHeartBeatWarning":
-                reasons.add(f"{event.channel}_HEARTBEAT_WARNING")
-            if event.callback == "RequestSent":
-                if data is None or type(data.get("return_code")) is not int:
-                    reasons.add("REQUEST_EVIDENCE_MISSING")
-                    continue
-                section, method = data.get("section"), data.get("method")
-                if event.channel == "MD" and section == "depth" and method == "SubscribeMarketData":
-                    market["subscription_requested_at"] = event.received_at
-                    market["subscription_return_code"] = data["return_code"]
-                    if data["return_code"] != 0:
-                        reasons.add("SDK_REJECTED_MARKET_SUBSCRIPTION")
-                        fatal = True
-                    continue
-                if key is None:
-                    reasons.add("REQUEST_EVIDENCE_MISSING")
-                    continue
-                if key in requests:
-                    reasons.add("REQUEST_ID_REUSED_WITHIN_CAPTURE")
-                    continue
-                requests[key] = (str(section), event.sequence)
-                if data["return_code"] != 0:
-                    reasons.add("SDK_REJECTED_REQUEST")
-                    fatal = True
-                if event.channel == "TD" and section in _QUERIES:
-                    if identity != "CONFIRMED":
-                        reasons.add("QUERY_SENT_BEFORE_CONFIRMED_LOGIN")
-                    item = sections[str(section)]
-                    if item["status"] != "NOT_OBSERVED":
-                        reasons.add("QUERY_SECTION_REQUESTED_MORE_THAN_ONCE")
-                    if method != _QUERIES[str(section)][0]:
-                        reasons.add("QUERY_METHOD_SCOPE_MISMATCH")
-                    item.update(
-                        status="WAITING" if data["return_code"] == 0 else "ERROR",
-                        request_id=event.request_id,
-                        rows=[],
-                    )
-                continue
-            if event.callback == "OnRspUserLogin":
-                request = None if key is None else requests.get(key)
-                login_complete = (
-                    request is not None and request[0] == "login" and event.is_last is True
-                )
-                if not login_complete:
-                    reasons.add("LOGIN_REQUEST_OR_COMPLETION_NOT_CONFIRMED")
-                if data is not None and not event.error_id:
-                    matching = (
-                        data.get("BrokerID") == profile["broker_id"]
-                        and data.get("UserID") == account_id
-                    )
-                    if event.channel == "MD":
-                        market["login"] = dict(data)
-                        market["status"] = "LOGIN_OBSERVED"
-                        if trading_day is None or data.get("TradingDay") != trading_day:
-                            reasons.add("MARKET_LOGIN_TRADING_DAY_MISMATCH")
-                            fatal = True
-                        if any(
-                            data.get(field) not in {None, "", expected}
-                            for field, expected in (
-                                ("BrokerID", profile["broker_id"]),
-                                ("UserID", account_id),
-                            )
-                        ):
-                            market["login_identity"] = "MISMATCH"
-                            reasons.add("MARKET_LOGIN_IDENTITY_MISMATCH")
-                            fatal = True
-                        elif matching and login_complete and market["login_identity"] != "MISMATCH":
-                            market["login_identity"] = "CONFIRMED"
-                        else:
-                            unknown.add("MARKET_LOGIN_IDENTITY_UNKNOWN")
-                    elif not matching:
-                        identity = "MISMATCH"
-                        reasons.add("LOGIN_ACCOUNT_IDENTITY_MISMATCH")
-                        fatal = True
-                    else:
-                        if login_complete and identity != "MISMATCH":
-                            identity = "CONFIRMED"
-                        day = data.get("TradingDay")
-                        if isinstance(day, str) and re.fullmatch(r"[0-9]{8}", day):
-                            trading_day = day
-                        else:
-                            reasons.add("BROKER_TRADING_DAY_UNKNOWN")
-                else:
-                    reasons.add("LOGIN_RESPONSE_MISSING_OR_FAILED")
-            if event.callback == "OnRspAuthenticate" and data is not None:
-                request = None if key is None else requests.get(key)
-                if request is None or request[0] != "authenticate" or event.is_last is not True:
-                    reasons.add("AUTHENTICATION_REQUEST_OR_COMPLETION_NOT_CONFIRMED")
-                if data.get("BrokerID") != profile["broker_id"] or data.get("UserID") != account_id:
-                    reasons.add("AUTHENTICATION_ACCOUNT_IDENTITY_MISMATCH")
-                    identity = "MISMATCH"
-                    fatal = True
-            section = next(
-                (name for name, (_, callback) in _QUERIES.items() if callback == event.callback),
-                None,
-            )
-            if section is not None:
-                item = sections[section]
-                request = None if key is None else requests.get(key)
-                if (
-                    event.channel != "TD"
-                    or request is None
-                    or request[0] != section
-                    or key in terminated
-                ):
-                    reasons.add("UNMATCHED_OR_LATE_QUERY_RESPONSE")
-                    continue
-                if item["request_id"] != event.request_id:
-                    reasons.add("QUERY_RESPONSE_REQUEST_ID_MISMATCH")
-                    continue
-                if item["first_received_at"] is None:
-                    item["first_received_at"] = event.received_at
-                item["last_received_at"] = event.received_at
-                if event.error_id:
-                    cast(list[int], item["error_ids"]).append(event.error_id)
-                    item["status"] = "ERROR"
-                # CTP's InstrumentID query can return prefix matches, including
-                # options. Preserve every callback in capture, while this
-                # selected-contract projection accepts exact equality only.
-                if data is not None and (
-                    section != "instrument" or data.get("InstrumentID") == instrument
-                ):
-                    cast(list[dict[str, object]], item["rows"]).append(dict(data))
-                    if section in _ACCOUNT_ROWS:
-                        investor_key = "AccountID" if section == "account" else "InvestorID"
-                        if (
-                            data.get("BrokerID") != profile["broker_id"]
-                            or data.get(investor_key) != account_id
-                        ):
-                            reasons.add("QUERY_ACCOUNT_IDENTITY_MISMATCH")
-                            identity = "MISMATCH"
-                            fatal = True
-                        if data.get("TradingDay") != trading_day or trading_day is None:
-                            reasons.add("QUERY_TRADING_DAY_UNCONFIRMED")
-                        if section == "account" and data.get("CurrencyID") != "CNY":
-                            reasons.add("ACCOUNT_CURRENCY_MISMATCH")
-                            fatal = True
-                    elif data.get("InstrumentID") != instrument:
-                        reasons.add("INSTRUMENT_QUERY_IDENTITY_MISMATCH")
-                        fatal = True
-                    if section in {"margin", "commission"}:
-                        if data.get("BrokerID") not in {None, "", profile["broker_id"]} or data.get(
-                            "InvestorID"
-                        ) not in {None, "", account_id}:
-                            reasons.add("TERMS_ACCOUNT_IDENTITY_MISMATCH")
-                            fatal = True
-                if event.is_last is True:
-                    assert key is not None
-                    terminated.add(key)
-                    if item["status"] != "ERROR":
-                        item["status"] = "COMPLETE"
-                elif event.is_last is None:
-                    reasons.add("QUERY_COMPLETION_FLAG_UNKNOWN")
-            if event.callback in {"OnRtnOrder", "OnRtnTrade"}:
-                unknown.add("ACCOUNT_EVENTS_ARRIVED_DURING_QUERY")
-                if data is not None and (
-                    data.get("BrokerID") != profile["broker_id"]
-                    or data.get("InvestorID") != account_id
-                ):
-                    reasons.add("ACCOUNT_CALLBACK_IDENTITY_MISMATCH")
-                    fatal = True
-            if event.callback == "OnRtnDepthMarketData":
-                if event.channel != "MD" or data is None or data.get("InstrumentID") != instrument:
-                    reasons.add("MARKET_SNAPSHOT_IDENTITY_MISMATCH")
-                else:
-                    market.update(
-                        status="SNAPSHOT_OBSERVED",
-                        depth={
-                            "received_at": event.received_at,
-                            "data": dict(data),
-                        },
-                    )
-            if event.callback == "OnRspSubMarketData":
-                if (
-                    event.channel != "MD"
-                    or data is None
-                    or data.get("InstrumentID") != instrument
-                    or "subscription_requested_at" not in market
-                ):
-                    reasons.add("MARKET_SUBSCRIPTION_CONTEXT_NOT_CONFIRMED")
-                else:
-                    market["subscription"] = {
-                        "received_at": event.received_at,
-                        "request_id": event.request_id,
-                        "is_last": event.is_last,
-                        "error_id": event.error_id,
-                        "data": dict(data),
-                    }
-        if not td_connected:
-            reasons.add("TD_CONNECTION_NOT_OBSERVED")
-        if not context_seen:
-            reasons.add("LOCAL_CONNECTION_CONTEXT_NOT_CONFIRMED")
-        if identity != "CONFIRMED":
-            reasons.add("BROKER_ACCOUNT_IDENTITY_NOT_CONFIRMED")
-        if trading_day is None:
-            reasons.add("BROKER_TRADING_DAY_UNKNOWN")
-        for name, section in sections.items():
-            if section["status"] != "COMPLETE":
-                reasons.add(f"{name.upper()}_QUERY_NOT_COMPLETE")
-            if name == "instrument" and section["status"] == "COMPLETE":
-                count = len(cast(list[dict[str, object]], section["rows"]))
-                if count == 1:
-                    section["identity"] = "CONFIRMED"
-                else:
-                    reasons.add(
-                        "EXACT_INSTRUMENT_NOT_FOUND"
-                        if count == 0
-                        else "EXACT_INSTRUMENT_NOT_UNIQUE"
-                    )
-            if name in {"account", "instrument", "margin", "commission"} and not section["rows"]:
-                unknown.add(f"{name.upper()}_FACTS_NOT_RETURNED")
-        if capture.failure_code is not None:
-            reasons.add(capture.failure_code)
-            fatal = True
-        if capture.trader_api_version is None:
-            unknown.add("TRADER_API_VERSION_UNKNOWN")
-        if market["login_identity"] == "UNKNOWN":
-            unknown.add("MARKET_LOGIN_IDENTITY_UNKNOWN")
-    else:
-        reasons.add("QUERY_NOT_FINISHED_OR_CALLER_INTERRUPTED")
-    status = (
-        "PENDING"
-        if capture is None
-        else "FAILED"
-        if fatal
-        else "INCOMPLETE"
-        if reasons
-        else "COMPLETE"
-    )
-    return {
-        "status": status,
-        "capture": None if capture is None else capture.to_dict(),
-        "completeness": {
-            "status": "COMPLETE" if status == "COMPLETE" else "INCOMPLETE",
-            "identity": identity,
-            "trading_day": trading_day,
-            "sections": sections,
-            "reasons": sorted(reasons),
-        },
-        "market": market,
-        "reconciliation": {
-            "status": "UNRECONCILED",
-            "local_ledger": "NOT_ESTABLISHED",
-            "differences": None,
-            "reasons": sorted(unknown | reasons),
-        },
-        "execution": {"order_sending": False, "cancel_sending": False},
-    }

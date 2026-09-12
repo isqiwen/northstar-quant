@@ -14,7 +14,7 @@ from northstar_quant.web import datasets
 from northstar_quant.web.host import create_host
 from northstar_quant.web.protobuf import bind
 
-from . import catalog_api, configuration_api, paper_api, run_api, task_api
+from . import catalog_api, configuration_api, experiment_api, paper_api, run_api, task_api
 
 
 def create_app(engine: Engine, library: DatasetReader) -> FastAPI:
@@ -30,6 +30,7 @@ def create_app(engine: Engine, library: DatasetReader) -> FastAPI:
     access = app.state.workspace_access
     run_api.register(app, access, library, RunStore(engine))
     task_api.register(app, access, engine, library)
+    experiment_api.register(app, access, engine, library)
     paper_api.register(app, access, library, PaperStore(engine, library))
     configuration_api.register(app, access, ConfigurationStore(engine))
     datasets.register(app, app.state.workspace_access, library)

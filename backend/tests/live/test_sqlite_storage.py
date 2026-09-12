@@ -4,9 +4,12 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.exc import DBAPIError
 
-from northstar_quant.live.commands import Commands, initialize_live_commands
-from northstar_quant.live.storage import KernelLock, open_store, write_transaction
+from northstar_quant.live.commands import CommandConflict, Commands, initialize_live_commands
+from northstar_quant.live.storage import open_store
+from northstar_quant.persistence.locks import FileLock
+from northstar_quant.persistence.sql import write_transaction
 
 
 def test_command_acknowledgement_and_unknown_survive_reopen(tmp_path):
@@ -25,16 +28,45 @@ def test_command_acknowledgement_and_unknown_survive_reopen(tmp_path):
         "/test",
         {"value": "1.01"},
         lambda: calls.append(1) or {"amount": "1.01"},
+        operator="owner",
     )
     assert result["status"] == "COMPLETED"
     engine.dispose()
     engine = open_store(path)
     commands = Commands(engine, uuid4())
     repeated = commands.execute(
-        request, runtime, deadline, "/test", {"value": "1.01"}, lambda: calls.append(2) or {}
+        request,
+        runtime,
+        deadline,
+        "/test",
+        {"value": "1.01"},
+        lambda: calls.append(2) or {},
+        operator="owner",
     )
     assert repeated["result"] == {"amount": "1.01"}
+    assert repeated["request_id"] == str(request)
+    assert repeated["operator"] == "owner"
+    with pytest.raises(CommandConflict, match="different input"):
+        commands.execute(
+            request,
+            runtime,
+            deadline,
+            "/test",
+            {"value": "1.01"},
+            lambda: calls.append(3) or {},
+            operator="maintenance",
+        )
     assert calls == [1]
+    for statement in (
+        "UPDATE live_commands SET operator='maintenance'",
+        "UPDATE live_commands SET status='RUNNING', finished_at=NULL",
+        "UPDATE live_commands SET result='{}'",
+        "DELETE FROM live_commands",
+    ):
+        with pytest.raises(DBAPIError, match="Live command facts"):
+            with write_transaction(engine) as connection:
+                connection.exec_driver_sql(statement)
+    assert commands.get(request) == repeated
     unknown = uuid4()
     with write_transaction(engine) as connection:
         connection.exec_driver_sql(
@@ -57,10 +89,10 @@ def test_command_acknowledgement_and_unknown_survive_reopen(tmp_path):
 def test_writer_is_exclusive_and_failed_transaction_rolls_back(tmp_path):
     path = tmp_path / "live.sqlite"
     engine = open_store(path)
-    lock = KernelLock(path)
+    lock = FileLock(path)
     try:
         with pytest.raises(BlockingIOError):
-            KernelLock(path)
+            FileLock(path)
         with write_transaction(engine) as connection:
             connection.exec_driver_sql("CREATE TABLE ledger (amount TEXT NOT NULL)")
         with pytest.raises(RuntimeError):
@@ -74,8 +106,69 @@ def test_writer_is_exclusive_and_failed_transaction_rolls_back(tmp_path):
     finally:
         lock.close()
         engine.dispose()
-    reopened = KernelLock(path)
+    reopened = FileLock(path)
     reopened.close()
+
+
+@pytest.mark.parametrize("lost", ["receiver", "instance", "account", "account_directory"])
+def test_receiver_stops_on_lost_local_ownership_without_browser(tmp_path, monkeypatch, lost):
+    import time
+
+    from northstar_quant.live import account_ownership
+    from northstar_quant.live.instances import Instance, InstanceBinding
+    from northstar_quant.live.owner import LiveOwner
+    from northstar_quant.live.storage import initialize
+    from tests.live.test_streams import logins, prepare, start
+
+    accounts = tmp_path / "accounts"
+    accounts.mkdir(mode=0o700)
+    monkeypatch.setattr(account_ownership, "ACCOUNT_DIRECTORY", accounts)
+    database = tmp_path / "receiver.sqlite"
+    engine = open_store(database)
+    initialize(engine)
+    library, source, configuration, calls = prepare(engine, tmp_path, monkeypatch)
+    owner = LiveOwner(engine, library)
+    owner.binding = InstanceBinding(engine, Instance("sim", "simnow_dev"), "9999", "123456")
+    identifier = uuid4()
+    try:
+        start(owner.streams, source, configuration, identifier)
+        assert calls["ready"].wait(3)
+        logins(calls["accept"])
+        path = (
+            tmp_path / "receiver.sqlite.728401929.owner"
+            if lost == "receiver"
+            else tmp_path / "receiver.sqlite.owner"
+            if lost == "instance"
+            else next(accounts.glob("*.owner"))
+            if lost == "account"
+            else accounts
+        )
+        path.rename(tmp_path / "displaced")
+        if lost == "account_directory":
+            path.mkdir(mode=0o700)
+        else:
+            path.touch(mode=0o600)
+        # No status/read request reaches LiveOwner. Its receiver must notice
+        # independently and must not recreate a lock or restart the connection.
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            report = owner.streams.get(identifier)
+            if report["status"] == "FAILED" and report["connection"] == "NOT_ATTACHED":
+                break
+            time.sleep(0.01)
+        assert report["status"] == "FAILED"
+        assert report["reason"] == "RECEPTION_OR_PERSISTENCE_FAILED"
+        assert report["paused"] and report["connection"] == "NOT_ATTACHED"
+        assert report["received"] == report["cursor"] == 2
+        assert len(owner.streams.events(identifier)) == 2
+        assert start(owner.streams, source, configuration, identifier)["status"] == "FAILED"
+        assert calls["count"] == 1
+        if lost != "receiver":
+            with pytest.raises((ValueError, FileNotFoundError)):
+                start(owner.streams, source, configuration, uuid4())
+    finally:
+        owner.close()
+        engine.dispose()
 
 
 def test_sqlite_broker_query_and_account_baseline(tmp_path, monkeypatch):
@@ -200,3 +293,26 @@ def test_sqlite_saved_broker_facts(tmp_path, monkeypatch, module_name, test_name
 
     finally:
         engine.dispose()
+
+
+def test_contract_resolution_shares_the_account_writer_and_rolls_back(live_engine):
+    from northstar_quant.broker.records import BrokerRecords
+    from northstar_quant.data_management.broker import (
+        resolve_broker_contract,
+        verify_broker_contract,
+    )
+    from tests.accounting.test_ledger import ledger_query, position_baseline
+
+    position_baseline(live_engine)
+    batch = BrokerRecords(live_engine).get(ledger_query(live_engine))
+    instrument = batch["completeness"]["sections"]["instrument"]["rows"][0]
+    with pytest.raises(RuntimeError, match="account failed"):
+        with write_transaction(live_engine) as connection:
+            contract = resolve_broker_contract(connection, instrument)
+            assert verify_broker_contract(connection, contract.contract_id, instrument) == contract
+            raise RuntimeError("account failed after registering its contract")
+    with pytest.raises(ValueError, match="missing"):
+        verify_broker_contract(live_engine, contract.contract_id, instrument)
+    with write_transaction(live_engine) as connection:
+        accepted = resolve_broker_contract(connection, instrument)
+    assert verify_broker_contract(live_engine, accepted.contract_id, instrument) == accepted

@@ -46,6 +46,8 @@ northstar maintenance init-auth <directory>
 northstar maintenance backup <new-directory>
 northstar maintenance restore <backup-directory>
 northstar maintenance audit-data
+northstar maintenance prune-data                    # 预览孤立对象
+northstar maintenance prune-data --apply <plan_id>  # 按刚预览的固定清单清理
 ```
 
 备份需要维护窗口，数据库及引用文件一起保存。恢复只接受空数据库和新来源目录，

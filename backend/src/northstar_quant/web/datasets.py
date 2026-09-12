@@ -12,6 +12,7 @@ from northstar_quant.web.requests import ApiModel
 
 
 class ImportSpecification(ApiModel):
+    interval: Literal["1m", "5m", "15m", "30m", "60m"]
     session_kind: Literal["DAY", "NIGHT"]
     exchange: str
     symbol: str
@@ -47,6 +48,8 @@ class DatasetDetails(DatasetSummary):
     source_reference: str
     availability_basis: str
     availability_note: str
+    settlements: list[dict[str, JsonValue]]
+    terms: list[dict[str, JsonValue]]
     import_specs: list[ImportSpecification]
     sources: list[dict[str, JsonValue]]
     quality: dict[str, JsonValue]

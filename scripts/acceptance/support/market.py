@@ -7,7 +7,7 @@ from pathlib import Path
 from support.processes import InstalledApplication
 
 
-def seed_market(app: InstalledApplication) -> dict:
+def seed_market(app: InstalledApplication, *, compact: bool = False) -> dict:
     code = """
 import json
 from datetime import datetime,timedelta
@@ -29,6 +29,11 @@ with engine.begin() as c:
     c.execute(text("INSERT INTO data_sync_calendar VALUES ('SHFE','2026-09-01',true),"
         "('SHFE','2026-09-02',false),('SHFE','2026-09-03',true) ON CONFLICT DO NOTHING"))
     planning.enqueue(c,'1min','RB2610.SHF',{'ts_code':'RB2610.SHF'},'2026-09-01','2026-09-03')
+    # A rerun retains previous receipts, but explicitly schedules this synthetic request again.
+    c.execute(text("UPDATE data_sync_jobs SET status='PENDING',next_at=now(),attempts=0 "
+        "WHERE dataset='1min' AND scope='RB2610.SHF' "
+        "AND parameters=CAST(:parameters AS jsonb)"),
+        {'parameters':json.dumps({'ts_code':'RB2610.SHF'})})
 items=[]
 for day in (1,3):
     for i in range(220):
@@ -56,6 +61,23 @@ for invalid in (True,False):
     assert result['status']==('BLOCKED' if invalid else 'VALIDATED'),result
 print(json.dumps(result))
 """
+    if compact:
+        code = code.replace(
+            "print(json.dumps(result))",
+            """
+parameters={'ts_code':'RB2610.SHF','start_date':'2026-09-03 00:00:00',
+            'end_date':'2026-09-03 23:59:59'}
+with engine.begin() as c:
+    planning.enqueue(c,'1min','RB2610.SHF',parameters,'2026-09-03','2026-09-03')
+    c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+document['data']['items']=[row for row in document['data']['items']
+                         if row[1].startswith('2026-09-03')]
+acquisition.fetch=lambda *args:json.dumps(document).encode()
+result=jobs.process_next(library)
+assert result['status']=='VALIDATED',result
+print(json.dumps(result))
+""",
+        )
     result = subprocess.run(
         [str(Path(app.executable).parent / "python"), "-c", code],
         text=True,

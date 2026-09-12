@@ -2,48 +2,17 @@
 
 from __future__ import annotations
 
-import fcntl
 import os
 import sqlite3
 import stat
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Connection, Engine, create_engine, event, inspect
+from sqlalchemy import Engine, event, inspect
 
-
-class KernelLock:
-    """A local process lock has no expiry and cannot authorize trading failover."""
-
-    def __init__(self, database: Path) -> None:
-        path = Path(str(database) + ".owner")
-        self._path = path
-        self._fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-        try:
-            info = os.fstat(self._fd)
-            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
-                raise ValueError("Live owner lock must be an owned regular file")
-            fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            self._identity = (info.st_dev, info.st_ino)
-        except BaseException:
-            os.close(self._fd)
-            raise
-
-    def check(self) -> None:
-        if self._fd < 0:
-            raise ValueError("Live ownership lock is closed")
-        info = self._path.lstat()
-        if (info.st_dev, info.st_ino) != self._identity:
-            raise ValueError("Live ownership lock was replaced; stop and reconcile required")
-
-    def close(self) -> None:
-        if self._fd >= 0:
-            os.close(self._fd)
-            self._fd = -1
+from northstar_quant.persistence.sql import sqlite_engine, write_transaction
 
 
 def require_local_path(path: Path) -> None:
@@ -80,9 +49,8 @@ def open_store(path: Path) -> Engine:
         os.fsync(parent)
     finally:
         os.close(parent)
-    file_identity = (path.stat().st_dev, path.stat().st_ino)
     sqlite3.register_adapter(UUID, lambda value: value.hex)
-    engine = create_engine("sqlite+pysqlite:///" + str(path), connect_args={"timeout": 2})
+    engine = sqlite_engine(path, timeout=2)
 
     @event.listens_for(engine, "connect")
     def connect(dbapi: Any, _: Any) -> None:
@@ -93,23 +61,7 @@ def open_store(path: Path) -> Engine:
         dbapi.execute("PRAGMA synchronous=FULL")
         dbapi.execute("PRAGMA busy_timeout=2000")
 
-    @event.listens_for(engine, "begin")
-    def begin(connection: Connection) -> None:
-        info = path.stat()
-        if (info.st_dev, info.st_ino) != file_identity:
-            raise ValueError("Live database file changed; restart and reconcile required")
-        connection.exec_driver_sql(
-            "BEGIN IMMEDIATE" if connection.get_execution_options().get("live_write") else "BEGIN"
-        )
-
     return engine
-
-
-@contextmanager
-def write_transaction(engine: Engine) -> Iterator[Connection]:
-    with engine.connect().execution_options(live_write=True) as connection:
-        with connection.begin():
-            yield connection
 
 
 def initialize(engine: Engine) -> None:
@@ -118,18 +70,22 @@ def initialize(engine: Engine) -> None:
     from northstar_quant.accounting.funds import initialize_broker_funds
     from northstar_quant.accounting.ledger import initialize_broker_ledger
     from northstar_quant.accounting.stream_progress import initialize_stream_accounts
+    from northstar_quant.broker.execution_fills import initialize as initialize_ctp_fills
+    from northstar_quant.broker.execution_reports import initialize as initialize_ctp_receipts
+    from northstar_quant.broker.order_transport import initialize as initialize_ctp_orders
     from northstar_quant.broker.records import initialize_broker_records
     from northstar_quant.data_management.db.base import Base
     from northstar_quant.data_management.library import initialize_library
+    from northstar_quant.execution.journal import initialize_journal
     from northstar_quant.execution.reviews import initialize_order_reviews
     from northstar_quant.live.commands import initialize_live_commands
+    from northstar_quant.live.execution_authority import (
+        initialize as initialize_execution_authority,
+    )
     from northstar_quant.live.instances import initialize as initialize_binding
     from northstar_quant.live.materials import initialize_materials
     from northstar_quant.live.opening_budgets import initialize_opening_budgets
     from northstar_quant.live.streams import initialize_streams
-    from northstar_quant.research.configurations import initialize_configuration_store
-    from northstar_quant.research.factor_catalog import initialize_factor_catalog
-    from northstar_quant.research.paper import initialize_paper_store
 
     if engine.dialect.name != "sqlite":
         raise ValueError("Live requires local SQLite")
@@ -155,19 +111,21 @@ def initialize(engine: Engine) -> None:
             raise ValueError("Live storage owner mismatch")
         for install in (
             initialize_library,
-            initialize_factor_catalog,
-            initialize_configuration_store,
-            initialize_paper_store,
             initialize_broker_records,
             initialize_broker_baselines,
             initialize_broker_ledger,
             initialize_broker_funds,
             initialize_order_reviews,
+            initialize_journal,
+            initialize_ctp_orders,
+            initialize_ctp_receipts,
+            initialize_ctp_fills,
             initialize_materials,
             initialize_streams,
             initialize_stream_accounts,
             initialize_opening_budgets,
             initialize_live_commands,
+            initialize_execution_authority,
             initialize_binding,
         ):
             install(connection)
@@ -195,9 +153,20 @@ def initialize(engine: Engine) -> None:
 
 def require_current(engine: Engine) -> None:
     required = {
+        "live_execution_authorizations",
+        "live_execution_revocations",
         "northstar_store",
         "live_instance_binding",
         "live_commands",
+        "ctp_order_receipts",
+        "ctp_fill_facts",
+        "ctp_fill_receipts",
+        "ctp_exchange_orders",
+        "ctp_order_bindings",
+        "ctp_requests",
+        "execution_orders",
+        "execution_order_events",
+        "execution_fees",
         "broker_streams",
         "broker_stream_events",
         "broker_stream_accounts",
@@ -216,6 +185,11 @@ def require_current(engine: Engine) -> None:
             not in {
                 column["name"]
                 for column in inspect(connection).get_columns("live_instance_binding")
+            }
+            or "configuration_id"
+            not in {
+                column["name"]
+                for column in inspect(connection).get_columns("live_strategy_materials")
             }
             or connection.exec_driver_sql("SELECT owner FROM northstar_store").scalar_one()
             != "live"

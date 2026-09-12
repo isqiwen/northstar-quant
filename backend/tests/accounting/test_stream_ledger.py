@@ -18,7 +18,14 @@ from tests.execution.test_orders import order
 from tests.live.test_streams import Clock, prepare, start
 
 
-def accept(calls: dict[str, Any], sequence: int, callback: str, data: dict[str, Any]) -> None:
+def accept(
+    calls: dict[str, Any],
+    sequence: int,
+    callback: str,
+    data: dict[str, Any],
+    *,
+    is_last: bool | None = None,
+) -> None:
     now = datetime.now(UTC)
     Clock.at = now
     calls["accept"](
@@ -27,7 +34,7 @@ def accept(calls: dict[str, Any], sequence: int, callback: str, data: dict[str, 
             "TD",
             callback,
             None,
-            None,
+            is_last,
             now.isoformat().replace("+00:00", "Z"),
             0,
             data,
@@ -45,6 +52,7 @@ def login(calls: dict[str, Any]) -> None:
             "UserID": "123456",
             "TradingDay": "20260907",
         },
+        is_last=True,
     )
 
 

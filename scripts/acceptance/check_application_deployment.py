@@ -144,8 +144,10 @@ class Deployment:
         address = self.run(app, "port", service, "3000").strip()
         base = "http://" + address
         with httpx.Client(base_url=base, headers={"Origin": base}, timeout=30) as client:
-            assert "NORTHSTAR" in client.get("/").text
-            request(client, app, "/api/browser-session")
+            client.get("/").raise_for_status()
+            state = request(client, app, "/api/browser-session")
+            endpoint = "/api/setup" if state["setup_required"] else "/api/login"
+            request(client, app, endpoint, {"username": "owner", "password": self.password})
             yield client
 
     def exercise(self) -> None:
@@ -435,11 +437,10 @@ def request(client: httpx.Client, app: str, path: str, payload: dict | None = No
     headers = {}
     content = None
     if payload is not None:
-        session = request(client, app, "/api/browser-session")
-        headers = {
-            "X-Northstar-CSRF": session["csrf"],
-            "Content-Type": "application/protobuf",
-        }
+        headers = {"Content-Type": "application/protobuf"}
+        if path not in {"/api/login", "/api/setup"}:
+            session = request(client, app, "/api/browser-session")
+            headers["X-Northstar-CSRF"] = session["csrf"]
         content = pack(binding.input_type, payload).SerializeToString()
     response = client.request(verb, path, content=content, headers=headers)
     if response.status_code >= 400:

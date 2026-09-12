@@ -22,8 +22,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.engine import RowMapping
 
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.storage import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _configurations = Table(

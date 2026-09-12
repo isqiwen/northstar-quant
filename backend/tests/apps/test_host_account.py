@@ -23,6 +23,7 @@ def account(tmp_path, monkeypatch):
     user = SimpleNamespace(pw_uid=1000, pw_gid=1000, pw_dir=str(home), pw_shell="/bin/bash")
     monkeypatch.setattr(module.pwd, "getpwnam", lambda _: user)
     monkeypatch.setattr(module.shutil, "which", lambda name: name)
+    monkeypatch.setattr(module.grp, "getgrnam", lambda name: object())
     calls = []
     monkeypatch.setattr(module.subprocess, "run", lambda args, **kw: calls.append(args))
     return module, home, user, calls
@@ -89,3 +90,12 @@ def test_first_initialization_creates_account_and_preserves_docker_access(accoun
     assert ["usermod", "--append", "--groups", "docker", "northstar"] in calls
     module.initialize("ssh-ed25519 key deployment")
     assert sum(call[0] == "useradd" for call in calls) == 1
+
+
+def test_existing_sudo_policy_is_not_overwritten(account):
+    module, _, _, _ = account
+    module.SUDOERS.parent.mkdir()
+    module.SUDOERS.write_bytes(b"retained operator policy\n")
+    with pytest.raises(ValueError, match="拒绝覆盖"):
+        module.initialize("ssh-ed25519 key deployment")
+    assert module.SUDOERS.read_bytes() == b"retained operator policy\n"

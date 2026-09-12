@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import UTC, datetime
+from threading import Event
+from time import monotonic
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -12,21 +14,24 @@ from sqlalchemy import (
     Column,
     Connection,
     Engine,
+    Integer,
     MetaData,
     String,
     Table,
+    Uuid,
     func,
     select,
     update,
 )
-from sqlalchemy import Uuid as PGUUID
 from sqlalchemy.dialects.postgresql import JSONB, insert
 
 from northstar_quant import code_revision
 from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.factors.definition import Bar, Inputs, content_id
 from northstar_quant.factors.evaluation import Binding, evaluate
-from northstar_quant.research.storage import UTCDateTime, write_transaction
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
+
+from .factor_analysis import analyze
 
 _metadata = MetaData()
 _revisions = Table(
@@ -39,7 +44,7 @@ _revisions = Table(
 _notes = Table(
     "factor_annotations",
     _metadata,
-    Column("annotation_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("annotation_id", Uuid(as_uuid=True), primary_key=True),
     Column("revision_id", String(64), nullable=False),
     Column("description", String(2000), nullable=False),
     Column("created_at", UTCDateTime(), server_default=func.now(), nullable=False),
@@ -47,10 +52,13 @@ _notes = Table(
 _runs = Table(
     "factor_runs",
     _metadata,
-    Column("attempt_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("attempt_id", Uuid(as_uuid=True), primary_key=True),
     Column("revision_id", String(64), nullable=False),
-    Column("snapshot_id", PGUUID(as_uuid=True), nullable=False),
+    Column("snapshot_id", Uuid(as_uuid=True), nullable=False),
     Column("input_hash", String(64), nullable=False),
+    Column("inputs", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
+    Column("total", Integer, nullable=False),
+    Column("done", Integer, nullable=False, default=0),
     Column("code_revision", String(64), nullable=False),
     Column("status", String(20), nullable=False),
     Column("result", JSON().with_variant(JSONB(), "postgresql")),
@@ -63,54 +71,58 @@ _runs = Table(
 
 def initialize_factor_catalog(connection: Connection) -> None:
     _metadata.create_all(connection)
+    fixed = (
+        "attempt_id",
+        "revision_id",
+        "snapshot_id",
+        "input_hash",
+        "inputs",
+        "total",
+        "code_revision",
+        "created_at",
+    )
+    invalid = """NOT (
+        (OLD.status='QUEUED' AND NEW.status IN ('RUNNING','CANCELED')) OR
+        (OLD.status='RUNNING' AND NEW.status IN
+          ('RUNNING','SUCCEEDED','FAILED','INTERRUPTED','CANCEL_REQUESTED')) OR
+        (OLD.status='CANCEL_REQUESTED' AND NEW.status IN ('CANCELED','INTERRUPTED')))
+        OR NEW.done < OLD.done OR NEW.done > NEW.total"""
     if connection.dialect.name == "sqlite":
-        from .storage import immutable, transitions
+        from .storage import immutable
 
         for table in ("factor_revisions", "factor_annotations"):
             immutable(connection, table)
-        transitions(
-            connection,
-            "factor_runs",
-            (
-                "attempt_id",
-                "revision_id",
-                "snapshot_id",
-                "input_hash",
-                "code_revision",
-                "created_at",
-            ),
-            ("SUCCEEDED", "FAILED", "ABANDONED"),
+        changed = " OR ".join(f"OLD.{name} IS NOT NEW.{name}" for name in fixed)
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS factor_runs_retained BEFORE DELETE ON factor_runs "
+            "BEGIN SELECT RAISE(ABORT, 'factor attempts are immutable'); END"
+        )
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS factor_runs_transition BEFORE UPDATE ON factor_runs "
+            f"WHEN {invalid} OR {changed} "
+            "BEGIN SELECT RAISE(ABORT, 'factor attempts are immutable'); END"
         )
         return
-    connection.exec_driver_sql("""
+    before = ",".join("OLD." + name for name in fixed)
+    after = ",".join("NEW." + name for name in fixed)
+    connection.exec_driver_sql(f"""
         CREATE OR REPLACE FUNCTION factor_immutable() RETURNS trigger AS $$
         BEGIN RAISE EXCEPTION 'factor records are immutable'; END; $$ LANGUAGE plpgsql;
         CREATE OR REPLACE FUNCTION factor_attempt_transition() RETURNS trigger AS $$
         BEGIN
-          IF TG_OP = 'DELETE' OR OLD.status <> 'RUNNING'
-                 OR NEW.status NOT IN ('SUCCEEDED','FAILED','ABANDONED')
-             OR ROW(NEW.attempt_id, NEW.revision_id, NEW.snapshot_id,
-                    NEW.input_hash,
-                    NEW.code_revision, NEW.created_at)
-                IS DISTINCT FROM ROW(OLD.attempt_id, OLD.revision_id, OLD.snapshot_id,
-                    OLD.input_hash,
-                    OLD.code_revision, OLD.created_at)
-          THEN RAISE EXCEPTION 'factor attempt identity and terminal facts are immutable';
-              END IF;
+          IF TG_OP = 'DELETE' OR {invalid}
+             OR ROW({before}) IS DISTINCT FROM ROW({after})
+          THEN RAISE EXCEPTION 'factor attempt facts are immutable'; END IF;
           RETURN NEW;
         END; $$ LANGUAGE plpgsql;
     """)
-    for table in ("factor_revisions", "factor_annotations"):
+    for table in ("factor_revisions", "factor_annotations", "factor_runs"):
+        function = "factor_attempt_transition" if table == "factor_runs" else "factor_immutable"
         connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS immutable ON {table}")
         connection.exec_driver_sql(
             f"CREATE TRIGGER immutable BEFORE UPDATE OR DELETE ON {table} "
-            "FOR EACH ROW EXECUTE FUNCTION factor_immutable()"
+            f"FOR EACH ROW EXECUTE FUNCTION {function}()"
         )
-    connection.exec_driver_sql("DROP TRIGGER IF EXISTS immutable ON factor_runs")
-    connection.exec_driver_sql(
-        "CREATE TRIGGER immutable BEFORE UPDATE OR DELETE ON factor_runs "
-        "FOR EACH ROW EXECUTE FUNCTION factor_attempt_transition()"
-    )
 
 
 def register_binding(connection: Connection, binding: Binding) -> str:
@@ -180,57 +192,142 @@ class FactorCatalog:
             for row in revisions
         ]
 
-    def calculate(self, revision_id: str, snapshot_id: UUID) -> dict[str, Any]:
+    def submit(self, revision_id: str, snapshot_id: UUID, request_id: UUID) -> dict[str, Any]:
         binding = self.binding(revision_id)
-        dataset = self._library.load_dataset(snapshot_id)
-        if not 1 <= len(dataset.bars) <= 10000:
+        details = self._library.describe_dataset(snapshot_id)
+        total = details.summary.bar_count
+        if not 1 <= total <= 10000:
             raise ValueError("factor calculation requires 1 to 10000 accepted bars")
         material = {
             "binding": binding.to_dict(),
             "snapshot_id": str(snapshot_id),
-            "snapshot_hash": dataset.content_hash,
-            "contract_id": str(dataset.market.contract_id),
-            "interval_seconds": dataset.market.interval_seconds,
+            "snapshot_hash": details.summary.content_hash,
+            "snapshot_evidence": details.to_dict(),
             "price_basis": "REAL_CONTRACT",
             "availability": "COMPLETED_AND_AVAILABLE_PREFIX",
             "numeric": "DECIMAL_96_HALF_EVEN",
             "initial_state": "EMPTY",
+            "analysis": "SINGLE_CONTRACT_TIME_SERIES_FORWARD_RETURNS_V1",
         }
         identity = content_id(material)
-        implementation = code_revision()
-        if not implementation.endswith("-dirty") and binding.code_revision == implementation:
-            with self._engine.connect() as connection:
-                prior = connection.scalar(
-                    select(_runs.c.attempt_id)
-                    .where(
-                        _runs.c.input_hash == identity,
-                        _runs.c.code_revision == implementation,
-                        _runs.c.status == "SUCCEEDED",
-                    )
-                    .limit(1)
-                )
-            if prior is not None:
-                return self.get(prior)
-        attempt = uuid4()
         with write_transaction(self._engine) as connection:
+            prior = (
+                connection.execute(select(_runs).where(_runs.c.attempt_id == request_id))
+                .mappings()
+                .one_or_none()
+            )
+            if prior is not None:
+                if prior["input_hash"] != identity:
+                    raise ValueError("factor request identity is already bound to other inputs")
+            else:
+                connection.execute(
+                    insert(_runs).values(
+                        attempt_id=request_id,
+                        revision_id=revision_id,
+                        snapshot_id=snapshot_id,
+                        input_hash=identity,
+                        inputs=material,
+                        total=total,
+                        done=0,
+                        code_revision=code_revision(),
+                        status="QUEUED",
+                    )
+                )
+        return self.get(request_id)
+
+    def queued(self) -> dict[str, Any] | None:
+        with self._engine.connect() as connection:
+            identity = connection.scalar(
+                select(_runs.c.attempt_id)
+                .where(_runs.c.status == "QUEUED")
+                .order_by(_runs.c.created_at)
+                .limit(1)
+            )
+        return self.get(identity) if identity is not None else None
+
+    def claim(self, attempt: UUID) -> bool:
+        with write_transaction(self._engine) as connection:
+            return (
+                connection.execute(
+                    update(_runs)
+                    .where(_runs.c.attempt_id == attempt, _runs.c.status == "QUEUED")
+                    .values(status="RUNNING")
+                    .returning(_runs.c.attempt_id)
+                ).scalar_one_or_none()
+                is not None
+            )
+
+    def interrupt(self, attempt: UUID | None = None) -> None:
+        # Only the exclusive supervisor can declare a dead process interrupted.
+        with write_transaction(self._engine) as connection:
+            statement = update(_runs).where(_runs.c.status.in_(("RUNNING", "CANCEL_REQUESTED")))
+            if attempt is not None:
+                statement = statement.where(_runs.c.attempt_id == attempt)
             connection.execute(
-                insert(_runs).values(
-                    attempt_id=attempt,
-                    revision_id=revision_id,
-                    snapshot_id=snapshot_id,
-                    input_hash=identity,
-                    code_revision=implementation,
-                    status="RUNNING",
+                statement.values(
+                    status="INTERRUPTED",
+                    error="计算进程已退出；需要明确提交新任务",
+                    completed_at=datetime.now(UTC),
                 )
             )
+
+    def cancel(self, attempt: UUID) -> dict[str, Any]:
+        with write_transaction(self._engine) as connection:
+            for old, new in (("QUEUED", "CANCELED"), ("RUNNING", "CANCEL_REQUESTED")):
+                connection.execute(
+                    update(_runs)
+                    .where(_runs.c.attempt_id == attempt, _runs.c.status == old)
+                    .values(
+                        status=new,
+                        **({"completed_at": datetime.now(UTC)} if new == "CANCELED" else {}),
+                    )
+                )
+        return self.get(attempt)
+
+    def execute(self, attempt: UUID, *, stop: Event | None = None) -> dict[str, Any]:
+        saved = self.get(attempt)
+        if saved["status"] not in {"RUNNING", "CANCEL_REQUESTED"}:
+            raise ValueError("factor attempt must be claimed by the worker")
+        material = saved["inputs"]
+        last = 0.0
+
+        def progress(done: int, *, force: bool = False) -> None:
+            nonlocal last
+            if stop is not None and stop.is_set():
+                raise InterruptedError("研究进程停止")
+            if force or monotonic() - last >= 0.2:
+                with write_transaction(self._engine) as connection:
+                    status = connection.scalar(
+                        select(_runs.c.status).where(_runs.c.attempt_id == attempt)
+                    )
+                    if status != "RUNNING":
+                        raise InterruptedError("因子任务已取消或失去执行权")
+                    connection.execute(
+                        update(_runs).where(_runs.c.attempt_id == attempt).values(done=done)
+                    )
+                last = monotonic()
+
         try:
+            progress(0, force=True)
+            if saved["code_revision"] != code_revision():
+                raise ValueError("实现版本不匹配，请创建新任务")
+            binding = self.binding(saved["revision_id"])
+            dataset = self._library.load_dataset(UUID(saved["snapshot_id"]))
+            if (
+                dataset.details is None
+                or dataset.details.to_dict() != material["snapshot_evidence"]
+                or dataset.content_hash != material["snapshot_hash"]
+                or len(dataset.bars) != saved["total"]
+            ):
+                raise ValueError("固定因子输入身份不匹配")
             bars = sorted(
                 dataset.bars,
                 key=lambda item: (item.available_at, item.completed_at, str(item.observation_id)),
             )
             history: list[Bar] = []
             results = []
-            for bar in bars:
+            for index, bar in enumerate(bars):
+                progress(index)
                 history.append(
                     Bar(
                         bar.observation_id,
@@ -247,7 +344,7 @@ class FactorCatalog:
                         tuple(history),
                         bar.available_at,
                         dataset.market.contract_id,
-                        dataset.market.interval_seconds,
+                        dataset.interval_seconds,
                         source_scope=dataset.content_hash,
                     ),
                 )
@@ -262,6 +359,7 @@ class FactorCatalog:
             document = {
                 "inputs": material,
                 "values": results,
+                "analysis": analyze(dataset, results),
                 "evaluation": {
                     "plan": "BOUNDED_AVAILABILITY_COVERAGE_V1",
                     "counts": counts,
@@ -272,7 +370,13 @@ class FactorCatalog:
                     ],
                 },
             }
+            progress(len(bars), force=True)
             with write_transaction(self._engine) as connection:
+                status = connection.scalar(
+                    select(_runs.c.status).where(_runs.c.attempt_id == attempt)
+                )
+                if status != "RUNNING":
+                    raise InterruptedError("因子任务已取消或失去执行权")
                 connection.execute(
                     update(_runs)
                     .where(_runs.c.attempt_id == attempt, _runs.c.status == "RUNNING")
@@ -285,11 +389,26 @@ class FactorCatalog:
                 )
         except Exception as error:
             with write_transaction(self._engine) as connection:
+                status = connection.scalar(
+                    select(_runs.c.status).where(_runs.c.attempt_id == attempt)
+                )
+                terminal = (
+                    "CANCELED"
+                    if status == "CANCEL_REQUESTED"
+                    else "INTERRUPTED"
+                    if isinstance(error, InterruptedError)
+                    else "FAILED"
+                )
                 connection.execute(
                     update(_runs)
-                    .where(_runs.c.attempt_id == attempt, _runs.c.status == "RUNNING")
+                    .where(
+                        _runs.c.attempt_id == attempt,
+                        _runs.c.status.in_(("RUNNING", "CANCEL_REQUESTED")),
+                    )
                     .values(
-                        status="FAILED", error=str(error)[:1000], completed_at=datetime.now(UTC)
+                        status=terminal,
+                        error=str(error)[:1000],
+                        completed_at=datetime.now(UTC),
                     )
                 )
         import os
@@ -311,6 +430,8 @@ class FactorCatalog:
         if row is None:
             raise LookupError("factor calculation not found")
         binding = self.revision(row["revision_id"])
+        if content_id(row["inputs"]) != row["input_hash"]:
+            raise ValueError("factor input integrity failure")
         if row["status"] == "SUCCEEDED" and (
             content_id(row["result"]) != row["result_hash"]
             or content_id(row["result"]["inputs"]) != row["input_hash"]
@@ -333,19 +454,6 @@ class FactorCatalog:
                 select(_runs.c.attempt_id).order_by(_runs.c.created_at.desc()).limit(200)
             ).all()
         return [self.get(identifier) for identifier in identifiers]
-
-    def abandon(self, attempt_id: UUID) -> dict[str, Any]:
-        with write_transaction(self._engine) as connection:
-            connection.execute(
-                update(_runs)
-                .where(_runs.c.attempt_id == attempt_id, _runs.c.status == "RUNNING")
-                .values(
-                    status="ABANDONED",
-                    error="Explicitly abandoned; no automatic retry",
-                    completed_at=datetime.now(UTC),
-                )
-            )
-        return self.get(attempt_id)
 
     def verify_all(self) -> None:
         with self._engine.connect() as connection:

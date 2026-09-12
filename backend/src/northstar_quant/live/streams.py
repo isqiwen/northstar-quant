@@ -12,11 +12,12 @@ import hashlib
 import json
 import threading
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, Connection, Engine, Uuid
 from sqlalchemy import text as sql_text
@@ -27,16 +28,19 @@ from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker import ctp
 from northstar_quant.broker.events import BrokerEvent
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
+from northstar_quant.broker.market import FRESH
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import configured_profile, load_credentials
 from northstar_quant.broker.stream_records import append_stream_event, read_stream_archive
 from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
-from northstar_quant.live.storage import KernelLock, write_transaction
+from northstar_quant.live.materials import StrategyMaterials
+from northstar_quant.market_data.sessions import SessionSchedule
 from northstar_quant.messaging import Endpoint
-from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.configurations import ConfigurationStore
+from northstar_quant.persistence.locks import FileLock
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
+from northstar_quant.strategies.configuration import StrategyConfig
 from northstar_quant.trading.environment import Environment
 from northstar_quant.trading.kernel import KernelState, TradingKernel
 
@@ -60,9 +64,11 @@ def text(statement: str) -> TextualSelect:
         account_entry_id=Uuid,
         request_id=Uuid,
         entry_id=Uuid,
-        created_at=EvidenceTimestamp(),
-        updated_at=EvidenceTimestamp(),
-        committed_at=EvidenceTimestamp(),
+        created_at=UTCDateTime(),
+        updated_at=UTCDateTime(),
+        committed_at=UTCDateTime(),
+        event_committed_at=UTCDateTime(),
+        step_committed_at=UTCDateTime(),
     )
 
 
@@ -88,7 +94,7 @@ def initialize_streams(connection: Connection) -> None:
         CREATE TABLE IF NOT EXISTS broker_streams (
             stream_id CHAR(32) PRIMARY KEY,
             query_batch_id CHAR(32) NOT NULL REFERENCES broker_query_batches(batch_id),
-            configuration_id varchar(64) NOT NULL REFERENCES paper_configurations(configuration_id),
+            configuration_id varchar(64) NOT NULL ,
             binding JSON NOT NULL, binding_hash varchar(64) NOT NULL,
             status varchar(24) NOT NULL, paused boolean NOT NULL,
             reason varchar(96) NOT NULL, received integer NOT NULL DEFAULT 0,
@@ -142,12 +148,18 @@ def initialize_streams(connection: Connection) -> None:
                     f"BEFORE {action} ON {table} "
                     "BEGIN SELECT RAISE(ABORT, 'Stream facts are immutable'); END"
                 )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS broker_streams_health ON broker_streams(status, created_at)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS broker_streams_recency ON broker_streams(created_at)"
+        )
         return
     connection.exec_driver_sql("""
         CREATE TABLE IF NOT EXISTS broker_streams (
             stream_id uuid PRIMARY KEY,
             query_batch_id uuid NOT NULL REFERENCES broker_query_batches(batch_id),
-            configuration_id varchar(64) NOT NULL REFERENCES paper_configurations(configuration_id),
+            configuration_id varchar(64) NOT NULL ,
             binding jsonb NOT NULL, binding_hash varchar(64) NOT NULL,
             status varchar(24) NOT NULL, paused boolean NOT NULL,
             reason varchar(96) NOT NULL, received integer NOT NULL DEFAULT 0,
@@ -190,6 +202,12 @@ def initialize_streams(connection: Connection) -> None:
         CREATE TRIGGER immutable_binding BEFORE UPDATE ON broker_streams
             FOR EACH ROW EXECUTE FUNCTION stream_preserve_binding();
     """)
+    connection.exec_driver_sql(
+        "CREATE INDEX IF NOT EXISTS broker_streams_health ON broker_streams(status, created_at)"
+    )
+    connection.exec_driver_sql(
+        "CREATE INDEX IF NOT EXISTS broker_streams_recency ON broker_streams(created_at)"
+    )
     for table in ("broker_stream_events", "broker_stream_steps", "broker_stream_commands"):
         connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS immutable ON {table}")
         connection.exec_driver_sql(
@@ -201,11 +219,20 @@ def initialize_streams(connection: Connection) -> None:
 class LiveStreams:
     """Own explicit start, durable reception, shadow pause and terminal stop."""
 
-    def __init__(self, engine: Engine, library: DataLibrary) -> None:
+    def __init__(
+        self,
+        engine: Engine,
+        library: DataLibrary,
+        *,
+        check_ownership: Callable[[], None] | None = None,
+        runtime_id: UUID | None = None,
+    ) -> None:
         self._engine = engine
+        self.runtime_id = runtime_id or uuid4()
         self._library = library
-        self._configurations = ConfigurationStore(engine)
+        self._configurations = StrategyMaterials(engine)
         self._ledger = BrokerLedger(engine)
+        self._check_ownership = check_ownership
         self._guard = threading.Lock()
         self._workers: dict[UUID, tuple[threading.Thread, threading.Event]] = {}
 
@@ -218,6 +245,7 @@ class LiveStreams:
         duration_seconds: int,
         allow_retention: bool,
         use_basis: str,
+        schedule: dict[str, object] | None = None,
     ) -> dict[str, object]:
         if type(duration_seconds) is not int or not 60 <= duration_seconds <= 7200:
             raise ValueError("stream duration must be 60..7200 seconds")
@@ -234,6 +262,11 @@ class LiveStreams:
             "allow_retention": True,
             "use_basis": use_basis.strip(),
         }
+        if schedule is not None:
+            calendar = SessionSchedule.from_dict(schedule)
+            if calendar.available_at > datetime.now(UTC):
+                raise ValueError("session schedule is not yet available")
+            request["schedule"] = calendar.to_dict()
         with self._guard:
             self._workers = {
                 key: value for key, value in self._workers.items() if value[0].is_alive()
@@ -246,6 +279,8 @@ class LiveStreams:
                 if _object(existing["binding"])["request"] != request:
                     raise ValueError("stream request identity is bound to different input")
                 return existing
+            if self._check_ownership is not None:
+                self._check_ownership()
             query = BrokerRecords(self._engine).get(query_batch_id)
             completeness = _object(query["completeness"])
             if query["status"] != "COMPLETE" or completeness["identity"] != "CONFIRMED":
@@ -265,6 +300,7 @@ class LiveStreams:
                     "continuous SimNow reception requires the verified Linux amd64 SDK"
                 )
             binding = {
+                "runtime_id": str(self.runtime_id),
                 "request": request,
                 "environment": Environment.SANDBOX.value,
                 "profile": profile.identity(),
@@ -276,7 +312,9 @@ class LiveStreams:
                 "code_revision": code_revision(),
                 "mode": "SHADOW_ONLY",
                 "source_kind": "COPIED_CTP_CALLBACKS",
-                "scope": "SHFE_DAY_OBSERVED_MINUTES",
+                "scope": "SHFE_DECLARED_SESSIONS"
+                if schedule is not None
+                else "SHFE_DAY_OBSERVED_MINUTES",
                 "order_sending": False,
             }
             # Session locks are released explicitly before returning this pooled
@@ -294,7 +332,7 @@ class LiveStreams:
                     if owner.dialect.name == "sqlite":
                         path = Path(str(self._engine.url.database) + f".{key}")
                         try:
-                            lock = KernelLock(path)
+                            lock = FileLock(path)
                         except BlockingIOError as exc:
                             raise ValueError(
                                 "a SimNow receiver or account query is already running"
@@ -406,6 +444,14 @@ class LiveStreams:
                     return True
                 if time.monotonic() - last_check < 0.5:
                     return False
+                # HTTP requests are not the receiver's lifecycle monitor. Check
+                # instance/account ownership even when no browser is connected.
+                # These bounded filesystem checks run on the existing poll, not
+                # on every tick. They grant no execution or failover authority.
+                if self._check_ownership is not None:
+                    self._check_ownership()
+                for held in owner.info.get("live_locks", []):
+                    held.check()
                 if database_path is not None and database_identity is not None:
                     observed = database_path.stat()
                     if (observed.st_dev, observed.st_ino) != (
@@ -525,6 +571,11 @@ class LiveStreams:
             or _hash(result["state"]) != result["state_hash"]
         ):
             raise ValueError("stream binding or checkpoint integrity failed")
+        declared = _object(_object(result["binding"])["request"]).get("schedule")
+        if declared is not None:
+            schedule = SessionSchedule.from_dict(_object(declared))
+            if schedule.available_at > result["created_at"]:
+                raise ValueError("stream schedule was not available at its fixed start")
         return result
 
     def accept(self, identifier: UUID, event: BrokerEvent) -> None:
@@ -539,9 +590,28 @@ class LiveStreams:
                 event,
                 receiving=row["status"] in {"RECEIVING", "STOP_REQUESTED"},
             )
-        # Durable reception, account application and shadow calculation have
-        # distinct commits. A failed application leaves the source for explicit
+        # Raw reception and shadow calculation have their own commits.
+        # Matched OMS fills and account progress commit together. Failed application
+        # leaves the source for explicit
         # local catch-up. Pausing shadow never prevents booking actual fills.
+        if self._engine.dialect.name == "sqlite" and event.callback in {
+            "OnRtnOrder",
+            "OnRspOrderInsert",
+            "OnRspOrderAction",
+            "OnErrRtnOrderInsert",
+            "OnErrRtnOrderAction",
+        }:
+            from northstar_quant.broker.execution_reports import apply_stream
+
+            order_id = apply_stream(self._engine, identifier, event.sequence)
+            if order_id is not None:
+                from northstar_quant.broker.execution_fills import apply_pending
+
+                apply_pending(self._engine, identifier, event.sequence, order_id=order_id)
+        elif self._engine.dialect.name == "sqlite" and event.callback == "OnRtnTrade":
+            from northstar_quant.broker.execution_fills import apply_stream as apply_fill
+
+            apply_fill(self._engine, identifier, event.sequence)
         progress = self._ledger.advance_stream(identifier, event.sequence)
         with write_transaction(self._engine) as connection:
             self._timeouts(connection)
@@ -610,10 +680,19 @@ class LiveStreams:
                         instrument=str(binding["instrument"]),
                         contract_id=UUID(str(binding["contract_id"])),
                         price_tick=Decimal(str(_object(binding["terms"])["PriceTick"])),
-                        config=ResearchConfig.from_mapping(
-                            _object(_object(binding["configuration"])["config"])
-                        ).strategy,
+                        config=StrategyConfig.from_dict(
+                            _object(
+                                _object(_object(binding["configuration"])["config"])["strategy"]
+                            )
+                        ),
                         now=datetime.now(UTC),
+                        schedule=(
+                            SessionSchedule.from_dict(
+                                _object(_object(binding["request"])["schedule"])
+                            )
+                            if "schedule" in _object(binding["request"])
+                            else None
+                        ),
                     )
                     state["market"] = market
                     result.update(bar=market.get("completed_bar"), intent=market.get("intent"))
@@ -758,6 +837,30 @@ class LiveStreams:
             if through_sequence > cast(int, row["received"]):
                 raise ValueError("account catch-up cannot include unreceived callbacks")
         self._ledger.bind_stream(baseline_id, identifier)
+        if self._engine.dialect.name == "sqlite":
+            from northstar_quant.broker.execution_reports import apply_stream
+
+            with self._engine.connect() as connection:
+                sequences = (
+                    connection.execute(
+                        text(
+                            "SELECT sequence FROM broker_stream_events WHERE stream_id=:id "
+                            "AND sequence<=:through "
+                            "AND json_extract(event, '$.callback') IN "
+                            "('OnRtnOrder', 'OnRspOrderInsert', 'OnRspOrderAction', "
+                            "'OnErrRtnOrderInsert', 'OnErrRtnOrderAction') "
+                            "ORDER BY sequence"
+                        ),
+                        {"id": identifier, "through": through_sequence},
+                    )
+                    .scalars()
+                    .all()
+                )
+            for sequence in sequences:
+                apply_stream(self._engine, identifier, sequence)
+            from northstar_quant.broker.execution_fills import apply_pending
+
+            apply_pending(self._engine, identifier, through_sequence)
         return self._ledger.advance_stream(identifier, through_sequence)
 
     def archive(
@@ -893,7 +996,10 @@ class LiveStreams:
         )
         if any(query[key] != binding[key] for key in ("profile", "account_id", "instrument")):
             raise ValueError("shadow decision source identity differs from its binding")
-        configuration = self._configurations.get_configuration(str(stream["configuration_id"]))
+        configuration = self._configurations.get_configuration(
+            str(stream["configuration_id"]),
+            candidate_id=str(_object(binding["configuration"])["candidate_id"]),
+        )
         if configuration != binding["configuration"]:
             raise ValueError("shadow decision configuration differs from its fixed revision")
         verify_broker_contract(
@@ -941,6 +1047,80 @@ class LiveStreams:
             )
         return [self.get(identifier) for identifier in identifiers]
 
+    def health(self) -> dict[str, object]:
+        """Read bounded input health without polling, pausing or restarting a receiver."""
+        now = datetime.now(UTC)
+        conditions: set[str] = set()
+        with self._engine.connect() as connection:
+            active = connection.scalar(
+                text(
+                    "SELECT COUNT(*) FROM broker_streams "
+                    "WHERE status IN ('STARTING','RECEIVING','STOP_REQUESTED')"
+                )
+            )
+            identifiers = connection.scalars(
+                text(
+                    "SELECT stream_id FROM broker_streams "
+                    + (
+                        "WHERE status IN ('STARTING','RECEIVING','STOP_REQUESTED') "
+                        if active
+                        else ""
+                    )
+                    + "ORDER BY created_at DESC LIMIT 1"
+                )
+            ).all()
+            if not identifiers:
+                return {"active_receivers": 0, "conditions": [], "pending_events": 0}
+            identifier = identifiers[0]
+            row = self._row(connection, identifier)
+            state = _object(row["state"])
+            pending = cast(int, row["received"]) - cast(int, row["cursor"])
+            if pending < 0:
+                raise ValueError("input cursor exceeds retained events")
+            if active is not None and active > 1:
+                conditions.add("MULTIPLE_INPUT_RECEIVERS")
+            if row["status"] in {"FAILED", "INTERRUPTED"}:
+                conditions.add("INPUT_RECEIVER_FAILED")
+            if row["status"] in _ACTIVE:
+                if _object(row["binding"])["runtime_id"] != str(self.runtime_id):
+                    conditions.add("INPUT_RECEIVER_PREVIOUS_RUNTIME")
+                if state.get("connection_error"):
+                    conditions.add("INPUT_CONNECTION_FAILED")
+                if row["paused"] and row["reason"] not in {
+                    "OPERATOR_PAUSE",
+                    "OPERATOR_STOP",
+                    "DAY_SESSION_ENDED",
+                    "SESSION_SCHEDULE_ENDED",
+                }:
+                    conditions.add("INPUT_REQUIRES_RECOVERY")
+                if row["status"] == "RECEIVING" and not row["paused"]:
+                    market = _object(state.get("market", {}))
+                    if idle_reason(market, now=now) == "QUOTE_STALE":
+                        conditions.add("INPUT_MARKET_STALE")
+                    elif (
+                        not market.get("last_quote")
+                        and now - cast(datetime, row["created_at"]) > FRESH
+                    ):
+                        conditions.add("INPUT_MARKET_NOT_ESTABLISHED")
+                if pending:
+                    oldest = connection.scalar(
+                        text(
+                            "SELECT committed_at FROM broker_stream_events WHERE stream_id=:id "
+                            "AND sequence>:cursor ORDER BY sequence LIMIT 1"
+                        ),
+                        {"id": identifier, "cursor": row["cursor"]},
+                    )
+                    if oldest is None or now - oldest > FRESH:
+                        conditions.add("INPUT_PROCESSING_LAG")
+        progress = self._ledger.stream_progress(identifier)
+        if progress["status"] == "UNKNOWN":
+            conditions.add("INPUT_ACCOUNT_FACTS_UNKNOWN")
+        return {
+            "active_receivers": active,
+            "conditions": sorted(conditions),
+            "pending_events": pending,
+        }
+
     def close(self) -> None:
         """Shutdown only connections owned here; no startup recovery or external retry."""
         for _, stop in tuple(self._workers.values()):
@@ -964,7 +1144,11 @@ class LiveStreams:
                 BrokerRecords(self._engine).get(
                     UUID(str(_object(binding["request"])["query_batch_id"]))
                 )
-                config = self._configurations.get_configuration(str(row["configuration_id"]))
+                config = self._configurations.get_configuration(
+                    str(row["configuration_id"]),
+                    candidate_id=str(_object(binding["configuration"])["candidate_id"]),
+                    require_installed_revision=False,
+                )
                 if config != binding["configuration"]:
                     raise ValueError("stream configuration differs from its fixed revision")
                 verify_broker_contract(

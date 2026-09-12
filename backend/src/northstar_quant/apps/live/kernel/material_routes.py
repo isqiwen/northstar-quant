@@ -9,7 +9,6 @@ from sqlalchemy import Engine
 
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.owner import LiveOwner
-from northstar_quant.research.configurations import ConfigurationStore
 
 from .commands import execute_command
 
@@ -30,7 +29,7 @@ def routes(owner: LiveOwner, engine: Engine, library: DataLibrary) -> APIRouter:
 
     @router.get("/configurations")
     def configurations() -> list[dict[str, object]]:
-        return ConfigurationStore(engine).list_configurations()
+        return materials.configurations()
 
     @router.get("/sources/{source_id}")
     def source(source_id: UUID) -> dict[str, object]:

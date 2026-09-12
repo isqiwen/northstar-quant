@@ -27,9 +27,9 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 
 from northstar_quant import code_revision
 from northstar_quant.data_management.research import ResearchDataset
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 from northstar_quant.research.backtesting import ResearchResult
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.storage import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _runs = Table(
@@ -68,6 +68,9 @@ def initialize_run_store(engine: Engine | Connection) -> None:
     _metadata.create_all(engine)
 
     def guards(connection: Connection) -> None:
+        from .experiments import initialize as initialize_experiments
+
+        initialize_experiments(connection)
         if connection.dialect.name == "sqlite":
             from .storage import immutable, transitions
 

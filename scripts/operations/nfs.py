@@ -1,13 +1,12 @@
-"""Managed Linux NFS market storage; transported over SSH before app deployment."""
+"""Mount externally managed NFS market storage on application hosts."""
 
 from __future__ import annotations
 
 import fcntl
 import json
 import os
-import pwd
+import re
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
@@ -17,7 +16,7 @@ from uuid import UUID, uuid4
 MARKET = Path("/opt/northstar/files/market")
 STATE = Path("/opt/northstar/state/nfs")
 UNITS = Path("/etc/systemd/system")
-EXPORTS = Path("/etc/exports.d/northstar.exports")
+EXPORT = "/quant"
 UNIT = "opt-northstar-files-market.mount"
 
 
@@ -25,15 +24,16 @@ def topology(settings: dict) -> dict | None:
     item = settings.get("nfs")
     if item is None:
         return None
-    if not isinstance(item, dict) or set(item) - {"host", "user", "port"}:
-        raise ValueError("nfs 只接受 host/user/port")
+    if not isinstance(item, dict) or set(item) - {"host"}:
+        raise ValueError("nfs 只接受 host；服务端及 /quant 导出由外部准备")
     for name in ("nfs", "data_hub", "research"):
         if not isinstance(settings.get(name, {}).get("host"), str) or not settings[name]["host"]:
             raise ValueError(f"NFS 需要配置 {name}.host")
-    if any(":" in settings[name]["host"] for name in ("nfs", "data_hub", "research")):
-        raise ValueError("NFS 主机请填写可解析为 IPv4 的主机名或 IPv4 地址")
-    if settings.get("database", {}).get("host") != settings["data_hub"]["host"]:
-        raise ValueError("database 与 Data Hub 必须部署到同一主机")
+    if any(
+        not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_.-]*", settings[name]["host"])
+        for name in ("nfs", "data_hub", "research")
+    ):
+        raise ValueError("NFS 主机请填写有效主机名或 IPv4 地址")
     return {
         "server": item["host"],
         "writer": settings["data_hub"]["host"],
@@ -45,28 +45,9 @@ def run(*args: str) -> str:
     return subprocess.check_output(args, text=True, stderr=None).strip()
 
 
-def install(package: str) -> None:
-    result = subprocess.run(
-        ["dpkg-query", "-W", "-f=${Status}", package], capture_output=True, text=True
-    )
-    if result.returncode == 0 and result.stdout.strip() == "install ok installed":
-        return
-    if not shutil.which("apt-get"):
-        raise ValueError("自动配置 NFS 仅支持 Ubuntu/Debian Linux 服务端和客户端")
-    subprocess.run(["apt-get", "update"], check=True)
-    subprocess.run(
-        [
-            "env",
-            "DEBIAN_FRONTEND=noninteractive",
-            "apt-get",
-            "install",
-            "-y",
-            "--no-upgrade",
-            "--no-remove",
-            package,
-        ],
-        check=True,
-    )
+def require_client() -> None:
+    if not shutil.which("mount.nfs"):
+        raise ValueError("请在应用主机预先安装 NFS 客户端（Ubuntu/Debian: nfs-common）")
 
 
 def write(path: Path, content: str) -> None:
@@ -127,95 +108,11 @@ def identity() -> str:
     return value
 
 
-def prepare_server(request: dict) -> None:
-    current = mounted()
-    if current and current["fstype"] in {"nfs", "nfs4", "autofs"}:
-        raise ValueError("NFS 服务端不能重新导出旧客户端挂载；请先迁移至服务端本地目录")
-    install("nfs-kernel-server")
-    try:
-        account = pwd.getpwnam("northstar-market")
-    except KeyError:
-        run(
-            "useradd",
-            "--system",
-            "--no-create-home",
-            "--shell",
-            "/usr/sbin/nologin",
-            "northstar-market",
-        )
-        account = pwd.getpwnam("northstar-market")
-    MARKET.mkdir(parents=True, exist_ok=True)
-    marker = MARKET / ".northstar-storage-id"
-    if not marker.exists():
-        if any(MARKET.iterdir()):
-            raise ValueError("已有行情缺少存储 UUID，不能自动接管")
-        write(marker, str(uuid4()) + "\n")
-    identity()
-    # Only the publication tree is shared. Never walk source, credentials or PGDATA.
-    # Existing immutable publications become readable; temporary/lock files remain private.
-    adopted = STATE / "server-storage-id"
-    if adopted.exists() and adopted.read_text().strip() != identity():
-        raise ValueError("服务端存储 UUID 改变，请恢复原数据与身份")
-    for root, dirs, files in [] if adopted.exists() else os.walk(MARKET, followlinks=False):
-        path = Path(root)
-        if path.is_symlink():
-            raise ValueError("行情目录不能包含符号链接")
-        for name in dirs + files:
-            item = path / name
-            if item.is_symlink() or not (item.is_dir() or item.is_file()):
-                raise ValueError("行情目录只能包含普通文件和目录")
-        os.chown(path, account.pw_uid, account.pw_gid)
-        path.chmod(0o700 if "staging" in path.relative_to(MARKET).parts else 0o755)
-        for name in files:
-            item = path / name
-            os.chown(item, account.pw_uid, account.pw_gid)
-            item.chmod(
-                0o600
-                if name.startswith(".") and name != marker.name or "staging" in item.parts
-                else 0o644
-            )
-    write(adopted, identity() + "\n")
-    clients = {}
-    for host, access in ((request["reader"], "ro"), (request["writer"], "rw")):
-        if host != request["server"]:
-            address = socket.gethostbyname(host)
-            clients[address] = access  # A co-located Data Hub remains the writer.
-    options = [
-        f"{ip}({mode},sync,no_subtree_check,all_squash,"
-        f"anonuid={account.pw_uid if mode == 'rw' else 65534},"
-        f"anongid={account.pw_gid if mode == 'rw' else 65534})"
-        for ip, mode in sorted(clients.items())
-    ]
-    write(
-        EXPORTS,
-        f"{MARKET} " + " ".join(options) + "\n" if options else "",
-    )
-    run("systemctl", "enable", "--now", "nfs-server.service")
-    run("exportfs", "-ra")
-    if shutil.which("ufw") and "Status: active" in run("ufw", "status"):
-        for ip in clients:
-            run(
-                "ufw",
-                "allow",
-                "from",
-                ip,
-                "to",
-                "any",
-                "port",
-                "2049",
-                "proto",
-                "tcp",
-                "comment",
-                "northstar-nfs",
-            )
-    print(f"NFS 服务端就绪：{MARKET}，UUID={identity()}", flush=True)
-
-
 def prepare_client(request: dict) -> None:
-    source = f"{request['server']}:{MARKET}"
+    source = f"{request['server']}:{EXPORT}"
     mode = "rw" if request["host"] == request["writer"] else "ro"
     check_client(mounted(), source, mode)
-    install("nfs-common")
+    require_client()
     MARKET.mkdir(parents=True, exist_ok=True)
     unit = (
         "[Unit]\nDescription=Northstar market NFS\nWants=network-online.target\n"
@@ -230,7 +127,20 @@ def prepare_client(request: dict) -> None:
     )
     run("systemctl", "daemon-reload")
     run("systemctl", "enable", "--now", UNIT)
-    check_client(mounted(), source, mode)
+    current = mounted()
+    if current is None:
+        raise ValueError("NFS 挂载未就绪")
+    check_client(current, source, mode)
+    marker = MARKET / ".northstar-storage-id"
+    saved = STATE / "client.json"
+    if not marker.exists():
+        if mode != "rw" or saved.exists() or any(MARKET.iterdir()):
+            raise ValueError("共享缺少存储身份；首次请先部署 Data Hub，已有数据须恢复原身份")
+        with marker.open("x") as stream:
+            os.fchmod(stream.fileno(), 0o644)
+            stream.write(str(uuid4()) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
     value = identity()
     saved = STATE / "client.json"
     if saved.exists() and json.loads(saved.read_text())["identity"] != value:
@@ -268,10 +178,9 @@ def verify_client() -> None:
 
 def prepare(request: dict) -> None:
     if request.get("preflight"):
-        if request["host"] != request["server"]:
-            source = f"{request['server']}:{MARKET}"
-            mode = "rw" if request["host"] == request["writer"] else "ro"
-            check_client(mounted(), source, mode)
+        source = f"{request['server']}:{EXPORT}"
+        mode = "rw" if request["host"] == request["writer"] else "ro"
+        check_client(mounted(), source, mode)
         return
     if os.geteuid() != 0:
         raise ValueError("NFS 主机准备需要 root 权限")
@@ -281,66 +190,11 @@ def prepare(request: dict) -> None:
     STATE.mkdir(parents=True, exist_ok=True)
     with (STATE / "prepare.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        if request["host"] == request["server"]:
-            prepare_server(request)
-        else:
-            prepare_client(request)
-
-
-def manage(request: dict) -> int:
-    """Manage the host NFS service; never stop applications or remove market files."""
-    action = request.get("action", "deploy")
-    if action == "deploy":
-        prepare(request)
-        return 0
-    if os.geteuid() != 0:
-        raise ValueError("NFS 服务管理需要 root 权限")
-    service = "nfs-server.service"
-    if action == "check-server":
-        saved = STATE / "server-storage-id"
-        if not saved.is_file() or not EXPORTS.is_file():
-            raise ValueError("NFS 服务端未准备，请先执行 northstarctl.py deploy nfs")
-        if saved.read_text().strip() != identity():
-            raise ValueError("NFS 服务端存储 UUID 不匹配")
-        result = subprocess.run(["systemctl", "is-active", "--quiet", service], check=False)
-        if result.returncode:
-            raise ValueError("NFS 服务端未运行，请先执行 start nfs")
-        print(f"NFS 服务端已验证，UUID={identity()}", flush=True)
-        return 0
-    if action == "logs":
-        return subprocess.run(
-            [
-                "journalctl",
-                "--unit",
-                service,
-                "--no-pager",
-                "--lines",
-                "100",
-                *(["--follow"] if request.get("follow") else []),
-            ],
-            check=False,
-        ).returncode
-    if action == "status":
-        return subprocess.run(
-            ["systemctl", "status", "--no-pager", service], check=False
-        ).returncode
-    if action not in {"start", "restart", "stop"}:
-        raise ValueError("不支持的 NFS 管理操作")
-    if not STATE.is_dir():
-        raise ValueError("NFS 尚未部署，请先执行 deploy nfs")
-    with (STATE / "prepare.lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        if action in {"start", "restart"}:
-            saved = STATE / "server-storage-id"
-            if not saved.is_file() or not EXPORTS.is_file():
-                raise ValueError("NFS 尚未部署，请先执行 deploy nfs")
-            if saved.read_text().strip() != identity():
-                raise ValueError("服务端存储 UUID 改变，请恢复原数据与身份")
-        return subprocess.run(["systemctl", action, service], check=False).returncode
+        prepare_client(request)
 
 
 if __name__ == "__main__":
     try:
-        sys.exit(manage(json.loads(sys.argv[1])))
+        prepare(json.loads(sys.argv[1]))
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         sys.exit(f"NFS 准备失败：{error}")

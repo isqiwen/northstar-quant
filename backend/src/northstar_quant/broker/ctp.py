@@ -1,4 +1,4 @@
-"""A bounded, read-only SimNow capture, isolated from native callback failure.
+"""Bounded CTP capture and reception, isolated from native callback failure.
 
 Only the short-lived child imports CTP. Secrets travel through spawn's private
 process pipe, never command arguments or files. Previously received evidence is
@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from typing import cast
 
 from northstar_quant.broker.events import BrokerEvent, QueryCapture
+from northstar_quant.broker.order_channel import OrderChannel
 from northstar_quant.broker.settings import (
     Credentials,
     SimnowProfile,
@@ -255,8 +256,9 @@ def stream_account(
     on_event: Callable[[BrokerEvent], None],
     should_stop: Callable[[], bool],
     duration_seconds: float,
+    on_transport: Callable[[OrderChannel], None] | None = None,
 ) -> str | None:
-    """Receive one explicitly started, bounded, continuous read-only session.
+    """Receive one explicitly started bounded session, with an optional private order channel.
 
     Initial TD/MD authentication and seven queries share the proven query calls;
     startup is limited to 45 seconds and the whole session to 1..7200 seconds.
@@ -271,7 +273,10 @@ def stream_account(
     swallowed followed by continued reception. Stop is checked every <=100 ms
     outside caller callbacks. Graceful stop/deadline returns None; native failure
     returns a bounded code. A child that cannot stop within three seconds is
-    terminated, then killed if necessary. No reconnect/login retry or sending.
+    terminated, then killed if necessary. No reconnect/login retry. Supplying
+    on_transport exposes a core-thread-only dispatch channel; otherwise the child
+    has no order input. Enqueue returns are not native or broker acceptance.
+    Native dispatch deadlines and immediate return receipts are checked separately.
     """
     from northstar_quant.broker._ctp_worker import stream
 
@@ -288,6 +293,10 @@ def stream_account(
     context = multiprocessing.get_context("spawn")
     receiver, sender = context.Pipe(duplex=False)
     stop_signal = context.Event()
+    order_queues = (
+        None if on_transport is None else (context.Queue(maxsize=1), context.Queue(maxsize=1))
+    )
+    channel = None if order_queues is None else OrderChannel(*order_queues)
     messages: queue.Queue[bytes | str] = queue.Queue(maxsize=1)
     reader_stopped = threading.Event()
 
@@ -329,6 +338,7 @@ def stream_account(
                 duration_seconds,
                 stop_signal,
             ),
+            kwargs={} if order_queues is None else {"order_queues": order_queues},
             name="northstar-ctp-stream",
             daemon=True,
         )
@@ -336,9 +346,15 @@ def stream_account(
             child.start()
             sender.close()
             reader.start()
+            if channel is not None and on_transport is not None:
+                on_transport(channel)
             while True:
                 now = time.monotonic()
-                if stop_deadline is None and (now >= deadline or should_stop()):
+                if channel is not None:
+                    channel.poll()
+                    if channel.failed:
+                        failure = failure or "ORDER_TRANSPORT_UNKNOWN"
+                if stop_deadline is None and (now >= deadline or should_stop() or failure):
                     stop_signal.set()
                     stop_deadline = now + 3
                 if stop_deadline is not None and now >= stop_deadline:
@@ -414,6 +430,8 @@ def stream_account(
                 elif child.exitcode != 0:
                     failure = failure or "SDK_PROCESS_EXITED"
         finally:
+            if channel is not None:
+                channel.close()
             stop_signal.set()
             reader_stopped.set()
             if child.pid is not None:
@@ -428,4 +446,8 @@ def stream_account(
                 reader.join(timeout=1)
             receiver.close()
             sender.close()
+            if order_queues is not None:
+                for queue_ in order_queues:
+                    queue_.cancel_join_thread()
+                    queue_.close()
     return failure

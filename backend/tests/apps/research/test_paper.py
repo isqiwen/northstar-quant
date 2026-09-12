@@ -14,7 +14,7 @@ from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
 from tests.apps.browser import ProtocolClient as TestClient
-from tests.apps.browser import _browser_session, _seed_source, _upload_request
+from tests.apps.browser import _browser_session, _seed_source, _upload_request, login_response
 
 
 def test_paper_commands_require_browser_session_and_preserve_fixed_state(
@@ -66,7 +66,7 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
             ).status_code
             == 403
         )
-        page = client.get("/api/browser-session")
+        page = login_response(client)
         assert page.status_code == 200
         assert "HttpOnly" in page.headers["set-cookie"]
         assert "SameSite=strict" in page.headers["set-cookie"]
@@ -87,7 +87,7 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
                     json=configuration_request,
                     headers={"X-Northstar-CSRF": csrf},
                 ).status_code
-                == 403
+                == 401
             )
 
         create_request = {
@@ -137,20 +137,22 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
         )
         assert changed.status_code == 201, changed.text
         assert changed.json()["configuration_id"] != configuration["configuration_id"]
+        _browser_session(client)
         assert client.get(f"/api/paper/{session_id}").json() == persisted
         cookie = client.cookies.get("northstar_research_session")
         assert cookie is not None
 
     # Recreating the application preserves DB progress but not browser command authority.
     with TestClient(research_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        client.cookies.set("northstar_workspace_session", cookie)
+        client.cookies.set("northstar_research_session", cookie)
         client.headers["X-Northstar-CSRF"] = csrf
-        assert client.get(f"/api/paper/{session_id}").json() == persisted
-        assert client.post(endpoint, json={"request_id": str(uuid4())}).status_code == 403
+        assert client.get(f"/api/paper/{session_id}").status_code == 401
+        assert client.post(endpoint, json={"request_id": str(uuid4())}).status_code == 401
         client.cookies.clear()
-        page = client.get("/api/browser-session")
+        page = login_response(client)
         assert page.status_code == 200
         client.headers["X-Northstar-CSRF"] = page.json()["csrf"]
+        assert client.get(f"/api/paper/{session_id}").json() == persisted
         for _ in range(3):
             advanced = client.post(endpoint, json={"request_id": str(uuid4())})
             assert advanced.status_code == 200, advanced.text

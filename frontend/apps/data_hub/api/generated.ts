@@ -5,9 +5,6 @@ export type AdmissionRejection = {
   rejection_id: string;
   [key: string]: unknown;
 };
-export type BrowserSession = {
-  csrf: string;
-};
 export type DatasetDetails = {
   availability_basis: string;
   availability_note: string;
@@ -28,6 +25,8 @@ export type DatasetDetails = {
   sources: (Record<string, JsonValue>)[];
   symbol: string;
   trading_days: (string)[];
+  settlements: (SettlementFact)[];
+  terms: (FuturesTerms)[];
 };
 export type DatasetLineage = {
   attempts: (Record<string, JsonValue>)[];
@@ -56,6 +55,7 @@ export type HttpError = {
   url?: string | null;
 };
 export type ImportSpecification = {
+  interval: "1m" | "5m" | "15m" | "30m" | "60m";
   session_kind: "DAY" | "NIGHT";
   availability_basis: string;
   availability_note: string;
@@ -200,6 +200,7 @@ export type ExplorerRows = {
   fields: (Record<string, JsonValue>)[];
   versions: (Record<string, JsonValue>)[];
   note: string;
+  scan: Record<string, JsonValue>;
 };
 export type RevisionRequest = {
   before_id: string;
@@ -219,6 +220,28 @@ export type RevisionComparison = {
   offset: number;
   note: string;
 };
+export type CompactionRequest = {
+  request_id: string;
+  dataset: string;
+  scope: string;
+  start: string;
+  end: string;
+  receipt_ids: (string)[];
+};
+export type Compaction = {
+  compaction_id: string;
+  plan_id: string;
+  plan: Record<string, JsonValue>;
+  created_at: string;
+  status: string;
+  result: Record<string, JsonValue> | null;
+  error: string | null;
+};
+export type CompactionPage = {
+  offset: number;
+  limit: number;
+};
+export type CompactionList = (Compaction)[];
 export type Empty = {
 };
 export type Error = {
@@ -228,4 +251,46 @@ export type Error = {
   runtime_id?: string;
   url?: string;
   rejection_id?: string;
+};
+export type BrowserSession = {
+  setup_required: boolean;
+  authenticated: boolean;
+  csrf: string | null;
+  operator: string | null;
+  expires_at: string | null;
+};
+export type LoginRequest = {
+  username: string;
+  password: string;
+};
+export type ChargeRate = {
+  by_money: string;
+  by_volume: string;
+};
+export type FuturesTerms = {
+  terms_id: string;
+  contract_id: string;
+  effective_from: string;
+  effective_until: string;
+  available_at: string;
+  source_reference: string;
+  open_fee: ChargeRate;
+  close_today_fee: ChargeRate;
+  close_yesterday_fee: ChargeRate;
+  long_margin: ChargeRate;
+  short_margin: ChargeRate;
+  lower_limit: string;
+  upper_limit: string;
+  money_quantum: string;
+  fee_rounding: string;
+};
+export type SettlementFact = {
+  settlement_id: string;
+  contract_id: string;
+  trading_day: string;
+  next_trading_day: string;
+  settled_at: string;
+  available_at: string;
+  price: string;
+  source_reference: string;
 };

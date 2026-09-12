@@ -15,8 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def configuration_text(app, value):
+    identity = ""
     if app == "research":
-        return f"NORTHSTAR_DATA_HUB_URL='http://{value}:19090'\n"
+        return f"NORTHSTAR_DATA_HUB_URL='http://{value}:19090'\n" + identity
     keys = {
         "database": ["NORTHSTAR_DATABASE_ADMIN_PASSWORD", "NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"],
         "data-hub": ["NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"],
@@ -40,7 +41,7 @@ def configuration_text(app, value):
                 "AUTH_CODE",
             )
         )
-    return result
+    return result + identity
 
 
 @pytest.fixture
@@ -66,6 +67,10 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     package = repo / "backend/src/northstar_quant"
     package.mkdir(parents=True)
     shutil.copyfile(ROOT / "backend/src/northstar_quant/__init__.py", package / "__init__.py")
+    (package / "web").mkdir()
+    shutil.copyfile(
+        ROOT / "backend/src/northstar_quant/web/passwords.py", package / "web/passwords.py"
+    )
     (package / "live").mkdir()
     shutil.copyfile(
         ROOT / "backend/src/northstar_quant/live/instances.py", package / "live/instances.py"
@@ -118,8 +123,8 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     config = tmp_path / "hosts.toml"
     config.write_text(
         "\n".join(
-            f'[{app.replace("-", "_")}]\nhost="example.invalid"\nuser="root"\n'
-            for app in ("database", "data-hub", "research", "live")
+            f'[{app.replace("-", "_")}]\nhost="example.invalid"\n'
+            for app in ("data-hub", "research", "live")
         )
     )
     for share in ("source", "market", "research", "backup"):
@@ -142,6 +147,7 @@ if name == 'sudo':
     while args and args[0] in ('-n', '--'): args.pop(0)
     sys.exit(subprocess.run(args).returncode)
 if name == 'ssh':
+    if 'northstar_account_check' in sys.argv[-1]: sys.exit(0)
     if '-l' in sys.argv and sys.argv[sys.argv.index('-l') + 1] in ('root', 'bootstrap-admin'):
         sys.exit(int(os.environ.get('INIT_HOST_RESULT', '0')))
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
@@ -156,7 +162,8 @@ if name == 'docker' and 'config' in sys.argv and '--format' in sys.argv:
                   'networks': {{'frontend': {{}}, 'ingress': {{}}}},
                   'services': {{name: {{'environment': {{}}, 'volumes': [],
                                        'networks': {{'management': {{}}}}}}
-                               for name in ('initialize', 'live', 'live-api', 'live-web')}}}}
+                               for name in ('initialize', 'live', 'live-monitor',
+                                            'live-api', 'live-web')}}}}
     print(json.dumps(config))
     sys.exit(0)
 if name == 'docker' and 'info' in sys.argv and '--format' in sys.argv:
@@ -277,7 +284,7 @@ def test_modified_remote_release_is_not_overwritten(deployment):
 def test_path_override_is_rejected_before_ssh(deployment):
     _, config, env = deployment
     config.write_text(
-        config.read_text().replace("[database]", '[database]\ndirectory="/tmp/override"')
+        config.read_text().replace("[data_hub]", '[data_hub]\ndirectory="/tmp/override"')
     )
     assert invoke(deployment, "deploy", "database").returncode != 0
     assert not Path(env["RECORD"]).exists()
@@ -321,7 +328,7 @@ def test_dependency_failure_prevents_source_transfer_and_application_mutation(de
     assert result.returncode != 0
     assert not (config.parent / "apps/live/current").exists()
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert len([call for call in calls if call[0] == "ssh"]) == 1
+    assert len([call for call in calls if call[0] == "ssh"]) == 2
     assert not any("up" in call or "down" in call for call in calls)
 
 
@@ -375,7 +382,8 @@ def test_interactive_elevation_keeps_password_out_of_transport_and_bundle(deploy
         ssh_calls = [
             json.loads(line) for line in calls.splitlines() if json.loads(line)[0] == "ssh"
         ]
-        assert "-tt" in ssh_calls[0] and "-T" in ssh_calls[1]
+        assert "-T" in ssh_calls[0]  # noninteractive readiness probe
+        assert "-tt" in ssh_calls[1] and "-T" in ssh_calls[2]
         assert (config.parent / "apps/research/successful-revision").is_file()
     finally:
         if status is None:
@@ -393,8 +401,11 @@ def test_unattended_deployment_without_sudo_permission_stops_before_transfer(dep
     assert not (config.parent / "apps/research/current").exists()
     assert env["ASK_SUDO"] not in result.stdout + result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert len([call for call in calls if call[0] == "ssh"]) == 1
-    assert not any(call[0] == "docker" for call in calls)
+    assert len([call for call in calls if call[0] == "ssh"]) == 2
+    assert not any(
+        call[0] == "docker" and ("up" in call or "down" in call or "build" in call)
+        for call in calls
+    )
 
 
 def test_first_deployment_uploads_private_config_and_redeploy_preserves_edits(deployment):
@@ -413,72 +424,6 @@ def test_first_deployment_uploads_private_config_and_redeploy_preserves_edits(de
     evidence += Path(env["RECORD"]).read_text()
     assert "initial-private-value" not in evidence
     assert "host-private-value" not in evidence
-
-
-@pytest.mark.parametrize("bootstrap_user", ["root", "bootstrap-admin"])
-@pytest.mark.parametrize("nfs_host", ["research.invalid", "storage.invalid"])
-def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(
-    deployment, tmp_path, bootstrap_user, nfs_host
-):
-    repo, config, env = deployment
-    config.write_text(
-        config.read_text().replace(
-            '[research]\nhost="example.invalid"', '[research]\nhost="research.invalid"'
-        )
-    )
-    config.write_text(config.read_text() + f'\n[nfs]\nhost="{nfs_host}"\nuser="root"\nport=22\n')
-    config.write_text(config.read_text().replace('user="root"', f'user="{bootstrap_user}"'))
-    (tmp_path / ".ssh").mkdir()
-    key = tmp_path / ".ssh/id_ed25519"
-    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
-    command = [
-        sys.executable,
-        str(repo / "scripts/northstarctl.py"),
-        "init-host",
-        "--config",
-        str(config),
-    ]
-    result = subprocess.run(command, env=env, text=True, capture_output=True)
-    assert result.returncode == 0, result.stderr
-    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    users = [call[call.index("-l") + 1] for call in calls if call[0] == "ssh"]
-    assert users == [bootstrap_user, "northstar"] * (3 if nfs_host == "storage.invalid" else 2)
-    import shlex
-
-    init_calls = [
-        call for call in calls if call[0] == "ssh" and call[call.index("-l") + 1] == bootstrap_user
-    ]
-    expected = ["sudo", "-n", "--", "python3"] if bootstrap_user != "root" else ["python3"]
-    assert all(shlex.split(call[-1])[: len(expected)] == expected for call in init_calls)
-    assert key.read_text() not in result.stdout + result.stderr + Path(env["RECORD"]).read_text()
-    Path(env["RECORD"]).unlink()
-    env["INIT_HOST_RESULT"] = "9"
-    result = subprocess.run(command, env=env, text=True, capture_output=True)
-    assert result.returncode != 0
-    assert "host_account" not in result.stderr and "initialize(public_key" not in result.stderr
-    assert len(result.stderr) < 1000
-    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert len([call for call in calls if call[0] == "ssh"]) == 1
-
-
-def test_init_host_dry_run_does_not_access_keys_or_connect(deployment):
-    repo, config, env = deployment
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(repo / "scripts/northstarctl.py"),
-            "init-host",
-            "--config",
-            str(config),
-            "--dry-run",
-        ],
-        env=env,
-        text=True,
-        capture_output=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.count("root@example.invalid") == 1
-    assert not Path(env["RECORD"]).exists()
 
 
 @pytest.mark.parametrize("app", ["database", "data-hub", "research", "live"])
@@ -593,48 +538,20 @@ def test_failed_same_revision_configuration_blocks_start_and_records_last_succes
     assert invoke(deployment, "start", "research").returncode == 0
 
 
-@pytest.mark.parametrize("action", ["deploy", "start", "restart", "stop", "status", "logs"])
-def test_nfs_target_uses_service_transport_without_env_bundle_or_docker(deployment, action):
-    repo, config, env = deployment
-    config.write_text(
-        config.read_text() + '\n[nfs]\nhost="storage.invalid"\nuser="root"\nport=22\n'
-    )
-    program = repo / "scripts/operations/nfs.py"
-    program.write_text(
-        "import json,sys\ndef topology(settings): return {'server': settings['nfs']['host']}\n"
-        "if __name__ == '__main__':\n"
-        " request=json.loads(sys.argv[1])\n"
-        " print('service-action=' + request['action']); sys.exit(3)\n"
-    )
-    command = [
-        sys.executable,
-        str(repo / "scripts/northstarctl.py"),
-        action,
-        "nfs",
-        "--config",
-        str(config),
-    ]
-    result = subprocess.run(command, env=env, capture_output=True, text=True)
-    assert result.returncode == 3, result.stderr
-    assert f"service-action={action}" in result.stdout
-    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert not any(call[0] in {"docker", "uv", "make"} for call in calls)
-    assert len([call for call in calls if call[0] == "ssh"]) == 1
-
-
-@pytest.mark.parametrize("server_failure", [False, True])
-def test_app_deploy_checks_nfs_server_without_reprovisioning_it(deployment, server_failure):
+@pytest.mark.parametrize("app", ["database", "data-hub", "research"])
+@pytest.mark.parametrize("mount_failure", [False, True])
+def test_app_deploy_only_mounts_client_and_stops_on_mount_failure(deployment, mount_failure, app):
     import shlex
 
     repo, config, env = deployment
-    config.write_text(config.read_text() + '\n[nfs]\nhost="storage.invalid"\nuser="root"\n')
+    config.write_text(config.read_text() + '\n[nfs]\nhost="storage.invalid"\n')
     (repo / "scripts/operations/nfs.py").write_text(
         "import json,sys,os\n"
         "def topology(s): return {'server': s['nfs']['host'], "
         "'writer': s['data_hub']['host'], 'reader': s['research']['host']}\n"
         "if __name__ == '__main__':\n"
         " r=json.loads(sys.argv[1])\n"
-        " failed=r.get('action')=='check-server' and os.environ.get('NFS_SERVER_FAILURE')\n"
+        " failed=not r.get('preflight') and os.environ.get('NFS_MOUNT_FAILURE')\n"
         " sys.exit(9 if failed else 0)\n"
     )
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
@@ -653,14 +570,14 @@ def test_app_deploy_checks_nfs_server_without_reprovisioning_it(deployment, serv
         ],
         check=True,
     )
-    if server_failure:
-        env["NFS_SERVER_FAILURE"] = "1"
+    if mount_failure:
+        env["NFS_MOUNT_FAILURE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
             str(repo / "scripts/northstarctl.py"),
             "deploy",
-            "data-hub",
+            app,
             "--config",
             str(config),
         ],
@@ -668,14 +585,130 @@ def test_app_deploy_checks_nfs_server_without_reprovisioning_it(deployment, serv
         capture_output=True,
         text=True,
     )
-    assert (result.returncode != 0) == server_failure, result.stderr
+    assert (result.returncode != 0) == mount_failure, result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     requests = [json.loads(shlex.split(call[-1])[-1]) for call in calls if call[0] == "ssh"]
     nfs_requests = [item for item in requests if "server" in item]
     assert [(r["host"], r.get("action")) for r in nfs_requests] == [
         ("example.invalid", None),
-        ("storage.invalid", "check-server"),
-        *([] if server_failure else [("example.invalid", "deploy")]),
+        ("example.invalid", None),
     ]
-    if server_failure:
+    assert all("storage.invalid" not in call[:-1] for call in calls if call[0] == "ssh")
+    if mount_failure:
         assert not any(call[0] == "docker" for call in calls)
+
+
+def test_database_uses_data_hub_ssh_identity_and_own_configuration(deployment):
+    import runpy
+
+    repo, config, _ = deployment
+    config.write_text(
+        config.read_text().replace(
+            '[data_hub]\nhost="example.invalid"',
+            '[data_hub]\nhost="hub.invalid"',
+        )
+    )
+    read = runpy.run_path(str(repo / "scripts/northstarctl.py"))["configuration"]
+    database = read(config, "database")
+    hub = read(config, "data-hub")
+    assert (database["host"], database["user"]) == (
+        "hub.invalid",
+        "northstar",
+    )
+    assert database["directory"] != hub["directory"]
+    assert database["env_file"] != hub["env_file"]
+
+
+def test_ssh_uses_local_connection_settings_with_fixed_deployment_account(deployment):
+    import runpy
+
+    repo, config, _ = deployment
+    module = runpy.run_path(str(repo / "scripts/northstarctl.py"))
+    args = module["ssh"](module["configuration"](config, "data-hub"), "pass", "{}")
+    assert "-p" not in args
+    assert args[args.index("-l") + 1] == "northstar"
+    assert "example.invalid" in args
+
+
+def test_purge_host_requires_confirmation_and_only_contacts_selected_app_host(deployment):
+    repo, config, env = deployment
+    config.write_text(config.read_text() + '\n[nfs]\nhost="nas.invalid"\n')
+    script = repo / "scripts/operations/purge_host.py"
+    script.write_text("print('synthetic host purge')\n")
+    refused = invoke(deployment, "purge-host", "data-hub")
+    assert refused.returncode != 0
+    assert not Path(env["RECORD"]).exists()
+    command = [
+        sys.executable,
+        str(repo / "scripts/northstarctl.py"),
+        "purge-host",
+        "data-hub",
+        "--config",
+        str(config),
+    ]
+    preview = subprocess.run([*command, "--dry-run"], env=env, text=True, capture_output=True)
+    assert preview.returncode == 0
+    assert not Path(env["RECORD"]).exists()
+    confirmed = subprocess.run([*command, "--yes"], env=env, text=True, capture_output=True)
+    assert confirmed.returncode == 0, confirmed.stderr
+    assert "synthetic host purge" in confirmed.stdout
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    connections = [call for call in calls if call[0] == "ssh"]
+    assert len(connections) == 1
+    assert connections[0][-2] == "example.invalid"
+    assert "-p" not in connections[0]
+    assert connections[0][connections[0].index("-l") + 1] == "northstar"
+
+
+def test_purge_refuses_configured_nfs_server_before_ssh(deployment):
+    repo, config, env = deployment
+    config.write_text(config.read_text() + '\n[nfs]\nhost="example.invalid"\n')
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repo / "scripts/northstarctl.py"),
+            "purge-host",
+            "data-hub",
+            "--yes",
+            "--config",
+            str(config),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode != 0
+    assert "NFS 服务端" in result.stderr
+    assert not Path(env["RECORD"]).exists()
+
+
+def test_deploy_reset_removes_only_workspace_identity_after_api_stops(tmp_path):
+    import runpy
+
+    module = runpy.run_path(str(ROOT / "scripts/operations/compose.py"))
+    account = tmp_path / "live/workspace/northstar_live.json"
+    account.parent.mkdir(parents=True)
+    account.write_text("identity")
+    broker = tmp_path / "live/broker.toml"
+    broker.write_text("private broker config")
+    calls = []
+
+    def stop(*args):
+        assert account.exists()
+        calls.append(args)
+        return ""
+
+    module["reset_workspace"](["docker", "compose"], "live", credentials=tmp_path, runner=stop)
+    assert calls == [("docker", "compose", "stop", "live-api")]
+    assert not account.exists()
+    assert broker.read_text() == "private broker config"
+    account.write_text("identity")
+
+    def failure(*args):
+        raise RuntimeError("stop failed")
+
+    with pytest.raises(RuntimeError):
+        module["reset_workspace"]([], "live", credentials=tmp_path, runner=failure)
+    assert account.read_text() == "identity"
+    module["lifecycle"]([], "live", "restart", runner=lambda *args: "")
+    assert account.read_text() == "identity"

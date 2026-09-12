@@ -14,7 +14,9 @@ PROTO = ROOT / "proto"
 ROLES = ("data_hub", "research", "live")
 PYTHON_MODULES = {
     "api_options": "northstar_quant.web.api_options_pb2",
+    "web_auth": "northstar_quant.web.auth_pb2",
     "common": "northstar_quant.web.common_pb2",
+    "accounting": "northstar_quant.accounting.protocol_pb2",
     **{role: f"northstar_quant.apps.{role}.api_pb2" for role in ROLES},
 }
 

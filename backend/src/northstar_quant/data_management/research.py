@@ -2,7 +2,7 @@
 
 Callers supply market/session facts once. This Module owns catalog identity,
 source receipts, publication and verified immutable reads; no ORM row crosses
-its Interface. The current input is one complete one-minute DAY or NIGHT session
+its Interface. The current input is one complete fixed-interval DAY or NIGHT session
 with an explicitly declared trading day; calendar holidays are not inferred.
 """
 
@@ -15,7 +15,7 @@ import json
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -25,6 +25,8 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
+from northstar_quant.accounting.settlement import SettlementFact
+from northstar_quant.accounting.terms import FuturesTerms
 from northstar_quant.data_management.broker import verify_broker_contract
 from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
@@ -63,7 +65,8 @@ from northstar_quant.data_management.snapshots.publication import (
 from northstar_quant.data_management.snapshots.service import (
     DatasetSnapshotPublicationService,
 )
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.market_data import Instrument, MarketBar
+from northstar_quant.market_data.sessions import resolve_trading_day
 
 if TYPE_CHECKING:
     from northstar_quant.data_management.stream import StreamMinutes
@@ -73,8 +76,9 @@ if TYPE_CHECKING:
 class ResearchDataset:
     snapshot_id: UUID
     content_hash: str
-    market: Market
+    market: Instrument
     bars: tuple[MarketBar, ...]
+    interval_seconds: int
     # Pure in-memory calculations need no persisted source receipt. Every Data
     # read/import supplies verified details; absence is never historical evidence.
     details: DatasetDetails | None = None
@@ -190,6 +194,8 @@ class DatasetDetails:
     adjustment: str
     timestamp_convention: str
     processing_provenance: dict[str, object] | None = None
+    settlements: tuple[SettlementFact, ...] = ()
+    terms: tuple[FuturesTerms, ...] = ()
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -225,7 +231,8 @@ class DatasetDetails:
             "Receipt received_at is local ingestion metadata, not historical publication time.",
             "This snapshot contains one contract and explicitly declared DAY/NIGHT sessions "
             "with their own trading days; calendar/holiday attribution is source-declared, "
-            "not independently verified. It does not perform daily settlement.",
+            "not independently verified. Settlement facts, when present, retain their explicit "
+            "source reference and availability; prices are never inferred from bar close.",
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -233,13 +240,15 @@ class DatasetDetails:
         return {
             **self.summary.to_dict(),
             "import_specs": [item.to_mapping() for item in self.import_specs],
+            "settlements": [item.to_dict() for item in self.settlements],
+            "terms": [item.to_dict() for item in self.terms],
             "sources": [source.to_dict() for source in self.sources],
             "quality": {
                 "imports": [quality.to_dict() for quality in self.import_quality],
                 "minutes": [item.to_dict() for item in self.minute_quality],
             },
             "semantics": {
-                "interval_seconds": 60,
+                "interval_seconds": int(spec.duration.total_seconds()),
                 "timestamp_convention": self.timestamp_convention,
                 "adjustment": self.adjustment,
                 "timezone": spec.timezone,
@@ -257,11 +266,7 @@ class DatasetDetails:
             "availability_note": "; ".join(
                 dict.fromkeys(item.availability_note for item in self.import_specs)
             ),
-            **(
-                {"processing_provenance": self.processing_provenance}
-                if self.processing_provenance is not None
-                else {}
-            ),
+            "processing_provenance": self.processing_provenance,
             "limitations": list(self.limitations),
         }
 
@@ -314,8 +319,13 @@ def _import_stream(
             quantity_unit=product.quantity_unit,
             price_tick=product.price_tick,
             multiplier=product.contract_multiplier,
-            trading_day=reconstructed.session_open.astimezone(ZoneInfo("Asia/Shanghai")).date(),
-            session_kind="DAY",
+            trading_day=reconstructed.trading_day,
+            session_kind=(
+                "DAY"
+                if reconstructed.session_open.astimezone(ZoneInfo("Asia/Shanghai")).date()
+                == reconstructed.trading_day
+                else "NIGHT"
+            ),
             session_open=reconstructed.session_open,
             session_close=reconstructed.session_close,
             source_name="SIMNOW_CTP",
@@ -388,7 +398,9 @@ def _import_market(
                     "or fixed sources"
                 )
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:
@@ -437,7 +449,7 @@ def _import_market(
     pins: list[SnapshotImportQualityPinSelection] = []
     for import_id in import_ids:
         with Session(
-            engine.execution_options(live_write=True)
+            engine.execution_options(northstar_write=True)
             if engine.dialect.name == "sqlite"
             else engine,
             autoflush=False,
@@ -456,7 +468,9 @@ def _import_market(
                 SnapshotImportQualityPinSelection(import_id, quality.import_quality_evaluation_id)
             )
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:
@@ -477,7 +491,9 @@ def _import_market(
             )
     stage("PUBLISHING", {"minute_evaluation_id": str(coverage.quality_evaluation_id)})
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:
@@ -503,7 +519,9 @@ def _import_market(
 def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
     commands = CatalogCommands()
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:
@@ -600,7 +618,7 @@ def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
             select(DataSeries).where(
                 DataSeries.contract_id == contract.id,
                 DataSeries.calendar_id == calendar.id,
-                DataSeries.interval == "1m",
+                DataSeries.interval == spec.interval,
                 DataSeries.kind == "OHLCV",
                 DataSeries.adjustment == "RAW",
             )
@@ -611,7 +629,7 @@ def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
                 session,
                 contract_id=contract.id,
                 calendar_id=calendar.id,
-                interval="1m",
+                interval=spec.interval,
                 price_scale=scale,
                 quantity_scale=0,
                 volume_unit="LOT",
@@ -689,13 +707,14 @@ class _ResearchCsv:
                 available = _utc(row["available_at"])
                 if (
                     self.spec.availability_basis == "FINAL_REVISED"
-                    and available != event + timedelta(minutes=1)
+                    and available != event + self.spec.duration
                 ):
                     raise ValueError(
                         f"CSV row {index} FINAL_REVISED available_at must equal event_time "
-                        "+ 1 minute (the simulated information-clock assumption)"
+                        "+ its interval (the simulated information-clock assumption)"
                     )
-                if not self.spec.session_open <= event < self.spec.session_close:
+                trading_day = resolve_trading_day(event, (self.spec.window,))
+                if trading_day is None:
                     raise ValueError(f"CSV row {index} falls outside the declared session")
                 numbers: dict[str, Decimal] = {}
                 for name in ("open", "high", "low", "close", "volume"):
@@ -708,9 +727,9 @@ class _ResearchCsv:
                     RawOhlcvRow(
                         source_row_number=index,
                         symbol=self.spec.symbol,
-                        interval="1m",
+                        interval=self.spec.interval,
                         event_time=event.astimezone(ZoneInfo(self.spec.timezone)),
-                        trading_day=self.spec.trading_day,
+                        trading_day=trading_day,
                         available_at=available.astimezone(ZoneInfo(self.spec.timezone)),
                         source_record_id=row["source_record_id"],
                         price_currency=self.spec.currency,
@@ -730,9 +749,9 @@ class _ResearchCsv:
             if not rows:
                 raise ValueError("CSV contains no observations")
             expected = tuple(
-                self.spec.session_open + timedelta(minutes=offset)
+                self.spec.session_open + self.spec.duration * offset
                 for offset in range(
-                    int((self.spec.session_close - self.spec.session_open).total_seconds()) // 60
+                    int((self.spec.session_close - self.spec.session_open) / self.spec.duration)
                 )
             )
             actual = sorted(row.event_time for row in rows if row.event_time is not None)
@@ -740,7 +759,7 @@ class _ResearchCsv:
                 missing = len(set(expected).difference(actual))
                 repeated = len(actual) - len(set(actual))
                 raise ValueError(
-                    "CSV must contain exactly one bar for each declared session minute; "
+                    "CSV must contain exactly one bar for each declared session interval; "
                     f"{missing} missing bars and {repeated} repeated event times"
                 )
         except (UnicodeError, ValueError, csv.Error) as error:

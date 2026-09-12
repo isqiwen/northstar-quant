@@ -7,7 +7,9 @@ from uuid import UUID
 from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.accounting.settlement import SettlementFact
+from northstar_quant.accounting.terms import FuturesTerms
+from northstar_quant.market_data import Instrument, MarketBar
 
 from .catalog.models import (
     DatasetSnapshotImportQualityPin,
@@ -36,7 +38,9 @@ def load_dataset(engine: Engine, snapshot_id: UUID) -> ResearchDataset:
     """Verify observations and their original source evidence in one read transaction."""
 
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:
@@ -57,7 +61,7 @@ def _summary(
         symbol=partition.contract_code,
         trading_days=(partition.trading_day_from,),
         session_open=partition.event_time_from,
-        session_close=partition.event_time_to + timedelta(minutes=1),
+        session_close=partition.event_time_to + timedelta(minutes=int(partition.interval[:-1])),
         bar_count=partition.row_count,
         published_at=manifest.created_at,
     )
@@ -85,6 +89,7 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
     for (previous, previous_details), (current, current_details) in zip(parts, parts[1:]):
         if (
             current.market != first.market
+            or current.interval_seconds != first.interval_seconds
             or current_details.volume_unit != first_details.volume_unit
             or current_details.adjustment != first_details.adjustment
         ):
@@ -107,6 +112,8 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
         raise ValueError("research snapshot requires monotonic availability across sessions")
     details = replace(
         first_details,
+        settlements=tuple(SettlementFact.from_dict(item) for item in resolved.manifest.settlements),
+        terms=tuple(FuturesTerms.from_dict(item) for item in resolved.manifest.terms),
         summary=replace(
             first_details.summary,
             trading_days=tuple(dict.fromkeys(bar.trading_day for bar in bars)),
@@ -129,9 +136,12 @@ def _read_partition(
     partition: DatasetSnapshotPartition,
 ) -> tuple[ResearchDataset, DatasetDetails]:
     snapshot_id = resolved.manifest.id
-    if partition.interval != "1m" or partition.timestamp_convention != "BAR_START":
-        raise ValueError("research requires one-minute BAR_START data")
-    market = Market(
+    if (
+        partition.interval not in {"1m", "5m", "15m", "30m", "60m"}
+        or partition.timestamp_convention != "BAR_START"
+    ):
+        raise ValueError("research requires fixed-interval BAR_START data")
+    market = Instrument(
         contract_id=partition.contract_id,
         symbol=partition.contract_code,
         exchange_timezone=partition.exchange_timezone_name,
@@ -139,7 +149,6 @@ def _read_partition(
         quantity_unit=partition.quantity_unit,
         price_tick=partition.price_tick,
         multiplier=partition.contract_multiplier,
-        interval_seconds=60,
     )
     bars: list[MarketBar] = []
     member_import_ids: set[UUID] = set()
@@ -152,7 +161,7 @@ def _read_partition(
         if bar.import_run_id is None:
             raise ValueError("research requires original import evidence for every observation")
         member_import_ids.add(bar.import_run_id)
-        completed = member.event_time + timedelta(minutes=1)
+        completed = member.event_time + timedelta(minutes=int(partition.interval[:-1]))
         if member.available_at < completed:
             raise ValueError("a bar cannot be available before its completion")
         bars.append(
@@ -302,7 +311,8 @@ def _read_partition(
                 )
     summary = _summary(resolved.manifest, partition)
     if (
-        spec.exchange != summary.exchange
+        spec.interval != partition.interval
+        or spec.exchange != summary.exchange
         or spec.product != summary.product
         or spec.symbol != summary.symbol
         or (spec.trading_day,) != summary.trading_days
@@ -316,8 +326,8 @@ def _read_partition(
     ):
         raise ValueError("snapshot original source/session declaration differs from frozen meaning")
     expected = tuple(
-        spec.session_open + timedelta(minutes=offset)
-        for offset in range(int((spec.session_close - spec.session_open).total_seconds()) // 60)
+        spec.session_open + spec.duration * offset
+        for offset in range(int((spec.session_close - spec.session_open) / spec.duration))
     )
     if tuple(sorted(bar.event_time for bar in bars)) != expected:
         raise ValueError("research requires one complete continuous minute session")
@@ -351,6 +361,13 @@ def _read_partition(
         processing_provenance=stream_provenance,
     )
     return (
-        ResearchDataset(snapshot_id, resolved.manifest.content_hash, market, tuple(bars), details),
+        ResearchDataset(
+            snapshot_id,
+            resolved.manifest.content_hash,
+            market,
+            tuple(bars),
+            int(spec.duration.total_seconds()),
+            details,
+        ),
         details,
     )

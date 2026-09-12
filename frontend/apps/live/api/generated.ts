@@ -47,6 +47,8 @@ export type ArchiveDataset = {
   sources: (Record<string, JsonValue>)[];
   symbol: string;
   trading_days: (string)[];
+  settlements: (SettlementFact)[];
+  terms: (FuturesTerms)[];
 };
 export type ArchiveReprocessRequest = {
   request_id: string;
@@ -89,9 +91,6 @@ export type BrokerStatus = {
   profiles: (Record<string, JsonValue>)[];
   sdk: Record<string, JsonValue>;
   [key: string]: unknown;
-};
-export type BrowserSession = {
-  csrf: string;
 };
 export type BudgetContext = {
   budgets: (Record<string, JsonValue>)[];
@@ -147,6 +146,7 @@ export type HttpError = {
   url?: string | null;
 };
 export type ImportSpecification = {
+  interval: "1m" | "5m" | "15m" | "30m" | "60m";
   session_kind: "DAY" | "NIGHT";
   availability_basis: string;
   availability_note: string;
@@ -164,14 +164,26 @@ export type ImportSpecification = {
   timezone: string;
   trading_day: string;
 };
+export type BrokerAccountProjection = {
+  status: string;
+  through_entry_id: string;
+  realized_pnl_before_fees?: string;
+  cash?: string | null;
+  total_fees?: string | null;
+  pending_fee_fill_ids?: (string)[];
+  fill_count?: number;
+  [key: string]: unknown;
+};
 export type LedgerContext = {
   baseline?: BaselineRecord | null;
   baseline_id?: string | null;
   checks?: (CheckRecord)[];
   entries?: (PositionEntry)[];
+  accounting_projection?: BrokerAccountProjection | null;
   [key: string]: unknown;
 };
 export type LiveConfiguration = {
+  candidate_id: string;
   config: Record<string, JsonValue>;
   configuration_id: string;
   name: string;
@@ -287,6 +299,16 @@ export type StreamPositionsRequest = {
   request_id: string;
   through_sequence: number;
 };
+export type SessionWindow = {
+  trading_day: string;
+  opens_at: string;
+  closes_at: string;
+};
+export type SessionSchedule = {
+  source_reference: string;
+  available_at: string;
+  windows: (SessionWindow)[];
+};
 export type StreamRequest = {
   allow_retention: boolean;
   configuration_id: string;
@@ -294,6 +316,7 @@ export type StreamRequest = {
   query_batch_id: string;
   request_id: string;
   use_basis: string;
+  schedule?: SessionSchedule | null;
 };
 export type StreamStep = {
   committed_at: string;
@@ -314,6 +337,71 @@ export type GetApiConfigurationsResponse = (LiveConfiguration)[];
 export type GetApiStrategyMaterialsResponse = (StrategyMaterial)[];
 export type GetApiStreamsResponse = (StreamSummary)[];
 export type GetApiStreamsStreamIdEventsResponse = (StreamEvent)[];
+export type OrderReservation = {
+  reserved_fee: string;
+  reserved_margin: string;
+  reserved_gross: string;
+  reserved_loss: string;
+  reserved_close_lots: number;
+};
+export type LocalOrder = {
+  order_id: string;
+  contract_id: string;
+  authorization_id: string;
+  runtime_id: string;
+  attempt_id: string;
+  status: string;
+  quantity_lots: number;
+  filled_lots: number;
+  requires_reconciliation: boolean;
+  reservation: OrderReservation;
+  order: Record<string, JsonValue>;
+  fee_pending_lots: number;
+  [key: string]: unknown;
+};
+export type LocalOrderEvent = {
+  sequence: number;
+  event_id: string;
+  order_id: string;
+  kind: string;
+  recorded_at: string;
+  document: Record<string, JsonValue>;
+};
+export type LocalOrderPage = {
+  orders: (LocalOrder)[];
+  next_before: number | null;
+  [key: string]: unknown;
+};
+export type LocalOrderDetail = {
+  record: LocalOrder;
+  events: (LocalOrderEvent)[];
+  next_after: number | null;
+  [key: string]: unknown;
+};
+export type ExecutionConsent = {
+  authorization_id: string;
+  status: string;
+  requires_current_admission: boolean;
+  [key: string]: unknown;
+};
+export type ConsentPage = {
+  authorizations: (ExecutionConsent)[];
+  next_before: number | null;
+  [key: string]: unknown;
+};
+export type ConsentRequest = {
+  request_id: string;
+  expires_at: string;
+  max_order_lots: number;
+  max_total_lots: number;
+  fee: string;
+  margin: string;
+  gross: string;
+  loss: string;
+};
+export type RevokeConsent = {
+  request_id: string;
+};
 export type Empty = {
 };
 export type Error = {
@@ -323,4 +411,46 @@ export type Error = {
   runtime_id?: string;
   url?: string;
   rejection_id?: string;
+};
+export type BrowserSession = {
+  setup_required: boolean;
+  authenticated: boolean;
+  csrf: string | null;
+  operator: string | null;
+  expires_at: string | null;
+};
+export type LoginRequest = {
+  username: string;
+  password: string;
+};
+export type ChargeRate = {
+  by_money: string;
+  by_volume: string;
+};
+export type FuturesTerms = {
+  terms_id: string;
+  contract_id: string;
+  effective_from: string;
+  effective_until: string;
+  available_at: string;
+  source_reference: string;
+  open_fee: ChargeRate;
+  close_today_fee: ChargeRate;
+  close_yesterday_fee: ChargeRate;
+  long_margin: ChargeRate;
+  short_margin: ChargeRate;
+  lower_limit: string;
+  upper_limit: string;
+  money_quantum: string;
+  fee_rounding: string;
+};
+export type SettlementFact = {
+  settlement_id: string;
+  contract_id: string;
+  trading_day: string;
+  next_trading_day: string;
+  settled_at: string;
+  available_at: string;
+  price: string;
+  source_reference: string;
 };

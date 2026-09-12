@@ -3082,6 +3082,8 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [symbol] ArchiveDataset symbol
              * @property {Array.<string>|null} [trading_days] ArchiveDataset trading_days
              * @property {Array.<string>|null} [null_fields] ArchiveDataset null_fields
+             * @property {Array.<northstar.accounting.SettlementFact.$Properties>|null} [settlements] ArchiveDataset settlements
+             * @property {Array.<northstar.accounting.FuturesTerms.$Properties>|null} [terms] ArchiveDataset terms
              * @property {"availability_basis"} [_availability_basis] ArchiveDataset _availability_basis
              * @property {"availability_note"} [_availability_note] ArchiveDataset _availability_note
              * @property {"bar_count"} [_bar_count] ArchiveDataset _bar_count
@@ -3133,6 +3135,8 @@ export const northstar = $root.northstar = (() => {
              *   symbol?: string|null;
              *   trading_days?: Array.<string>|null;
              *   null_fields?: Array.<string>|null;
+             *   settlements?: Array.<northstar.accounting.SettlementFact.$Shape>|null;
+             *   terms?: Array.<northstar.accounting.FuturesTerms.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _availability_basis?: undefined; availability_basis?: null }|{ _availability_basis?: "availability_basis"; availability_basis: string })
@@ -3183,6 +3187,8 @@ export const northstar = $root.northstar = (() => {
                 this.sources = [];
                 this.trading_days = [];
                 this.null_fields = [];
+                this.settlements = [];
+                this.terms = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -3356,6 +3362,22 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             ArchiveDataset.prototype.null_fields = $util.emptyArray;
+
+            /**
+             * ArchiveDataset settlements.
+             * @member {Array.<northstar.accounting.SettlementFact.$Properties>} settlements
+             * @memberof northstar.live.ArchiveDataset
+             * @instance
+             */
+            ArchiveDataset.prototype.settlements = $util.emptyArray;
+
+            /**
+             * ArchiveDataset terms.
+             * @member {Array.<northstar.accounting.FuturesTerms.$Properties>} terms
+             * @memberof northstar.live.ArchiveDataset
+             * @instance
+             */
+            ArchiveDataset.prototype.terms = $util.emptyArray;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -3612,6 +3634,12 @@ export const northstar = $root.northstar = (() => {
                 if (message.trading_days != null && message.trading_days.length)
                     for (let i = 0; i < message.trading_days.length; ++i)
                         writer.uint32(/* id 20, wireType 2 =*/162).string(message.trading_days[i]);
+                if (message.settlements != null && message.settlements.length)
+                    for (let i = 0; i < message.settlements.length; ++i)
+                        $root.northstar.accounting.SettlementFact.encode(message.settlements[i], writer.uint32(/* id 21, wireType 2 =*/170).fork(), _depth + 1).ldelim();
+                if (message.terms != null && message.terms.length)
+                    for (let i = 0; i < message.terms.length; ++i)
+                        $root.northstar.accounting.FuturesTerms.encode(message.terms[i], writer.uint32(/* id 22, wireType 2 =*/178).fork(), _depth + 1).ldelim();
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -3811,6 +3839,22 @@ export const northstar = $root.northstar = (() => {
                             message.null_fields.push(reader.stringVerify());
                             continue;
                         }
+                    case 21: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.settlements && message.settlements.length))
+                                message.settlements = [];
+                            message.settlements.push($root.northstar.accounting.SettlementFact.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 22: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.terms && message.terms.length))
+                                message.terms = [];
+                            message.terms.push($root.northstar.accounting.FuturesTerms.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -3975,6 +4019,24 @@ export const northstar = $root.northstar = (() => {
                         if (!$util.isString(message.null_fields[i]))
                             return "null_fields: string[] expected";
                 }
+                if (message.settlements != null && $Object.hasOwnProperty.call(message, "settlements")) {
+                    if (!$Array.isArray(message.settlements))
+                        return "settlements: array expected";
+                    for (let i = 0; i < message.settlements.length; ++i) {
+                        let error = $root.northstar.accounting.SettlementFact.verify(message.settlements[i], _depth + 1);
+                        if (error)
+                            return "settlements." + error;
+                    }
+                }
+                if (message.terms != null && $Object.hasOwnProperty.call(message, "terms")) {
+                    if (!$Array.isArray(message.terms))
+                        return "terms: array expected";
+                    for (let i = 0; i < message.terms.length; ++i) {
+                        let error = $root.northstar.accounting.FuturesTerms.verify(message.terms[i], _depth + 1);
+                        if (error)
+                            return "terms." + error;
+                    }
+                }
                 return null;
             };
 
@@ -4088,6 +4150,26 @@ export const northstar = $root.northstar = (() => {
                     for (let i = 0; i < object.null_fields.length; ++i)
                         message.null_fields[i] = $String(object.null_fields[i]);
                 }
+                if (object.settlements) {
+                    if (!$Array.isArray(object.settlements))
+                        throw $TypeError(".northstar.live.ArchiveDataset.settlements: array expected");
+                    message.settlements = $Array(object.settlements.length);
+                    for (let i = 0; i < object.settlements.length; ++i) {
+                        if (!$util.isObject(object.settlements[i]))
+                            throw $TypeError(".northstar.live.ArchiveDataset.settlements: object expected");
+                        message.settlements[i] = $root.northstar.accounting.SettlementFact.fromObject(object.settlements[i], _depth + 1);
+                    }
+                }
+                if (object.terms) {
+                    if (!$Array.isArray(object.terms))
+                        throw $TypeError(".northstar.live.ArchiveDataset.terms: array expected");
+                    message.terms = $Array(object.terms.length);
+                    for (let i = 0; i < object.terms.length; ++i) {
+                        if (!$util.isObject(object.terms[i]))
+                            throw $TypeError(".northstar.live.ArchiveDataset.terms: object expected");
+                        message.terms[i] = $root.northstar.accounting.FuturesTerms.fromObject(object.terms[i], _depth + 1);
+                    }
+                }
                 return message;
             };
 
@@ -4113,6 +4195,8 @@ export const northstar = $root.northstar = (() => {
                     object.limitations = [];
                     object.sources = [];
                     object.trading_days = [];
+                    object.settlements = [];
+                    object.terms = [];
                     object.null_fields = [];
                 }
                 if (message.availability_basis != null && $Object.hasOwnProperty.call(message, "availability_basis")) {
@@ -4219,6 +4303,16 @@ export const northstar = $root.northstar = (() => {
                     object.trading_days = $Array(message.trading_days.length);
                     for (let j = 0; j < message.trading_days.length; ++j)
                         object.trading_days[j] = message.trading_days[j];
+                }
+                if (message.settlements && message.settlements.length) {
+                    object.settlements = $Array(message.settlements.length);
+                    for (let j = 0; j < message.settlements.length; ++j)
+                        object.settlements[j] = $root.northstar.accounting.SettlementFact.toObject(message.settlements[j], options, _depth + 1);
+                }
+                if (message.terms && message.terms.length) {
+                    object.terms = $Array(message.terms.length);
+                    for (let j = 0; j < message.terms.length; ++j)
+                        object.terms[j] = $root.northstar.accounting.FuturesTerms.toObject(message.terms[j], options, _depth + 1);
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);
@@ -6904,7 +6998,7 @@ export const northstar = $root.northstar = (() => {
              * @typedef {Object} northstar.live.BrokerStatus.$Properties
              * @property {string|null} [connection] BrokerStatus connection
              * @property {google.protobuf.Struct.$Properties|null} [credentials] BrokerStatus credentials
-             * @property {Object.<string,string>|null} [execution] BrokerStatus execution
+             * @property {Object.<string,boolean>|null} [execution] BrokerStatus execution
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [profiles] BrokerStatus profiles
              * @property {google.protobuf.Struct.$Properties|null} [sdk] BrokerStatus sdk
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] BrokerStatus evidence_fields
@@ -6927,7 +7021,7 @@ export const northstar = $root.northstar = (() => {
              * @typedef {{
              *   connection?: string|null;
              *   credentials?: google.protobuf.Struct.$Shape|null;
-             *   execution?: Object.<string,string>|null;
+             *   execution?: Object.<string,boolean>|null;
              *   profiles?: Array.<google.protobuf.Struct.$Shape>|null;
              *   sdk?: google.protobuf.Struct.$Shape|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
@@ -6977,7 +7071,7 @@ export const northstar = $root.northstar = (() => {
 
             /**
              * BrokerStatus execution.
-             * @member {Object.<string,string>} execution
+             * @member {Object.<string,boolean>} execution
              * @memberof northstar.live.BrokerStatus
              * @instance
              */
@@ -7081,7 +7175,7 @@ export const northstar = $root.northstar = (() => {
                     $root.google.protobuf.Struct.encode(message.credentials, writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim();
                 if (message.execution != null && $Object.hasOwnProperty.call(message, "execution"))
                     for (let keys = $Object.keys(message.execution), i = 0; i < keys.length; ++i)
-                        writer.uint32(/* id 3, wireType 2 =*/26).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 2 =*/18).string(message.execution[keys[i]]).ldelim();
+                        writer.uint32(/* id 3, wireType 2 =*/26).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 0 =*/16).bool(message.execution[keys[i]]).ldelim();
                 if (message.profiles != null && message.profiles.length)
                     for (let i = 0; i < message.profiles.length; ++i)
                         $root.google.protobuf.Struct.encode(message.profiles[i], writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
@@ -7160,7 +7254,7 @@ export const northstar = $root.northstar = (() => {
                                 throw $RangeError("index out of range");
                             reader.len = end2;
                             key = "";
-                            value = "";
+                            value = false;
                             while (reader.pos < end2) {
                                 let tag2 = reader.tag();
                                 wireType = tag2 & 7;
@@ -7171,9 +7265,9 @@ export const northstar = $root.northstar = (() => {
                                     key = reader.stringVerify();
                                     continue;
                                 case 2:
-                                    if (wireType !== 2)
+                                    if (wireType !== 0)
                                         break;
-                                    value = reader.stringVerify();
+                                    value = reader.bool();
                                     continue;
                                 }
                                 reader.skipType(wireType, _depth, tag2);
@@ -7288,8 +7382,8 @@ export const northstar = $root.northstar = (() => {
                         return "execution: object expected";
                     let key = $Object.keys(message.execution);
                     for (let i = 0; i < key.length; ++i)
-                        if (!$util.isString(message.execution[key[i]]))
-                            return "execution: string{k:string} expected";
+                        if (typeof message.execution[key[i]] !== "boolean")
+                            return "execution: boolean{k:string} expected";
                 }
                 if (message.profiles != null && $Object.hasOwnProperty.call(message, "profiles")) {
                     if (!$Array.isArray(message.profiles))
@@ -7353,7 +7447,7 @@ export const northstar = $root.northstar = (() => {
                     for (let keys = $Object.keys(object.execution), i = 0; i < keys.length; ++i) {
                         if (keys[i] === "__proto__")
                             $util.makeProp(message.execution, keys[i]);
-                        message.execution[keys[i]] = $String(object.execution[keys[i]]);
+                        message.execution[keys[i]] = $Boolean(object.execution[keys[i]]);
                     }
                 }
                 if (object.profiles) {
@@ -7475,273 +7569,6 @@ export const northstar = $root.northstar = (() => {
             };
 
             return BrokerStatus;
-        })();
-
-        live.BrowserSession = (function() {
-
-            /**
-             * Properties of a BrowserSession.
-             * @typedef {Object} northstar.live.BrowserSession.$Properties
-             * @property {string|null} [csrf] BrowserSession csrf
-             * @property {"csrf"} [_csrf] BrowserSession _csrf
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-
-            /**
-             * Properties of a BrowserSession.
-             * @memberof northstar.live
-             * @interface IBrowserSession
-             * @augments northstar.live.BrowserSession.$Properties
-             * @deprecated Use northstar.live.BrowserSession.$Properties instead.
-             */
-
-            /**
-             * Narrowed shape of a BrowserSession.
-             * @typedef {{
-             *   csrf?: string|null;
-             *   $unknowns?: Array.<Uint8Array>;
-             * } & (
-             *   ({ _csrf?: undefined; csrf?: null }|{ _csrf?: "csrf"; csrf: string })
-             * )} northstar.live.BrowserSession.$Shape
-             */
-
-            /**
-             * Constructs a new BrowserSession.
-             * @memberof northstar.live
-             * @classdesc Represents a BrowserSession.
-             * @constructor
-             * @param {northstar.live.BrowserSession.$Properties=} [properties] Properties to set
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-            const BrowserSession = function (properties) {
-                if (properties)
-                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
-                            this[keys[i]] = properties[keys[i]];
-            };
-
-            /**
-             * BrowserSession csrf.
-             * @member {string|null|undefined} csrf
-             * @memberof northstar.live.BrowserSession
-             * @instance
-             */
-            BrowserSession.prototype.csrf = null;
-
-            // OneOf field names bound to virtual getters and setters
-            let $oneOfFields;
-
-            /**
-             * BrowserSession _csrf.
-             * @member {"csrf"|undefined} _csrf
-             * @memberof northstar.live.BrowserSession
-             * @instance
-             */
-            $Object.defineProperty(BrowserSession.prototype, "_csrf", {
-                get: $util.oneOfGetter($oneOfFields = ["csrf"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * Creates a new BrowserSession instance using the specified properties.
-             * @function create
-             * @memberof northstar.live.BrowserSession
-             * @static
-             * @param {northstar.live.BrowserSession.$Properties=} [properties] Properties to set
-             * @returns {northstar.live.BrowserSession} BrowserSession instance
-             * @type {{
-             *   (properties: northstar.live.BrowserSession.$Shape): northstar.live.BrowserSession & northstar.live.BrowserSession.$Shape;
-             *   (properties?: northstar.live.BrowserSession.$Properties): northstar.live.BrowserSession;
-             * }}
-             */
-            BrowserSession.create = function(properties) {
-                return new BrowserSession(properties);
-            };
-
-            /**
-             * Encodes the specified BrowserSession message. Does not implicitly {@link northstar.live.BrowserSession.verify|verify} messages.
-             * @function encode
-             * @memberof northstar.live.BrowserSession
-             * @static
-             * @param {northstar.live.BrowserSession.$Properties} message BrowserSession message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            BrowserSession.encode = function (message, writer, _depth) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.csrf);
-                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
-                    for (let i = 0; i < message.$unknowns.length; ++i)
-                        writer.raw(message.$unknowns[i]);
-                return writer;
-            };
-
-            /**
-             * Decodes a BrowserSession message from the specified reader or buffer.
-             * @function decode
-             * @memberof northstar.live.BrowserSession
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.live.BrowserSession & northstar.live.BrowserSession.$Shape} BrowserSession
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            BrowserSession.decode = function (reader, length, _end, _depth, _target) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $Reader.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let end, message;
-                if (length === $undefined)
-                    end = reader.len;
-                else {
-                    end = reader.pos + length;
-                    if (end > reader.len)
-                        throw $RangeError("index out of range");
-                    length = reader.len;
-                    reader.len = end;
-                }
-                message = _target || new $root.northstar.live.BrowserSession();
-                while (reader.pos < end) {
-                    let start = reader.pos;
-                    let tag = reader.tag();
-                    if (tag === _end) {
-                        _end = $undefined;
-                        break;
-                    }
-                    let wireType = tag & 7;
-                    switch (tag >>>= 3) {
-                    case 1: {
-                            if (wireType !== 2)
-                                break;
-                            message.csrf = reader.stringVerify();
-                            message._csrf = "csrf";
-                            continue;
-                        }
-                    }
-                    reader.skipType(wireType, _depth, tag);
-                    if (!reader.discardUnknown) {
-                        $util.makeProp(message, "$unknowns", false);
-                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
-                    }
-                }
-                if (length !== $undefined) {
-                    if (reader.pos !== end)
-                        throw $RangeError("index out of range");
-                    reader.len = length;
-                }
-                if (_end !== $undefined)
-                    throw $Error("missing end group");
-                return message;
-            };
-
-            /**
-             * Verifies a BrowserSession message.
-             * @function verify
-             * @memberof northstar.live.BrowserSession
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            BrowserSession.verify = function (message, _depth) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    return "max depth exceeded";
-                let properties = {};
-                if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
-                    properties._csrf = 1;
-                    if (!$util.isString(message.csrf))
-                        return "csrf: string expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates a BrowserSession message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof northstar.live.BrowserSession
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.live.BrowserSession} BrowserSession
-             */
-            BrowserSession.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.live.BrowserSession)
-                    return object;
-                if (!$util.isObject(object))
-                    throw $TypeError(".northstar.live.BrowserSession: object expected");
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let message = new $root.northstar.live.BrowserSession();
-                if (object.csrf != null)
-                    message.csrf = $String(object.csrf);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a BrowserSession message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof northstar.live.BrowserSession
-             * @static
-             * @param {northstar.live.BrowserSession} message BrowserSession
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            BrowserSession.toObject = function (message, options, _depth) {
-                if (!options)
-                    options = {};
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let object = {};
-                if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
-                    object.csrf = message.csrf;
-                    if (options.oneofs)
-                        object._csrf = "csrf";
-                }
-                return object;
-            };
-
-            /**
-             * Converts this BrowserSession to JSON.
-             * @function toJSON
-             * @memberof northstar.live.BrowserSession
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            BrowserSession.prototype.toJSON = function() {
-                return BrowserSession.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the type url for BrowserSession
-             * @function getTypeUrl
-             * @memberof northstar.live.BrowserSession
-             * @static
-             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
-             * @returns {string} The type url
-             */
-            BrowserSession.getTypeUrl = function(prefix) {
-                if (prefix === $undefined)
-                    prefix = "type.googleapis.com";
-                return prefix + "/northstar.live.BrowserSession";
-            };
-
-            return BrowserSession;
         })();
 
         live.BudgetContext = (function() {
@@ -11814,6 +11641,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of an ImportSpecification.
              * @typedef {Object} northstar.live.ImportSpecification.$Properties
+             * @property {string|null} [interval] ImportSpecification interval
              * @property {string|null} [session_kind] ImportSpecification session_kind
              * @property {string|null} [availability_basis] ImportSpecification availability_basis
              * @property {string|null} [availability_note] ImportSpecification availability_note
@@ -11830,6 +11658,7 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [symbol] ImportSpecification symbol
              * @property {string|null} [timezone] ImportSpecification timezone
              * @property {string|null} [trading_day] ImportSpecification trading_day
+             * @property {"interval"} [_interval] ImportSpecification _interval
              * @property {"session_kind"} [_session_kind] ImportSpecification _session_kind
              * @property {"availability_basis"} [_availability_basis] ImportSpecification _availability_basis
              * @property {"availability_note"} [_availability_note] ImportSpecification _availability_note
@@ -11860,6 +11689,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of an ImportSpecification.
              * @typedef {{
+             *   interval?: string|null;
              *   session_kind?: string|null;
              *   availability_basis?: string|null;
              *   availability_note?: string|null;
@@ -11878,6 +11708,8 @@ export const northstar = $root.northstar = (() => {
              *   trading_day?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _interval?: undefined; interval?: null }|{ _interval?: "interval"; interval: string })
+             * ) & (
              *   ({ _session_kind?: undefined; session_kind?: null }|{ _session_kind?: "session_kind"; session_kind: string })
              * ) & (
              *   ({ _availability_basis?: undefined; availability_basis?: null }|{ _availability_basis?: "availability_basis"; availability_basis: string })
@@ -11926,6 +11758,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * ImportSpecification interval.
+             * @member {string|null|undefined} interval
+             * @memberof northstar.live.ImportSpecification
+             * @instance
+             */
+            ImportSpecification.prototype.interval = null;
 
             /**
              * ImportSpecification session_kind.
@@ -12057,6 +11897,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * ImportSpecification _interval.
+             * @member {"interval"|undefined} _interval
+             * @memberof northstar.live.ImportSpecification
+             * @instance
+             */
+            $Object.defineProperty(ImportSpecification.prototype, "_interval", {
+                get: $util.oneOfGetter($oneOfFields = ["interval"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * ImportSpecification _session_kind.
@@ -12298,6 +12149,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 15, wireType 2 =*/122).string(message.trading_day);
                 if (message.session_kind != null && $Object.hasOwnProperty.call(message, "session_kind"))
                     writer.uint32(/* id 16, wireType 2 =*/130).string(message.session_kind);
+                if (message.interval != null && $Object.hasOwnProperty.call(message, "interval"))
+                    writer.uint32(/* id 17, wireType 2 =*/138).string(message.interval);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -12342,6 +12195,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 17: {
+                            if (wireType !== 2)
+                                break;
+                            message.interval = reader.stringVerify();
+                            message._interval = "interval";
+                            continue;
+                        }
                     case 16: {
                             if (wireType !== 2)
                                 break;
@@ -12487,6 +12347,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.interval != null && $Object.hasOwnProperty.call(message, "interval")) {
+                    properties._interval = 1;
+                    if (!$util.isString(message.interval))
+                        return "interval: string expected";
+                }
                 if (message.session_kind != null && $Object.hasOwnProperty.call(message, "session_kind")) {
                     properties._session_kind = 1;
                     if (!$util.isString(message.session_kind))
@@ -12588,6 +12453,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.live.ImportSpecification();
+                if (object.interval != null)
+                    message.interval = $String(object.interval);
                 if (object.session_kind != null)
                     message.session_kind = $String(object.session_kind);
                 if (object.availability_basis != null)
@@ -12720,6 +12587,11 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._session_kind = "session_kind";
                 }
+                if (message.interval != null && $Object.hasOwnProperty.call(message, "interval")) {
+                    object.interval = message.interval;
+                    if (options.oneofs)
+                        object._interval = "interval";
+                }
                 return object;
             };
 
@@ -12751,6 +12623,681 @@ export const northstar = $root.northstar = (() => {
             return ImportSpecification;
         })();
 
+        live.BrokerAccountProjection = (function() {
+
+            /**
+             * Properties of a BrokerAccountProjection.
+             * @typedef {Object} northstar.live.BrokerAccountProjection.$Properties
+             * @property {string|null} [status] BrokerAccountProjection status
+             * @property {string|null} [through_entry_id] BrokerAccountProjection through_entry_id
+             * @property {string|null} [realized_pnl_before_fees] BrokerAccountProjection realized_pnl_before_fees
+             * @property {string|null} [cash] BrokerAccountProjection cash
+             * @property {string|null} [total_fees] BrokerAccountProjection total_fees
+             * @property {Array.<string>|null} [pending_fee_fill_ids] BrokerAccountProjection pending_fee_fill_ids
+             * @property {number|Long|null} [fill_count] BrokerAccountProjection fill_count
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] BrokerAccountProjection evidence_fields
+             * @property {Array.<string>|null} [null_fields] BrokerAccountProjection null_fields
+             * @property {"status"} [_status] BrokerAccountProjection _status
+             * @property {"through_entry_id"} [_through_entry_id] BrokerAccountProjection _through_entry_id
+             * @property {"realized_pnl_before_fees"} [_realized_pnl_before_fees] BrokerAccountProjection _realized_pnl_before_fees
+             * @property {"cash"} [_cash] BrokerAccountProjection _cash
+             * @property {"total_fees"} [_total_fees] BrokerAccountProjection _total_fees
+             * @property {"fill_count"} [_fill_count] BrokerAccountProjection _fill_count
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a BrokerAccountProjection.
+             * @memberof northstar.live
+             * @interface IBrokerAccountProjection
+             * @augments northstar.live.BrokerAccountProjection.$Properties
+             * @deprecated Use northstar.live.BrokerAccountProjection.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a BrokerAccountProjection.
+             * @typedef {{
+             *   status?: string|null;
+             *   through_entry_id?: string|null;
+             *   realized_pnl_before_fees?: string|null;
+             *   cash?: string|null;
+             *   total_fees?: string|null;
+             *   pending_fee_fill_ids?: Array.<string>|null;
+             *   fill_count?: number|Long|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _through_entry_id?: undefined; through_entry_id?: null }|{ _through_entry_id?: "through_entry_id"; through_entry_id: string })
+             * ) & (
+             *   ({ _realized_pnl_before_fees?: undefined; realized_pnl_before_fees?: null }|{ _realized_pnl_before_fees?: "realized_pnl_before_fees"; realized_pnl_before_fees: string })
+             * ) & (
+             *   ({ _cash?: undefined; cash?: null }|{ _cash?: "cash"; cash: string })
+             * ) & (
+             *   ({ _total_fees?: undefined; total_fees?: null }|{ _total_fees?: "total_fees"; total_fees: string })
+             * ) & (
+             *   ({ _fill_count?: undefined; fill_count?: null }|{ _fill_count?: "fill_count"; fill_count: number|Long })
+             * )} northstar.live.BrokerAccountProjection.$Shape
+             */
+
+            /**
+             * Constructs a new BrokerAccountProjection.
+             * @memberof northstar.live
+             * @classdesc Represents a BrokerAccountProjection.
+             * @constructor
+             * @param {northstar.live.BrokerAccountProjection.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const BrokerAccountProjection = function (properties) {
+                this.pending_fee_fill_ids = [];
+                this.evidence_fields = {};
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * BrokerAccountProjection status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.status = null;
+
+            /**
+             * BrokerAccountProjection through_entry_id.
+             * @member {string|null|undefined} through_entry_id
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.through_entry_id = null;
+
+            /**
+             * BrokerAccountProjection realized_pnl_before_fees.
+             * @member {string|null|undefined} realized_pnl_before_fees
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.realized_pnl_before_fees = null;
+
+            /**
+             * BrokerAccountProjection cash.
+             * @member {string|null|undefined} cash
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.cash = null;
+
+            /**
+             * BrokerAccountProjection total_fees.
+             * @member {string|null|undefined} total_fees
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.total_fees = null;
+
+            /**
+             * BrokerAccountProjection pending_fee_fill_ids.
+             * @member {Array.<string>} pending_fee_fill_ids
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.pending_fee_fill_ids = $util.emptyArray;
+
+            /**
+             * BrokerAccountProjection fill_count.
+             * @member {number|Long|null|undefined} fill_count
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.fill_count = null;
+
+            /**
+             * BrokerAccountProjection evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.evidence_fields = $util.emptyObject;
+
+            /**
+             * BrokerAccountProjection null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * BrokerAccountProjection _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _through_entry_id.
+             * @member {"through_entry_id"|undefined} _through_entry_id
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_through_entry_id", {
+                get: $util.oneOfGetter($oneOfFields = ["through_entry_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _realized_pnl_before_fees.
+             * @member {"realized_pnl_before_fees"|undefined} _realized_pnl_before_fees
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_realized_pnl_before_fees", {
+                get: $util.oneOfGetter($oneOfFields = ["realized_pnl_before_fees"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _cash.
+             * @member {"cash"|undefined} _cash
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_cash", {
+                get: $util.oneOfGetter($oneOfFields = ["cash"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _total_fees.
+             * @member {"total_fees"|undefined} _total_fees
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_total_fees", {
+                get: $util.oneOfGetter($oneOfFields = ["total_fees"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _fill_count.
+             * @member {"fill_count"|undefined} _fill_count
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_fill_count", {
+                get: $util.oneOfGetter($oneOfFields = ["fill_count"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new BrokerAccountProjection instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {northstar.live.BrokerAccountProjection.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.BrokerAccountProjection} BrokerAccountProjection instance
+             * @type {{
+             *   (properties: northstar.live.BrokerAccountProjection.$Shape): northstar.live.BrokerAccountProjection & northstar.live.BrokerAccountProjection.$Shape;
+             *   (properties?: northstar.live.BrokerAccountProjection.$Properties): northstar.live.BrokerAccountProjection;
+             * }}
+             */
+            BrokerAccountProjection.create = function(properties) {
+                return new BrokerAccountProjection(properties);
+            };
+
+            /**
+             * Encodes the specified BrokerAccountProjection message. Does not implicitly {@link northstar.live.BrokerAccountProjection.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {northstar.live.BrokerAccountProjection.$Properties} message BrokerAccountProjection message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            BrokerAccountProjection.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.status);
+                if (message.through_entry_id != null && $Object.hasOwnProperty.call(message, "through_entry_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.through_entry_id);
+                if (message.realized_pnl_before_fees != null && $Object.hasOwnProperty.call(message, "realized_pnl_before_fees"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.realized_pnl_before_fees);
+                if (message.cash != null && $Object.hasOwnProperty.call(message, "cash"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.cash);
+                if (message.total_fees != null && $Object.hasOwnProperty.call(message, "total_fees"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.total_fees);
+                if (message.pending_fee_fill_ids != null && message.pending_fee_fill_ids.length)
+                    for (let i = 0; i < message.pending_fee_fill_ids.length; ++i)
+                        writer.uint32(/* id 6, wireType 2 =*/50).string(message.pending_fee_fill_ids[i]);
+                if (message.fill_count != null && $Object.hasOwnProperty.call(message, "fill_count"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).int64(message.fill_count);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a BrokerAccountProjection message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.BrokerAccountProjection & northstar.live.BrokerAccountProjection.$Shape} BrokerAccountProjection
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            BrokerAccountProjection.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.BrokerAccountProjection();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.through_entry_id = reader.stringVerify();
+                            message._through_entry_id = "through_entry_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.realized_pnl_before_fees = reader.stringVerify();
+                            message._realized_pnl_before_fees = "realized_pnl_before_fees";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.cash = reader.stringVerify();
+                            message._cash = "cash";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.total_fees = reader.stringVerify();
+                            message._total_fees = "total_fees";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.pending_fee_fill_ids && message.pending_fee_fill_ids.length))
+                                message.pending_fee_fill_ids = [];
+                            message.pending_fee_fill_ids.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 0)
+                                break;
+                            message.fill_count = reader.int64();
+                            message._fill_count = "fill_count";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a BrokerAccountProjection message.
+             * @function verify
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            BrokerAccountProjection.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.through_entry_id != null && $Object.hasOwnProperty.call(message, "through_entry_id")) {
+                    properties._through_entry_id = 1;
+                    if (!$util.isString(message.through_entry_id))
+                        return "through_entry_id: string expected";
+                }
+                if (message.realized_pnl_before_fees != null && $Object.hasOwnProperty.call(message, "realized_pnl_before_fees")) {
+                    properties._realized_pnl_before_fees = 1;
+                    if (!$util.isString(message.realized_pnl_before_fees))
+                        return "realized_pnl_before_fees: string expected";
+                }
+                if (message.cash != null && $Object.hasOwnProperty.call(message, "cash")) {
+                    properties._cash = 1;
+                    if (!$util.isString(message.cash))
+                        return "cash: string expected";
+                }
+                if (message.total_fees != null && $Object.hasOwnProperty.call(message, "total_fees")) {
+                    properties._total_fees = 1;
+                    if (!$util.isString(message.total_fees))
+                        return "total_fees: string expected";
+                }
+                if (message.pending_fee_fill_ids != null && $Object.hasOwnProperty.call(message, "pending_fee_fill_ids")) {
+                    if (!$Array.isArray(message.pending_fee_fill_ids))
+                        return "pending_fee_fill_ids: array expected";
+                    for (let i = 0; i < message.pending_fee_fill_ids.length; ++i)
+                        if (!$util.isString(message.pending_fee_fill_ids[i]))
+                            return "pending_fee_fill_ids: string[] expected";
+                }
+                if (message.fill_count != null && $Object.hasOwnProperty.call(message, "fill_count")) {
+                    properties._fill_count = 1;
+                    if (!$util.isInteger(message.fill_count) && !(message.fill_count && $util.isInteger(message.fill_count.low) && $util.isInteger(message.fill_count.high)))
+                        return "fill_count: integer|Long expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a BrokerAccountProjection message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.BrokerAccountProjection} BrokerAccountProjection
+             */
+            BrokerAccountProjection.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.BrokerAccountProjection)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.BrokerAccountProjection: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.BrokerAccountProjection();
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.through_entry_id != null)
+                    message.through_entry_id = $String(object.through_entry_id);
+                if (object.realized_pnl_before_fees != null)
+                    message.realized_pnl_before_fees = $String(object.realized_pnl_before_fees);
+                if (object.cash != null)
+                    message.cash = $String(object.cash);
+                if (object.total_fees != null)
+                    message.total_fees = $String(object.total_fees);
+                if (object.pending_fee_fill_ids) {
+                    if (!$Array.isArray(object.pending_fee_fill_ids))
+                        throw $TypeError(".northstar.live.BrokerAccountProjection.pending_fee_fill_ids: array expected");
+                    message.pending_fee_fill_ids = $Array(object.pending_fee_fill_ids.length);
+                    for (let i = 0; i < object.pending_fee_fill_ids.length; ++i)
+                        message.pending_fee_fill_ids[i] = $String(object.pending_fee_fill_ids[i]);
+                }
+                if (object.fill_count != null)
+                    if ($util.Long)
+                        message.fill_count = $util.Long.fromValue(object.fill_count, false);
+                    else if (typeof object.fill_count === "string")
+                        message.fill_count = $parseInt(object.fill_count, 10);
+                    else if (typeof object.fill_count === "number")
+                        message.fill_count = object.fill_count;
+                    else if (typeof object.fill_count === "object")
+                        message.fill_count = new $util.LongBits(object.fill_count.low >>> 0, object.fill_count.high >>> 0).toNumber();
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.BrokerAccountProjection.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.BrokerAccountProjection.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.live.BrokerAccountProjection.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a BrokerAccountProjection message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {northstar.live.BrokerAccountProjection} message BrokerAccountProjection
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            BrokerAccountProjection.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.pending_fee_fill_ids = [];
+                    object.null_fields = [];
+                }
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.through_entry_id != null && $Object.hasOwnProperty.call(message, "through_entry_id")) {
+                    object.through_entry_id = message.through_entry_id;
+                    if (options.oneofs)
+                        object._through_entry_id = "through_entry_id";
+                }
+                if (message.realized_pnl_before_fees != null && $Object.hasOwnProperty.call(message, "realized_pnl_before_fees")) {
+                    object.realized_pnl_before_fees = message.realized_pnl_before_fees;
+                    if (options.oneofs)
+                        object._realized_pnl_before_fees = "realized_pnl_before_fees";
+                }
+                if (message.cash != null && $Object.hasOwnProperty.call(message, "cash")) {
+                    object.cash = message.cash;
+                    if (options.oneofs)
+                        object._cash = "cash";
+                }
+                if (message.total_fees != null && $Object.hasOwnProperty.call(message, "total_fees")) {
+                    object.total_fees = message.total_fees;
+                    if (options.oneofs)
+                        object._total_fees = "total_fees";
+                }
+                if (message.pending_fee_fill_ids && message.pending_fee_fill_ids.length) {
+                    object.pending_fee_fill_ids = $Array(message.pending_fee_fill_ids.length);
+                    for (let j = 0; j < message.pending_fee_fill_ids.length; ++j)
+                        object.pending_fee_fill_ids[j] = message.pending_fee_fill_ids[j];
+                }
+                if (message.fill_count != null && $Object.hasOwnProperty.call(message, "fill_count")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.fill_count = typeof message.fill_count === "number" ? $BigInt(message.fill_count) : $util.Long.fromBits(message.fill_count.low >>> 0, message.fill_count.high >>> 0, false).toBigInt();
+                    else if (typeof message.fill_count === "number")
+                        object.fill_count = options.longs === $String ? $String(message.fill_count) : message.fill_count;
+                    else
+                        object.fill_count = options.longs === $String ? $util.Long.prototype.toString.call(message.fill_count) : options.longs === $Number ? new $util.LongBits(message.fill_count.low >>> 0, message.fill_count.high >>> 0).toNumber() : message.fill_count;
+                    if (options.oneofs)
+                        object._fill_count = "fill_count";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this BrokerAccountProjection to JSON.
+             * @function toJSON
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            BrokerAccountProjection.prototype.toJSON = function() {
+                return BrokerAccountProjection.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for BrokerAccountProjection
+             * @function getTypeUrl
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            BrokerAccountProjection.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.BrokerAccountProjection";
+            };
+
+            return BrokerAccountProjection;
+        })();
+
         live.LedgerContext = (function() {
 
             /**
@@ -12760,10 +13307,12 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [baseline_id] LedgerContext baseline_id
              * @property {Array.<northstar.live.CheckRecord.$Properties>|null} [checks] LedgerContext checks
              * @property {Array.<northstar.live.PositionEntry.$Properties>|null} [entries] LedgerContext entries
+             * @property {northstar.live.BrokerAccountProjection.$Properties|null} [accounting_projection] LedgerContext accounting_projection
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] LedgerContext evidence_fields
              * @property {Array.<string>|null} [null_fields] LedgerContext null_fields
              * @property {"baseline"} [_baseline] LedgerContext _baseline
              * @property {"baseline_id"} [_baseline_id] LedgerContext _baseline_id
+             * @property {"accounting_projection"} [_accounting_projection] LedgerContext _accounting_projection
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -12782,6 +13331,7 @@ export const northstar = $root.northstar = (() => {
              *   baseline_id?: string|null;
              *   checks?: Array.<northstar.live.CheckRecord.$Shape>|null;
              *   entries?: Array.<northstar.live.PositionEntry.$Shape>|null;
+             *   accounting_projection?: northstar.live.BrokerAccountProjection.$Shape|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
@@ -12789,6 +13339,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _baseline?: undefined; baseline?: null }|{ _baseline?: "baseline"; baseline: northstar.live.BaselineRecord.$Shape })
              * ) & (
              *   ({ _baseline_id?: undefined; baseline_id?: null }|{ _baseline_id?: "baseline_id"; baseline_id: string })
+             * ) & (
+             *   ({ _accounting_projection?: undefined; accounting_projection?: null }|{ _accounting_projection?: "accounting_projection"; accounting_projection: northstar.live.BrokerAccountProjection.$Shape })
              * )} northstar.live.LedgerContext.$Shape
              */
 
@@ -12844,6 +13396,14 @@ export const northstar = $root.northstar = (() => {
             LedgerContext.prototype.entries = $util.emptyArray;
 
             /**
+             * LedgerContext accounting_projection.
+             * @member {northstar.live.BrokerAccountProjection.$Properties|null|undefined} accounting_projection
+             * @memberof northstar.live.LedgerContext
+             * @instance
+             */
+            LedgerContext.prototype.accounting_projection = null;
+
+            /**
              * LedgerContext evidence_fields.
              * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
              * @memberof northstar.live.LedgerContext
@@ -12881,6 +13441,17 @@ export const northstar = $root.northstar = (() => {
              */
             $Object.defineProperty(LedgerContext.prototype, "_baseline_id", {
                 get: $util.oneOfGetter($oneOfFields = ["baseline_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LedgerContext _accounting_projection.
+             * @member {"accounting_projection"|undefined} _accounting_projection
+             * @memberof northstar.live.LedgerContext
+             * @instance
+             */
+            $Object.defineProperty(LedgerContext.prototype, "_accounting_projection", {
+                get: $util.oneOfGetter($oneOfFields = ["accounting_projection"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -12926,6 +13497,8 @@ export const northstar = $root.northstar = (() => {
                 if (message.entries != null && message.entries.length)
                     for (let i = 0; i < message.entries.length; ++i)
                         $root.northstar.live.PositionEntry.encode(message.entries[i], writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
+                if (message.accounting_projection != null && $Object.hasOwnProperty.call(message, "accounting_projection"))
+                    $root.northstar.live.BrokerAccountProjection.encode(message.accounting_projection, writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -13006,6 +13579,13 @@ export const northstar = $root.northstar = (() => {
                             if (!(message.entries && message.entries.length))
                                 message.entries = [];
                             message.entries.push($root.northstar.live.PositionEntry.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.accounting_projection = $root.northstar.live.BrokerAccountProjection.decode(reader, reader.uint32(), $undefined, _depth + 1, message.accounting_projection);
+                            message._accounting_projection = "accounting_projection";
                             continue;
                         }
                     case 1000: {
@@ -13116,6 +13696,14 @@ export const northstar = $root.northstar = (() => {
                             return "entries." + error;
                     }
                 }
+                if (message.accounting_projection != null && $Object.hasOwnProperty.call(message, "accounting_projection")) {
+                    properties._accounting_projection = 1;
+                    {
+                        let error = $root.northstar.live.BrokerAccountProjection.verify(message.accounting_projection, _depth + 1);
+                        if (error)
+                            return "accounting_projection." + error;
+                    }
+                }
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
                     if (!$util.isObject(message.evidence_fields))
                         return "evidence_fields: object expected";
@@ -13180,6 +13768,11 @@ export const northstar = $root.northstar = (() => {
                             throw $TypeError(".northstar.live.LedgerContext.entries: object expected");
                         message.entries[i] = $root.northstar.live.PositionEntry.fromObject(object.entries[i], _depth + 1);
                     }
+                }
+                if (object.accounting_projection != null) {
+                    if (!$util.isObject(object.accounting_projection))
+                        throw $TypeError(".northstar.live.LedgerContext.accounting_projection: object expected");
+                    message.accounting_projection = $root.northstar.live.BrokerAccountProjection.fromObject(object.accounting_projection, _depth + 1);
                 }
                 if (object.evidence_fields) {
                     if (!$util.isObject(object.evidence_fields))
@@ -13247,6 +13840,11 @@ export const northstar = $root.northstar = (() => {
                     for (let j = 0; j < message.entries.length; ++j)
                         object.entries[j] = $root.northstar.live.PositionEntry.toObject(message.entries[j], options, _depth + 1);
                 }
+                if (message.accounting_projection != null && $Object.hasOwnProperty.call(message, "accounting_projection")) {
+                    object.accounting_projection = $root.northstar.live.BrokerAccountProjection.toObject(message.accounting_projection, options, _depth + 1);
+                    if (options.oneofs)
+                        object._accounting_projection = "accounting_projection";
+                }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
                     object.evidence_fields = {};
@@ -13297,10 +13895,12 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a LiveConfiguration.
              * @typedef {Object} northstar.live.LiveConfiguration.$Properties
+             * @property {string|null} [candidate_id] LiveConfiguration candidate_id
              * @property {google.protobuf.Struct.$Properties|null} [config] LiveConfiguration config
              * @property {string|null} [configuration_id] LiveConfiguration configuration_id
              * @property {string|null} [name] LiveConfiguration name
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] LiveConfiguration evidence_fields
+             * @property {"candidate_id"} [_candidate_id] LiveConfiguration _candidate_id
              * @property {"config"} [_config] LiveConfiguration _config
              * @property {"configuration_id"} [_configuration_id] LiveConfiguration _configuration_id
              * @property {"name"} [_name] LiveConfiguration _name
@@ -13318,12 +13918,15 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a LiveConfiguration.
              * @typedef {{
+             *   candidate_id?: string|null;
              *   config?: google.protobuf.Struct.$Shape|null;
              *   configuration_id?: string|null;
              *   name?: string|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _candidate_id?: undefined; candidate_id?: null }|{ _candidate_id?: "candidate_id"; candidate_id: string })
+             * ) & (
              *   ({ _config?: undefined; config?: null }|{ _config?: "config"; config: google.protobuf.Struct.$Shape })
              * ) & (
              *   ({ _configuration_id?: undefined; configuration_id?: null }|{ _configuration_id?: "configuration_id"; configuration_id: string })
@@ -13347,6 +13950,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * LiveConfiguration candidate_id.
+             * @member {string|null|undefined} candidate_id
+             * @memberof northstar.live.LiveConfiguration
+             * @instance
+             */
+            LiveConfiguration.prototype.candidate_id = null;
 
             /**
              * LiveConfiguration config.
@@ -13382,6 +13993,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * LiveConfiguration _candidate_id.
+             * @member {"candidate_id"|undefined} _candidate_id
+             * @memberof northstar.live.LiveConfiguration
+             * @instance
+             */
+            $Object.defineProperty(LiveConfiguration.prototype, "_candidate_id", {
+                get: $util.oneOfGetter($oneOfFields = ["candidate_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * LiveConfiguration _config.
@@ -13454,6 +14076,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 2, wireType 2 =*/18).string(message.configuration_id);
                 if (message.name != null && $Object.hasOwnProperty.call(message, "name"))
                     writer.uint32(/* id 3, wireType 2 =*/26).string(message.name);
+                if (message.candidate_id != null && $Object.hasOwnProperty.call(message, "candidate_id"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.candidate_id);
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -13503,6 +14127,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.candidate_id = reader.stringVerify();
+                            message._candidate_id = "candidate_id";
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 2)
                                 break;
@@ -13593,6 +14224,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.candidate_id != null && $Object.hasOwnProperty.call(message, "candidate_id")) {
+                    properties._candidate_id = 1;
+                    if (!$util.isString(message.candidate_id))
+                        return "candidate_id: string expected";
+                }
                 if (message.config != null && $Object.hasOwnProperty.call(message, "config")) {
                     properties._config = 1;
                     {
@@ -13642,6 +14278,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.live.LiveConfiguration();
+                if (object.candidate_id != null)
+                    message.candidate_id = $String(object.candidate_id);
                 if (object.config != null) {
                     if (!$util.isObject(object.config))
                         throw $TypeError(".northstar.live.LiveConfiguration.config: object expected");
@@ -13699,6 +14337,11 @@ export const northstar = $root.northstar = (() => {
                     object.name = message.name;
                     if (options.oneofs)
                         object._name = "name";
+                }
+                if (message.candidate_id != null && $Object.hasOwnProperty.call(message, "candidate_id")) {
+                    object.candidate_id = message.candidate_id;
+                    if (options.oneofs)
+                        object._candidate_id = "candidate_id";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
@@ -22108,6 +22751,723 @@ export const northstar = $root.northstar = (() => {
             return StreamPositionsRequest;
         })();
 
+        live.SessionWindow = (function() {
+
+            /**
+             * Properties of a SessionWindow.
+             * @typedef {Object} northstar.live.SessionWindow.$Properties
+             * @property {string|null} [trading_day] SessionWindow trading_day
+             * @property {string|null} [opens_at] SessionWindow opens_at
+             * @property {string|null} [closes_at] SessionWindow closes_at
+             * @property {"trading_day"} [_trading_day] SessionWindow _trading_day
+             * @property {"opens_at"} [_opens_at] SessionWindow _opens_at
+             * @property {"closes_at"} [_closes_at] SessionWindow _closes_at
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SessionWindow.
+             * @memberof northstar.live
+             * @interface ISessionWindow
+             * @augments northstar.live.SessionWindow.$Properties
+             * @deprecated Use northstar.live.SessionWindow.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SessionWindow.
+             * @typedef {{
+             *   trading_day?: string|null;
+             *   opens_at?: string|null;
+             *   closes_at?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _trading_day?: undefined; trading_day?: null }|{ _trading_day?: "trading_day"; trading_day: string })
+             * ) & (
+             *   ({ _opens_at?: undefined; opens_at?: null }|{ _opens_at?: "opens_at"; opens_at: string })
+             * ) & (
+             *   ({ _closes_at?: undefined; closes_at?: null }|{ _closes_at?: "closes_at"; closes_at: string })
+             * )} northstar.live.SessionWindow.$Shape
+             */
+
+            /**
+             * Constructs a new SessionWindow.
+             * @memberof northstar.live
+             * @classdesc Represents a SessionWindow.
+             * @constructor
+             * @param {northstar.live.SessionWindow.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SessionWindow = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SessionWindow trading_day.
+             * @member {string|null|undefined} trading_day
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            SessionWindow.prototype.trading_day = null;
+
+            /**
+             * SessionWindow opens_at.
+             * @member {string|null|undefined} opens_at
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            SessionWindow.prototype.opens_at = null;
+
+            /**
+             * SessionWindow closes_at.
+             * @member {string|null|undefined} closes_at
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            SessionWindow.prototype.closes_at = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SessionWindow _trading_day.
+             * @member {"trading_day"|undefined} _trading_day
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            $Object.defineProperty(SessionWindow.prototype, "_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SessionWindow _opens_at.
+             * @member {"opens_at"|undefined} _opens_at
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            $Object.defineProperty(SessionWindow.prototype, "_opens_at", {
+                get: $util.oneOfGetter($oneOfFields = ["opens_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SessionWindow _closes_at.
+             * @member {"closes_at"|undefined} _closes_at
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            $Object.defineProperty(SessionWindow.prototype, "_closes_at", {
+                get: $util.oneOfGetter($oneOfFields = ["closes_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SessionWindow instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {northstar.live.SessionWindow.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.SessionWindow} SessionWindow instance
+             * @type {{
+             *   (properties: northstar.live.SessionWindow.$Shape): northstar.live.SessionWindow & northstar.live.SessionWindow.$Shape;
+             *   (properties?: northstar.live.SessionWindow.$Properties): northstar.live.SessionWindow;
+             * }}
+             */
+            SessionWindow.create = function(properties) {
+                return new SessionWindow(properties);
+            };
+
+            /**
+             * Encodes the specified SessionWindow message. Does not implicitly {@link northstar.live.SessionWindow.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {northstar.live.SessionWindow.$Properties} message SessionWindow message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SessionWindow.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.trading_day);
+                if (message.opens_at != null && $Object.hasOwnProperty.call(message, "opens_at"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.opens_at);
+                if (message.closes_at != null && $Object.hasOwnProperty.call(message, "closes_at"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.closes_at);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SessionWindow message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.SessionWindow & northstar.live.SessionWindow.$Shape} SessionWindow
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SessionWindow.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.SessionWindow();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.trading_day = reader.stringVerify();
+                            message._trading_day = "trading_day";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.opens_at = reader.stringVerify();
+                            message._opens_at = "opens_at";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.closes_at = reader.stringVerify();
+                            message._closes_at = "closes_at";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SessionWindow message.
+             * @function verify
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SessionWindow.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    properties._trading_day = 1;
+                    if (!$util.isString(message.trading_day))
+                        return "trading_day: string expected";
+                }
+                if (message.opens_at != null && $Object.hasOwnProperty.call(message, "opens_at")) {
+                    properties._opens_at = 1;
+                    if (!$util.isString(message.opens_at))
+                        return "opens_at: string expected";
+                }
+                if (message.closes_at != null && $Object.hasOwnProperty.call(message, "closes_at")) {
+                    properties._closes_at = 1;
+                    if (!$util.isString(message.closes_at))
+                        return "closes_at: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SessionWindow message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.SessionWindow} SessionWindow
+             */
+            SessionWindow.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.SessionWindow)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.SessionWindow: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.SessionWindow();
+                if (object.trading_day != null)
+                    message.trading_day = $String(object.trading_day);
+                if (object.opens_at != null)
+                    message.opens_at = $String(object.opens_at);
+                if (object.closes_at != null)
+                    message.closes_at = $String(object.closes_at);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SessionWindow message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {northstar.live.SessionWindow} message SessionWindow
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SessionWindow.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    object.trading_day = message.trading_day;
+                    if (options.oneofs)
+                        object._trading_day = "trading_day";
+                }
+                if (message.opens_at != null && $Object.hasOwnProperty.call(message, "opens_at")) {
+                    object.opens_at = message.opens_at;
+                    if (options.oneofs)
+                        object._opens_at = "opens_at";
+                }
+                if (message.closes_at != null && $Object.hasOwnProperty.call(message, "closes_at")) {
+                    object.closes_at = message.closes_at;
+                    if (options.oneofs)
+                        object._closes_at = "closes_at";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SessionWindow to JSON.
+             * @function toJSON
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SessionWindow.prototype.toJSON = function() {
+                return SessionWindow.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SessionWindow
+             * @function getTypeUrl
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SessionWindow.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.SessionWindow";
+            };
+
+            return SessionWindow;
+        })();
+
+        live.SessionSchedule = (function() {
+
+            /**
+             * Properties of a SessionSchedule.
+             * @typedef {Object} northstar.live.SessionSchedule.$Properties
+             * @property {string|null} [source_reference] SessionSchedule source_reference
+             * @property {string|null} [available_at] SessionSchedule available_at
+             * @property {Array.<northstar.live.SessionWindow.$Properties>|null} [windows] SessionSchedule windows
+             * @property {"source_reference"} [_source_reference] SessionSchedule _source_reference
+             * @property {"available_at"} [_available_at] SessionSchedule _available_at
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SessionSchedule.
+             * @memberof northstar.live
+             * @interface ISessionSchedule
+             * @augments northstar.live.SessionSchedule.$Properties
+             * @deprecated Use northstar.live.SessionSchedule.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SessionSchedule.
+             * @typedef {{
+             *   source_reference?: string|null;
+             *   available_at?: string|null;
+             *   windows?: Array.<northstar.live.SessionWindow.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
+             * ) & (
+             *   ({ _available_at?: undefined; available_at?: null }|{ _available_at?: "available_at"; available_at: string })
+             * )} northstar.live.SessionSchedule.$Shape
+             */
+
+            /**
+             * Constructs a new SessionSchedule.
+             * @memberof northstar.live
+             * @classdesc Represents a SessionSchedule.
+             * @constructor
+             * @param {northstar.live.SessionSchedule.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SessionSchedule = function (properties) {
+                this.windows = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SessionSchedule source_reference.
+             * @member {string|null|undefined} source_reference
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            SessionSchedule.prototype.source_reference = null;
+
+            /**
+             * SessionSchedule available_at.
+             * @member {string|null|undefined} available_at
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            SessionSchedule.prototype.available_at = null;
+
+            /**
+             * SessionSchedule windows.
+             * @member {Array.<northstar.live.SessionWindow.$Properties>} windows
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            SessionSchedule.prototype.windows = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SessionSchedule _source_reference.
+             * @member {"source_reference"|undefined} _source_reference
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            $Object.defineProperty(SessionSchedule.prototype, "_source_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["source_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SessionSchedule _available_at.
+             * @member {"available_at"|undefined} _available_at
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            $Object.defineProperty(SessionSchedule.prototype, "_available_at", {
+                get: $util.oneOfGetter($oneOfFields = ["available_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SessionSchedule instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {northstar.live.SessionSchedule.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.SessionSchedule} SessionSchedule instance
+             * @type {{
+             *   (properties: northstar.live.SessionSchedule.$Shape): northstar.live.SessionSchedule & northstar.live.SessionSchedule.$Shape;
+             *   (properties?: northstar.live.SessionSchedule.$Properties): northstar.live.SessionSchedule;
+             * }}
+             */
+            SessionSchedule.create = function(properties) {
+                return new SessionSchedule(properties);
+            };
+
+            /**
+             * Encodes the specified SessionSchedule message. Does not implicitly {@link northstar.live.SessionSchedule.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {northstar.live.SessionSchedule.$Properties} message SessionSchedule message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SessionSchedule.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.source_reference);
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.available_at);
+                if (message.windows != null && message.windows.length)
+                    for (let i = 0; i < message.windows.length; ++i)
+                        $root.northstar.live.SessionWindow.encode(message.windows[i], writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SessionSchedule message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.SessionSchedule & northstar.live.SessionSchedule.$Shape} SessionSchedule
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SessionSchedule.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.SessionSchedule();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_reference = reader.stringVerify();
+                            message._source_reference = "source_reference";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_at = reader.stringVerify();
+                            message._available_at = "available_at";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.windows && message.windows.length))
+                                message.windows = [];
+                            message.windows.push($root.northstar.live.SessionWindow.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SessionSchedule message.
+             * @function verify
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SessionSchedule.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    properties._source_reference = 1;
+                    if (!$util.isString(message.source_reference))
+                        return "source_reference: string expected";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    properties._available_at = 1;
+                    if (!$util.isString(message.available_at))
+                        return "available_at: string expected";
+                }
+                if (message.windows != null && $Object.hasOwnProperty.call(message, "windows")) {
+                    if (!$Array.isArray(message.windows))
+                        return "windows: array expected";
+                    for (let i = 0; i < message.windows.length; ++i) {
+                        let error = $root.northstar.live.SessionWindow.verify(message.windows[i], _depth + 1);
+                        if (error)
+                            return "windows." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SessionSchedule message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.SessionSchedule} SessionSchedule
+             */
+            SessionSchedule.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.SessionSchedule)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.SessionSchedule: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.SessionSchedule();
+                if (object.source_reference != null)
+                    message.source_reference = $String(object.source_reference);
+                if (object.available_at != null)
+                    message.available_at = $String(object.available_at);
+                if (object.windows) {
+                    if (!$Array.isArray(object.windows))
+                        throw $TypeError(".northstar.live.SessionSchedule.windows: array expected");
+                    message.windows = $Array(object.windows.length);
+                    for (let i = 0; i < object.windows.length; ++i) {
+                        if (!$util.isObject(object.windows[i]))
+                            throw $TypeError(".northstar.live.SessionSchedule.windows: object expected");
+                        message.windows[i] = $root.northstar.live.SessionWindow.fromObject(object.windows[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SessionSchedule message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {northstar.live.SessionSchedule} message SessionSchedule
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SessionSchedule.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.windows = [];
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    object.source_reference = message.source_reference;
+                    if (options.oneofs)
+                        object._source_reference = "source_reference";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    object.available_at = message.available_at;
+                    if (options.oneofs)
+                        object._available_at = "available_at";
+                }
+                if (message.windows && message.windows.length) {
+                    object.windows = $Array(message.windows.length);
+                    for (let j = 0; j < message.windows.length; ++j)
+                        object.windows[j] = $root.northstar.live.SessionWindow.toObject(message.windows[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SessionSchedule to JSON.
+             * @function toJSON
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SessionSchedule.prototype.toJSON = function() {
+                return SessionSchedule.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SessionSchedule
+             * @function getTypeUrl
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SessionSchedule.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.SessionSchedule";
+            };
+
+            return SessionSchedule;
+        })();
+
         live.StreamRequest = (function() {
 
             /**
@@ -22119,12 +23479,14 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [query_batch_id] StreamRequest query_batch_id
              * @property {string|null} [request_id] StreamRequest request_id
              * @property {string|null} [use_basis] StreamRequest use_basis
+             * @property {northstar.live.SessionSchedule.$Properties|null} [schedule] StreamRequest schedule
              * @property {"allow_retention"} [_allow_retention] StreamRequest _allow_retention
              * @property {"configuration_id"} [_configuration_id] StreamRequest _configuration_id
              * @property {"duration_seconds"} [_duration_seconds] StreamRequest _duration_seconds
              * @property {"query_batch_id"} [_query_batch_id] StreamRequest _query_batch_id
              * @property {"request_id"} [_request_id] StreamRequest _request_id
              * @property {"use_basis"} [_use_basis] StreamRequest _use_basis
+             * @property {"schedule"} [_schedule] StreamRequest _schedule
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -22145,6 +23507,7 @@ export const northstar = $root.northstar = (() => {
              *   query_batch_id?: string|null;
              *   request_id?: string|null;
              *   use_basis?: string|null;
+             *   schedule?: northstar.live.SessionSchedule.$Shape|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _allow_retention?: undefined; allow_retention?: null }|{ _allow_retention?: "allow_retention"; allow_retention: boolean })
@@ -22158,6 +23521,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
              * ) & (
              *   ({ _use_basis?: undefined; use_basis?: null }|{ _use_basis?: "use_basis"; use_basis: string })
+             * ) & (
+             *   ({ _schedule?: undefined; schedule?: null }|{ _schedule?: "schedule"; schedule: northstar.live.SessionSchedule.$Shape })
              * )} northstar.live.StreamRequest.$Shape
              */
 
@@ -22223,6 +23588,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             StreamRequest.prototype.use_basis = null;
+
+            /**
+             * StreamRequest schedule.
+             * @member {northstar.live.SessionSchedule.$Properties|null|undefined} schedule
+             * @memberof northstar.live.StreamRequest
+             * @instance
+             */
+            StreamRequest.prototype.schedule = null;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -22294,6 +23667,17 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * StreamRequest _schedule.
+             * @member {"schedule"|undefined} _schedule
+             * @memberof northstar.live.StreamRequest
+             * @instance
+             */
+            $Object.defineProperty(StreamRequest.prototype, "_schedule", {
+                get: $util.oneOfGetter($oneOfFields = ["schedule"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new StreamRequest instance using the specified properties.
              * @function create
              * @memberof northstar.live.StreamRequest
@@ -22337,6 +23721,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 5, wireType 2 =*/42).string(message.request_id);
                 if (message.use_basis != null && $Object.hasOwnProperty.call(message, "use_basis"))
                     writer.uint32(/* id 6, wireType 2 =*/50).string(message.use_basis);
+                if (message.schedule != null && $Object.hasOwnProperty.call(message, "schedule"))
+                    $root.northstar.live.SessionSchedule.encode(message.schedule, writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -22423,6 +23809,13 @@ export const northstar = $root.northstar = (() => {
                             message._use_basis = "use_basis";
                             continue;
                         }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.schedule = $root.northstar.live.SessionSchedule.decode(reader, reader.uint32(), $undefined, _depth + 1, message.schedule);
+                            message._schedule = "schedule";
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -22486,6 +23879,14 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.use_basis))
                         return "use_basis: string expected";
                 }
+                if (message.schedule != null && $Object.hasOwnProperty.call(message, "schedule")) {
+                    properties._schedule = 1;
+                    {
+                        let error = $root.northstar.live.SessionSchedule.verify(message.schedule, _depth + 1);
+                        if (error)
+                            return "schedule." + error;
+                    }
+                }
                 return null;
             };
 
@@ -22526,6 +23927,11 @@ export const northstar = $root.northstar = (() => {
                     message.request_id = $String(object.request_id);
                 if (object.use_basis != null)
                     message.use_basis = $String(object.use_basis);
+                if (object.schedule != null) {
+                    if (!$util.isObject(object.schedule))
+                        throw $TypeError(".northstar.live.StreamRequest.schedule: object expected");
+                    message.schedule = $root.northstar.live.SessionSchedule.fromObject(object.schedule, _depth + 1);
+                }
                 return message;
             };
 
@@ -22580,6 +23986,11 @@ export const northstar = $root.northstar = (() => {
                     object.use_basis = message.use_basis;
                     if (options.oneofs)
                         object._use_basis = "use_basis";
+                }
+                if (message.schedule != null && $Object.hasOwnProperty.call(message, "schedule")) {
+                    object.schedule = $root.northstar.live.SessionSchedule.toObject(message.schedule, options, _depth + 1);
+                    if (options.oneofs)
+                        object._schedule = "schedule";
                 }
                 return object;
             };
@@ -25121,6 +26532,4601 @@ export const northstar = $root.northstar = (() => {
             return GetApiStreamsStreamIdEventsResponse;
         })();
 
+        live.OrderReservation = (function() {
+
+            /**
+             * Properties of an OrderReservation.
+             * @typedef {Object} northstar.live.OrderReservation.$Properties
+             * @property {string|null} [reserved_fee] OrderReservation reserved_fee
+             * @property {string|null} [reserved_margin] OrderReservation reserved_margin
+             * @property {string|null} [reserved_gross] OrderReservation reserved_gross
+             * @property {string|null} [reserved_loss] OrderReservation reserved_loss
+             * @property {number|Long|null} [reserved_close_lots] OrderReservation reserved_close_lots
+             * @property {"reserved_fee"} [_reserved_fee] OrderReservation _reserved_fee
+             * @property {"reserved_margin"} [_reserved_margin] OrderReservation _reserved_margin
+             * @property {"reserved_gross"} [_reserved_gross] OrderReservation _reserved_gross
+             * @property {"reserved_loss"} [_reserved_loss] OrderReservation _reserved_loss
+             * @property {"reserved_close_lots"} [_reserved_close_lots] OrderReservation _reserved_close_lots
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an OrderReservation.
+             * @memberof northstar.live
+             * @interface IOrderReservation
+             * @augments northstar.live.OrderReservation.$Properties
+             * @deprecated Use northstar.live.OrderReservation.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an OrderReservation.
+             * @typedef {{
+             *   reserved_fee?: string|null;
+             *   reserved_margin?: string|null;
+             *   reserved_gross?: string|null;
+             *   reserved_loss?: string|null;
+             *   reserved_close_lots?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _reserved_fee?: undefined; reserved_fee?: null }|{ _reserved_fee?: "reserved_fee"; reserved_fee: string })
+             * ) & (
+             *   ({ _reserved_margin?: undefined; reserved_margin?: null }|{ _reserved_margin?: "reserved_margin"; reserved_margin: string })
+             * ) & (
+             *   ({ _reserved_gross?: undefined; reserved_gross?: null }|{ _reserved_gross?: "reserved_gross"; reserved_gross: string })
+             * ) & (
+             *   ({ _reserved_loss?: undefined; reserved_loss?: null }|{ _reserved_loss?: "reserved_loss"; reserved_loss: string })
+             * ) & (
+             *   ({ _reserved_close_lots?: undefined; reserved_close_lots?: null }|{ _reserved_close_lots?: "reserved_close_lots"; reserved_close_lots: number|Long })
+             * )} northstar.live.OrderReservation.$Shape
+             */
+
+            /**
+             * Constructs a new OrderReservation.
+             * @memberof northstar.live
+             * @classdesc Represents an OrderReservation.
+             * @constructor
+             * @param {northstar.live.OrderReservation.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const OrderReservation = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * OrderReservation reserved_fee.
+             * @member {string|null|undefined} reserved_fee
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            OrderReservation.prototype.reserved_fee = null;
+
+            /**
+             * OrderReservation reserved_margin.
+             * @member {string|null|undefined} reserved_margin
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            OrderReservation.prototype.reserved_margin = null;
+
+            /**
+             * OrderReservation reserved_gross.
+             * @member {string|null|undefined} reserved_gross
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            OrderReservation.prototype.reserved_gross = null;
+
+            /**
+             * OrderReservation reserved_loss.
+             * @member {string|null|undefined} reserved_loss
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            OrderReservation.prototype.reserved_loss = null;
+
+            /**
+             * OrderReservation reserved_close_lots.
+             * @member {number|Long|null|undefined} reserved_close_lots
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            OrderReservation.prototype.reserved_close_lots = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * OrderReservation _reserved_fee.
+             * @member {"reserved_fee"|undefined} _reserved_fee
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            $Object.defineProperty(OrderReservation.prototype, "_reserved_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * OrderReservation _reserved_margin.
+             * @member {"reserved_margin"|undefined} _reserved_margin
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            $Object.defineProperty(OrderReservation.prototype, "_reserved_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * OrderReservation _reserved_gross.
+             * @member {"reserved_gross"|undefined} _reserved_gross
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            $Object.defineProperty(OrderReservation.prototype, "_reserved_gross", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_gross"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * OrderReservation _reserved_loss.
+             * @member {"reserved_loss"|undefined} _reserved_loss
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            $Object.defineProperty(OrderReservation.prototype, "_reserved_loss", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_loss"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * OrderReservation _reserved_close_lots.
+             * @member {"reserved_close_lots"|undefined} _reserved_close_lots
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             */
+            $Object.defineProperty(OrderReservation.prototype, "_reserved_close_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_close_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new OrderReservation instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.OrderReservation
+             * @static
+             * @param {northstar.live.OrderReservation.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.OrderReservation} OrderReservation instance
+             * @type {{
+             *   (properties: northstar.live.OrderReservation.$Shape): northstar.live.OrderReservation & northstar.live.OrderReservation.$Shape;
+             *   (properties?: northstar.live.OrderReservation.$Properties): northstar.live.OrderReservation;
+             * }}
+             */
+            OrderReservation.create = function(properties) {
+                return new OrderReservation(properties);
+            };
+
+            /**
+             * Encodes the specified OrderReservation message. Does not implicitly {@link northstar.live.OrderReservation.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.OrderReservation
+             * @static
+             * @param {northstar.live.OrderReservation.$Properties} message OrderReservation message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            OrderReservation.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.reserved_fee != null && $Object.hasOwnProperty.call(message, "reserved_fee"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.reserved_fee);
+                if (message.reserved_margin != null && $Object.hasOwnProperty.call(message, "reserved_margin"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.reserved_margin);
+                if (message.reserved_gross != null && $Object.hasOwnProperty.call(message, "reserved_gross"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.reserved_gross);
+                if (message.reserved_loss != null && $Object.hasOwnProperty.call(message, "reserved_loss"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.reserved_loss);
+                if (message.reserved_close_lots != null && $Object.hasOwnProperty.call(message, "reserved_close_lots"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).int64(message.reserved_close_lots);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an OrderReservation message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.OrderReservation
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.OrderReservation & northstar.live.OrderReservation.$Shape} OrderReservation
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            OrderReservation.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.OrderReservation();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.reserved_fee = reader.stringVerify();
+                            message._reserved_fee = "reserved_fee";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.reserved_margin = reader.stringVerify();
+                            message._reserved_margin = "reserved_margin";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.reserved_gross = reader.stringVerify();
+                            message._reserved_gross = "reserved_gross";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.reserved_loss = reader.stringVerify();
+                            message._reserved_loss = "reserved_loss";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 0)
+                                break;
+                            message.reserved_close_lots = reader.int64();
+                            message._reserved_close_lots = "reserved_close_lots";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an OrderReservation message.
+             * @function verify
+             * @memberof northstar.live.OrderReservation
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            OrderReservation.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.reserved_fee != null && $Object.hasOwnProperty.call(message, "reserved_fee")) {
+                    properties._reserved_fee = 1;
+                    if (!$util.isString(message.reserved_fee))
+                        return "reserved_fee: string expected";
+                }
+                if (message.reserved_margin != null && $Object.hasOwnProperty.call(message, "reserved_margin")) {
+                    properties._reserved_margin = 1;
+                    if (!$util.isString(message.reserved_margin))
+                        return "reserved_margin: string expected";
+                }
+                if (message.reserved_gross != null && $Object.hasOwnProperty.call(message, "reserved_gross")) {
+                    properties._reserved_gross = 1;
+                    if (!$util.isString(message.reserved_gross))
+                        return "reserved_gross: string expected";
+                }
+                if (message.reserved_loss != null && $Object.hasOwnProperty.call(message, "reserved_loss")) {
+                    properties._reserved_loss = 1;
+                    if (!$util.isString(message.reserved_loss))
+                        return "reserved_loss: string expected";
+                }
+                if (message.reserved_close_lots != null && $Object.hasOwnProperty.call(message, "reserved_close_lots")) {
+                    properties._reserved_close_lots = 1;
+                    if (!$util.isInteger(message.reserved_close_lots) && !(message.reserved_close_lots && $util.isInteger(message.reserved_close_lots.low) && $util.isInteger(message.reserved_close_lots.high)))
+                        return "reserved_close_lots: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an OrderReservation message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.OrderReservation
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.OrderReservation} OrderReservation
+             */
+            OrderReservation.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.OrderReservation)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.OrderReservation: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.OrderReservation();
+                if (object.reserved_fee != null)
+                    message.reserved_fee = $String(object.reserved_fee);
+                if (object.reserved_margin != null)
+                    message.reserved_margin = $String(object.reserved_margin);
+                if (object.reserved_gross != null)
+                    message.reserved_gross = $String(object.reserved_gross);
+                if (object.reserved_loss != null)
+                    message.reserved_loss = $String(object.reserved_loss);
+                if (object.reserved_close_lots != null)
+                    if ($util.Long)
+                        message.reserved_close_lots = $util.Long.fromValue(object.reserved_close_lots, false);
+                    else if (typeof object.reserved_close_lots === "string")
+                        message.reserved_close_lots = $parseInt(object.reserved_close_lots, 10);
+                    else if (typeof object.reserved_close_lots === "number")
+                        message.reserved_close_lots = object.reserved_close_lots;
+                    else if (typeof object.reserved_close_lots === "object")
+                        message.reserved_close_lots = new $util.LongBits(object.reserved_close_lots.low >>> 0, object.reserved_close_lots.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an OrderReservation message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.OrderReservation
+             * @static
+             * @param {northstar.live.OrderReservation} message OrderReservation
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            OrderReservation.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.reserved_fee != null && $Object.hasOwnProperty.call(message, "reserved_fee")) {
+                    object.reserved_fee = message.reserved_fee;
+                    if (options.oneofs)
+                        object._reserved_fee = "reserved_fee";
+                }
+                if (message.reserved_margin != null && $Object.hasOwnProperty.call(message, "reserved_margin")) {
+                    object.reserved_margin = message.reserved_margin;
+                    if (options.oneofs)
+                        object._reserved_margin = "reserved_margin";
+                }
+                if (message.reserved_gross != null && $Object.hasOwnProperty.call(message, "reserved_gross")) {
+                    object.reserved_gross = message.reserved_gross;
+                    if (options.oneofs)
+                        object._reserved_gross = "reserved_gross";
+                }
+                if (message.reserved_loss != null && $Object.hasOwnProperty.call(message, "reserved_loss")) {
+                    object.reserved_loss = message.reserved_loss;
+                    if (options.oneofs)
+                        object._reserved_loss = "reserved_loss";
+                }
+                if (message.reserved_close_lots != null && $Object.hasOwnProperty.call(message, "reserved_close_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.reserved_close_lots = typeof message.reserved_close_lots === "number" ? $BigInt(message.reserved_close_lots) : $util.Long.fromBits(message.reserved_close_lots.low >>> 0, message.reserved_close_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.reserved_close_lots === "number")
+                        object.reserved_close_lots = options.longs === $String ? $String(message.reserved_close_lots) : message.reserved_close_lots;
+                    else
+                        object.reserved_close_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.reserved_close_lots) : options.longs === $Number ? new $util.LongBits(message.reserved_close_lots.low >>> 0, message.reserved_close_lots.high >>> 0).toNumber() : message.reserved_close_lots;
+                    if (options.oneofs)
+                        object._reserved_close_lots = "reserved_close_lots";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this OrderReservation to JSON.
+             * @function toJSON
+             * @memberof northstar.live.OrderReservation
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            OrderReservation.prototype.toJSON = function() {
+                return OrderReservation.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for OrderReservation
+             * @function getTypeUrl
+             * @memberof northstar.live.OrderReservation
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            OrderReservation.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.OrderReservation";
+            };
+
+            return OrderReservation;
+        })();
+
+        live.LocalOrder = (function() {
+
+            /**
+             * Properties of a LocalOrder.
+             * @typedef {Object} northstar.live.LocalOrder.$Properties
+             * @property {string|null} [order_id] LocalOrder order_id
+             * @property {string|null} [contract_id] LocalOrder contract_id
+             * @property {string|null} [authorization_id] LocalOrder authorization_id
+             * @property {string|null} [runtime_id] LocalOrder runtime_id
+             * @property {string|null} [attempt_id] LocalOrder attempt_id
+             * @property {string|null} [status] LocalOrder status
+             * @property {number|Long|null} [quantity_lots] LocalOrder quantity_lots
+             * @property {number|Long|null} [filled_lots] LocalOrder filled_lots
+             * @property {boolean|null} [requires_reconciliation] LocalOrder requires_reconciliation
+             * @property {northstar.live.OrderReservation.$Properties|null} [reservation] LocalOrder reservation
+             * @property {google.protobuf.Struct.$Properties|null} [order] LocalOrder order
+             * @property {number|Long|null} [fee_pending_lots] LocalOrder fee_pending_lots
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] LocalOrder evidence_fields
+             * @property {"order_id"} [_order_id] LocalOrder _order_id
+             * @property {"contract_id"} [_contract_id] LocalOrder _contract_id
+             * @property {"authorization_id"} [_authorization_id] LocalOrder _authorization_id
+             * @property {"runtime_id"} [_runtime_id] LocalOrder _runtime_id
+             * @property {"attempt_id"} [_attempt_id] LocalOrder _attempt_id
+             * @property {"status"} [_status] LocalOrder _status
+             * @property {"quantity_lots"} [_quantity_lots] LocalOrder _quantity_lots
+             * @property {"filled_lots"} [_filled_lots] LocalOrder _filled_lots
+             * @property {"requires_reconciliation"} [_requires_reconciliation] LocalOrder _requires_reconciliation
+             * @property {"reservation"} [_reservation] LocalOrder _reservation
+             * @property {"order"} [_order] LocalOrder _order
+             * @property {"fee_pending_lots"} [_fee_pending_lots] LocalOrder _fee_pending_lots
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a LocalOrder.
+             * @memberof northstar.live
+             * @interface ILocalOrder
+             * @augments northstar.live.LocalOrder.$Properties
+             * @deprecated Use northstar.live.LocalOrder.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a LocalOrder.
+             * @typedef {{
+             *   order_id?: string|null;
+             *   contract_id?: string|null;
+             *   authorization_id?: string|null;
+             *   runtime_id?: string|null;
+             *   attempt_id?: string|null;
+             *   status?: string|null;
+             *   quantity_lots?: number|Long|null;
+             *   filled_lots?: number|Long|null;
+             *   requires_reconciliation?: boolean|null;
+             *   reservation?: northstar.live.OrderReservation.$Shape|null;
+             *   order?: google.protobuf.Struct.$Shape|null;
+             *   fee_pending_lots?: number|Long|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _order_id?: undefined; order_id?: null }|{ _order_id?: "order_id"; order_id: string })
+             * ) & (
+             *   ({ _contract_id?: undefined; contract_id?: null }|{ _contract_id?: "contract_id"; contract_id: string })
+             * ) & (
+             *   ({ _authorization_id?: undefined; authorization_id?: null }|{ _authorization_id?: "authorization_id"; authorization_id: string })
+             * ) & (
+             *   ({ _runtime_id?: undefined; runtime_id?: null }|{ _runtime_id?: "runtime_id"; runtime_id: string })
+             * ) & (
+             *   ({ _attempt_id?: undefined; attempt_id?: null }|{ _attempt_id?: "attempt_id"; attempt_id: string })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _quantity_lots?: undefined; quantity_lots?: null }|{ _quantity_lots?: "quantity_lots"; quantity_lots: number|Long })
+             * ) & (
+             *   ({ _filled_lots?: undefined; filled_lots?: null }|{ _filled_lots?: "filled_lots"; filled_lots: number|Long })
+             * ) & (
+             *   ({ _requires_reconciliation?: undefined; requires_reconciliation?: null }|{ _requires_reconciliation?: "requires_reconciliation"; requires_reconciliation: boolean })
+             * ) & (
+             *   ({ _reservation?: undefined; reservation?: null }|{ _reservation?: "reservation"; reservation: northstar.live.OrderReservation.$Shape })
+             * ) & (
+             *   ({ _order?: undefined; order?: null }|{ _order?: "order"; order: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _fee_pending_lots?: undefined; fee_pending_lots?: null }|{ _fee_pending_lots?: "fee_pending_lots"; fee_pending_lots: number|Long })
+             * )} northstar.live.LocalOrder.$Shape
+             */
+
+            /**
+             * Constructs a new LocalOrder.
+             * @memberof northstar.live
+             * @classdesc Represents a LocalOrder.
+             * @constructor
+             * @param {northstar.live.LocalOrder.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const LocalOrder = function (properties) {
+                this.evidence_fields = {};
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * LocalOrder order_id.
+             * @member {string|null|undefined} order_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.order_id = null;
+
+            /**
+             * LocalOrder contract_id.
+             * @member {string|null|undefined} contract_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.contract_id = null;
+
+            /**
+             * LocalOrder authorization_id.
+             * @member {string|null|undefined} authorization_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.authorization_id = null;
+
+            /**
+             * LocalOrder runtime_id.
+             * @member {string|null|undefined} runtime_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.runtime_id = null;
+
+            /**
+             * LocalOrder attempt_id.
+             * @member {string|null|undefined} attempt_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.attempt_id = null;
+
+            /**
+             * LocalOrder status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.status = null;
+
+            /**
+             * LocalOrder quantity_lots.
+             * @member {number|Long|null|undefined} quantity_lots
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.quantity_lots = null;
+
+            /**
+             * LocalOrder filled_lots.
+             * @member {number|Long|null|undefined} filled_lots
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.filled_lots = null;
+
+            /**
+             * LocalOrder requires_reconciliation.
+             * @member {boolean|null|undefined} requires_reconciliation
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.requires_reconciliation = null;
+
+            /**
+             * LocalOrder reservation.
+             * @member {northstar.live.OrderReservation.$Properties|null|undefined} reservation
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.reservation = null;
+
+            /**
+             * LocalOrder order.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} order
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.order = null;
+
+            /**
+             * LocalOrder fee_pending_lots.
+             * @member {number|Long|null|undefined} fee_pending_lots
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.fee_pending_lots = null;
+
+            /**
+             * LocalOrder evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.evidence_fields = $util.emptyObject;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * LocalOrder _order_id.
+             * @member {"order_id"|undefined} _order_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_order_id", {
+                get: $util.oneOfGetter($oneOfFields = ["order_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _contract_id.
+             * @member {"contract_id"|undefined} _contract_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_contract_id", {
+                get: $util.oneOfGetter($oneOfFields = ["contract_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _authorization_id.
+             * @member {"authorization_id"|undefined} _authorization_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_authorization_id", {
+                get: $util.oneOfGetter($oneOfFields = ["authorization_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _runtime_id.
+             * @member {"runtime_id"|undefined} _runtime_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_runtime_id", {
+                get: $util.oneOfGetter($oneOfFields = ["runtime_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _attempt_id.
+             * @member {"attempt_id"|undefined} _attempt_id
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_attempt_id", {
+                get: $util.oneOfGetter($oneOfFields = ["attempt_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _quantity_lots.
+             * @member {"quantity_lots"|undefined} _quantity_lots
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_quantity_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["quantity_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _filled_lots.
+             * @member {"filled_lots"|undefined} _filled_lots
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_filled_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["filled_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _requires_reconciliation.
+             * @member {"requires_reconciliation"|undefined} _requires_reconciliation
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_requires_reconciliation", {
+                get: $util.oneOfGetter($oneOfFields = ["requires_reconciliation"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _reservation.
+             * @member {"reservation"|undefined} _reservation
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_reservation", {
+                get: $util.oneOfGetter($oneOfFields = ["reservation"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _order.
+             * @member {"order"|undefined} _order
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_order", {
+                get: $util.oneOfGetter($oneOfFields = ["order"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrder _fee_pending_lots.
+             * @member {"fee_pending_lots"|undefined} _fee_pending_lots
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_fee_pending_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["fee_pending_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new LocalOrder instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.LocalOrder
+             * @static
+             * @param {northstar.live.LocalOrder.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.LocalOrder} LocalOrder instance
+             * @type {{
+             *   (properties: northstar.live.LocalOrder.$Shape): northstar.live.LocalOrder & northstar.live.LocalOrder.$Shape;
+             *   (properties?: northstar.live.LocalOrder.$Properties): northstar.live.LocalOrder;
+             * }}
+             */
+            LocalOrder.create = function(properties) {
+                return new LocalOrder(properties);
+            };
+
+            /**
+             * Encodes the specified LocalOrder message. Does not implicitly {@link northstar.live.LocalOrder.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.LocalOrder
+             * @static
+             * @param {northstar.live.LocalOrder.$Properties} message LocalOrder message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            LocalOrder.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.order_id != null && $Object.hasOwnProperty.call(message, "order_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.order_id);
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.contract_id);
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.authorization_id);
+                if (message.runtime_id != null && $Object.hasOwnProperty.call(message, "runtime_id"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.runtime_id);
+                if (message.attempt_id != null && $Object.hasOwnProperty.call(message, "attempt_id"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.attempt_id);
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.status);
+                if (message.quantity_lots != null && $Object.hasOwnProperty.call(message, "quantity_lots"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).int64(message.quantity_lots);
+                if (message.filled_lots != null && $Object.hasOwnProperty.call(message, "filled_lots"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).int64(message.filled_lots);
+                if (message.requires_reconciliation != null && $Object.hasOwnProperty.call(message, "requires_reconciliation"))
+                    writer.uint32(/* id 9, wireType 0 =*/72).bool(message.requires_reconciliation);
+                if (message.reservation != null && $Object.hasOwnProperty.call(message, "reservation"))
+                    $root.northstar.live.OrderReservation.encode(message.reservation, writer.uint32(/* id 10, wireType 2 =*/82).fork(), _depth + 1).ldelim();
+                if (message.order != null && $Object.hasOwnProperty.call(message, "order"))
+                    $root.google.protobuf.Struct.encode(message.order, writer.uint32(/* id 11, wireType 2 =*/90).fork(), _depth + 1).ldelim();
+                if (message.fee_pending_lots != null && $Object.hasOwnProperty.call(message, "fee_pending_lots"))
+                    writer.uint32(/* id 12, wireType 0 =*/96).int64(message.fee_pending_lots);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a LocalOrder message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.LocalOrder
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.LocalOrder & northstar.live.LocalOrder.$Shape} LocalOrder
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            LocalOrder.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.LocalOrder();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.order_id = reader.stringVerify();
+                            message._order_id = "order_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.contract_id = reader.stringVerify();
+                            message._contract_id = "contract_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.authorization_id = reader.stringVerify();
+                            message._authorization_id = "authorization_id";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.runtime_id = reader.stringVerify();
+                            message._runtime_id = "runtime_id";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.attempt_id = reader.stringVerify();
+                            message._attempt_id = "attempt_id";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 0)
+                                break;
+                            message.quantity_lots = reader.int64();
+                            message._quantity_lots = "quantity_lots";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 0)
+                                break;
+                            message.filled_lots = reader.int64();
+                            message._filled_lots = "filled_lots";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 0)
+                                break;
+                            message.requires_reconciliation = reader.bool();
+                            message._requires_reconciliation = "requires_reconciliation";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            message.reservation = $root.northstar.live.OrderReservation.decode(reader, reader.uint32(), $undefined, _depth + 1, message.reservation);
+                            message._reservation = "reservation";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.order = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.order);
+                            message._order = "order";
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 0)
+                                break;
+                            message.fee_pending_lots = reader.int64();
+                            message._fee_pending_lots = "fee_pending_lots";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a LocalOrder message.
+             * @function verify
+             * @memberof northstar.live.LocalOrder
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            LocalOrder.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.order_id != null && $Object.hasOwnProperty.call(message, "order_id")) {
+                    properties._order_id = 1;
+                    if (!$util.isString(message.order_id))
+                        return "order_id: string expected";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    properties._contract_id = 1;
+                    if (!$util.isString(message.contract_id))
+                        return "contract_id: string expected";
+                }
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id")) {
+                    properties._authorization_id = 1;
+                    if (!$util.isString(message.authorization_id))
+                        return "authorization_id: string expected";
+                }
+                if (message.runtime_id != null && $Object.hasOwnProperty.call(message, "runtime_id")) {
+                    properties._runtime_id = 1;
+                    if (!$util.isString(message.runtime_id))
+                        return "runtime_id: string expected";
+                }
+                if (message.attempt_id != null && $Object.hasOwnProperty.call(message, "attempt_id")) {
+                    properties._attempt_id = 1;
+                    if (!$util.isString(message.attempt_id))
+                        return "attempt_id: string expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.quantity_lots != null && $Object.hasOwnProperty.call(message, "quantity_lots")) {
+                    properties._quantity_lots = 1;
+                    if (!$util.isInteger(message.quantity_lots) && !(message.quantity_lots && $util.isInteger(message.quantity_lots.low) && $util.isInteger(message.quantity_lots.high)))
+                        return "quantity_lots: integer|Long expected";
+                }
+                if (message.filled_lots != null && $Object.hasOwnProperty.call(message, "filled_lots")) {
+                    properties._filled_lots = 1;
+                    if (!$util.isInteger(message.filled_lots) && !(message.filled_lots && $util.isInteger(message.filled_lots.low) && $util.isInteger(message.filled_lots.high)))
+                        return "filled_lots: integer|Long expected";
+                }
+                if (message.requires_reconciliation != null && $Object.hasOwnProperty.call(message, "requires_reconciliation")) {
+                    properties._requires_reconciliation = 1;
+                    if (typeof message.requires_reconciliation !== "boolean")
+                        return "requires_reconciliation: boolean expected";
+                }
+                if (message.reservation != null && $Object.hasOwnProperty.call(message, "reservation")) {
+                    properties._reservation = 1;
+                    {
+                        let error = $root.northstar.live.OrderReservation.verify(message.reservation, _depth + 1);
+                        if (error)
+                            return "reservation." + error;
+                    }
+                }
+                if (message.order != null && $Object.hasOwnProperty.call(message, "order")) {
+                    properties._order = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.order, _depth + 1);
+                        if (error)
+                            return "order." + error;
+                    }
+                }
+                if (message.fee_pending_lots != null && $Object.hasOwnProperty.call(message, "fee_pending_lots")) {
+                    properties._fee_pending_lots = 1;
+                    if (!$util.isInteger(message.fee_pending_lots) && !(message.fee_pending_lots && $util.isInteger(message.fee_pending_lots.low) && $util.isInteger(message.fee_pending_lots.high)))
+                        return "fee_pending_lots: integer|Long expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a LocalOrder message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.LocalOrder
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.LocalOrder} LocalOrder
+             */
+            LocalOrder.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.LocalOrder)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.LocalOrder: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.LocalOrder();
+                if (object.order_id != null)
+                    message.order_id = $String(object.order_id);
+                if (object.contract_id != null)
+                    message.contract_id = $String(object.contract_id);
+                if (object.authorization_id != null)
+                    message.authorization_id = $String(object.authorization_id);
+                if (object.runtime_id != null)
+                    message.runtime_id = $String(object.runtime_id);
+                if (object.attempt_id != null)
+                    message.attempt_id = $String(object.attempt_id);
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.quantity_lots != null)
+                    if ($util.Long)
+                        message.quantity_lots = $util.Long.fromValue(object.quantity_lots, false);
+                    else if (typeof object.quantity_lots === "string")
+                        message.quantity_lots = $parseInt(object.quantity_lots, 10);
+                    else if (typeof object.quantity_lots === "number")
+                        message.quantity_lots = object.quantity_lots;
+                    else if (typeof object.quantity_lots === "object")
+                        message.quantity_lots = new $util.LongBits(object.quantity_lots.low >>> 0, object.quantity_lots.high >>> 0).toNumber();
+                if (object.filled_lots != null)
+                    if ($util.Long)
+                        message.filled_lots = $util.Long.fromValue(object.filled_lots, false);
+                    else if (typeof object.filled_lots === "string")
+                        message.filled_lots = $parseInt(object.filled_lots, 10);
+                    else if (typeof object.filled_lots === "number")
+                        message.filled_lots = object.filled_lots;
+                    else if (typeof object.filled_lots === "object")
+                        message.filled_lots = new $util.LongBits(object.filled_lots.low >>> 0, object.filled_lots.high >>> 0).toNumber();
+                if (object.requires_reconciliation != null)
+                    message.requires_reconciliation = $Boolean(object.requires_reconciliation);
+                if (object.reservation != null) {
+                    if (!$util.isObject(object.reservation))
+                        throw $TypeError(".northstar.live.LocalOrder.reservation: object expected");
+                    message.reservation = $root.northstar.live.OrderReservation.fromObject(object.reservation, _depth + 1);
+                }
+                if (object.order != null) {
+                    if (!$util.isObject(object.order))
+                        throw $TypeError(".northstar.live.LocalOrder.order: object expected");
+                    message.order = $root.google.protobuf.Struct.fromObject(object.order, _depth + 1);
+                }
+                if (object.fee_pending_lots != null)
+                    if ($util.Long)
+                        message.fee_pending_lots = $util.Long.fromValue(object.fee_pending_lots, false);
+                    else if (typeof object.fee_pending_lots === "string")
+                        message.fee_pending_lots = $parseInt(object.fee_pending_lots, 10);
+                    else if (typeof object.fee_pending_lots === "number")
+                        message.fee_pending_lots = object.fee_pending_lots;
+                    else if (typeof object.fee_pending_lots === "object")
+                        message.fee_pending_lots = new $util.LongBits(object.fee_pending_lots.low >>> 0, object.fee_pending_lots.high >>> 0).toNumber();
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.LocalOrder.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.LocalOrder.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a LocalOrder message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.LocalOrder
+             * @static
+             * @param {northstar.live.LocalOrder} message LocalOrder
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            LocalOrder.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.order_id != null && $Object.hasOwnProperty.call(message, "order_id")) {
+                    object.order_id = message.order_id;
+                    if (options.oneofs)
+                        object._order_id = "order_id";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    object.contract_id = message.contract_id;
+                    if (options.oneofs)
+                        object._contract_id = "contract_id";
+                }
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id")) {
+                    object.authorization_id = message.authorization_id;
+                    if (options.oneofs)
+                        object._authorization_id = "authorization_id";
+                }
+                if (message.runtime_id != null && $Object.hasOwnProperty.call(message, "runtime_id")) {
+                    object.runtime_id = message.runtime_id;
+                    if (options.oneofs)
+                        object._runtime_id = "runtime_id";
+                }
+                if (message.attempt_id != null && $Object.hasOwnProperty.call(message, "attempt_id")) {
+                    object.attempt_id = message.attempt_id;
+                    if (options.oneofs)
+                        object._attempt_id = "attempt_id";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.quantity_lots != null && $Object.hasOwnProperty.call(message, "quantity_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.quantity_lots = typeof message.quantity_lots === "number" ? $BigInt(message.quantity_lots) : $util.Long.fromBits(message.quantity_lots.low >>> 0, message.quantity_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.quantity_lots === "number")
+                        object.quantity_lots = options.longs === $String ? $String(message.quantity_lots) : message.quantity_lots;
+                    else
+                        object.quantity_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.quantity_lots) : options.longs === $Number ? new $util.LongBits(message.quantity_lots.low >>> 0, message.quantity_lots.high >>> 0).toNumber() : message.quantity_lots;
+                    if (options.oneofs)
+                        object._quantity_lots = "quantity_lots";
+                }
+                if (message.filled_lots != null && $Object.hasOwnProperty.call(message, "filled_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.filled_lots = typeof message.filled_lots === "number" ? $BigInt(message.filled_lots) : $util.Long.fromBits(message.filled_lots.low >>> 0, message.filled_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.filled_lots === "number")
+                        object.filled_lots = options.longs === $String ? $String(message.filled_lots) : message.filled_lots;
+                    else
+                        object.filled_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.filled_lots) : options.longs === $Number ? new $util.LongBits(message.filled_lots.low >>> 0, message.filled_lots.high >>> 0).toNumber() : message.filled_lots;
+                    if (options.oneofs)
+                        object._filled_lots = "filled_lots";
+                }
+                if (message.requires_reconciliation != null && $Object.hasOwnProperty.call(message, "requires_reconciliation")) {
+                    object.requires_reconciliation = message.requires_reconciliation;
+                    if (options.oneofs)
+                        object._requires_reconciliation = "requires_reconciliation";
+                }
+                if (message.reservation != null && $Object.hasOwnProperty.call(message, "reservation")) {
+                    object.reservation = $root.northstar.live.OrderReservation.toObject(message.reservation, options, _depth + 1);
+                    if (options.oneofs)
+                        object._reservation = "reservation";
+                }
+                if (message.order != null && $Object.hasOwnProperty.call(message, "order")) {
+                    object.order = $root.google.protobuf.Struct.toObject(message.order, options, _depth + 1);
+                    if (options.oneofs)
+                        object._order = "order";
+                }
+                if (message.fee_pending_lots != null && $Object.hasOwnProperty.call(message, "fee_pending_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.fee_pending_lots = typeof message.fee_pending_lots === "number" ? $BigInt(message.fee_pending_lots) : $util.Long.fromBits(message.fee_pending_lots.low >>> 0, message.fee_pending_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.fee_pending_lots === "number")
+                        object.fee_pending_lots = options.longs === $String ? $String(message.fee_pending_lots) : message.fee_pending_lots;
+                    else
+                        object.fee_pending_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.fee_pending_lots) : options.longs === $Number ? new $util.LongBits(message.fee_pending_lots.low >>> 0, message.fee_pending_lots.high >>> 0).toNumber() : message.fee_pending_lots;
+                    if (options.oneofs)
+                        object._fee_pending_lots = "fee_pending_lots";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                return object;
+            };
+
+            /**
+             * Converts this LocalOrder to JSON.
+             * @function toJSON
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            LocalOrder.prototype.toJSON = function() {
+                return LocalOrder.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for LocalOrder
+             * @function getTypeUrl
+             * @memberof northstar.live.LocalOrder
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            LocalOrder.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.LocalOrder";
+            };
+
+            return LocalOrder;
+        })();
+
+        live.LocalOrderEvent = (function() {
+
+            /**
+             * Properties of a LocalOrderEvent.
+             * @typedef {Object} northstar.live.LocalOrderEvent.$Properties
+             * @property {number|Long|null} [sequence] LocalOrderEvent sequence
+             * @property {string|null} [event_id] LocalOrderEvent event_id
+             * @property {string|null} [order_id] LocalOrderEvent order_id
+             * @property {string|null} [kind] LocalOrderEvent kind
+             * @property {string|null} [recorded_at] LocalOrderEvent recorded_at
+             * @property {google.protobuf.Struct.$Properties|null} [document] LocalOrderEvent document
+             * @property {"sequence"} [_sequence] LocalOrderEvent _sequence
+             * @property {"event_id"} [_event_id] LocalOrderEvent _event_id
+             * @property {"order_id"} [_order_id] LocalOrderEvent _order_id
+             * @property {"kind"} [_kind] LocalOrderEvent _kind
+             * @property {"recorded_at"} [_recorded_at] LocalOrderEvent _recorded_at
+             * @property {"document"} [_document] LocalOrderEvent _document
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a LocalOrderEvent.
+             * @memberof northstar.live
+             * @interface ILocalOrderEvent
+             * @augments northstar.live.LocalOrderEvent.$Properties
+             * @deprecated Use northstar.live.LocalOrderEvent.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a LocalOrderEvent.
+             * @typedef {{
+             *   sequence?: number|Long|null;
+             *   event_id?: string|null;
+             *   order_id?: string|null;
+             *   kind?: string|null;
+             *   recorded_at?: string|null;
+             *   document?: google.protobuf.Struct.$Shape|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _sequence?: undefined; sequence?: null }|{ _sequence?: "sequence"; sequence: number|Long })
+             * ) & (
+             *   ({ _event_id?: undefined; event_id?: null }|{ _event_id?: "event_id"; event_id: string })
+             * ) & (
+             *   ({ _order_id?: undefined; order_id?: null }|{ _order_id?: "order_id"; order_id: string })
+             * ) & (
+             *   ({ _kind?: undefined; kind?: null }|{ _kind?: "kind"; kind: string })
+             * ) & (
+             *   ({ _recorded_at?: undefined; recorded_at?: null }|{ _recorded_at?: "recorded_at"; recorded_at: string })
+             * ) & (
+             *   ({ _document?: undefined; document?: null }|{ _document?: "document"; document: google.protobuf.Struct.$Shape })
+             * )} northstar.live.LocalOrderEvent.$Shape
+             */
+
+            /**
+             * Constructs a new LocalOrderEvent.
+             * @memberof northstar.live
+             * @classdesc Represents a LocalOrderEvent.
+             * @constructor
+             * @param {northstar.live.LocalOrderEvent.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const LocalOrderEvent = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * LocalOrderEvent sequence.
+             * @member {number|Long|null|undefined} sequence
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            LocalOrderEvent.prototype.sequence = null;
+
+            /**
+             * LocalOrderEvent event_id.
+             * @member {string|null|undefined} event_id
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            LocalOrderEvent.prototype.event_id = null;
+
+            /**
+             * LocalOrderEvent order_id.
+             * @member {string|null|undefined} order_id
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            LocalOrderEvent.prototype.order_id = null;
+
+            /**
+             * LocalOrderEvent kind.
+             * @member {string|null|undefined} kind
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            LocalOrderEvent.prototype.kind = null;
+
+            /**
+             * LocalOrderEvent recorded_at.
+             * @member {string|null|undefined} recorded_at
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            LocalOrderEvent.prototype.recorded_at = null;
+
+            /**
+             * LocalOrderEvent document.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} document
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            LocalOrderEvent.prototype.document = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * LocalOrderEvent _sequence.
+             * @member {"sequence"|undefined} _sequence
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            $Object.defineProperty(LocalOrderEvent.prototype, "_sequence", {
+                get: $util.oneOfGetter($oneOfFields = ["sequence"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrderEvent _event_id.
+             * @member {"event_id"|undefined} _event_id
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            $Object.defineProperty(LocalOrderEvent.prototype, "_event_id", {
+                get: $util.oneOfGetter($oneOfFields = ["event_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrderEvent _order_id.
+             * @member {"order_id"|undefined} _order_id
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            $Object.defineProperty(LocalOrderEvent.prototype, "_order_id", {
+                get: $util.oneOfGetter($oneOfFields = ["order_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrderEvent _kind.
+             * @member {"kind"|undefined} _kind
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            $Object.defineProperty(LocalOrderEvent.prototype, "_kind", {
+                get: $util.oneOfGetter($oneOfFields = ["kind"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrderEvent _recorded_at.
+             * @member {"recorded_at"|undefined} _recorded_at
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            $Object.defineProperty(LocalOrderEvent.prototype, "_recorded_at", {
+                get: $util.oneOfGetter($oneOfFields = ["recorded_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrderEvent _document.
+             * @member {"document"|undefined} _document
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             */
+            $Object.defineProperty(LocalOrderEvent.prototype, "_document", {
+                get: $util.oneOfGetter($oneOfFields = ["document"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new LocalOrderEvent instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.LocalOrderEvent
+             * @static
+             * @param {northstar.live.LocalOrderEvent.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.LocalOrderEvent} LocalOrderEvent instance
+             * @type {{
+             *   (properties: northstar.live.LocalOrderEvent.$Shape): northstar.live.LocalOrderEvent & northstar.live.LocalOrderEvent.$Shape;
+             *   (properties?: northstar.live.LocalOrderEvent.$Properties): northstar.live.LocalOrderEvent;
+             * }}
+             */
+            LocalOrderEvent.create = function(properties) {
+                return new LocalOrderEvent(properties);
+            };
+
+            /**
+             * Encodes the specified LocalOrderEvent message. Does not implicitly {@link northstar.live.LocalOrderEvent.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.LocalOrderEvent
+             * @static
+             * @param {northstar.live.LocalOrderEvent.$Properties} message LocalOrderEvent message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            LocalOrderEvent.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.sequence != null && $Object.hasOwnProperty.call(message, "sequence"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.sequence);
+                if (message.event_id != null && $Object.hasOwnProperty.call(message, "event_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.event_id);
+                if (message.order_id != null && $Object.hasOwnProperty.call(message, "order_id"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.order_id);
+                if (message.kind != null && $Object.hasOwnProperty.call(message, "kind"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.kind);
+                if (message.recorded_at != null && $Object.hasOwnProperty.call(message, "recorded_at"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.recorded_at);
+                if (message.document != null && $Object.hasOwnProperty.call(message, "document"))
+                    $root.google.protobuf.Struct.encode(message.document, writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a LocalOrderEvent message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.LocalOrderEvent
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.LocalOrderEvent & northstar.live.LocalOrderEvent.$Shape} LocalOrderEvent
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            LocalOrderEvent.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.LocalOrderEvent();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 0)
+                                break;
+                            message.sequence = reader.int64();
+                            message._sequence = "sequence";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.event_id = reader.stringVerify();
+                            message._event_id = "event_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.order_id = reader.stringVerify();
+                            message._order_id = "order_id";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.kind = reader.stringVerify();
+                            message._kind = "kind";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.recorded_at = reader.stringVerify();
+                            message._recorded_at = "recorded_at";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.document = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.document);
+                            message._document = "document";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a LocalOrderEvent message.
+             * @function verify
+             * @memberof northstar.live.LocalOrderEvent
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            LocalOrderEvent.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.sequence != null && $Object.hasOwnProperty.call(message, "sequence")) {
+                    properties._sequence = 1;
+                    if (!$util.isInteger(message.sequence) && !(message.sequence && $util.isInteger(message.sequence.low) && $util.isInteger(message.sequence.high)))
+                        return "sequence: integer|Long expected";
+                }
+                if (message.event_id != null && $Object.hasOwnProperty.call(message, "event_id")) {
+                    properties._event_id = 1;
+                    if (!$util.isString(message.event_id))
+                        return "event_id: string expected";
+                }
+                if (message.order_id != null && $Object.hasOwnProperty.call(message, "order_id")) {
+                    properties._order_id = 1;
+                    if (!$util.isString(message.order_id))
+                        return "order_id: string expected";
+                }
+                if (message.kind != null && $Object.hasOwnProperty.call(message, "kind")) {
+                    properties._kind = 1;
+                    if (!$util.isString(message.kind))
+                        return "kind: string expected";
+                }
+                if (message.recorded_at != null && $Object.hasOwnProperty.call(message, "recorded_at")) {
+                    properties._recorded_at = 1;
+                    if (!$util.isString(message.recorded_at))
+                        return "recorded_at: string expected";
+                }
+                if (message.document != null && $Object.hasOwnProperty.call(message, "document")) {
+                    properties._document = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.document, _depth + 1);
+                        if (error)
+                            return "document." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a LocalOrderEvent message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.LocalOrderEvent
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.LocalOrderEvent} LocalOrderEvent
+             */
+            LocalOrderEvent.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.LocalOrderEvent)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.LocalOrderEvent: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.LocalOrderEvent();
+                if (object.sequence != null)
+                    if ($util.Long)
+                        message.sequence = $util.Long.fromValue(object.sequence, false);
+                    else if (typeof object.sequence === "string")
+                        message.sequence = $parseInt(object.sequence, 10);
+                    else if (typeof object.sequence === "number")
+                        message.sequence = object.sequence;
+                    else if (typeof object.sequence === "object")
+                        message.sequence = new $util.LongBits(object.sequence.low >>> 0, object.sequence.high >>> 0).toNumber();
+                if (object.event_id != null)
+                    message.event_id = $String(object.event_id);
+                if (object.order_id != null)
+                    message.order_id = $String(object.order_id);
+                if (object.kind != null)
+                    message.kind = $String(object.kind);
+                if (object.recorded_at != null)
+                    message.recorded_at = $String(object.recorded_at);
+                if (object.document != null) {
+                    if (!$util.isObject(object.document))
+                        throw $TypeError(".northstar.live.LocalOrderEvent.document: object expected");
+                    message.document = $root.google.protobuf.Struct.fromObject(object.document, _depth + 1);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a LocalOrderEvent message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.LocalOrderEvent
+             * @static
+             * @param {northstar.live.LocalOrderEvent} message LocalOrderEvent
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            LocalOrderEvent.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.sequence != null && $Object.hasOwnProperty.call(message, "sequence")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.sequence = typeof message.sequence === "number" ? $BigInt(message.sequence) : $util.Long.fromBits(message.sequence.low >>> 0, message.sequence.high >>> 0, false).toBigInt();
+                    else if (typeof message.sequence === "number")
+                        object.sequence = options.longs === $String ? $String(message.sequence) : message.sequence;
+                    else
+                        object.sequence = options.longs === $String ? $util.Long.prototype.toString.call(message.sequence) : options.longs === $Number ? new $util.LongBits(message.sequence.low >>> 0, message.sequence.high >>> 0).toNumber() : message.sequence;
+                    if (options.oneofs)
+                        object._sequence = "sequence";
+                }
+                if (message.event_id != null && $Object.hasOwnProperty.call(message, "event_id")) {
+                    object.event_id = message.event_id;
+                    if (options.oneofs)
+                        object._event_id = "event_id";
+                }
+                if (message.order_id != null && $Object.hasOwnProperty.call(message, "order_id")) {
+                    object.order_id = message.order_id;
+                    if (options.oneofs)
+                        object._order_id = "order_id";
+                }
+                if (message.kind != null && $Object.hasOwnProperty.call(message, "kind")) {
+                    object.kind = message.kind;
+                    if (options.oneofs)
+                        object._kind = "kind";
+                }
+                if (message.recorded_at != null && $Object.hasOwnProperty.call(message, "recorded_at")) {
+                    object.recorded_at = message.recorded_at;
+                    if (options.oneofs)
+                        object._recorded_at = "recorded_at";
+                }
+                if (message.document != null && $Object.hasOwnProperty.call(message, "document")) {
+                    object.document = $root.google.protobuf.Struct.toObject(message.document, options, _depth + 1);
+                    if (options.oneofs)
+                        object._document = "document";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this LocalOrderEvent to JSON.
+             * @function toJSON
+             * @memberof northstar.live.LocalOrderEvent
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            LocalOrderEvent.prototype.toJSON = function() {
+                return LocalOrderEvent.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for LocalOrderEvent
+             * @function getTypeUrl
+             * @memberof northstar.live.LocalOrderEvent
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            LocalOrderEvent.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.LocalOrderEvent";
+            };
+
+            return LocalOrderEvent;
+        })();
+
+        live.LocalOrderPage = (function() {
+
+            /**
+             * Properties of a LocalOrderPage.
+             * @typedef {Object} northstar.live.LocalOrderPage.$Properties
+             * @property {Array.<northstar.live.LocalOrder.$Properties>|null} [orders] LocalOrderPage orders
+             * @property {number|Long|null} [next_before] LocalOrderPage next_before
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] LocalOrderPage evidence_fields
+             * @property {Array.<string>|null} [null_fields] LocalOrderPage null_fields
+             * @property {"next_before"} [_next_before] LocalOrderPage _next_before
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a LocalOrderPage.
+             * @memberof northstar.live
+             * @interface ILocalOrderPage
+             * @augments northstar.live.LocalOrderPage.$Properties
+             * @deprecated Use northstar.live.LocalOrderPage.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a LocalOrderPage.
+             * @typedef {{
+             *   orders?: Array.<northstar.live.LocalOrder.$Shape>|null;
+             *   next_before?: number|Long|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _next_before?: undefined; next_before?: null }|{ _next_before?: "next_before"; next_before: number|Long })
+             * )} northstar.live.LocalOrderPage.$Shape
+             */
+
+            /**
+             * Constructs a new LocalOrderPage.
+             * @memberof northstar.live
+             * @classdesc Represents a LocalOrderPage.
+             * @constructor
+             * @param {northstar.live.LocalOrderPage.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const LocalOrderPage = function (properties) {
+                this.orders = [];
+                this.evidence_fields = {};
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * LocalOrderPage orders.
+             * @member {Array.<northstar.live.LocalOrder.$Properties>} orders
+             * @memberof northstar.live.LocalOrderPage
+             * @instance
+             */
+            LocalOrderPage.prototype.orders = $util.emptyArray;
+
+            /**
+             * LocalOrderPage next_before.
+             * @member {number|Long|null|undefined} next_before
+             * @memberof northstar.live.LocalOrderPage
+             * @instance
+             */
+            LocalOrderPage.prototype.next_before = null;
+
+            /**
+             * LocalOrderPage evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.LocalOrderPage
+             * @instance
+             */
+            LocalOrderPage.prototype.evidence_fields = $util.emptyObject;
+
+            /**
+             * LocalOrderPage null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.live.LocalOrderPage
+             * @instance
+             */
+            LocalOrderPage.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * LocalOrderPage _next_before.
+             * @member {"next_before"|undefined} _next_before
+             * @memberof northstar.live.LocalOrderPage
+             * @instance
+             */
+            $Object.defineProperty(LocalOrderPage.prototype, "_next_before", {
+                get: $util.oneOfGetter($oneOfFields = ["next_before"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new LocalOrderPage instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.LocalOrderPage
+             * @static
+             * @param {northstar.live.LocalOrderPage.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.LocalOrderPage} LocalOrderPage instance
+             * @type {{
+             *   (properties: northstar.live.LocalOrderPage.$Shape): northstar.live.LocalOrderPage & northstar.live.LocalOrderPage.$Shape;
+             *   (properties?: northstar.live.LocalOrderPage.$Properties): northstar.live.LocalOrderPage;
+             * }}
+             */
+            LocalOrderPage.create = function(properties) {
+                return new LocalOrderPage(properties);
+            };
+
+            /**
+             * Encodes the specified LocalOrderPage message. Does not implicitly {@link northstar.live.LocalOrderPage.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.LocalOrderPage
+             * @static
+             * @param {northstar.live.LocalOrderPage.$Properties} message LocalOrderPage message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            LocalOrderPage.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.orders != null && message.orders.length)
+                    for (let i = 0; i < message.orders.length; ++i)
+                        $root.northstar.live.LocalOrder.encode(message.orders[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.next_before != null && $Object.hasOwnProperty.call(message, "next_before"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.next_before);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a LocalOrderPage message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.LocalOrderPage
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.LocalOrderPage & northstar.live.LocalOrderPage.$Shape} LocalOrderPage
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            LocalOrderPage.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.LocalOrderPage();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.orders && message.orders.length))
+                                message.orders = [];
+                            message.orders.push($root.northstar.live.LocalOrder.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.next_before = reader.int64();
+                            message._next_before = "next_before";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a LocalOrderPage message.
+             * @function verify
+             * @memberof northstar.live.LocalOrderPage
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            LocalOrderPage.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.orders != null && $Object.hasOwnProperty.call(message, "orders")) {
+                    if (!$Array.isArray(message.orders))
+                        return "orders: array expected";
+                    for (let i = 0; i < message.orders.length; ++i) {
+                        let error = $root.northstar.live.LocalOrder.verify(message.orders[i], _depth + 1);
+                        if (error)
+                            return "orders." + error;
+                    }
+                }
+                if (message.next_before != null && $Object.hasOwnProperty.call(message, "next_before")) {
+                    properties._next_before = 1;
+                    if (!$util.isInteger(message.next_before) && !(message.next_before && $util.isInteger(message.next_before.low) && $util.isInteger(message.next_before.high)))
+                        return "next_before: integer|Long expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a LocalOrderPage message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.LocalOrderPage
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.LocalOrderPage} LocalOrderPage
+             */
+            LocalOrderPage.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.LocalOrderPage)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.LocalOrderPage: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.LocalOrderPage();
+                if (object.orders) {
+                    if (!$Array.isArray(object.orders))
+                        throw $TypeError(".northstar.live.LocalOrderPage.orders: array expected");
+                    message.orders = $Array(object.orders.length);
+                    for (let i = 0; i < object.orders.length; ++i) {
+                        if (!$util.isObject(object.orders[i]))
+                            throw $TypeError(".northstar.live.LocalOrderPage.orders: object expected");
+                        message.orders[i] = $root.northstar.live.LocalOrder.fromObject(object.orders[i], _depth + 1);
+                    }
+                }
+                if (object.next_before != null)
+                    if ($util.Long)
+                        message.next_before = $util.Long.fromValue(object.next_before, false);
+                    else if (typeof object.next_before === "string")
+                        message.next_before = $parseInt(object.next_before, 10);
+                    else if (typeof object.next_before === "number")
+                        message.next_before = object.next_before;
+                    else if (typeof object.next_before === "object")
+                        message.next_before = new $util.LongBits(object.next_before.low >>> 0, object.next_before.high >>> 0).toNumber();
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.LocalOrderPage.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.LocalOrderPage.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.live.LocalOrderPage.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a LocalOrderPage message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.LocalOrderPage
+             * @static
+             * @param {northstar.live.LocalOrderPage} message LocalOrderPage
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            LocalOrderPage.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.orders = [];
+                    object.null_fields = [];
+                }
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.orders && message.orders.length) {
+                    object.orders = $Array(message.orders.length);
+                    for (let j = 0; j < message.orders.length; ++j)
+                        object.orders[j] = $root.northstar.live.LocalOrder.toObject(message.orders[j], options, _depth + 1);
+                }
+                if (message.next_before != null && $Object.hasOwnProperty.call(message, "next_before")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.next_before = typeof message.next_before === "number" ? $BigInt(message.next_before) : $util.Long.fromBits(message.next_before.low >>> 0, message.next_before.high >>> 0, false).toBigInt();
+                    else if (typeof message.next_before === "number")
+                        object.next_before = options.longs === $String ? $String(message.next_before) : message.next_before;
+                    else
+                        object.next_before = options.longs === $String ? $util.Long.prototype.toString.call(message.next_before) : options.longs === $Number ? new $util.LongBits(message.next_before.low >>> 0, message.next_before.high >>> 0).toNumber() : message.next_before;
+                    if (options.oneofs)
+                        object._next_before = "next_before";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this LocalOrderPage to JSON.
+             * @function toJSON
+             * @memberof northstar.live.LocalOrderPage
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            LocalOrderPage.prototype.toJSON = function() {
+                return LocalOrderPage.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for LocalOrderPage
+             * @function getTypeUrl
+             * @memberof northstar.live.LocalOrderPage
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            LocalOrderPage.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.LocalOrderPage";
+            };
+
+            return LocalOrderPage;
+        })();
+
+        live.LocalOrderDetail = (function() {
+
+            /**
+             * Properties of a LocalOrderDetail.
+             * @typedef {Object} northstar.live.LocalOrderDetail.$Properties
+             * @property {northstar.live.LocalOrder.$Properties|null} [record] LocalOrderDetail record
+             * @property {Array.<northstar.live.LocalOrderEvent.$Properties>|null} [events] LocalOrderDetail events
+             * @property {number|Long|null} [next_after] LocalOrderDetail next_after
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] LocalOrderDetail evidence_fields
+             * @property {Array.<string>|null} [null_fields] LocalOrderDetail null_fields
+             * @property {"record"} [_record] LocalOrderDetail _record
+             * @property {"next_after"} [_next_after] LocalOrderDetail _next_after
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a LocalOrderDetail.
+             * @memberof northstar.live
+             * @interface ILocalOrderDetail
+             * @augments northstar.live.LocalOrderDetail.$Properties
+             * @deprecated Use northstar.live.LocalOrderDetail.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a LocalOrderDetail.
+             * @typedef {{
+             *   record?: northstar.live.LocalOrder.$Shape|null;
+             *   events?: Array.<northstar.live.LocalOrderEvent.$Shape>|null;
+             *   next_after?: number|Long|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _record?: undefined; record?: null }|{ _record?: "record"; record: northstar.live.LocalOrder.$Shape })
+             * ) & (
+             *   ({ _next_after?: undefined; next_after?: null }|{ _next_after?: "next_after"; next_after: number|Long })
+             * )} northstar.live.LocalOrderDetail.$Shape
+             */
+
+            /**
+             * Constructs a new LocalOrderDetail.
+             * @memberof northstar.live
+             * @classdesc Represents a LocalOrderDetail.
+             * @constructor
+             * @param {northstar.live.LocalOrderDetail.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const LocalOrderDetail = function (properties) {
+                this.events = [];
+                this.evidence_fields = {};
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * LocalOrderDetail record.
+             * @member {northstar.live.LocalOrder.$Properties|null|undefined} record
+             * @memberof northstar.live.LocalOrderDetail
+             * @instance
+             */
+            LocalOrderDetail.prototype.record = null;
+
+            /**
+             * LocalOrderDetail events.
+             * @member {Array.<northstar.live.LocalOrderEvent.$Properties>} events
+             * @memberof northstar.live.LocalOrderDetail
+             * @instance
+             */
+            LocalOrderDetail.prototype.events = $util.emptyArray;
+
+            /**
+             * LocalOrderDetail next_after.
+             * @member {number|Long|null|undefined} next_after
+             * @memberof northstar.live.LocalOrderDetail
+             * @instance
+             */
+            LocalOrderDetail.prototype.next_after = null;
+
+            /**
+             * LocalOrderDetail evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.LocalOrderDetail
+             * @instance
+             */
+            LocalOrderDetail.prototype.evidence_fields = $util.emptyObject;
+
+            /**
+             * LocalOrderDetail null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.live.LocalOrderDetail
+             * @instance
+             */
+            LocalOrderDetail.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * LocalOrderDetail _record.
+             * @member {"record"|undefined} _record
+             * @memberof northstar.live.LocalOrderDetail
+             * @instance
+             */
+            $Object.defineProperty(LocalOrderDetail.prototype, "_record", {
+                get: $util.oneOfGetter($oneOfFields = ["record"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LocalOrderDetail _next_after.
+             * @member {"next_after"|undefined} _next_after
+             * @memberof northstar.live.LocalOrderDetail
+             * @instance
+             */
+            $Object.defineProperty(LocalOrderDetail.prototype, "_next_after", {
+                get: $util.oneOfGetter($oneOfFields = ["next_after"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new LocalOrderDetail instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.LocalOrderDetail
+             * @static
+             * @param {northstar.live.LocalOrderDetail.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.LocalOrderDetail} LocalOrderDetail instance
+             * @type {{
+             *   (properties: northstar.live.LocalOrderDetail.$Shape): northstar.live.LocalOrderDetail & northstar.live.LocalOrderDetail.$Shape;
+             *   (properties?: northstar.live.LocalOrderDetail.$Properties): northstar.live.LocalOrderDetail;
+             * }}
+             */
+            LocalOrderDetail.create = function(properties) {
+                return new LocalOrderDetail(properties);
+            };
+
+            /**
+             * Encodes the specified LocalOrderDetail message. Does not implicitly {@link northstar.live.LocalOrderDetail.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.LocalOrderDetail
+             * @static
+             * @param {northstar.live.LocalOrderDetail.$Properties} message LocalOrderDetail message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            LocalOrderDetail.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.record != null && $Object.hasOwnProperty.call(message, "record"))
+                    $root.northstar.live.LocalOrder.encode(message.record, writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.events != null && message.events.length)
+                    for (let i = 0; i < message.events.length; ++i)
+                        $root.northstar.live.LocalOrderEvent.encode(message.events[i], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim();
+                if (message.next_after != null && $Object.hasOwnProperty.call(message, "next_after"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.next_after);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a LocalOrderDetail message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.LocalOrderDetail
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.LocalOrderDetail & northstar.live.LocalOrderDetail.$Shape} LocalOrderDetail
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            LocalOrderDetail.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.LocalOrderDetail();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.record = $root.northstar.live.LocalOrder.decode(reader, reader.uint32(), $undefined, _depth + 1, message.record);
+                            message._record = "record";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.events && message.events.length))
+                                message.events = [];
+                            message.events.push($root.northstar.live.LocalOrderEvent.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.next_after = reader.int64();
+                            message._next_after = "next_after";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a LocalOrderDetail message.
+             * @function verify
+             * @memberof northstar.live.LocalOrderDetail
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            LocalOrderDetail.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.record != null && $Object.hasOwnProperty.call(message, "record")) {
+                    properties._record = 1;
+                    {
+                        let error = $root.northstar.live.LocalOrder.verify(message.record, _depth + 1);
+                        if (error)
+                            return "record." + error;
+                    }
+                }
+                if (message.events != null && $Object.hasOwnProperty.call(message, "events")) {
+                    if (!$Array.isArray(message.events))
+                        return "events: array expected";
+                    for (let i = 0; i < message.events.length; ++i) {
+                        let error = $root.northstar.live.LocalOrderEvent.verify(message.events[i], _depth + 1);
+                        if (error)
+                            return "events." + error;
+                    }
+                }
+                if (message.next_after != null && $Object.hasOwnProperty.call(message, "next_after")) {
+                    properties._next_after = 1;
+                    if (!$util.isInteger(message.next_after) && !(message.next_after && $util.isInteger(message.next_after.low) && $util.isInteger(message.next_after.high)))
+                        return "next_after: integer|Long expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a LocalOrderDetail message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.LocalOrderDetail
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.LocalOrderDetail} LocalOrderDetail
+             */
+            LocalOrderDetail.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.LocalOrderDetail)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.LocalOrderDetail: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.LocalOrderDetail();
+                if (object.record != null) {
+                    if (!$util.isObject(object.record))
+                        throw $TypeError(".northstar.live.LocalOrderDetail.record: object expected");
+                    message.record = $root.northstar.live.LocalOrder.fromObject(object.record, _depth + 1);
+                }
+                if (object.events) {
+                    if (!$Array.isArray(object.events))
+                        throw $TypeError(".northstar.live.LocalOrderDetail.events: array expected");
+                    message.events = $Array(object.events.length);
+                    for (let i = 0; i < object.events.length; ++i) {
+                        if (!$util.isObject(object.events[i]))
+                            throw $TypeError(".northstar.live.LocalOrderDetail.events: object expected");
+                        message.events[i] = $root.northstar.live.LocalOrderEvent.fromObject(object.events[i], _depth + 1);
+                    }
+                }
+                if (object.next_after != null)
+                    if ($util.Long)
+                        message.next_after = $util.Long.fromValue(object.next_after, false);
+                    else if (typeof object.next_after === "string")
+                        message.next_after = $parseInt(object.next_after, 10);
+                    else if (typeof object.next_after === "number")
+                        message.next_after = object.next_after;
+                    else if (typeof object.next_after === "object")
+                        message.next_after = new $util.LongBits(object.next_after.low >>> 0, object.next_after.high >>> 0).toNumber();
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.LocalOrderDetail.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.LocalOrderDetail.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.live.LocalOrderDetail.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a LocalOrderDetail message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.LocalOrderDetail
+             * @static
+             * @param {northstar.live.LocalOrderDetail} message LocalOrderDetail
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            LocalOrderDetail.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.events = [];
+                    object.null_fields = [];
+                }
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.record != null && $Object.hasOwnProperty.call(message, "record")) {
+                    object.record = $root.northstar.live.LocalOrder.toObject(message.record, options, _depth + 1);
+                    if (options.oneofs)
+                        object._record = "record";
+                }
+                if (message.events && message.events.length) {
+                    object.events = $Array(message.events.length);
+                    for (let j = 0; j < message.events.length; ++j)
+                        object.events[j] = $root.northstar.live.LocalOrderEvent.toObject(message.events[j], options, _depth + 1);
+                }
+                if (message.next_after != null && $Object.hasOwnProperty.call(message, "next_after")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.next_after = typeof message.next_after === "number" ? $BigInt(message.next_after) : $util.Long.fromBits(message.next_after.low >>> 0, message.next_after.high >>> 0, false).toBigInt();
+                    else if (typeof message.next_after === "number")
+                        object.next_after = options.longs === $String ? $String(message.next_after) : message.next_after;
+                    else
+                        object.next_after = options.longs === $String ? $util.Long.prototype.toString.call(message.next_after) : options.longs === $Number ? new $util.LongBits(message.next_after.low >>> 0, message.next_after.high >>> 0).toNumber() : message.next_after;
+                    if (options.oneofs)
+                        object._next_after = "next_after";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this LocalOrderDetail to JSON.
+             * @function toJSON
+             * @memberof northstar.live.LocalOrderDetail
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            LocalOrderDetail.prototype.toJSON = function() {
+                return LocalOrderDetail.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for LocalOrderDetail
+             * @function getTypeUrl
+             * @memberof northstar.live.LocalOrderDetail
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            LocalOrderDetail.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.LocalOrderDetail";
+            };
+
+            return LocalOrderDetail;
+        })();
+
+        live.ExecutionConsent = (function() {
+
+            /**
+             * Properties of an ExecutionConsent.
+             * @typedef {Object} northstar.live.ExecutionConsent.$Properties
+             * @property {string|null} [authorization_id] ExecutionConsent authorization_id
+             * @property {string|null} [status] ExecutionConsent status
+             * @property {boolean|null} [requires_current_admission] ExecutionConsent requires_current_admission
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ExecutionConsent evidence_fields
+             * @property {"authorization_id"} [_authorization_id] ExecutionConsent _authorization_id
+             * @property {"status"} [_status] ExecutionConsent _status
+             * @property {"requires_current_admission"} [_requires_current_admission] ExecutionConsent _requires_current_admission
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExecutionConsent.
+             * @memberof northstar.live
+             * @interface IExecutionConsent
+             * @augments northstar.live.ExecutionConsent.$Properties
+             * @deprecated Use northstar.live.ExecutionConsent.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an ExecutionConsent.
+             * @typedef {{
+             *   authorization_id?: string|null;
+             *   status?: string|null;
+             *   requires_current_admission?: boolean|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _authorization_id?: undefined; authorization_id?: null }|{ _authorization_id?: "authorization_id"; authorization_id: string })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _requires_current_admission?: undefined; requires_current_admission?: null }|{ _requires_current_admission?: "requires_current_admission"; requires_current_admission: boolean })
+             * )} northstar.live.ExecutionConsent.$Shape
+             */
+
+            /**
+             * Constructs a new ExecutionConsent.
+             * @memberof northstar.live
+             * @classdesc Represents an ExecutionConsent.
+             * @constructor
+             * @param {northstar.live.ExecutionConsent.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExecutionConsent = function (properties) {
+                this.evidence_fields = {};
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExecutionConsent authorization_id.
+             * @member {string|null|undefined} authorization_id
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            ExecutionConsent.prototype.authorization_id = null;
+
+            /**
+             * ExecutionConsent status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            ExecutionConsent.prototype.status = null;
+
+            /**
+             * ExecutionConsent requires_current_admission.
+             * @member {boolean|null|undefined} requires_current_admission
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            ExecutionConsent.prototype.requires_current_admission = null;
+
+            /**
+             * ExecutionConsent evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            ExecutionConsent.prototype.evidence_fields = $util.emptyObject;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ExecutionConsent _authorization_id.
+             * @member {"authorization_id"|undefined} _authorization_id
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            $Object.defineProperty(ExecutionConsent.prototype, "_authorization_id", {
+                get: $util.oneOfGetter($oneOfFields = ["authorization_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExecutionConsent _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            $Object.defineProperty(ExecutionConsent.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExecutionConsent _requires_current_admission.
+             * @member {"requires_current_admission"|undefined} _requires_current_admission
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            $Object.defineProperty(ExecutionConsent.prototype, "_requires_current_admission", {
+                get: $util.oneOfGetter($oneOfFields = ["requires_current_admission"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ExecutionConsent instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {northstar.live.ExecutionConsent.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.ExecutionConsent} ExecutionConsent instance
+             * @type {{
+             *   (properties: northstar.live.ExecutionConsent.$Shape): northstar.live.ExecutionConsent & northstar.live.ExecutionConsent.$Shape;
+             *   (properties?: northstar.live.ExecutionConsent.$Properties): northstar.live.ExecutionConsent;
+             * }}
+             */
+            ExecutionConsent.create = function(properties) {
+                return new ExecutionConsent(properties);
+            };
+
+            /**
+             * Encodes the specified ExecutionConsent message. Does not implicitly {@link northstar.live.ExecutionConsent.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {northstar.live.ExecutionConsent.$Properties} message ExecutionConsent message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExecutionConsent.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.authorization_id);
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.status);
+                if (message.requires_current_admission != null && $Object.hasOwnProperty.call(message, "requires_current_admission"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).bool(message.requires_current_admission);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExecutionConsent message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.ExecutionConsent & northstar.live.ExecutionConsent.$Shape} ExecutionConsent
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExecutionConsent.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.ExecutionConsent();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.authorization_id = reader.stringVerify();
+                            message._authorization_id = "authorization_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.requires_current_admission = reader.bool();
+                            message._requires_current_admission = "requires_current_admission";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExecutionConsent message.
+             * @function verify
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExecutionConsent.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id")) {
+                    properties._authorization_id = 1;
+                    if (!$util.isString(message.authorization_id))
+                        return "authorization_id: string expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.requires_current_admission != null && $Object.hasOwnProperty.call(message, "requires_current_admission")) {
+                    properties._requires_current_admission = 1;
+                    if (typeof message.requires_current_admission !== "boolean")
+                        return "requires_current_admission: boolean expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExecutionConsent message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.ExecutionConsent} ExecutionConsent
+             */
+            ExecutionConsent.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.ExecutionConsent)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.ExecutionConsent: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.ExecutionConsent();
+                if (object.authorization_id != null)
+                    message.authorization_id = $String(object.authorization_id);
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.requires_current_admission != null)
+                    message.requires_current_admission = $Boolean(object.requires_current_admission);
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.ExecutionConsent.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.ExecutionConsent.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExecutionConsent message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {northstar.live.ExecutionConsent} message ExecutionConsent
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExecutionConsent.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id")) {
+                    object.authorization_id = message.authorization_id;
+                    if (options.oneofs)
+                        object._authorization_id = "authorization_id";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.requires_current_admission != null && $Object.hasOwnProperty.call(message, "requires_current_admission")) {
+                    object.requires_current_admission = message.requires_current_admission;
+                    if (options.oneofs)
+                        object._requires_current_admission = "requires_current_admission";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExecutionConsent to JSON.
+             * @function toJSON
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExecutionConsent.prototype.toJSON = function() {
+                return ExecutionConsent.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExecutionConsent
+             * @function getTypeUrl
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExecutionConsent.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.ExecutionConsent";
+            };
+
+            return ExecutionConsent;
+        })();
+
+        live.ConsentPage = (function() {
+
+            /**
+             * Properties of a ConsentPage.
+             * @typedef {Object} northstar.live.ConsentPage.$Properties
+             * @property {Array.<northstar.live.ExecutionConsent.$Properties>|null} [authorizations] ConsentPage authorizations
+             * @property {number|Long|null} [next_before] ConsentPage next_before
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ConsentPage evidence_fields
+             * @property {Array.<string>|null} [null_fields] ConsentPage null_fields
+             * @property {"next_before"} [_next_before] ConsentPage _next_before
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ConsentPage.
+             * @memberof northstar.live
+             * @interface IConsentPage
+             * @augments northstar.live.ConsentPage.$Properties
+             * @deprecated Use northstar.live.ConsentPage.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ConsentPage.
+             * @typedef {{
+             *   authorizations?: Array.<northstar.live.ExecutionConsent.$Shape>|null;
+             *   next_before?: number|Long|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _next_before?: undefined; next_before?: null }|{ _next_before?: "next_before"; next_before: number|Long })
+             * )} northstar.live.ConsentPage.$Shape
+             */
+
+            /**
+             * Constructs a new ConsentPage.
+             * @memberof northstar.live
+             * @classdesc Represents a ConsentPage.
+             * @constructor
+             * @param {northstar.live.ConsentPage.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ConsentPage = function (properties) {
+                this.authorizations = [];
+                this.evidence_fields = {};
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ConsentPage authorizations.
+             * @member {Array.<northstar.live.ExecutionConsent.$Properties>} authorizations
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            ConsentPage.prototype.authorizations = $util.emptyArray;
+
+            /**
+             * ConsentPage next_before.
+             * @member {number|Long|null|undefined} next_before
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            ConsentPage.prototype.next_before = null;
+
+            /**
+             * ConsentPage evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            ConsentPage.prototype.evidence_fields = $util.emptyObject;
+
+            /**
+             * ConsentPage null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            ConsentPage.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ConsentPage _next_before.
+             * @member {"next_before"|undefined} _next_before
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            $Object.defineProperty(ConsentPage.prototype, "_next_before", {
+                get: $util.oneOfGetter($oneOfFields = ["next_before"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ConsentPage instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {northstar.live.ConsentPage.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.ConsentPage} ConsentPage instance
+             * @type {{
+             *   (properties: northstar.live.ConsentPage.$Shape): northstar.live.ConsentPage & northstar.live.ConsentPage.$Shape;
+             *   (properties?: northstar.live.ConsentPage.$Properties): northstar.live.ConsentPage;
+             * }}
+             */
+            ConsentPage.create = function(properties) {
+                return new ConsentPage(properties);
+            };
+
+            /**
+             * Encodes the specified ConsentPage message. Does not implicitly {@link northstar.live.ConsentPage.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {northstar.live.ConsentPage.$Properties} message ConsentPage message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ConsentPage.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.authorizations != null && message.authorizations.length)
+                    for (let i = 0; i < message.authorizations.length; ++i)
+                        $root.northstar.live.ExecutionConsent.encode(message.authorizations[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.next_before != null && $Object.hasOwnProperty.call(message, "next_before"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.next_before);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ConsentPage message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.ConsentPage & northstar.live.ConsentPage.$Shape} ConsentPage
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ConsentPage.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.ConsentPage();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.authorizations && message.authorizations.length))
+                                message.authorizations = [];
+                            message.authorizations.push($root.northstar.live.ExecutionConsent.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.next_before = reader.int64();
+                            message._next_before = "next_before";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ConsentPage message.
+             * @function verify
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ConsentPage.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.authorizations != null && $Object.hasOwnProperty.call(message, "authorizations")) {
+                    if (!$Array.isArray(message.authorizations))
+                        return "authorizations: array expected";
+                    for (let i = 0; i < message.authorizations.length; ++i) {
+                        let error = $root.northstar.live.ExecutionConsent.verify(message.authorizations[i], _depth + 1);
+                        if (error)
+                            return "authorizations." + error;
+                    }
+                }
+                if (message.next_before != null && $Object.hasOwnProperty.call(message, "next_before")) {
+                    properties._next_before = 1;
+                    if (!$util.isInteger(message.next_before) && !(message.next_before && $util.isInteger(message.next_before.low) && $util.isInteger(message.next_before.high)))
+                        return "next_before: integer|Long expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ConsentPage message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.ConsentPage} ConsentPage
+             */
+            ConsentPage.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.ConsentPage)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.ConsentPage: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.ConsentPage();
+                if (object.authorizations) {
+                    if (!$Array.isArray(object.authorizations))
+                        throw $TypeError(".northstar.live.ConsentPage.authorizations: array expected");
+                    message.authorizations = $Array(object.authorizations.length);
+                    for (let i = 0; i < object.authorizations.length; ++i) {
+                        if (!$util.isObject(object.authorizations[i]))
+                            throw $TypeError(".northstar.live.ConsentPage.authorizations: object expected");
+                        message.authorizations[i] = $root.northstar.live.ExecutionConsent.fromObject(object.authorizations[i], _depth + 1);
+                    }
+                }
+                if (object.next_before != null)
+                    if ($util.Long)
+                        message.next_before = $util.Long.fromValue(object.next_before, false);
+                    else if (typeof object.next_before === "string")
+                        message.next_before = $parseInt(object.next_before, 10);
+                    else if (typeof object.next_before === "number")
+                        message.next_before = object.next_before;
+                    else if (typeof object.next_before === "object")
+                        message.next_before = new $util.LongBits(object.next_before.low >>> 0, object.next_before.high >>> 0).toNumber();
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.ConsentPage.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.ConsentPage.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.live.ConsentPage.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ConsentPage message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {northstar.live.ConsentPage} message ConsentPage
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ConsentPage.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.authorizations = [];
+                    object.null_fields = [];
+                }
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.authorizations && message.authorizations.length) {
+                    object.authorizations = $Array(message.authorizations.length);
+                    for (let j = 0; j < message.authorizations.length; ++j)
+                        object.authorizations[j] = $root.northstar.live.ExecutionConsent.toObject(message.authorizations[j], options, _depth + 1);
+                }
+                if (message.next_before != null && $Object.hasOwnProperty.call(message, "next_before")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.next_before = typeof message.next_before === "number" ? $BigInt(message.next_before) : $util.Long.fromBits(message.next_before.low >>> 0, message.next_before.high >>> 0, false).toBigInt();
+                    else if (typeof message.next_before === "number")
+                        object.next_before = options.longs === $String ? $String(message.next_before) : message.next_before;
+                    else
+                        object.next_before = options.longs === $String ? $util.Long.prototype.toString.call(message.next_before) : options.longs === $Number ? new $util.LongBits(message.next_before.low >>> 0, message.next_before.high >>> 0).toNumber() : message.next_before;
+                    if (options.oneofs)
+                        object._next_before = "next_before";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ConsentPage to JSON.
+             * @function toJSON
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ConsentPage.prototype.toJSON = function() {
+                return ConsentPage.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ConsentPage
+             * @function getTypeUrl
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ConsentPage.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.ConsentPage";
+            };
+
+            return ConsentPage;
+        })();
+
+        live.ConsentRequest = (function() {
+
+            /**
+             * Properties of a ConsentRequest.
+             * @typedef {Object} northstar.live.ConsentRequest.$Properties
+             * @property {string|null} [request_id] ConsentRequest request_id
+             * @property {string|null} [expires_at] ConsentRequest expires_at
+             * @property {number|Long|null} [max_order_lots] ConsentRequest max_order_lots
+             * @property {number|Long|null} [max_total_lots] ConsentRequest max_total_lots
+             * @property {string|null} [fee] ConsentRequest fee
+             * @property {string|null} [margin] ConsentRequest margin
+             * @property {string|null} [gross] ConsentRequest gross
+             * @property {string|null} [loss] ConsentRequest loss
+             * @property {"request_id"} [_request_id] ConsentRequest _request_id
+             * @property {"expires_at"} [_expires_at] ConsentRequest _expires_at
+             * @property {"max_order_lots"} [_max_order_lots] ConsentRequest _max_order_lots
+             * @property {"max_total_lots"} [_max_total_lots] ConsentRequest _max_total_lots
+             * @property {"fee"} [_fee] ConsentRequest _fee
+             * @property {"margin"} [_margin] ConsentRequest _margin
+             * @property {"gross"} [_gross] ConsentRequest _gross
+             * @property {"loss"} [_loss] ConsentRequest _loss
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ConsentRequest.
+             * @memberof northstar.live
+             * @interface IConsentRequest
+             * @augments northstar.live.ConsentRequest.$Properties
+             * @deprecated Use northstar.live.ConsentRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ConsentRequest.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   expires_at?: string|null;
+             *   max_order_lots?: number|Long|null;
+             *   max_total_lots?: number|Long|null;
+             *   fee?: string|null;
+             *   margin?: string|null;
+             *   gross?: string|null;
+             *   loss?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
+             *   ({ _expires_at?: undefined; expires_at?: null }|{ _expires_at?: "expires_at"; expires_at: string })
+             * ) & (
+             *   ({ _max_order_lots?: undefined; max_order_lots?: null }|{ _max_order_lots?: "max_order_lots"; max_order_lots: number|Long })
+             * ) & (
+             *   ({ _max_total_lots?: undefined; max_total_lots?: null }|{ _max_total_lots?: "max_total_lots"; max_total_lots: number|Long })
+             * ) & (
+             *   ({ _fee?: undefined; fee?: null }|{ _fee?: "fee"; fee: string })
+             * ) & (
+             *   ({ _margin?: undefined; margin?: null }|{ _margin?: "margin"; margin: string })
+             * ) & (
+             *   ({ _gross?: undefined; gross?: null }|{ _gross?: "gross"; gross: string })
+             * ) & (
+             *   ({ _loss?: undefined; loss?: null }|{ _loss?: "loss"; loss: string })
+             * )} northstar.live.ConsentRequest.$Shape
+             */
+
+            /**
+             * Constructs a new ConsentRequest.
+             * @memberof northstar.live
+             * @classdesc Represents a ConsentRequest.
+             * @constructor
+             * @param {northstar.live.ConsentRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ConsentRequest = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ConsentRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.request_id = null;
+
+            /**
+             * ConsentRequest expires_at.
+             * @member {string|null|undefined} expires_at
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.expires_at = null;
+
+            /**
+             * ConsentRequest max_order_lots.
+             * @member {number|Long|null|undefined} max_order_lots
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.max_order_lots = null;
+
+            /**
+             * ConsentRequest max_total_lots.
+             * @member {number|Long|null|undefined} max_total_lots
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.max_total_lots = null;
+
+            /**
+             * ConsentRequest fee.
+             * @member {string|null|undefined} fee
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.fee = null;
+
+            /**
+             * ConsentRequest margin.
+             * @member {string|null|undefined} margin
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.margin = null;
+
+            /**
+             * ConsentRequest gross.
+             * @member {string|null|undefined} gross
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.gross = null;
+
+            /**
+             * ConsentRequest loss.
+             * @member {string|null|undefined} loss
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.loss = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ConsentRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _expires_at.
+             * @member {"expires_at"|undefined} _expires_at
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_expires_at", {
+                get: $util.oneOfGetter($oneOfFields = ["expires_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _max_order_lots.
+             * @member {"max_order_lots"|undefined} _max_order_lots
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_max_order_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["max_order_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _max_total_lots.
+             * @member {"max_total_lots"|undefined} _max_total_lots
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_max_total_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["max_total_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _fee.
+             * @member {"fee"|undefined} _fee
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _margin.
+             * @member {"margin"|undefined} _margin
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _gross.
+             * @member {"gross"|undefined} _gross
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_gross", {
+                get: $util.oneOfGetter($oneOfFields = ["gross"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _loss.
+             * @member {"loss"|undefined} _loss
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_loss", {
+                get: $util.oneOfGetter($oneOfFields = ["loss"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ConsentRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {northstar.live.ConsentRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.ConsentRequest} ConsentRequest instance
+             * @type {{
+             *   (properties: northstar.live.ConsentRequest.$Shape): northstar.live.ConsentRequest & northstar.live.ConsentRequest.$Shape;
+             *   (properties?: northstar.live.ConsentRequest.$Properties): northstar.live.ConsentRequest;
+             * }}
+             */
+            ConsentRequest.create = function(properties) {
+                return new ConsentRequest(properties);
+            };
+
+            /**
+             * Encodes the specified ConsentRequest message. Does not implicitly {@link northstar.live.ConsentRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {northstar.live.ConsentRequest.$Properties} message ConsentRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ConsentRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.expires_at);
+                if (message.max_order_lots != null && $Object.hasOwnProperty.call(message, "max_order_lots"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.max_order_lots);
+                if (message.max_total_lots != null && $Object.hasOwnProperty.call(message, "max_total_lots"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int64(message.max_total_lots);
+                if (message.fee != null && $Object.hasOwnProperty.call(message, "fee"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.fee);
+                if (message.margin != null && $Object.hasOwnProperty.call(message, "margin"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.margin);
+                if (message.gross != null && $Object.hasOwnProperty.call(message, "gross"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.gross);
+                if (message.loss != null && $Object.hasOwnProperty.call(message, "loss"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.loss);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ConsentRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.ConsentRequest & northstar.live.ConsentRequest.$Shape} ConsentRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ConsentRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.ConsentRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.expires_at = reader.stringVerify();
+                            message._expires_at = "expires_at";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.max_order_lots = reader.int64();
+                            message._max_order_lots = "max_order_lots";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 0)
+                                break;
+                            message.max_total_lots = reader.int64();
+                            message._max_total_lots = "max_total_lots";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.fee = reader.stringVerify();
+                            message._fee = "fee";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.margin = reader.stringVerify();
+                            message._margin = "margin";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.gross = reader.stringVerify();
+                            message._gross = "gross";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.loss = reader.stringVerify();
+                            message._loss = "loss";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ConsentRequest message.
+             * @function verify
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ConsentRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                    properties._expires_at = 1;
+                    if (!$util.isString(message.expires_at))
+                        return "expires_at: string expected";
+                }
+                if (message.max_order_lots != null && $Object.hasOwnProperty.call(message, "max_order_lots")) {
+                    properties._max_order_lots = 1;
+                    if (!$util.isInteger(message.max_order_lots) && !(message.max_order_lots && $util.isInteger(message.max_order_lots.low) && $util.isInteger(message.max_order_lots.high)))
+                        return "max_order_lots: integer|Long expected";
+                }
+                if (message.max_total_lots != null && $Object.hasOwnProperty.call(message, "max_total_lots")) {
+                    properties._max_total_lots = 1;
+                    if (!$util.isInteger(message.max_total_lots) && !(message.max_total_lots && $util.isInteger(message.max_total_lots.low) && $util.isInteger(message.max_total_lots.high)))
+                        return "max_total_lots: integer|Long expected";
+                }
+                if (message.fee != null && $Object.hasOwnProperty.call(message, "fee")) {
+                    properties._fee = 1;
+                    if (!$util.isString(message.fee))
+                        return "fee: string expected";
+                }
+                if (message.margin != null && $Object.hasOwnProperty.call(message, "margin")) {
+                    properties._margin = 1;
+                    if (!$util.isString(message.margin))
+                        return "margin: string expected";
+                }
+                if (message.gross != null && $Object.hasOwnProperty.call(message, "gross")) {
+                    properties._gross = 1;
+                    if (!$util.isString(message.gross))
+                        return "gross: string expected";
+                }
+                if (message.loss != null && $Object.hasOwnProperty.call(message, "loss")) {
+                    properties._loss = 1;
+                    if (!$util.isString(message.loss))
+                        return "loss: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ConsentRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.ConsentRequest} ConsentRequest
+             */
+            ConsentRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.ConsentRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.ConsentRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.ConsentRequest();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.expires_at != null)
+                    message.expires_at = $String(object.expires_at);
+                if (object.max_order_lots != null)
+                    if ($util.Long)
+                        message.max_order_lots = $util.Long.fromValue(object.max_order_lots, false);
+                    else if (typeof object.max_order_lots === "string")
+                        message.max_order_lots = $parseInt(object.max_order_lots, 10);
+                    else if (typeof object.max_order_lots === "number")
+                        message.max_order_lots = object.max_order_lots;
+                    else if (typeof object.max_order_lots === "object")
+                        message.max_order_lots = new $util.LongBits(object.max_order_lots.low >>> 0, object.max_order_lots.high >>> 0).toNumber();
+                if (object.max_total_lots != null)
+                    if ($util.Long)
+                        message.max_total_lots = $util.Long.fromValue(object.max_total_lots, false);
+                    else if (typeof object.max_total_lots === "string")
+                        message.max_total_lots = $parseInt(object.max_total_lots, 10);
+                    else if (typeof object.max_total_lots === "number")
+                        message.max_total_lots = object.max_total_lots;
+                    else if (typeof object.max_total_lots === "object")
+                        message.max_total_lots = new $util.LongBits(object.max_total_lots.low >>> 0, object.max_total_lots.high >>> 0).toNumber();
+                if (object.fee != null)
+                    message.fee = $String(object.fee);
+                if (object.margin != null)
+                    message.margin = $String(object.margin);
+                if (object.gross != null)
+                    message.gross = $String(object.gross);
+                if (object.loss != null)
+                    message.loss = $String(object.loss);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ConsentRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {northstar.live.ConsentRequest} message ConsentRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ConsentRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                    object.expires_at = message.expires_at;
+                    if (options.oneofs)
+                        object._expires_at = "expires_at";
+                }
+                if (message.max_order_lots != null && $Object.hasOwnProperty.call(message, "max_order_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.max_order_lots = typeof message.max_order_lots === "number" ? $BigInt(message.max_order_lots) : $util.Long.fromBits(message.max_order_lots.low >>> 0, message.max_order_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.max_order_lots === "number")
+                        object.max_order_lots = options.longs === $String ? $String(message.max_order_lots) : message.max_order_lots;
+                    else
+                        object.max_order_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.max_order_lots) : options.longs === $Number ? new $util.LongBits(message.max_order_lots.low >>> 0, message.max_order_lots.high >>> 0).toNumber() : message.max_order_lots;
+                    if (options.oneofs)
+                        object._max_order_lots = "max_order_lots";
+                }
+                if (message.max_total_lots != null && $Object.hasOwnProperty.call(message, "max_total_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.max_total_lots = typeof message.max_total_lots === "number" ? $BigInt(message.max_total_lots) : $util.Long.fromBits(message.max_total_lots.low >>> 0, message.max_total_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.max_total_lots === "number")
+                        object.max_total_lots = options.longs === $String ? $String(message.max_total_lots) : message.max_total_lots;
+                    else
+                        object.max_total_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.max_total_lots) : options.longs === $Number ? new $util.LongBits(message.max_total_lots.low >>> 0, message.max_total_lots.high >>> 0).toNumber() : message.max_total_lots;
+                    if (options.oneofs)
+                        object._max_total_lots = "max_total_lots";
+                }
+                if (message.fee != null && $Object.hasOwnProperty.call(message, "fee")) {
+                    object.fee = message.fee;
+                    if (options.oneofs)
+                        object._fee = "fee";
+                }
+                if (message.margin != null && $Object.hasOwnProperty.call(message, "margin")) {
+                    object.margin = message.margin;
+                    if (options.oneofs)
+                        object._margin = "margin";
+                }
+                if (message.gross != null && $Object.hasOwnProperty.call(message, "gross")) {
+                    object.gross = message.gross;
+                    if (options.oneofs)
+                        object._gross = "gross";
+                }
+                if (message.loss != null && $Object.hasOwnProperty.call(message, "loss")) {
+                    object.loss = message.loss;
+                    if (options.oneofs)
+                        object._loss = "loss";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ConsentRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ConsentRequest.prototype.toJSON = function() {
+                return ConsentRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ConsentRequest
+             * @function getTypeUrl
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ConsentRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.ConsentRequest";
+            };
+
+            return ConsentRequest;
+        })();
+
+        live.RevokeConsent = (function() {
+
+            /**
+             * Properties of a RevokeConsent.
+             * @typedef {Object} northstar.live.RevokeConsent.$Properties
+             * @property {string|null} [request_id] RevokeConsent request_id
+             * @property {"request_id"} [_request_id] RevokeConsent _request_id
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a RevokeConsent.
+             * @memberof northstar.live
+             * @interface IRevokeConsent
+             * @augments northstar.live.RevokeConsent.$Properties
+             * @deprecated Use northstar.live.RevokeConsent.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a RevokeConsent.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * )} northstar.live.RevokeConsent.$Shape
+             */
+
+            /**
+             * Constructs a new RevokeConsent.
+             * @memberof northstar.live
+             * @classdesc Represents a RevokeConsent.
+             * @constructor
+             * @param {northstar.live.RevokeConsent.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const RevokeConsent = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * RevokeConsent request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.live.RevokeConsent
+             * @instance
+             */
+            RevokeConsent.prototype.request_id = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * RevokeConsent _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.live.RevokeConsent
+             * @instance
+             */
+            $Object.defineProperty(RevokeConsent.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new RevokeConsent instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {northstar.live.RevokeConsent.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.RevokeConsent} RevokeConsent instance
+             * @type {{
+             *   (properties: northstar.live.RevokeConsent.$Shape): northstar.live.RevokeConsent & northstar.live.RevokeConsent.$Shape;
+             *   (properties?: northstar.live.RevokeConsent.$Properties): northstar.live.RevokeConsent;
+             * }}
+             */
+            RevokeConsent.create = function(properties) {
+                return new RevokeConsent(properties);
+            };
+
+            /**
+             * Encodes the specified RevokeConsent message. Does not implicitly {@link northstar.live.RevokeConsent.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {northstar.live.RevokeConsent.$Properties} message RevokeConsent message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            RevokeConsent.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a RevokeConsent message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.RevokeConsent & northstar.live.RevokeConsent.$Shape} RevokeConsent
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            RevokeConsent.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.RevokeConsent();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a RevokeConsent message.
+             * @function verify
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            RevokeConsent.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a RevokeConsent message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.RevokeConsent} RevokeConsent
+             */
+            RevokeConsent.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.RevokeConsent)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.RevokeConsent: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.RevokeConsent();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a RevokeConsent message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {northstar.live.RevokeConsent} message RevokeConsent
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            RevokeConsent.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this RevokeConsent to JSON.
+             * @function toJSON
+             * @memberof northstar.live.RevokeConsent
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            RevokeConsent.prototype.toJSON = function() {
+                return RevokeConsent.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for RevokeConsent
+             * @function getTypeUrl
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            RevokeConsent.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.RevokeConsent";
+            };
+
+            return RevokeConsent;
+        })();
+
         return live;
     })();
 
@@ -25830,7 +31836,2654 @@ export const northstar = $root.northstar = (() => {
             return Error;
         })();
 
+        web.auth = (function() {
+
+            /**
+             * Namespace auth.
+             * @memberof northstar.web
+             * @namespace
+             */
+            const auth = {};
+
+            auth.BrowserSession = (function() {
+
+                /**
+                 * Properties of a BrowserSession.
+                 * @typedef {Object} northstar.web.auth.BrowserSession.$Properties
+                 * @property {boolean|null} [setup_required] BrowserSession setup_required
+                 * @property {boolean|null} [authenticated] BrowserSession authenticated
+                 * @property {string|null} [csrf] BrowserSession csrf
+                 * @property {string|null} [operator] BrowserSession operator
+                 * @property {string|null} [expires_at] BrowserSession expires_at
+                 * @property {Array.<string>|null} [null_fields] BrowserSession null_fields
+                 * @property {"setup_required"} [_setup_required] BrowserSession _setup_required
+                 * @property {"authenticated"} [_authenticated] BrowserSession _authenticated
+                 * @property {"csrf"} [_csrf] BrowserSession _csrf
+                 * @property {"operator"} [_operator] BrowserSession _operator
+                 * @property {"expires_at"} [_expires_at] BrowserSession _expires_at
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+
+                /**
+                 * Properties of a BrowserSession.
+                 * @memberof northstar.web.auth
+                 * @interface IBrowserSession
+                 * @augments northstar.web.auth.BrowserSession.$Properties
+                 * @deprecated Use northstar.web.auth.BrowserSession.$Properties instead.
+                 */
+
+                /**
+                 * Narrowed shape of a BrowserSession.
+                 * @typedef {{
+                 *   setup_required?: boolean|null;
+                 *   authenticated?: boolean|null;
+                 *   csrf?: string|null;
+                 *   operator?: string|null;
+                 *   expires_at?: string|null;
+                 *   null_fields?: Array.<string>|null;
+                 *   $unknowns?: Array.<Uint8Array>;
+                 * } & (
+                 *   ({ _setup_required?: undefined; setup_required?: null }|{ _setup_required?: "setup_required"; setup_required: boolean })
+                 * ) & (
+                 *   ({ _authenticated?: undefined; authenticated?: null }|{ _authenticated?: "authenticated"; authenticated: boolean })
+                 * ) & (
+                 *   ({ _csrf?: undefined; csrf?: null }|{ _csrf?: "csrf"; csrf: string })
+                 * ) & (
+                 *   ({ _operator?: undefined; operator?: null }|{ _operator?: "operator"; operator: string })
+                 * ) & (
+                 *   ({ _expires_at?: undefined; expires_at?: null }|{ _expires_at?: "expires_at"; expires_at: string })
+                 * )} northstar.web.auth.BrowserSession.$Shape
+                 */
+
+                /**
+                 * Constructs a new BrowserSession.
+                 * @memberof northstar.web.auth
+                 * @classdesc Represents a BrowserSession.
+                 * @constructor
+                 * @param {northstar.web.auth.BrowserSession.$Properties=} [properties] Properties to set
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+                const BrowserSession = function (properties) {
+                    this.null_fields = [];
+                    if (properties)
+                        for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                                this[keys[i]] = properties[keys[i]];
+                };
+
+                /**
+                 * BrowserSession setup_required.
+                 * @member {boolean|null|undefined} setup_required
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.setup_required = null;
+
+                /**
+                 * BrowserSession authenticated.
+                 * @member {boolean|null|undefined} authenticated
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.authenticated = null;
+
+                /**
+                 * BrowserSession csrf.
+                 * @member {string|null|undefined} csrf
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.csrf = null;
+
+                /**
+                 * BrowserSession operator.
+                 * @member {string|null|undefined} operator
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.operator = null;
+
+                /**
+                 * BrowserSession expires_at.
+                 * @member {string|null|undefined} expires_at
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.expires_at = null;
+
+                /**
+                 * BrowserSession null_fields.
+                 * @member {Array.<string>} null_fields
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.null_fields = $util.emptyArray;
+
+                // OneOf field names bound to virtual getters and setters
+                let $oneOfFields;
+
+                /**
+                 * BrowserSession _setup_required.
+                 * @member {"setup_required"|undefined} _setup_required
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_setup_required", {
+                    get: $util.oneOfGetter($oneOfFields = ["setup_required"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _authenticated.
+                 * @member {"authenticated"|undefined} _authenticated
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_authenticated", {
+                    get: $util.oneOfGetter($oneOfFields = ["authenticated"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _csrf.
+                 * @member {"csrf"|undefined} _csrf
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_csrf", {
+                    get: $util.oneOfGetter($oneOfFields = ["csrf"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _operator.
+                 * @member {"operator"|undefined} _operator
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_operator", {
+                    get: $util.oneOfGetter($oneOfFields = ["operator"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _expires_at.
+                 * @member {"expires_at"|undefined} _expires_at
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_expires_at", {
+                    get: $util.oneOfGetter($oneOfFields = ["expires_at"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * Creates a new BrowserSession instance using the specified properties.
+                 * @function create
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {northstar.web.auth.BrowserSession.$Properties=} [properties] Properties to set
+                 * @returns {northstar.web.auth.BrowserSession} BrowserSession instance
+                 * @type {{
+                 *   (properties: northstar.web.auth.BrowserSession.$Shape): northstar.web.auth.BrowserSession & northstar.web.auth.BrowserSession.$Shape;
+                 *   (properties?: northstar.web.auth.BrowserSession.$Properties): northstar.web.auth.BrowserSession;
+                 * }}
+                 */
+                BrowserSession.create = function(properties) {
+                    return new BrowserSession(properties);
+                };
+
+                /**
+                 * Encodes the specified BrowserSession message. Does not implicitly {@link northstar.web.auth.BrowserSession.verify|verify} messages.
+                 * @function encode
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {northstar.web.auth.BrowserSession.$Properties} message BrowserSession message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BrowserSession.encode = function (message, writer, _depth) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).bool(message.authenticated);
+                    if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf"))
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.csrf);
+                    if (message.operator != null && $Object.hasOwnProperty.call(message, "operator"))
+                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.operator);
+                    if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at"))
+                        writer.uint32(/* id 4, wireType 2 =*/34).string(message.expires_at);
+                    if (message.setup_required != null && $Object.hasOwnProperty.call(message, "setup_required"))
+                        writer.uint32(/* id 5, wireType 0 =*/40).bool(message.setup_required);
+                    if (message.null_fields != null && message.null_fields.length)
+                        for (let i = 0; i < message.null_fields.length; ++i)
+                            writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                    if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                        for (let i = 0; i < message.$unknowns.length; ++i)
+                            writer.raw(message.$unknowns[i]);
+                    return writer;
+                };
+
+                /**
+                 * Decodes a BrowserSession message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {northstar.web.auth.BrowserSession & northstar.web.auth.BrowserSession.$Shape} BrowserSession
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BrowserSession.decode = function (reader, length, _end, _depth, _target) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $Reader.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let end, message;
+                    if (length === $undefined)
+                        end = reader.len;
+                    else {
+                        end = reader.pos + length;
+                        if (end > reader.len)
+                            throw $RangeError("index out of range");
+                        length = reader.len;
+                        reader.len = end;
+                    }
+                    message = _target || new $root.northstar.web.auth.BrowserSession();
+                    while (reader.pos < end) {
+                        let start = reader.pos;
+                        let tag = reader.tag();
+                        if (tag === _end) {
+                            _end = $undefined;
+                            break;
+                        }
+                        let wireType = tag & 7;
+                        switch (tag >>>= 3) {
+                        case 5: {
+                                if (wireType !== 0)
+                                    break;
+                                message.setup_required = reader.bool();
+                                message._setup_required = "setup_required";
+                                continue;
+                            }
+                        case 1: {
+                                if (wireType !== 0)
+                                    break;
+                                message.authenticated = reader.bool();
+                                message._authenticated = "authenticated";
+                                continue;
+                            }
+                        case 2: {
+                                if (wireType !== 2)
+                                    break;
+                                message.csrf = reader.stringVerify();
+                                message._csrf = "csrf";
+                                continue;
+                            }
+                        case 3: {
+                                if (wireType !== 2)
+                                    break;
+                                message.operator = reader.stringVerify();
+                                message._operator = "operator";
+                                continue;
+                            }
+                        case 4: {
+                                if (wireType !== 2)
+                                    break;
+                                message.expires_at = reader.stringVerify();
+                                message._expires_at = "expires_at";
+                                continue;
+                            }
+                        case 2046: {
+                                if (wireType !== 2)
+                                    break;
+                                if (!(message.null_fields && message.null_fields.length))
+                                    message.null_fields = [];
+                                message.null_fields.push(reader.stringVerify());
+                                continue;
+                            }
+                        }
+                        reader.skipType(wireType, _depth, tag);
+                        if (!reader.discardUnknown) {
+                            $util.makeProp(message, "$unknowns", false);
+                            (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                        }
+                    }
+                    if (length !== $undefined) {
+                        if (reader.pos !== end)
+                            throw $RangeError("index out of range");
+                        reader.len = length;
+                    }
+                    if (_end !== $undefined)
+                        throw $Error("missing end group");
+                    return message;
+                };
+
+                /**
+                 * Verifies a BrowserSession message.
+                 * @function verify
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                BrowserSession.verify = function (message, _depth) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        return "max depth exceeded";
+                    let properties = {};
+                    if (message.setup_required != null && $Object.hasOwnProperty.call(message, "setup_required")) {
+                        properties._setup_required = 1;
+                        if (typeof message.setup_required !== "boolean")
+                            return "setup_required: boolean expected";
+                    }
+                    if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated")) {
+                        properties._authenticated = 1;
+                        if (typeof message.authenticated !== "boolean")
+                            return "authenticated: boolean expected";
+                    }
+                    if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
+                        properties._csrf = 1;
+                        if (!$util.isString(message.csrf))
+                            return "csrf: string expected";
+                    }
+                    if (message.operator != null && $Object.hasOwnProperty.call(message, "operator")) {
+                        properties._operator = 1;
+                        if (!$util.isString(message.operator))
+                            return "operator: string expected";
+                    }
+                    if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                        properties._expires_at = 1;
+                        if (!$util.isString(message.expires_at))
+                            return "expires_at: string expected";
+                    }
+                    if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                        if (!$Array.isArray(message.null_fields))
+                            return "null_fields: array expected";
+                        for (let i = 0; i < message.null_fields.length; ++i)
+                            if (!$util.isString(message.null_fields[i]))
+                                return "null_fields: string[] expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a BrowserSession message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {northstar.web.auth.BrowserSession} BrowserSession
+                 */
+                BrowserSession.fromObject = function (object, _depth) {
+                    if (object instanceof $root.northstar.web.auth.BrowserSession)
+                        return object;
+                    if (!$util.isObject(object))
+                        throw $TypeError(".northstar.web.auth.BrowserSession: object expected");
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let message = new $root.northstar.web.auth.BrowserSession();
+                    if (object.setup_required != null)
+                        message.setup_required = $Boolean(object.setup_required);
+                    if (object.authenticated != null)
+                        message.authenticated = $Boolean(object.authenticated);
+                    if (object.csrf != null)
+                        message.csrf = $String(object.csrf);
+                    if (object.operator != null)
+                        message.operator = $String(object.operator);
+                    if (object.expires_at != null)
+                        message.expires_at = $String(object.expires_at);
+                    if (object.null_fields) {
+                        if (!$Array.isArray(object.null_fields))
+                            throw $TypeError(".northstar.web.auth.BrowserSession.null_fields: array expected");
+                        message.null_fields = $Array(object.null_fields.length);
+                        for (let i = 0; i < object.null_fields.length; ++i)
+                            message.null_fields[i] = $String(object.null_fields[i]);
+                    }
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a BrowserSession message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {northstar.web.auth.BrowserSession} message BrowserSession
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                BrowserSession.toObject = function (message, options, _depth) {
+                    if (!options)
+                        options = {};
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let object = {};
+                    if (options.arrays || options.defaults)
+                        object.null_fields = [];
+                    if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated")) {
+                        object.authenticated = message.authenticated;
+                        if (options.oneofs)
+                            object._authenticated = "authenticated";
+                    }
+                    if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
+                        object.csrf = message.csrf;
+                        if (options.oneofs)
+                            object._csrf = "csrf";
+                    }
+                    if (message.operator != null && $Object.hasOwnProperty.call(message, "operator")) {
+                        object.operator = message.operator;
+                        if (options.oneofs)
+                            object._operator = "operator";
+                    }
+                    if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                        object.expires_at = message.expires_at;
+                        if (options.oneofs)
+                            object._expires_at = "expires_at";
+                    }
+                    if (message.setup_required != null && $Object.hasOwnProperty.call(message, "setup_required")) {
+                        object.setup_required = message.setup_required;
+                        if (options.oneofs)
+                            object._setup_required = "setup_required";
+                    }
+                    if (message.null_fields && message.null_fields.length) {
+                        object.null_fields = $Array(message.null_fields.length);
+                        for (let j = 0; j < message.null_fields.length; ++j)
+                            object.null_fields[j] = message.null_fields[j];
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this BrowserSession to JSON.
+                 * @function toJSON
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                BrowserSession.prototype.toJSON = function() {
+                    return BrowserSession.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the type url for BrowserSession
+                 * @function getTypeUrl
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+                 * @returns {string} The type url
+                 */
+                BrowserSession.getTypeUrl = function(prefix) {
+                    if (prefix === $undefined)
+                        prefix = "type.googleapis.com";
+                    return prefix + "/northstar.web.auth.BrowserSession";
+                };
+
+                return BrowserSession;
+            })();
+
+            auth.LoginRequest = (function() {
+
+                /**
+                 * Properties of a LoginRequest.
+                 * @typedef {Object} northstar.web.auth.LoginRequest.$Properties
+                 * @property {string|null} [username] LoginRequest username
+                 * @property {string|null} [password] LoginRequest password
+                 * @property {"username"} [_username] LoginRequest _username
+                 * @property {"password"} [_password] LoginRequest _password
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+
+                /**
+                 * Properties of a LoginRequest.
+                 * @memberof northstar.web.auth
+                 * @interface ILoginRequest
+                 * @augments northstar.web.auth.LoginRequest.$Properties
+                 * @deprecated Use northstar.web.auth.LoginRequest.$Properties instead.
+                 */
+
+                /**
+                 * Narrowed shape of a LoginRequest.
+                 * @typedef {{
+                 *   username?: string|null;
+                 *   password?: string|null;
+                 *   $unknowns?: Array.<Uint8Array>;
+                 * } & (
+                 *   ({ _username?: undefined; username?: null }|{ _username?: "username"; username: string })
+                 * ) & (
+                 *   ({ _password?: undefined; password?: null }|{ _password?: "password"; password: string })
+                 * )} northstar.web.auth.LoginRequest.$Shape
+                 */
+
+                /**
+                 * Constructs a new LoginRequest.
+                 * @memberof northstar.web.auth
+                 * @classdesc Represents a LoginRequest.
+                 * @constructor
+                 * @param {northstar.web.auth.LoginRequest.$Properties=} [properties] Properties to set
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+                const LoginRequest = function (properties) {
+                    if (properties)
+                        for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                                this[keys[i]] = properties[keys[i]];
+                };
+
+                /**
+                 * LoginRequest username.
+                 * @member {string|null|undefined} username
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                LoginRequest.prototype.username = null;
+
+                /**
+                 * LoginRequest password.
+                 * @member {string|null|undefined} password
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                LoginRequest.prototype.password = null;
+
+                // OneOf field names bound to virtual getters and setters
+                let $oneOfFields;
+
+                /**
+                 * LoginRequest _username.
+                 * @member {"username"|undefined} _username
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                $Object.defineProperty(LoginRequest.prototype, "_username", {
+                    get: $util.oneOfGetter($oneOfFields = ["username"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * LoginRequest _password.
+                 * @member {"password"|undefined} _password
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                $Object.defineProperty(LoginRequest.prototype, "_password", {
+                    get: $util.oneOfGetter($oneOfFields = ["password"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * Creates a new LoginRequest instance using the specified properties.
+                 * @function create
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {northstar.web.auth.LoginRequest.$Properties=} [properties] Properties to set
+                 * @returns {northstar.web.auth.LoginRequest} LoginRequest instance
+                 * @type {{
+                 *   (properties: northstar.web.auth.LoginRequest.$Shape): northstar.web.auth.LoginRequest & northstar.web.auth.LoginRequest.$Shape;
+                 *   (properties?: northstar.web.auth.LoginRequest.$Properties): northstar.web.auth.LoginRequest;
+                 * }}
+                 */
+                LoginRequest.create = function(properties) {
+                    return new LoginRequest(properties);
+                };
+
+                /**
+                 * Encodes the specified LoginRequest message. Does not implicitly {@link northstar.web.auth.LoginRequest.verify|verify} messages.
+                 * @function encode
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {northstar.web.auth.LoginRequest.$Properties} message LoginRequest message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                LoginRequest.encode = function (message, writer, _depth) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    if (message.password != null && $Object.hasOwnProperty.call(message, "password"))
+                        writer.uint32(/* id 1, wireType 2 =*/10).string(message.password);
+                    if (message.username != null && $Object.hasOwnProperty.call(message, "username"))
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.username);
+                    if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                        for (let i = 0; i < message.$unknowns.length; ++i)
+                            writer.raw(message.$unknowns[i]);
+                    return writer;
+                };
+
+                /**
+                 * Decodes a LoginRequest message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {northstar.web.auth.LoginRequest & northstar.web.auth.LoginRequest.$Shape} LoginRequest
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                LoginRequest.decode = function (reader, length, _end, _depth, _target) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $Reader.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let end, message;
+                    if (length === $undefined)
+                        end = reader.len;
+                    else {
+                        end = reader.pos + length;
+                        if (end > reader.len)
+                            throw $RangeError("index out of range");
+                        length = reader.len;
+                        reader.len = end;
+                    }
+                    message = _target || new $root.northstar.web.auth.LoginRequest();
+                    while (reader.pos < end) {
+                        let start = reader.pos;
+                        let tag = reader.tag();
+                        if (tag === _end) {
+                            _end = $undefined;
+                            break;
+                        }
+                        let wireType = tag & 7;
+                        switch (tag >>>= 3) {
+                        case 2: {
+                                if (wireType !== 2)
+                                    break;
+                                message.username = reader.stringVerify();
+                                message._username = "username";
+                                continue;
+                            }
+                        case 1: {
+                                if (wireType !== 2)
+                                    break;
+                                message.password = reader.stringVerify();
+                                message._password = "password";
+                                continue;
+                            }
+                        }
+                        reader.skipType(wireType, _depth, tag);
+                        if (!reader.discardUnknown) {
+                            $util.makeProp(message, "$unknowns", false);
+                            (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                        }
+                    }
+                    if (length !== $undefined) {
+                        if (reader.pos !== end)
+                            throw $RangeError("index out of range");
+                        reader.len = length;
+                    }
+                    if (_end !== $undefined)
+                        throw $Error("missing end group");
+                    return message;
+                };
+
+                /**
+                 * Verifies a LoginRequest message.
+                 * @function verify
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                LoginRequest.verify = function (message, _depth) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        return "max depth exceeded";
+                    let properties = {};
+                    if (message.username != null && $Object.hasOwnProperty.call(message, "username")) {
+                        properties._username = 1;
+                        if (!$util.isString(message.username))
+                            return "username: string expected";
+                    }
+                    if (message.password != null && $Object.hasOwnProperty.call(message, "password")) {
+                        properties._password = 1;
+                        if (!$util.isString(message.password))
+                            return "password: string expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a LoginRequest message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {northstar.web.auth.LoginRequest} LoginRequest
+                 */
+                LoginRequest.fromObject = function (object, _depth) {
+                    if (object instanceof $root.northstar.web.auth.LoginRequest)
+                        return object;
+                    if (!$util.isObject(object))
+                        throw $TypeError(".northstar.web.auth.LoginRequest: object expected");
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let message = new $root.northstar.web.auth.LoginRequest();
+                    if (object.username != null)
+                        message.username = $String(object.username);
+                    if (object.password != null)
+                        message.password = $String(object.password);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a LoginRequest message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {northstar.web.auth.LoginRequest} message LoginRequest
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                LoginRequest.toObject = function (message, options, _depth) {
+                    if (!options)
+                        options = {};
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let object = {};
+                    if (message.password != null && $Object.hasOwnProperty.call(message, "password")) {
+                        object.password = message.password;
+                        if (options.oneofs)
+                            object._password = "password";
+                    }
+                    if (message.username != null && $Object.hasOwnProperty.call(message, "username")) {
+                        object.username = message.username;
+                        if (options.oneofs)
+                            object._username = "username";
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this LoginRequest to JSON.
+                 * @function toJSON
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                LoginRequest.prototype.toJSON = function() {
+                    return LoginRequest.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the type url for LoginRequest
+                 * @function getTypeUrl
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+                 * @returns {string} The type url
+                 */
+                LoginRequest.getTypeUrl = function(prefix) {
+                    if (prefix === $undefined)
+                        prefix = "type.googleapis.com";
+                    return prefix + "/northstar.web.auth.LoginRequest";
+                };
+
+                return LoginRequest;
+            })();
+
+            return auth;
+        })();
+
         return web;
+    })();
+
+    northstar.accounting = (function() {
+
+        /**
+         * Namespace accounting.
+         * @memberof northstar
+         * @namespace
+         */
+        const accounting = {};
+
+        accounting.ChargeRate = (function() {
+
+            /**
+             * Properties of a ChargeRate.
+             * @typedef {Object} northstar.accounting.ChargeRate.$Properties
+             * @property {string|null} [by_money] ChargeRate by_money
+             * @property {string|null} [by_volume] ChargeRate by_volume
+             * @property {"by_money"} [_by_money] ChargeRate _by_money
+             * @property {"by_volume"} [_by_volume] ChargeRate _by_volume
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ChargeRate.
+             * @memberof northstar.accounting
+             * @interface IChargeRate
+             * @augments northstar.accounting.ChargeRate.$Properties
+             * @deprecated Use northstar.accounting.ChargeRate.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ChargeRate.
+             * @typedef {{
+             *   by_money?: string|null;
+             *   by_volume?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _by_money?: undefined; by_money?: null }|{ _by_money?: "by_money"; by_money: string })
+             * ) & (
+             *   ({ _by_volume?: undefined; by_volume?: null }|{ _by_volume?: "by_volume"; by_volume: string })
+             * )} northstar.accounting.ChargeRate.$Shape
+             */
+
+            /**
+             * Constructs a new ChargeRate.
+             * @memberof northstar.accounting
+             * @classdesc Represents a ChargeRate.
+             * @constructor
+             * @param {northstar.accounting.ChargeRate.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ChargeRate = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ChargeRate by_money.
+             * @member {string|null|undefined} by_money
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            ChargeRate.prototype.by_money = null;
+
+            /**
+             * ChargeRate by_volume.
+             * @member {string|null|undefined} by_volume
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            ChargeRate.prototype.by_volume = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ChargeRate _by_money.
+             * @member {"by_money"|undefined} _by_money
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            $Object.defineProperty(ChargeRate.prototype, "_by_money", {
+                get: $util.oneOfGetter($oneOfFields = ["by_money"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ChargeRate _by_volume.
+             * @member {"by_volume"|undefined} _by_volume
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            $Object.defineProperty(ChargeRate.prototype, "_by_volume", {
+                get: $util.oneOfGetter($oneOfFields = ["by_volume"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ChargeRate instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {northstar.accounting.ChargeRate.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.ChargeRate} ChargeRate instance
+             * @type {{
+             *   (properties: northstar.accounting.ChargeRate.$Shape): northstar.accounting.ChargeRate & northstar.accounting.ChargeRate.$Shape;
+             *   (properties?: northstar.accounting.ChargeRate.$Properties): northstar.accounting.ChargeRate;
+             * }}
+             */
+            ChargeRate.create = function(properties) {
+                return new ChargeRate(properties);
+            };
+
+            /**
+             * Encodes the specified ChargeRate message. Does not implicitly {@link northstar.accounting.ChargeRate.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {northstar.accounting.ChargeRate.$Properties} message ChargeRate message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ChargeRate.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.by_money != null && $Object.hasOwnProperty.call(message, "by_money"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.by_money);
+                if (message.by_volume != null && $Object.hasOwnProperty.call(message, "by_volume"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.by_volume);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ChargeRate message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.ChargeRate & northstar.accounting.ChargeRate.$Shape} ChargeRate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ChargeRate.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.ChargeRate();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.by_money = reader.stringVerify();
+                            message._by_money = "by_money";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.by_volume = reader.stringVerify();
+                            message._by_volume = "by_volume";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ChargeRate message.
+             * @function verify
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ChargeRate.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.by_money != null && $Object.hasOwnProperty.call(message, "by_money")) {
+                    properties._by_money = 1;
+                    if (!$util.isString(message.by_money))
+                        return "by_money: string expected";
+                }
+                if (message.by_volume != null && $Object.hasOwnProperty.call(message, "by_volume")) {
+                    properties._by_volume = 1;
+                    if (!$util.isString(message.by_volume))
+                        return "by_volume: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ChargeRate message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.ChargeRate} ChargeRate
+             */
+            ChargeRate.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.ChargeRate)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.ChargeRate: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.ChargeRate();
+                if (object.by_money != null)
+                    message.by_money = $String(object.by_money);
+                if (object.by_volume != null)
+                    message.by_volume = $String(object.by_volume);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ChargeRate message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {northstar.accounting.ChargeRate} message ChargeRate
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ChargeRate.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.by_money != null && $Object.hasOwnProperty.call(message, "by_money")) {
+                    object.by_money = message.by_money;
+                    if (options.oneofs)
+                        object._by_money = "by_money";
+                }
+                if (message.by_volume != null && $Object.hasOwnProperty.call(message, "by_volume")) {
+                    object.by_volume = message.by_volume;
+                    if (options.oneofs)
+                        object._by_volume = "by_volume";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ChargeRate to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ChargeRate.prototype.toJSON = function() {
+                return ChargeRate.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ChargeRate
+             * @function getTypeUrl
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ChargeRate.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.ChargeRate";
+            };
+
+            return ChargeRate;
+        })();
+
+        accounting.FuturesTerms = (function() {
+
+            /**
+             * Properties of a FuturesTerms.
+             * @typedef {Object} northstar.accounting.FuturesTerms.$Properties
+             * @property {string|null} [terms_id] FuturesTerms terms_id
+             * @property {string|null} [contract_id] FuturesTerms contract_id
+             * @property {string|null} [effective_from] FuturesTerms effective_from
+             * @property {string|null} [effective_until] FuturesTerms effective_until
+             * @property {string|null} [available_at] FuturesTerms available_at
+             * @property {string|null} [source_reference] FuturesTerms source_reference
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [open_fee] FuturesTerms open_fee
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [close_today_fee] FuturesTerms close_today_fee
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [close_yesterday_fee] FuturesTerms close_yesterday_fee
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [long_margin] FuturesTerms long_margin
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [short_margin] FuturesTerms short_margin
+             * @property {string|null} [lower_limit] FuturesTerms lower_limit
+             * @property {string|null} [upper_limit] FuturesTerms upper_limit
+             * @property {string|null} [money_quantum] FuturesTerms money_quantum
+             * @property {string|null} [fee_rounding] FuturesTerms fee_rounding
+             * @property {"terms_id"} [_terms_id] FuturesTerms _terms_id
+             * @property {"contract_id"} [_contract_id] FuturesTerms _contract_id
+             * @property {"effective_from"} [_effective_from] FuturesTerms _effective_from
+             * @property {"effective_until"} [_effective_until] FuturesTerms _effective_until
+             * @property {"available_at"} [_available_at] FuturesTerms _available_at
+             * @property {"source_reference"} [_source_reference] FuturesTerms _source_reference
+             * @property {"open_fee"} [_open_fee] FuturesTerms _open_fee
+             * @property {"close_today_fee"} [_close_today_fee] FuturesTerms _close_today_fee
+             * @property {"close_yesterday_fee"} [_close_yesterday_fee] FuturesTerms _close_yesterday_fee
+             * @property {"long_margin"} [_long_margin] FuturesTerms _long_margin
+             * @property {"short_margin"} [_short_margin] FuturesTerms _short_margin
+             * @property {"lower_limit"} [_lower_limit] FuturesTerms _lower_limit
+             * @property {"upper_limit"} [_upper_limit] FuturesTerms _upper_limit
+             * @property {"money_quantum"} [_money_quantum] FuturesTerms _money_quantum
+             * @property {"fee_rounding"} [_fee_rounding] FuturesTerms _fee_rounding
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a FuturesTerms.
+             * @memberof northstar.accounting
+             * @interface IFuturesTerms
+             * @augments northstar.accounting.FuturesTerms.$Properties
+             * @deprecated Use northstar.accounting.FuturesTerms.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a FuturesTerms.
+             * @typedef {{
+             *   terms_id?: string|null;
+             *   contract_id?: string|null;
+             *   effective_from?: string|null;
+             *   effective_until?: string|null;
+             *   available_at?: string|null;
+             *   source_reference?: string|null;
+             *   open_fee?: northstar.accounting.ChargeRate.$Shape|null;
+             *   close_today_fee?: northstar.accounting.ChargeRate.$Shape|null;
+             *   close_yesterday_fee?: northstar.accounting.ChargeRate.$Shape|null;
+             *   long_margin?: northstar.accounting.ChargeRate.$Shape|null;
+             *   short_margin?: northstar.accounting.ChargeRate.$Shape|null;
+             *   lower_limit?: string|null;
+             *   upper_limit?: string|null;
+             *   money_quantum?: string|null;
+             *   fee_rounding?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _terms_id?: undefined; terms_id?: null }|{ _terms_id?: "terms_id"; terms_id: string })
+             * ) & (
+             *   ({ _contract_id?: undefined; contract_id?: null }|{ _contract_id?: "contract_id"; contract_id: string })
+             * ) & (
+             *   ({ _effective_from?: undefined; effective_from?: null }|{ _effective_from?: "effective_from"; effective_from: string })
+             * ) & (
+             *   ({ _effective_until?: undefined; effective_until?: null }|{ _effective_until?: "effective_until"; effective_until: string })
+             * ) & (
+             *   ({ _available_at?: undefined; available_at?: null }|{ _available_at?: "available_at"; available_at: string })
+             * ) & (
+             *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
+             * ) & (
+             *   ({ _open_fee?: undefined; open_fee?: null }|{ _open_fee?: "open_fee"; open_fee: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _close_today_fee?: undefined; close_today_fee?: null }|{ _close_today_fee?: "close_today_fee"; close_today_fee: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _close_yesterday_fee?: undefined; close_yesterday_fee?: null }|{ _close_yesterday_fee?: "close_yesterday_fee"; close_yesterday_fee: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _long_margin?: undefined; long_margin?: null }|{ _long_margin?: "long_margin"; long_margin: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _short_margin?: undefined; short_margin?: null }|{ _short_margin?: "short_margin"; short_margin: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _lower_limit?: undefined; lower_limit?: null }|{ _lower_limit?: "lower_limit"; lower_limit: string })
+             * ) & (
+             *   ({ _upper_limit?: undefined; upper_limit?: null }|{ _upper_limit?: "upper_limit"; upper_limit: string })
+             * ) & (
+             *   ({ _money_quantum?: undefined; money_quantum?: null }|{ _money_quantum?: "money_quantum"; money_quantum: string })
+             * ) & (
+             *   ({ _fee_rounding?: undefined; fee_rounding?: null }|{ _fee_rounding?: "fee_rounding"; fee_rounding: string })
+             * )} northstar.accounting.FuturesTerms.$Shape
+             */
+
+            /**
+             * Constructs a new FuturesTerms.
+             * @memberof northstar.accounting
+             * @classdesc Represents a FuturesTerms.
+             * @constructor
+             * @param {northstar.accounting.FuturesTerms.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const FuturesTerms = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * FuturesTerms terms_id.
+             * @member {string|null|undefined} terms_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.terms_id = null;
+
+            /**
+             * FuturesTerms contract_id.
+             * @member {string|null|undefined} contract_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.contract_id = null;
+
+            /**
+             * FuturesTerms effective_from.
+             * @member {string|null|undefined} effective_from
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.effective_from = null;
+
+            /**
+             * FuturesTerms effective_until.
+             * @member {string|null|undefined} effective_until
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.effective_until = null;
+
+            /**
+             * FuturesTerms available_at.
+             * @member {string|null|undefined} available_at
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.available_at = null;
+
+            /**
+             * FuturesTerms source_reference.
+             * @member {string|null|undefined} source_reference
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.source_reference = null;
+
+            /**
+             * FuturesTerms open_fee.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} open_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.open_fee = null;
+
+            /**
+             * FuturesTerms close_today_fee.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} close_today_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.close_today_fee = null;
+
+            /**
+             * FuturesTerms close_yesterday_fee.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} close_yesterday_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.close_yesterday_fee = null;
+
+            /**
+             * FuturesTerms long_margin.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} long_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.long_margin = null;
+
+            /**
+             * FuturesTerms short_margin.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} short_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.short_margin = null;
+
+            /**
+             * FuturesTerms lower_limit.
+             * @member {string|null|undefined} lower_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.lower_limit = null;
+
+            /**
+             * FuturesTerms upper_limit.
+             * @member {string|null|undefined} upper_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.upper_limit = null;
+
+            /**
+             * FuturesTerms money_quantum.
+             * @member {string|null|undefined} money_quantum
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.money_quantum = null;
+
+            /**
+             * FuturesTerms fee_rounding.
+             * @member {string|null|undefined} fee_rounding
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.fee_rounding = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * FuturesTerms _terms_id.
+             * @member {"terms_id"|undefined} _terms_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_terms_id", {
+                get: $util.oneOfGetter($oneOfFields = ["terms_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _contract_id.
+             * @member {"contract_id"|undefined} _contract_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_contract_id", {
+                get: $util.oneOfGetter($oneOfFields = ["contract_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _effective_from.
+             * @member {"effective_from"|undefined} _effective_from
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_effective_from", {
+                get: $util.oneOfGetter($oneOfFields = ["effective_from"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _effective_until.
+             * @member {"effective_until"|undefined} _effective_until
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_effective_until", {
+                get: $util.oneOfGetter($oneOfFields = ["effective_until"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _available_at.
+             * @member {"available_at"|undefined} _available_at
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_available_at", {
+                get: $util.oneOfGetter($oneOfFields = ["available_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _source_reference.
+             * @member {"source_reference"|undefined} _source_reference
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_source_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["source_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _open_fee.
+             * @member {"open_fee"|undefined} _open_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_open_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["open_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _close_today_fee.
+             * @member {"close_today_fee"|undefined} _close_today_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_close_today_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["close_today_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _close_yesterday_fee.
+             * @member {"close_yesterday_fee"|undefined} _close_yesterday_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_close_yesterday_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["close_yesterday_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _long_margin.
+             * @member {"long_margin"|undefined} _long_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_long_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["long_margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _short_margin.
+             * @member {"short_margin"|undefined} _short_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_short_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["short_margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _lower_limit.
+             * @member {"lower_limit"|undefined} _lower_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_lower_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["lower_limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _upper_limit.
+             * @member {"upper_limit"|undefined} _upper_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_upper_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["upper_limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _money_quantum.
+             * @member {"money_quantum"|undefined} _money_quantum
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_money_quantum", {
+                get: $util.oneOfGetter($oneOfFields = ["money_quantum"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _fee_rounding.
+             * @member {"fee_rounding"|undefined} _fee_rounding
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_fee_rounding", {
+                get: $util.oneOfGetter($oneOfFields = ["fee_rounding"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new FuturesTerms instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {northstar.accounting.FuturesTerms.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.FuturesTerms} FuturesTerms instance
+             * @type {{
+             *   (properties: northstar.accounting.FuturesTerms.$Shape): northstar.accounting.FuturesTerms & northstar.accounting.FuturesTerms.$Shape;
+             *   (properties?: northstar.accounting.FuturesTerms.$Properties): northstar.accounting.FuturesTerms;
+             * }}
+             */
+            FuturesTerms.create = function(properties) {
+                return new FuturesTerms(properties);
+            };
+
+            /**
+             * Encodes the specified FuturesTerms message. Does not implicitly {@link northstar.accounting.FuturesTerms.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {northstar.accounting.FuturesTerms.$Properties} message FuturesTerms message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            FuturesTerms.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.terms_id);
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.contract_id);
+                if (message.effective_from != null && $Object.hasOwnProperty.call(message, "effective_from"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.effective_from);
+                if (message.effective_until != null && $Object.hasOwnProperty.call(message, "effective_until"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.effective_until);
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.available_at);
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.source_reference);
+                if (message.open_fee != null && $Object.hasOwnProperty.call(message, "open_fee"))
+                    $root.northstar.accounting.ChargeRate.encode(message.open_fee, writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+                if (message.close_today_fee != null && $Object.hasOwnProperty.call(message, "close_today_fee"))
+                    $root.northstar.accounting.ChargeRate.encode(message.close_today_fee, writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
+                if (message.close_yesterday_fee != null && $Object.hasOwnProperty.call(message, "close_yesterday_fee"))
+                    $root.northstar.accounting.ChargeRate.encode(message.close_yesterday_fee, writer.uint32(/* id 9, wireType 2 =*/74).fork(), _depth + 1).ldelim();
+                if (message.long_margin != null && $Object.hasOwnProperty.call(message, "long_margin"))
+                    $root.northstar.accounting.ChargeRate.encode(message.long_margin, writer.uint32(/* id 10, wireType 2 =*/82).fork(), _depth + 1).ldelim();
+                if (message.short_margin != null && $Object.hasOwnProperty.call(message, "short_margin"))
+                    $root.northstar.accounting.ChargeRate.encode(message.short_margin, writer.uint32(/* id 11, wireType 2 =*/90).fork(), _depth + 1).ldelim();
+                if (message.lower_limit != null && $Object.hasOwnProperty.call(message, "lower_limit"))
+                    writer.uint32(/* id 12, wireType 2 =*/98).string(message.lower_limit);
+                if (message.upper_limit != null && $Object.hasOwnProperty.call(message, "upper_limit"))
+                    writer.uint32(/* id 13, wireType 2 =*/106).string(message.upper_limit);
+                if (message.money_quantum != null && $Object.hasOwnProperty.call(message, "money_quantum"))
+                    writer.uint32(/* id 14, wireType 2 =*/114).string(message.money_quantum);
+                if (message.fee_rounding != null && $Object.hasOwnProperty.call(message, "fee_rounding"))
+                    writer.uint32(/* id 15, wireType 2 =*/122).string(message.fee_rounding);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a FuturesTerms message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.FuturesTerms & northstar.accounting.FuturesTerms.$Shape} FuturesTerms
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            FuturesTerms.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.FuturesTerms();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.terms_id = reader.stringVerify();
+                            message._terms_id = "terms_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.contract_id = reader.stringVerify();
+                            message._contract_id = "contract_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.effective_from = reader.stringVerify();
+                            message._effective_from = "effective_from";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.effective_until = reader.stringVerify();
+                            message._effective_until = "effective_until";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_at = reader.stringVerify();
+                            message._available_at = "available_at";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_reference = reader.stringVerify();
+                            message._source_reference = "source_reference";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.open_fee = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.open_fee);
+                            message._open_fee = "open_fee";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.close_today_fee = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.close_today_fee);
+                            message._close_today_fee = "close_today_fee";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.close_yesterday_fee = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.close_yesterday_fee);
+                            message._close_yesterday_fee = "close_yesterday_fee";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            message.long_margin = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.long_margin);
+                            message._long_margin = "long_margin";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.short_margin = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.short_margin);
+                            message._short_margin = "short_margin";
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 2)
+                                break;
+                            message.lower_limit = reader.stringVerify();
+                            message._lower_limit = "lower_limit";
+                            continue;
+                        }
+                    case 13: {
+                            if (wireType !== 2)
+                                break;
+                            message.upper_limit = reader.stringVerify();
+                            message._upper_limit = "upper_limit";
+                            continue;
+                        }
+                    case 14: {
+                            if (wireType !== 2)
+                                break;
+                            message.money_quantum = reader.stringVerify();
+                            message._money_quantum = "money_quantum";
+                            continue;
+                        }
+                    case 15: {
+                            if (wireType !== 2)
+                                break;
+                            message.fee_rounding = reader.stringVerify();
+                            message._fee_rounding = "fee_rounding";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a FuturesTerms message.
+             * @function verify
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            FuturesTerms.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id")) {
+                    properties._terms_id = 1;
+                    if (!$util.isString(message.terms_id))
+                        return "terms_id: string expected";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    properties._contract_id = 1;
+                    if (!$util.isString(message.contract_id))
+                        return "contract_id: string expected";
+                }
+                if (message.effective_from != null && $Object.hasOwnProperty.call(message, "effective_from")) {
+                    properties._effective_from = 1;
+                    if (!$util.isString(message.effective_from))
+                        return "effective_from: string expected";
+                }
+                if (message.effective_until != null && $Object.hasOwnProperty.call(message, "effective_until")) {
+                    properties._effective_until = 1;
+                    if (!$util.isString(message.effective_until))
+                        return "effective_until: string expected";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    properties._available_at = 1;
+                    if (!$util.isString(message.available_at))
+                        return "available_at: string expected";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    properties._source_reference = 1;
+                    if (!$util.isString(message.source_reference))
+                        return "source_reference: string expected";
+                }
+                if (message.open_fee != null && $Object.hasOwnProperty.call(message, "open_fee")) {
+                    properties._open_fee = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.open_fee, _depth + 1);
+                        if (error)
+                            return "open_fee." + error;
+                    }
+                }
+                if (message.close_today_fee != null && $Object.hasOwnProperty.call(message, "close_today_fee")) {
+                    properties._close_today_fee = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.close_today_fee, _depth + 1);
+                        if (error)
+                            return "close_today_fee." + error;
+                    }
+                }
+                if (message.close_yesterday_fee != null && $Object.hasOwnProperty.call(message, "close_yesterday_fee")) {
+                    properties._close_yesterday_fee = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.close_yesterday_fee, _depth + 1);
+                        if (error)
+                            return "close_yesterday_fee." + error;
+                    }
+                }
+                if (message.long_margin != null && $Object.hasOwnProperty.call(message, "long_margin")) {
+                    properties._long_margin = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.long_margin, _depth + 1);
+                        if (error)
+                            return "long_margin." + error;
+                    }
+                }
+                if (message.short_margin != null && $Object.hasOwnProperty.call(message, "short_margin")) {
+                    properties._short_margin = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.short_margin, _depth + 1);
+                        if (error)
+                            return "short_margin." + error;
+                    }
+                }
+                if (message.lower_limit != null && $Object.hasOwnProperty.call(message, "lower_limit")) {
+                    properties._lower_limit = 1;
+                    if (!$util.isString(message.lower_limit))
+                        return "lower_limit: string expected";
+                }
+                if (message.upper_limit != null && $Object.hasOwnProperty.call(message, "upper_limit")) {
+                    properties._upper_limit = 1;
+                    if (!$util.isString(message.upper_limit))
+                        return "upper_limit: string expected";
+                }
+                if (message.money_quantum != null && $Object.hasOwnProperty.call(message, "money_quantum")) {
+                    properties._money_quantum = 1;
+                    if (!$util.isString(message.money_quantum))
+                        return "money_quantum: string expected";
+                }
+                if (message.fee_rounding != null && $Object.hasOwnProperty.call(message, "fee_rounding")) {
+                    properties._fee_rounding = 1;
+                    if (!$util.isString(message.fee_rounding))
+                        return "fee_rounding: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a FuturesTerms message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.FuturesTerms} FuturesTerms
+             */
+            FuturesTerms.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.FuturesTerms)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.FuturesTerms: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.FuturesTerms();
+                if (object.terms_id != null)
+                    message.terms_id = $String(object.terms_id);
+                if (object.contract_id != null)
+                    message.contract_id = $String(object.contract_id);
+                if (object.effective_from != null)
+                    message.effective_from = $String(object.effective_from);
+                if (object.effective_until != null)
+                    message.effective_until = $String(object.effective_until);
+                if (object.available_at != null)
+                    message.available_at = $String(object.available_at);
+                if (object.source_reference != null)
+                    message.source_reference = $String(object.source_reference);
+                if (object.open_fee != null) {
+                    if (!$util.isObject(object.open_fee))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.open_fee: object expected");
+                    message.open_fee = $root.northstar.accounting.ChargeRate.fromObject(object.open_fee, _depth + 1);
+                }
+                if (object.close_today_fee != null) {
+                    if (!$util.isObject(object.close_today_fee))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.close_today_fee: object expected");
+                    message.close_today_fee = $root.northstar.accounting.ChargeRate.fromObject(object.close_today_fee, _depth + 1);
+                }
+                if (object.close_yesterday_fee != null) {
+                    if (!$util.isObject(object.close_yesterday_fee))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.close_yesterday_fee: object expected");
+                    message.close_yesterday_fee = $root.northstar.accounting.ChargeRate.fromObject(object.close_yesterday_fee, _depth + 1);
+                }
+                if (object.long_margin != null) {
+                    if (!$util.isObject(object.long_margin))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.long_margin: object expected");
+                    message.long_margin = $root.northstar.accounting.ChargeRate.fromObject(object.long_margin, _depth + 1);
+                }
+                if (object.short_margin != null) {
+                    if (!$util.isObject(object.short_margin))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.short_margin: object expected");
+                    message.short_margin = $root.northstar.accounting.ChargeRate.fromObject(object.short_margin, _depth + 1);
+                }
+                if (object.lower_limit != null)
+                    message.lower_limit = $String(object.lower_limit);
+                if (object.upper_limit != null)
+                    message.upper_limit = $String(object.upper_limit);
+                if (object.money_quantum != null)
+                    message.money_quantum = $String(object.money_quantum);
+                if (object.fee_rounding != null)
+                    message.fee_rounding = $String(object.fee_rounding);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a FuturesTerms message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {northstar.accounting.FuturesTerms} message FuturesTerms
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            FuturesTerms.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id")) {
+                    object.terms_id = message.terms_id;
+                    if (options.oneofs)
+                        object._terms_id = "terms_id";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    object.contract_id = message.contract_id;
+                    if (options.oneofs)
+                        object._contract_id = "contract_id";
+                }
+                if (message.effective_from != null && $Object.hasOwnProperty.call(message, "effective_from")) {
+                    object.effective_from = message.effective_from;
+                    if (options.oneofs)
+                        object._effective_from = "effective_from";
+                }
+                if (message.effective_until != null && $Object.hasOwnProperty.call(message, "effective_until")) {
+                    object.effective_until = message.effective_until;
+                    if (options.oneofs)
+                        object._effective_until = "effective_until";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    object.available_at = message.available_at;
+                    if (options.oneofs)
+                        object._available_at = "available_at";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    object.source_reference = message.source_reference;
+                    if (options.oneofs)
+                        object._source_reference = "source_reference";
+                }
+                if (message.open_fee != null && $Object.hasOwnProperty.call(message, "open_fee")) {
+                    object.open_fee = $root.northstar.accounting.ChargeRate.toObject(message.open_fee, options, _depth + 1);
+                    if (options.oneofs)
+                        object._open_fee = "open_fee";
+                }
+                if (message.close_today_fee != null && $Object.hasOwnProperty.call(message, "close_today_fee")) {
+                    object.close_today_fee = $root.northstar.accounting.ChargeRate.toObject(message.close_today_fee, options, _depth + 1);
+                    if (options.oneofs)
+                        object._close_today_fee = "close_today_fee";
+                }
+                if (message.close_yesterday_fee != null && $Object.hasOwnProperty.call(message, "close_yesterday_fee")) {
+                    object.close_yesterday_fee = $root.northstar.accounting.ChargeRate.toObject(message.close_yesterday_fee, options, _depth + 1);
+                    if (options.oneofs)
+                        object._close_yesterday_fee = "close_yesterday_fee";
+                }
+                if (message.long_margin != null && $Object.hasOwnProperty.call(message, "long_margin")) {
+                    object.long_margin = $root.northstar.accounting.ChargeRate.toObject(message.long_margin, options, _depth + 1);
+                    if (options.oneofs)
+                        object._long_margin = "long_margin";
+                }
+                if (message.short_margin != null && $Object.hasOwnProperty.call(message, "short_margin")) {
+                    object.short_margin = $root.northstar.accounting.ChargeRate.toObject(message.short_margin, options, _depth + 1);
+                    if (options.oneofs)
+                        object._short_margin = "short_margin";
+                }
+                if (message.lower_limit != null && $Object.hasOwnProperty.call(message, "lower_limit")) {
+                    object.lower_limit = message.lower_limit;
+                    if (options.oneofs)
+                        object._lower_limit = "lower_limit";
+                }
+                if (message.upper_limit != null && $Object.hasOwnProperty.call(message, "upper_limit")) {
+                    object.upper_limit = message.upper_limit;
+                    if (options.oneofs)
+                        object._upper_limit = "upper_limit";
+                }
+                if (message.money_quantum != null && $Object.hasOwnProperty.call(message, "money_quantum")) {
+                    object.money_quantum = message.money_quantum;
+                    if (options.oneofs)
+                        object._money_quantum = "money_quantum";
+                }
+                if (message.fee_rounding != null && $Object.hasOwnProperty.call(message, "fee_rounding")) {
+                    object.fee_rounding = message.fee_rounding;
+                    if (options.oneofs)
+                        object._fee_rounding = "fee_rounding";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this FuturesTerms to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            FuturesTerms.prototype.toJSON = function() {
+                return FuturesTerms.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for FuturesTerms
+             * @function getTypeUrl
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            FuturesTerms.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.FuturesTerms";
+            };
+
+            return FuturesTerms;
+        })();
+
+        accounting.SettlementFact = (function() {
+
+            /**
+             * Properties of a SettlementFact.
+             * @typedef {Object} northstar.accounting.SettlementFact.$Properties
+             * @property {string|null} [settlement_id] SettlementFact settlement_id
+             * @property {string|null} [contract_id] SettlementFact contract_id
+             * @property {string|null} [trading_day] SettlementFact trading_day
+             * @property {string|null} [next_trading_day] SettlementFact next_trading_day
+             * @property {string|null} [settled_at] SettlementFact settled_at
+             * @property {string|null} [available_at] SettlementFact available_at
+             * @property {string|null} [price] SettlementFact price
+             * @property {string|null} [source_reference] SettlementFact source_reference
+             * @property {"settlement_id"} [_settlement_id] SettlementFact _settlement_id
+             * @property {"contract_id"} [_contract_id] SettlementFact _contract_id
+             * @property {"trading_day"} [_trading_day] SettlementFact _trading_day
+             * @property {"next_trading_day"} [_next_trading_day] SettlementFact _next_trading_day
+             * @property {"settled_at"} [_settled_at] SettlementFact _settled_at
+             * @property {"available_at"} [_available_at] SettlementFact _available_at
+             * @property {"price"} [_price] SettlementFact _price
+             * @property {"source_reference"} [_source_reference] SettlementFact _source_reference
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SettlementFact.
+             * @memberof northstar.accounting
+             * @interface ISettlementFact
+             * @augments northstar.accounting.SettlementFact.$Properties
+             * @deprecated Use northstar.accounting.SettlementFact.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SettlementFact.
+             * @typedef {{
+             *   settlement_id?: string|null;
+             *   contract_id?: string|null;
+             *   trading_day?: string|null;
+             *   next_trading_day?: string|null;
+             *   settled_at?: string|null;
+             *   available_at?: string|null;
+             *   price?: string|null;
+             *   source_reference?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _settlement_id?: undefined; settlement_id?: null }|{ _settlement_id?: "settlement_id"; settlement_id: string })
+             * ) & (
+             *   ({ _contract_id?: undefined; contract_id?: null }|{ _contract_id?: "contract_id"; contract_id: string })
+             * ) & (
+             *   ({ _trading_day?: undefined; trading_day?: null }|{ _trading_day?: "trading_day"; trading_day: string })
+             * ) & (
+             *   ({ _next_trading_day?: undefined; next_trading_day?: null }|{ _next_trading_day?: "next_trading_day"; next_trading_day: string })
+             * ) & (
+             *   ({ _settled_at?: undefined; settled_at?: null }|{ _settled_at?: "settled_at"; settled_at: string })
+             * ) & (
+             *   ({ _available_at?: undefined; available_at?: null }|{ _available_at?: "available_at"; available_at: string })
+             * ) & (
+             *   ({ _price?: undefined; price?: null }|{ _price?: "price"; price: string })
+             * ) & (
+             *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
+             * )} northstar.accounting.SettlementFact.$Shape
+             */
+
+            /**
+             * Constructs a new SettlementFact.
+             * @memberof northstar.accounting
+             * @classdesc Represents a SettlementFact.
+             * @constructor
+             * @param {northstar.accounting.SettlementFact.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SettlementFact = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SettlementFact settlement_id.
+             * @member {string|null|undefined} settlement_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.settlement_id = null;
+
+            /**
+             * SettlementFact contract_id.
+             * @member {string|null|undefined} contract_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.contract_id = null;
+
+            /**
+             * SettlementFact trading_day.
+             * @member {string|null|undefined} trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.trading_day = null;
+
+            /**
+             * SettlementFact next_trading_day.
+             * @member {string|null|undefined} next_trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.next_trading_day = null;
+
+            /**
+             * SettlementFact settled_at.
+             * @member {string|null|undefined} settled_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.settled_at = null;
+
+            /**
+             * SettlementFact available_at.
+             * @member {string|null|undefined} available_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.available_at = null;
+
+            /**
+             * SettlementFact price.
+             * @member {string|null|undefined} price
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.price = null;
+
+            /**
+             * SettlementFact source_reference.
+             * @member {string|null|undefined} source_reference
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.source_reference = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SettlementFact _settlement_id.
+             * @member {"settlement_id"|undefined} _settlement_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_settlement_id", {
+                get: $util.oneOfGetter($oneOfFields = ["settlement_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _contract_id.
+             * @member {"contract_id"|undefined} _contract_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_contract_id", {
+                get: $util.oneOfGetter($oneOfFields = ["contract_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _trading_day.
+             * @member {"trading_day"|undefined} _trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _next_trading_day.
+             * @member {"next_trading_day"|undefined} _next_trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_next_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["next_trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _settled_at.
+             * @member {"settled_at"|undefined} _settled_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_settled_at", {
+                get: $util.oneOfGetter($oneOfFields = ["settled_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _available_at.
+             * @member {"available_at"|undefined} _available_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_available_at", {
+                get: $util.oneOfGetter($oneOfFields = ["available_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _price.
+             * @member {"price"|undefined} _price
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_price", {
+                get: $util.oneOfGetter($oneOfFields = ["price"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _source_reference.
+             * @member {"source_reference"|undefined} _source_reference
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_source_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["source_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SettlementFact instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {northstar.accounting.SettlementFact.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.SettlementFact} SettlementFact instance
+             * @type {{
+             *   (properties: northstar.accounting.SettlementFact.$Shape): northstar.accounting.SettlementFact & northstar.accounting.SettlementFact.$Shape;
+             *   (properties?: northstar.accounting.SettlementFact.$Properties): northstar.accounting.SettlementFact;
+             * }}
+             */
+            SettlementFact.create = function(properties) {
+                return new SettlementFact(properties);
+            };
+
+            /**
+             * Encodes the specified SettlementFact message. Does not implicitly {@link northstar.accounting.SettlementFact.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {northstar.accounting.SettlementFact.$Properties} message SettlementFact message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SettlementFact.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.settlement_id);
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.contract_id);
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.trading_day);
+                if (message.next_trading_day != null && $Object.hasOwnProperty.call(message, "next_trading_day"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.next_trading_day);
+                if (message.settled_at != null && $Object.hasOwnProperty.call(message, "settled_at"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.settled_at);
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.available_at);
+                if (message.price != null && $Object.hasOwnProperty.call(message, "price"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.price);
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.source_reference);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SettlementFact message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.SettlementFact & northstar.accounting.SettlementFact.$Shape} SettlementFact
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SettlementFact.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.SettlementFact();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.settlement_id = reader.stringVerify();
+                            message._settlement_id = "settlement_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.contract_id = reader.stringVerify();
+                            message._contract_id = "contract_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.trading_day = reader.stringVerify();
+                            message._trading_day = "trading_day";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.next_trading_day = reader.stringVerify();
+                            message._next_trading_day = "next_trading_day";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.settled_at = reader.stringVerify();
+                            message._settled_at = "settled_at";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_at = reader.stringVerify();
+                            message._available_at = "available_at";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.price = reader.stringVerify();
+                            message._price = "price";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_reference = reader.stringVerify();
+                            message._source_reference = "source_reference";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SettlementFact message.
+             * @function verify
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SettlementFact.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id")) {
+                    properties._settlement_id = 1;
+                    if (!$util.isString(message.settlement_id))
+                        return "settlement_id: string expected";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    properties._contract_id = 1;
+                    if (!$util.isString(message.contract_id))
+                        return "contract_id: string expected";
+                }
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    properties._trading_day = 1;
+                    if (!$util.isString(message.trading_day))
+                        return "trading_day: string expected";
+                }
+                if (message.next_trading_day != null && $Object.hasOwnProperty.call(message, "next_trading_day")) {
+                    properties._next_trading_day = 1;
+                    if (!$util.isString(message.next_trading_day))
+                        return "next_trading_day: string expected";
+                }
+                if (message.settled_at != null && $Object.hasOwnProperty.call(message, "settled_at")) {
+                    properties._settled_at = 1;
+                    if (!$util.isString(message.settled_at))
+                        return "settled_at: string expected";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    properties._available_at = 1;
+                    if (!$util.isString(message.available_at))
+                        return "available_at: string expected";
+                }
+                if (message.price != null && $Object.hasOwnProperty.call(message, "price")) {
+                    properties._price = 1;
+                    if (!$util.isString(message.price))
+                        return "price: string expected";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    properties._source_reference = 1;
+                    if (!$util.isString(message.source_reference))
+                        return "source_reference: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SettlementFact message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.SettlementFact} SettlementFact
+             */
+            SettlementFact.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.SettlementFact)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.SettlementFact: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.SettlementFact();
+                if (object.settlement_id != null)
+                    message.settlement_id = $String(object.settlement_id);
+                if (object.contract_id != null)
+                    message.contract_id = $String(object.contract_id);
+                if (object.trading_day != null)
+                    message.trading_day = $String(object.trading_day);
+                if (object.next_trading_day != null)
+                    message.next_trading_day = $String(object.next_trading_day);
+                if (object.settled_at != null)
+                    message.settled_at = $String(object.settled_at);
+                if (object.available_at != null)
+                    message.available_at = $String(object.available_at);
+                if (object.price != null)
+                    message.price = $String(object.price);
+                if (object.source_reference != null)
+                    message.source_reference = $String(object.source_reference);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SettlementFact message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {northstar.accounting.SettlementFact} message SettlementFact
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SettlementFact.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id")) {
+                    object.settlement_id = message.settlement_id;
+                    if (options.oneofs)
+                        object._settlement_id = "settlement_id";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    object.contract_id = message.contract_id;
+                    if (options.oneofs)
+                        object._contract_id = "contract_id";
+                }
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    object.trading_day = message.trading_day;
+                    if (options.oneofs)
+                        object._trading_day = "trading_day";
+                }
+                if (message.next_trading_day != null && $Object.hasOwnProperty.call(message, "next_trading_day")) {
+                    object.next_trading_day = message.next_trading_day;
+                    if (options.oneofs)
+                        object._next_trading_day = "next_trading_day";
+                }
+                if (message.settled_at != null && $Object.hasOwnProperty.call(message, "settled_at")) {
+                    object.settled_at = message.settled_at;
+                    if (options.oneofs)
+                        object._settled_at = "settled_at";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    object.available_at = message.available_at;
+                    if (options.oneofs)
+                        object._available_at = "available_at";
+                }
+                if (message.price != null && $Object.hasOwnProperty.call(message, "price")) {
+                    object.price = message.price;
+                    if (options.oneofs)
+                        object._price = "price";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    object.source_reference = message.source_reference;
+                    if (options.oneofs)
+                        object._source_reference = "source_reference";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SettlementFact to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SettlementFact.prototype.toJSON = function() {
+                return SettlementFact.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SettlementFact
+             * @function getTypeUrl
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SettlementFact.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.SettlementFact";
+            };
+
+            return SettlementFact;
+        })();
+
+        return accounting;
     })();
 
     return northstar;

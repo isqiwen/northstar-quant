@@ -2,75 +2,57 @@
 
 | 主机 | 服务 |
 |---|---|
-| `core.local` | Data Hub 前端、API、同步 worker；独立 PostgreSQL |
+| `[data_hub].host` | Data Hub 前端、API、同步 worker；独立 PostgreSQL |
 | `research.local` | Research 前端、API、worker；本机 SQLite 和 DuckDB |
 | Live 独立主机 | 自己的前端、API、内核和本地存储 |
 
 应用只读写固定的目录，不感知存储设备、服务器、协议或挂载方式。
-部署脚本按 `hosts.toml` 准备行情 NFS，其余缺失目录在本机创建。显式关闭 NFS 时可全部使用本地磁盘。
+部署脚本按 `hosts.toml` 挂载外部行情 NFS，其余缺失目录在本机创建。未配置 `[nfs]` 时使用本地磁盘。
 
 ## 行情共享
 
-默认配置：
+NFS 服务由 NAS 管理员提前准备，项目不登录 NAS、不安装服务端、不创建导出或修改 NAS 权限。
+`hosts.toml` 只记录其地址：
 
 ```toml
 [nfs]
-host = "research.local"
-user = "qiwen"
-port = 22
+host = "nas.local"
 ```
 
-| 服务端选择 | core | Research |
+固定使用 NFSv4 导出 `/quant`，挂载点为 `/opt/northstar/files/market`：
+
+| 应用主机 | 挂载源 | 权限 |
 |---|---|---|
-| `research.local`（默认） | NFS 读写挂载 | 本地提供共享，研究容器只读 |
-| `core.local` | 本地写入并提供共享 | NFS 只读挂载 |
-| 其他主机地址 | NFS 读写挂载 | NFS 只读挂载 |
+| `[data_hub].host` | `nas.local:/quant` | 读写 |
+| `[research].host` | `nas.local:/quant` | 只读 |
 
-`[nfs]` 直接填写服务端的 SSH 信息，格式与应用主机一致。与 Data Hub 或 Research 同机时使用相同的 `host`，脚本自动判断本地服务端与远程客户端；其他地址则两台应用主机都作为客户端。
-自动管理的服务端和客户端要求 Ubuntu/Debian Linux；QNAP 等设备不能直接使用 Linux SSH 安装流程。
-`init-host` 会同时准备所需 NFS 服务端账号；`deploy nfs` 安装服务端依赖、设置共享权限与导出。
-`deploy database/data-hub/research` 只检查服务端已部署并运行，再准备当前应用的客户端挂载和依赖，不修改服务端。Research 自己的 `deploy research` 同样自动安装 Docker、Compose、Buildx 和 uv。
-服务端只需 NFS，不因仅提供文件共享而安装 Docker。
+NAS 须允许应用主机通过 TCP 2049 访问，Data Hub 的实际 NFS 映射身份须能创建文件、目录和硬链接，
+Research 须能读取发布目录和文件。服务端的导出权限、UID/GID 映射及防火墙由管理员配置；
+项目不会递归修改 NAS 文件所有者。发布目录/文件使用 `755/644`，原始来源和凭据不共享。
+如果两应用同机，主机挂载为读写，Research 容器仍只读绑定该目录。
 
-NFS 与 database、data-hub、research、live 是同级管理对象，可以单独执行：
+先准备 NAS，再执行 `deploy database`、`deploy data-hub`、`deploy research`。
+数据库使用 Data Hub 的 SSH 主机配置，独立容器、本机 PostgreSQL 目录。数据库初始化会绑定行情存储身份，
+因此 `deploy database` 先在 Data Hub 主机准备同一个客户端挂载，避免初始化到本地空目录。
+Data Hub/Research 部署也会在各自目标主机检查预装的 NFS 客户端、配置 systemd 持久挂载并验证读写及存储身份。
+Docker、Compose、Buildx 等主机依赖由外部提前安装。没有 `deploy/start/stop nfs` 管理命令。
 
-```sh
-./scripts/northstarctl.py init-host nfs
-./scripts/northstarctl.py deploy nfs
-./scripts/northstarctl.py status nfs
-./scripts/northstarctl.py logs nfs --follow
-./scripts/northstarctl.py restart nfs
-```
-
-也支持 `start nfs`、`stop nfs`。NFS 使用 `hosts.toml`，不接受 `--env-file`，不构建 Docker 镜像；
-部署只准备服务端，应用部署仍负责各自客户端挂载。启停管理的是主机 `nfs-server.service`，
-日志来自 journalctl；停止/重启会影响该主机的 NFS 共享访问，但不会删除数据、卸载客户端或启停应用。
-首次使用先 `deploy nfs`；后续 `start/restart` 复用已部署配置并检查存储身份，不重新初始化文件。
-
-唯一共享路径为 `/opt/northstar/files/market`，NFSv4、TCP 2049。服务端按解析后的客户端 IPv4 地址
-导出：core 可写、Research 只读；启用 UFW 时自动放行对应客户端的 2049/TCP。
-其他防火墙需允许这些客户端访问该端口。主机地址应稳定，地址变化后重新部署刷新规则。
-共享账号 `northstar-market` 由脚本创建，写请求映射到这个无登录账号，独立 Research 客户端映射到匿名只读身份，不授予远程 root 身份。
-发布目录/文件使用 `755/644`，原始来源和凭据不共享；首次接管市场目录会调整其所有者和读取权限。
-
-客户端用 systemd 持久挂载，Docker 启动前要求挂载就绪，使用 `hard` 避免把网络故障当成成功写入。
-重复部署不会重复追加配置或重启 Docker。配置了 NFS 却挂载失败时停止部署，不能退回本地空目录。
-Research 的 SQLite、计算临时目录、研究产物和备份目录仍在本机；Live 不配置 NFS，也不依赖该服务端。
-默认方案下 Research 主机离线会影响 core 的行情写入，因此服务端应持续在线。
+首次空共享在 Data Hub 主机部署时生成 `.northstar-storage-id`，然后部署 Research。已有数据必须保留原身份，
+不能因文件缺失重新生成 UUID。重复部署不重复追加挂载配置或重启 Docker。
+客户端使用 NFSv4 `hard` 挂载，Docker 启动前要求挂载就绪；配置了 NFS 却挂载失败时停止部署。
+Research 的 SQLite、临时目录、研究产物和备份仍在本机；Live 不挂载此共享。
 
 **切换已有部署**：先停止 Data Hub 写入和 Research 使用，联合备份数据库与文件；把完整市场目录
-（包括 `.northstar-storage-id`）迁移到目标服务端并核对文件哈希。保留旧数据直至验证完成。
-卸载旧客户端挂载并移除对应 `opt-northstar-files-market.mount`、Docker 的
-`northstar-market.conf` 和 `state/nfs/client.json`；再修改 `[nfs].host` 并重新部署受影响应用。
-旧服务端停止使用后移除其 `/etc/exports.d/northstar.exports` 并执行 `exportfs -ra`。
-脚本拒绝覆盖非空本地目录或替换不同挂载，不自动移动、删除业务数据。
-不配置 `[nfs]` 时使用本地目录；删除该节不会自动卸载已有共享或删除其运行配置。
+（包括 `.northstar-storage-id`）迁移到 NAS 的 `/quant` 导出并核对文件哈希。
+卸载旧客户端挂载并移除旧 `opt-northstar-files-market.mount`、Docker 的
+`northstar-market.conf` 和 `state/nfs/client.json`；修改 `[nfs].host` 后重新部署两应用。
+旧服务端的停用和导出清理由管理员处理，脚本不操作旧服务器或自动移动、删除业务数据。
+脚本拒绝覆盖非空本地目录或替换不同挂载。删除 `[nfs]` 不会自动卸载已有共享。
 
 ## 主机与凭据
 
-仓库维护 `deploy/hosts.toml` 和各目录的 `.env`。`database` 默认部署到 `core.local`。
-主机配置接受 `host/user/port`，不填写路径。`user` 仅用于 `init-host` 登录和提权；其他命令固定使用 northstar。
-`user = "root"` 时直接初始化；普通用户须有 sudo 权限。同一地址和端口的各应用填写相同初始化用户。
+仓库维护 `deploy/hosts.toml` 和各目录的 `.env`。不配置 `[database]`，数据库固定使用 `[data_hub]` 的 host。
+所有主机节只接受 `host`，不填写用户名、端口或路径。SSH 固定使用 northstar，端口沿用本机 SSH 配置。
 `northstarctl deploy` 自动将本次 Git 提交中对应应用的 `.env` 上传到
 `/opt/northstar/config/{database,data-hub,research,live}.env`，归 northstar 用户所有，权限 600。
 首次部署无需手工复制配置；未指定 `--env-file` 时已有运行配置保留原内容。
@@ -156,33 +138,26 @@ Data Hub 使用同一份绑定；Research 首次部署读取市场标记，初�
 
 ## 部署与访问
 
-远程入口本机需要 Python 3.11+/Git/OpenSSH；目标主机先具备 SSH、Python 3.11+，并允许配置的 user 登录；该用户为 root 或具有 sudo 权限。
-`deploy` 自动安装 Ubuntu/Debian amd64 上缺失的 Git、uv、Docker Engine、Compose、Buildx；主机需要软件源和镜像网络访问。
-Ubuntu 首次安装 Docker 使用已配置的系统 APT 源（需提供 universe 中的 docker.io、docker-compose-v2、docker-buildx），不另行下载 Docker 官方源公钥。
-Debian 或已有 Docker CE 使用 Docker 官方软件源；公钥下载有超时和重试。已有可用运行时不自动替换。
+远程入口本机需要 Python 3.11+/Git/OpenSSH。目标 Linux amd64 主机由管理员预先准备：
 
-在 `deploy/hosts.toml` 填好主机地址、初始化 user 和端口，然后首次初始化：
+- `ssh <host>` 可使用默认账号登录；该账号可 sudo 提权或为 root，不必手工创建 northstar。
+- 本机 SSH 配置的 IdentityFile 有对应公钥，或 ssh-agent 已加载公钥；目标具备 sudo/visudo 和 Docker 用户组。
+- Python 3.11+、Git、uv、Docker Engine、Compose、Buildx。
+- Data Hub/Research 使用共享时预装 NFS 客户端（Ubuntu/Debian 为 `nfs-common`）。
+- 镜像下载及构建所需网络；Docker 镜像源由管理员配置。
 
-```sh
-# 初始化全部已配置主机，相同地址和端口只执行一次
-python3 scripts/northstarctl.py init-host
-# 或者只初始化 core
-python3 scripts/northstarctl.py init-host database
-```
+`deploy` 先检查 northstar 是否已能密钥登录、免密码 sudo 并访问 Docker；就绪则直接复用。
+首次按本机 SSH 默认账号登录（不指定 User/Port），必要时由终端提示登录或 sudo 密码。
+脚本创建普通 northstar 账号、追加所用公钥、配置免密码 sudo，并加入 Docker 组；
+重新连接验证后才执行部署。公钥去重并保留已有密钥限制，不覆盖不同的既有 sudo 策略。
+密码不通过脚本参数或部署包传输。无人值守首次部署需要默认账号已能密钥登录及免密码 sudo。
 
-交互执行时由 OpenSSH 提示确认主机指纹、按需输入配置用户的 SSH 登录密码；普通用户由 sudo 提示提权密码。
-无终端时需要配置用户可用的 SSH 密钥，普通用户还需要免密码 sudo。
-脚本创建 northstar 普通用户，安装公钥并配置免密码 sudo，重复执行保留已有公钥。
-自动优先使用本机 `~/.ssh/id_ed25519.pub`，不存在时使用 `~/.ssh/id_rsa.pub`，无需公钥参数。
+主机软件依赖仍只检查，不自动安装，不修改软件源或 Docker 镜像源。
+缺少工具或权限会报错，补齐后重新部署。应用依赖仍在镜像内安装，运行配置与目录仍由部署脚本准备。
+没有主机初始化命令。密钥通过 OpenSSH 默认身份或 agent 使用，不上传私钥。
+SSH 连接关闭或取消部署时清理本次部署子进程并释放锁，已启动容器和持久数据保留。
 
-公钥对应的私钥须可通过本机 SSH 默认身份、配置或 agent 使用；脚本不会上传私钥或保存登录及提权密码。
-没有 SSH 密钥时可先执行 `ssh-keygen -t ed25519` 创建。初始化最后验证 northstar 密钥登录和 `sudo -n`。
-northstar 获得免密码管理员权限以安装依赖和准备目录；Docker 已安装时加入现有 docker 组，否则首次安装时加入。
-已有依赖直接复用，不主动升级或重启 Docker。存储检查与版本读取直接使用 Python，不在主机安装后端业务依赖。
-SSH 连接关闭或取消部署时清理本次部署子进程并释放锁，已启动容器和持久数据保留；可重新执行 `deploy`。
-挂载存储由主机管理员管理。
-
-初始化完成并提交代码后部署（固定使用 northstar，无需手工复制 `.env`）：
+主机准备完成并提交代码后部署（无需手工复制 `.env`）：
 
 ```sh
 python3 scripts/northstarctl.py deploy database
@@ -215,7 +190,7 @@ Live 公网网页为 <https://live.wangqiwen.me>，直连使用 Live 主机 IP:1
 仅测试 Data Hub 时无需部署 Research/Live。
 前端/API 与同步 worker 独立，关闭管理界面不停止已提交任务。
 
-支持 `init-host/deploy/start/restart/stop/status/logs`、`--config`、`--dry-run`、`--help`。
+支持 `deploy/start/restart/stop/status/logs`、`--config`、`--dry-run`、`--help`。
 `deploy` 传送干净 Git HEAD；`start/restart` 使用已部署镜像；停止保留主机数据目录。
 `--dry-run` 不连接主机或安装软件。其他管理命令也不安装软件。
 Live 整套启停包含内核，但不代表撤单、平仓或完成核对，也不自动授予交易权。
@@ -276,3 +251,29 @@ Caddy 到 FRP 的 HTTP 上游须保留 `Host: datahub.wangqiwen.me`；若配置�
 X-Forwarded-Host/For 不参与访问授权，也不传给 API；X-Forwarded-Proto=https 仅用于为浏览器 Cookie 增加 Secure。
 HTTPS 页面经内部 HTTP 转发可以建立会话并提交带 CSRF 的操作，其他来源仍拒绝。
 代理行为参考 [Caddy reverse_proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)。
+
+
+## 完全卸载应用主机
+
+`stop` 保留数据；`purge-host` 删除所选应用所在主机的**全部 Northstar 部署和本地数据**。
+参数选择的是主机，不是只删除一个应用：`data-hub` 和 `database` 指向同一主机，结果相同。
+
+```sh
+# 仅显示目标，不连接 SSH
+python3 scripts/northstarctl.py purge-host data-hub --dry-run
+# 确认删除该主机全部 Northstar 部署（包括同机数据库）
+python3 scripts/northstarctl.py purge-host data-hub --yes
+# 其他应用主机分别执行
+python3 scripts/northstarctl.py purge-host research --yes
+python3 scripts/northstarctl.py purge-host live --yes
+```
+
+删除项目标签对应的容器、专属镜像/网络/卷、Web 防火墙规则和 systemd 单元、NFS 客户端配置，
+最后删除 `/opt/northstar`，包括程序版本、配置、凭据、日志、数据库、研究产物及本地行情/备份。
+执行前自行保留需要的数据，并停止其他部署/管理操作。停止 Live 容器不等于柜台委托已撤销或账户已平仓。
+
+**不登录或操作 NFS 服务器，不删除 NAS `/quant` 数据。** 先卸载共享再清理本地目录；
+卸载失败、其他挂载或非项目容器仍占用目录时拒绝删除。符号链接不会被递归跟随。
+northstar 部署账号（保留登录与再次部署能力）、SSH、Docker、主机依赖、公共基础镜像及无法单独归属的共享构建缓存保留；
+不执行全局 Docker prune，不停止 Docker 服务。专属资源被其他容器引用时不会强删。
+命令失败会明确报告未完成，已完成步骤不回滚；修复后可重试。该命令不会遍历其他应用主机。

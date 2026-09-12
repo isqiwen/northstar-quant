@@ -14,7 +14,7 @@ import httpx2 as httpx
 from .auth import LiveAuth
 
 # Bump for changes to the current request/response or command semantics.
-PROTOCOL_VERSION = "2"
+PROTOCOL_VERSION = "4"
 
 
 class RuntimeUnavailable(RuntimeError):
@@ -40,7 +40,11 @@ class LiveClient:
         client: httpx.Client | None = None,
         expected_runtime_id: UUID | None = None,
         expected_instance_id: str | None = None,
+        operator: str = "maintenance",
     ) -> None:
+        if operator not in {"owner", "maintenance"}:
+            raise ValueError("Unknown Live operator")
+        self._operator = operator
         parsed = urlsplit(base_url)
         if (
             parsed.scheme not in {"http", "https"}
@@ -102,7 +106,11 @@ class LiveClient:
         token = self._auth.control_token if control else self._auth.read_token
         if token is None:
             raise ValueError("This Live Web has read permission only")
-        headers = {"Authorization": "Bearer " + token, "X-Northstar-Protocol": PROTOCOL_VERSION}
+        headers = {
+            "Authorization": "Bearer " + token,
+            "X-Northstar-Protocol": PROTOCOL_VERSION,
+            "X-Northstar-Operator": self._operator,
+        }
         if self._expected_instance_id:
             headers["X-Live-Instance-ID"] = self._expected_instance_id
         headers.update(command_headers or {})
@@ -171,6 +179,20 @@ class LiveClient:
             client=self._http,
             expected_runtime_id=runtime_id,
             expected_instance_id=self._expected_instance_id,
+            operator=self._operator,
+        )
+        bound._owns_http = False
+        return bound
+
+    def for_operator(self, operator: str) -> LiveClient:
+        """Bind the API's authenticated identity without mutating the shared connection pool."""
+        bound = LiveClient(
+            self._base_url,
+            self._auth,
+            client=self._http,
+            expected_runtime_id=self._expected_runtime_id,
+            expected_instance_id=self._expected_instance_id,
+            operator=operator,
         )
         bound._owns_http = False
         return bound
@@ -198,7 +220,11 @@ class LiveClient:
         except LookupError:
             receipt = None
         if receipt is not None:
-            if receipt["path"] != path or receipt["input"] != body:
+            if (
+                receipt["path"] != path
+                or receipt["input"] != body
+                or receipt["operator"] != self._operator
+            ):
                 raise ValueError("Live command identity is bound to different input")
             return self._result(receipt, request_id)
         runtime = self.status()

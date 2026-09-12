@@ -10,9 +10,6 @@ export type Annotation = {
 export type AnnotationRequest = {
   description: string;
 };
-export type BrowserSession = {
-  csrf: string;
-};
 export type Catalog = {
   factors: (FactorSummary)[];
   strategies: (StrategySummary)[];
@@ -61,6 +58,8 @@ export type DatasetDetails = {
   sources: (Record<string, JsonValue>)[];
   symbol: string;
   trading_days: (string)[];
+  settlements: (SettlementFact)[];
+  terms: (FuturesTerms)[];
 };
 export type DatasetLineage = {
   attempts: (Record<string, JsonValue>)[];
@@ -85,6 +84,29 @@ export type EquityPoint = {
   equity: string;
   observation_id: string;
   [key: string]: unknown;
+  close: string;
+  cash: string;
+  position_lots: number;
+  realized_pnl: string;
+  unrealized_pnl: string;
+  total_fees: string;
+  drawdown: string;
+  drawdown_fraction: string;
+  long_lots: number;
+  short_lots: number;
+  net_exposure: string;
+  gross_exposure: string;
+  settlement_pnl: string;
+  trade_realized_pnl: string;
+  terms_id?: string | null;
+  margin_used?: string | null;
+  available?: string | null;
+  reserved_fee: string;
+  reserved_margin: string;
+  reserved_close_lots: number;
+  available_after_reservations?: string | null;
+  reserved_gross: string;
+  reserved_loss: string;
 };
 export type FactorBinding = {
   code_revision: string;
@@ -110,6 +132,35 @@ export type FactorResult = {
   evaluation: Record<string, JsonValue>;
   inputs: Record<string, JsonValue>;
   values: (FactorValue)[];
+  analysis: FactorAnalysis;
+};
+export type ForwardGroup = {
+  group: number;
+  samples: number;
+  mean_forward_return: number | null;
+};
+export type ForwardDay = {
+  trading_day: string;
+  samples: number;
+  spearman: number | null;
+  mean_forward_return: number | null;
+};
+export type FactorHorizon = {
+  bars: number;
+  samples: number;
+  excluded: Record<string, number>;
+  status: string;
+  pearson: number | null;
+  spearman: number | null;
+  group_change_fraction: number | null;
+  groups: (ForwardGroup)[];
+  days: (ForwardDay)[];
+};
+export type FactorAnalysis = {
+  plan: string;
+  numeric: string;
+  horizons: (FactorHorizon)[];
+  limitations: (string)[];
 };
 export type FactorRevision = {
   annotations: (Annotation)[];
@@ -121,6 +172,8 @@ export type FactorRevisionRequest = {
   parameters: Record<string, JsonValue>;
 };
 export type FactorRun = {
+  total: number;
+  done: number;
   attempt_id: string;
   code_revision: string;
   completed_at: string | null;
@@ -133,6 +186,7 @@ export type FactorRun = {
   [key: string]: unknown;
 };
 export type FactorRunRequest = {
+  request_id: string;
   revision_id: string;
   snapshot_id: string;
 };
@@ -174,6 +228,7 @@ export type HttpError = {
   url?: string | null;
 };
 export type ImportSpecification = {
+  interval: "1m" | "5m" | "15m" | "30m" | "60m";
   session_kind: "DAY" | "NIGHT";
   availability_basis: string;
   availability_note: string;
@@ -243,12 +298,16 @@ export type ResearchConfigurationInput = {
   strategy?: JsonValue | null;
 };
 export type ResearchResultDocument = {
-  data: Record<string, JsonValue> | null;
+  performance: PerformanceReport;
+  evaluation: EvaluationResult;
+  orders: (Record<string, JsonValue>)[];
+  data: DatasetDetails | null;
   decisions: (Record<string, JsonValue>)[];
   equity_curve: (EquityPoint)[];
   fills: (Record<string, JsonValue>)[];
   summary: ResearchSummary;
   [key: string]: unknown;
+  settlements: (Record<string, JsonValue>)[];
 };
 export type ResearchSummary = {
   bar_count: number;
@@ -305,6 +364,7 @@ export type SavedConfiguration = {
   strategy_hash: string;
 };
 export type SimulationInput = {
+  max_volume_participation?: string;
   fee_per_lot?: string;
   initial_cash?: string;
   slippage_ticks?: number;
@@ -318,7 +378,7 @@ export type StrategyCandidate = {
   candidate_id: string;
   document: VersionDocument;
   format: number;
-  production_eligible: boolean;
+  same_clean_revision: boolean;
   version_id: string;
 };
 export type StrategyDescription = {
@@ -394,7 +454,103 @@ export type TaskRequest = {
 export type TaskControl = {
   action: string;
 };
+export type ExperimentRequest = {
+  request_id: string;
+  hypothesis: string;
+  train_snapshot: string;
+  validation_snapshot: string;
+  test_snapshot: string;
+  configurations: (ResearchConfigurationInput)[];
+};
+export type LearningRecipeInput = {
+  fast_bars: number;
+  slow_bars: number;
+  horizon_bars: number;
+  penalties: (string)[];
+  threshold: string;
+  target_fraction: string;
+};
+export type LearningExperimentRequest = {
+  request_id: string;
+  hypothesis: string;
+  train_snapshot: string;
+  validation_snapshot: string;
+  test_snapshot: string;
+  configurations: (ResearchConfigurationInput)[];
+  learning: LearningRecipeInput;
+};
+export type Experiment = {
+  fitted: Record<string, JsonValue> | null;
+  experiment_id: string;
+  plan_id: string;
+  created_at: string;
+  status: string;
+  plan: Record<string, JsonValue>;
+  selection: Record<string, JsonValue> | null;
+  trials: (Record<string, JsonValue>)[];
+};
+export type ExperimentList = (Experiment)[];
 export type TaskList = (ResearchTask)[];
+export type EvaluationPlan = {
+  plan_id: string;
+  revision: string;
+  snapshot_id: string;
+  content_hash: string;
+  window: string;
+  event_start: string | null;
+  event_end: string | null;
+  expected_bars: number | null;
+  benchmark: string;
+  annualization: string;
+  risk_free_rate: string;
+  sample_use: string;
+};
+export type EvaluationResult = {
+  plan: EvaluationPlan;
+  status: string;
+  observed_bars: number;
+  benchmark_ending_equity: string;
+  benchmark_return: string;
+  excess_return: string;
+  annualized_return: string | null;
+  sharpe: string | null;
+  limitations: (string)[];
+};
+export type PerformancePeriod = {
+  period: string;
+  start_at: string;
+  end_at: string;
+  opening_equity: string;
+  closing_equity: string;
+  pnl: string;
+  return_fraction: string | null;
+  observations: number;
+};
+export type DrawdownPeriod = {
+  peak_at: string;
+  start_at: string;
+  trough_at: string;
+  end_at: string;
+  peak_equity: string;
+  trough_equity: string;
+  drawdown: string;
+  drawdown_fraction: string;
+  elapsed_seconds: string;
+  recovered: boolean;
+};
+export type RollingReturn = {
+  start_day: string;
+  end_day: string;
+  observed_days: number;
+  return_fraction: string | null;
+};
+export type PerformanceReport = {
+  daily: (PerformancePeriod)[];
+  monthly: (PerformancePeriod)[];
+  drawdowns: (DrawdownPeriod)[];
+  rolling: (RollingReturn)[];
+  basis: string;
+};
 export type Empty = {
 };
 export type Error = {
@@ -404,4 +560,46 @@ export type Error = {
   runtime_id?: string;
   url?: string;
   rejection_id?: string;
+};
+export type BrowserSession = {
+  setup_required: boolean;
+  authenticated: boolean;
+  csrf: string | null;
+  operator: string | null;
+  expires_at: string | null;
+};
+export type LoginRequest = {
+  username: string;
+  password: string;
+};
+export type ChargeRate = {
+  by_money: string;
+  by_volume: string;
+};
+export type FuturesTerms = {
+  terms_id: string;
+  contract_id: string;
+  effective_from: string;
+  effective_until: string;
+  available_at: string;
+  source_reference: string;
+  open_fee: ChargeRate;
+  close_today_fee: ChargeRate;
+  close_yesterday_fee: ChargeRate;
+  long_margin: ChargeRate;
+  short_margin: ChargeRate;
+  lower_limit: string;
+  upper_limit: string;
+  money_quantum: string;
+  fee_rounding: string;
+};
+export type SettlementFact = {
+  settlement_id: string;
+  contract_id: string;
+  trading_day: string;
+  next_trading_day: string;
+  settled_at: string;
+  available_at: string;
+  price: string;
+  source_reference: string;
 };

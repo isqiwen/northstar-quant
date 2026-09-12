@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_HALF_EVEN, Decimal, localcontext
 
 from northstar_quant.accounting.amounts import decimal_text
+from northstar_quant.accounting.terms import ChargeRate
 from northstar_quant.execution.orders import Side
 
 _MAX_FINANCIAL = Decimal("9" * 34)
@@ -169,11 +170,15 @@ def evaluate_opening_budget(
             if candidate.side is Side.BUY
             else (terms.short_margin_by_money, terms.short_margin_by_volume)
         )
-        margin = (margin_notional * margin_money + lots * margin_volume).quantize(
-            Decimal("0.01"), rounding=ROUND_CEILING
+        margin = (
+            ChargeRate(margin_money, margin_volume)
+            .amount(margin_notional, lots)
+            .quantize(Decimal("0.01"), rounding=ROUND_CEILING)
         )
-        fee = (notional * terms.open_fee_by_money + lots * terms.open_fee_by_volume).quantize(
-            Decimal("0.01"), rounding=ROUND_CEILING
+        fee = (
+            ChargeRate(terms.open_fee_by_money, terms.open_fee_by_volume)
+            .amount(notional, lots)
+            .quantize(Decimal("0.01"), rounding=ROUND_CEILING)
         )
         capital = margin + fee
         equity_after_fee = account.equity - fee

@@ -7,7 +7,9 @@ from uuid import UUID
 
 
 @dataclass(frozen=True, slots=True)
-class Market:
+class Instrument:
+    """Fixed contract economics, independent of any bar stream or storage."""
+
     contract_id: UUID
     symbol: str
     exchange_timezone: str
@@ -15,7 +17,6 @@ class Market:
     quantity_unit: str
     price_tick: Decimal
     multiplier: Decimal
-    interval_seconds: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +30,8 @@ class MarketBar:
     volume: Decimal
 
     def validate(self, *, interval_seconds: int, price_tick: Decimal | None = None) -> None:
+        if type(interval_seconds) is not int or interval_seconds <= 0:
+            raise ValueError("bar interval must be a positive integer number of seconds")
         bar = self
         if not isinstance(bar, MarketBar) or not isinstance(bar.observation_id, UUID):
             raise ValueError("research requires canonical observations")

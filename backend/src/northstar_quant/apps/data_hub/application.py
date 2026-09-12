@@ -10,7 +10,7 @@ from northstar_quant.web import datasets
 from northstar_quant.web.host import create_host
 from northstar_quant.web.protobuf import bind
 
-from . import exploration_api, processing_api, publication_api, source_api, sync_api
+from . import compaction_api, exploration_api, processing_api, publication_api, source_api, sync_api
 
 
 def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
@@ -20,6 +20,7 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
         allowed_hosts=("core.local", "datahub.wangqiwen.me"),
         allow_ip_hosts=True,
     )
+    compaction_api.register(app, engine)
     exploration_api.register(app, engine)
     publication_api.register(app, library)
     sync_api.register(app, app.state.workspace_access, engine)

@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import protocol from "../../apps/live/api/protocol.json";
 import codec from "../../apps/live/api/codec";
 const bytes = {
-  session: [10, 5, 116, 111, 107, 101, 110],
+  session: [
+    40, 0, 8, 1, 18, 5, 116, 111, 107, 101, 110, 26, 5, 111, 119, 110, 101, 114,
+    242, 127, 10, 101, 120, 112, 105, 114, 101, 115, 95, 97, 116,
+  ],
   budget: [
     10, 6, 98, 117, 100, 103, 101, 116, 194, 62, 20, 10, 6, 115, 116, 97, 116,
     117, 115, 18, 10, 26, 8, 82, 69, 67, 79, 82, 68, 69, 68,
@@ -110,7 +113,6 @@ describe("fixed Protobuf commands", () => {
       id: "fixed",
       runtime: "runtime",
       status: "UNKNOWN",
-      body: { action: "STOP" },
     });
     await expect(
       api.mutate(
@@ -234,4 +236,39 @@ it("submits commands on LAN HTTP without crypto.randomUUID", async () => {
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+it("does not persist credentials when a response is lost", async () => {
+  const api = await import("../../shared/api");
+  const data = await import("../../apps/data_hub/api/protocol.json");
+  const dataCodec = await import("../../apps/data_hub/api/codec");
+  api.registerProtocol(data.default, dataCodec.default);
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(response("session"))
+    .mockRejectedValueOnce(new Error("lost"));
+  vi.stubGlobal("fetch", fetch);
+  await expect(
+    api.mutate("/api/sync/token", { token: "private-token" }),
+  ).rejects.toThrow("未知");
+  expect(JSON.stringify([...memory.values()])).not.toContain("private-token");
+  expect(api.pendingCommand()?.path).toBe("/api/sync/token");
+});
+
+it("returns to login on 401 without retrying a rejected command", async () => {
+  const api = await import("../../shared/api");
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(response("session"))
+    .mockResolvedValueOnce(response("forbidden", 401));
+  vi.stubGlobal("fetch", fetch);
+  await expect(
+    api.mutate("/api/streams/s/control", {
+      request_id: "fixed",
+      action: "STOP",
+    }),
+  ).rejects.toThrow("Forbidden");
+  expect(api.pendingCommand()).toBeNull();
+  expect(window.dispatchEvent).toHaveBeenCalled();
+  expect(fetch).toHaveBeenCalledTimes(2);
 });

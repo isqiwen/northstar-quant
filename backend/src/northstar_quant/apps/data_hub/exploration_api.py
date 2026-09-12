@@ -69,6 +69,7 @@ class ExplorerCoverage(ApiModel):
 
 
 class ExplorerRows(ApiModel):
+    scan: dict[str, int]
     dataset: str
     scope: str
     start: str

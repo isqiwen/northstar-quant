@@ -25,11 +25,13 @@ class InstalledApplication:
     """Keep Live independent while Live Web processes come and go in an empty directory."""
 
     def __init__(self, executable: str, directory: Path, environment: dict[str, str]) -> None:
+        self.workspace_password = "synthetic-installed-workspace-password"
         self.executable = executable
         self.directory = directory.resolve()
         self.environment = dict(
             environment,
             NORTHSTAR_LOG_DIR=str(directory / "logs"),
+            NORTHSTAR_WORKSPACE_DIR=str(directory / "workspace"),
         )
         self.environment.setdefault(
             "NORTHSTAR_RESEARCH_DATABASE", str(directory / "research.sqlite3")
@@ -106,6 +108,52 @@ class InstalledApplication:
             )
         return json.loads(completed.stdout)
 
+    def seed_order_journal(self) -> dict:
+        """Synthetic local persistence/UI evidence, never a native broker request."""
+        code = """
+import json
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from uuid import uuid4
+from northstar_quant.accounting.fills import FillFact
+from northstar_quant.apps.storage import open_database
+from northstar_quant.execution.journal import OrderJournal
+from northstar_quant.execution.orders import PendingOrder, OrderBudget, Side, Offset
+engine = open_database()
+now = datetime.now(UTC)
+order = PendingOrder(str(uuid4()), uuid4(), now, now + timedelta(seconds=60),
+    Side.BUY, Offset.OPEN, 3, Decimal('99'), Decimal('101'), contract_id=uuid4(),
+    budget=OrderBudget(Decimal('2'), Decimal('101'), Decimal('1010'), Decimal('10')))
+journal = OrderJournal(engine, uuid4())
+journal.submit(order, uuid4(), admit=lambda connection: None, dispatch=lambda value: None)
+journal.report(order.order_id, evidence_id=uuid4(), state='CANCELED', cumulative_lots=1)
+priced_later = replace(order, order_id=str(uuid4()), contract_id=uuid4())
+journal.submit(priced_later, uuid4(), admit=lambda connection: None, dispatch=lambda value: None)
+received = datetime.now(UTC)
+journal.fill(FillFact(str(uuid4()), priced_later.order_id, priced_later.contract_id,
+    None, received, received.date(), Side.BUY, Offset.OPEN, 3, Decimal('100'), None,
+    available_at=received), post_account=lambda connection, fact: None)
+assert journal.verify_all() == 2
+print(json.dumps({'order_id': order.order_id, 'fee_order_id': priced_later.order_id,
+    'evidence': 'SYNTHETIC_LOCAL_JOURNAL_NO_BROKER'}))
+engine.dispose()
+"""
+        completed = subprocess.run(
+            [str(Path(self.executable).parent / "python"), "-c", code],
+            cwd=self.directory,
+            env=self.live_environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if completed.returncode:
+            raise RuntimeError(
+                "Installed local journal setup failed: "
+                + redact(completed.stderr, self.live_environment)
+            )
+        return json.loads(completed.stdout)
+
     def seed_source(self, payload: dict, *, wait: bool = False) -> dict:
         """Synthetic acceptance setup in the installed interpreter; no upload API."""
         code = """
@@ -127,9 +175,12 @@ print(json.dumps(result))
             capture_output=True,
             env=self.environment,
             cwd=self.directory,
-            check=True,
             timeout=60,
         )
+        if result.returncode:
+            raise RuntimeError(
+                "Installed source setup failed: " + redact(result.stderr, self.environment)
+            )
         return json.loads(result.stdout)
 
     def seed_study(self, study: Path) -> dict:
@@ -166,7 +217,7 @@ print(json.dumps(result))
         )
         body = None if payload is None else pack(binding.input_type, payload).SerializeToString()
         headers = {} if body is None else {"Content-Type": "application/protobuf"}
-        if body is not None:
+        if body is not None and parsed.path not in {"/api/login", "/api/setup"}:
             session = json.loads(self.request(origin + "/api/browser-session"))
             headers["X-Northstar-CSRF"] = session["csrf"]
         with self.opener.open(Request(url, data=body, headers=headers), timeout=30) as response:
@@ -288,7 +339,7 @@ run()
             yield process
 
     @contextmanager
-    def api(self, role: str = "live-api") -> Iterator[str]:
+    def api(self, role: str = "live-api", *, authenticate: bool = True) -> Iterator[str]:
         environment = dict(self.environment)
         if role == "research-api":
             environment["NORTHSTAR_DATABASE_OWNER"] = "research"
@@ -309,7 +360,12 @@ run()
                     "live-api": "live",
                 }[role]
             )
-            self.request(base_url + "/api/browser-session")
+            if authenticate:
+                state = json.loads(self.request(base_url + "/api/browser-session"))
+                endpoint = "/api/setup" if state["setup_required"] else "/api/login"
+                self.request(
+                    base_url + endpoint, {"username": "owner", "password": self.workspace_password}
+                )
             log_health = json.loads(self.request(base_url + "/health/logging"))
             assert log_health["status"] == "OK", log_health
             assert (
@@ -319,14 +375,14 @@ run()
             yield base_url
 
     @contextmanager
-    def web(self, role: str = "live-api") -> Iterator[str]:
+    def web(self, role: str = "live-api", *, authenticate: bool = True) -> Iterator[str]:
         application = {
             "data-api": "data_hub",
             "research-api": "research",
             "live-api": "live",
         }[role]
         frontend = Path(__file__).resolve().parents[3] / "frontend"
-        with self.api(role) as backend:
+        with self.api(role, authenticate=authenticate) as backend:
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
                 port = listener.getsockname()[1]

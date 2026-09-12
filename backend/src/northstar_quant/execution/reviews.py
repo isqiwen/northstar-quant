@@ -6,22 +6,20 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import JSON, Column, Connection, Engine, MetaData, String, Table, select
+from sqlalchemy import JSON, Column, Connection, Engine, MetaData, String, Table, Uuid, select
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.ledger import BrokerLedger
-from northstar_quant.broker.records import EvidenceTimestamp
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _order_checks = Table(
     "broker_order_checks",
     _metadata,
-    Column("check_id", PGUUID(as_uuid=True), primary_key=True),
-    Column("position_check_id", PGUUID(as_uuid=True), nullable=False, unique=True),
-    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("check_id", Uuid(as_uuid=True), primary_key=True),
+    Column("position_check_id", Uuid(as_uuid=True), nullable=False, unique=True),
+    Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
 )

@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import type { ExplorerRows } from "../api/generated";
 import { Evidence } from "../../../shared/ui";
+import { CompactButton } from "./compact-button";
 import { PriceChart } from "./price-chart";
 type Row = Record<string, unknown>;
 const fieldOrder = [
@@ -35,7 +36,9 @@ export function DataPanel({
   exporting,
   onExport,
   onPage,
+  compacted = false,
 }: {
+  compacted?: boolean;
   result: ExplorerRows;
   exporting: boolean;
   onExport: () => void;
@@ -65,6 +68,7 @@ export function DataPanel({
           <Tag>Asia/Shanghai</Tag>
           <Tag>固定 {result.receipt_ids.length} 个分片</Tag>
           <strong>{result.total.toLocaleString()} 条记录</strong>
+          {!compacted && <CompactButton result={result} />}
           <Button
             disabled={!result.export_allowed || !result.total}
             loading={exporting}
@@ -78,6 +82,17 @@ export function DataPanel({
           {result.export_allowed ? "" : "来源当前未开放导出权限。"}
         </p>
       </Card>
+      <details>
+        <summary>查询读取统计</summary>
+        <p className="muted">
+          涉及 {Number(result.scan.files)} 个文件；解码{" "}
+          {Number(result.scan.rows_decoded).toLocaleString()} 条记录， 读取{" "}
+          {Number(result.scan.row_groups_read)} /{" "}
+          {Number(result.scan.row_groups_total)} 个行组。 文件身份仍完整核验{" "}
+          {Number(result.scan.verified_bytes).toLocaleString()}{" "}
+          字节，行组裁剪减少解码， 不表示减少了文件哈希核验的读取量。
+        </p>
+      </details>
       {!result.rows.length ? (
         <Card>
           <Empty description="所选范围暂无已发布记录；请查看覆盖与质量" />

@@ -1479,273 +1479,6 @@ export const northstar = $root.northstar = (() => {
             return AdmissionRejection;
         })();
 
-        data_hub.BrowserSession = (function() {
-
-            /**
-             * Properties of a BrowserSession.
-             * @typedef {Object} northstar.data_hub.BrowserSession.$Properties
-             * @property {string|null} [csrf] BrowserSession csrf
-             * @property {"csrf"} [_csrf] BrowserSession _csrf
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-
-            /**
-             * Properties of a BrowserSession.
-             * @memberof northstar.data_hub
-             * @interface IBrowserSession
-             * @augments northstar.data_hub.BrowserSession.$Properties
-             * @deprecated Use northstar.data_hub.BrowserSession.$Properties instead.
-             */
-
-            /**
-             * Narrowed shape of a BrowserSession.
-             * @typedef {{
-             *   csrf?: string|null;
-             *   $unknowns?: Array.<Uint8Array>;
-             * } & (
-             *   ({ _csrf?: undefined; csrf?: null }|{ _csrf?: "csrf"; csrf: string })
-             * )} northstar.data_hub.BrowserSession.$Shape
-             */
-
-            /**
-             * Constructs a new BrowserSession.
-             * @memberof northstar.data_hub
-             * @classdesc Represents a BrowserSession.
-             * @constructor
-             * @param {northstar.data_hub.BrowserSession.$Properties=} [properties] Properties to set
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-            const BrowserSession = function (properties) {
-                if (properties)
-                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
-                            this[keys[i]] = properties[keys[i]];
-            };
-
-            /**
-             * BrowserSession csrf.
-             * @member {string|null|undefined} csrf
-             * @memberof northstar.data_hub.BrowserSession
-             * @instance
-             */
-            BrowserSession.prototype.csrf = null;
-
-            // OneOf field names bound to virtual getters and setters
-            let $oneOfFields;
-
-            /**
-             * BrowserSession _csrf.
-             * @member {"csrf"|undefined} _csrf
-             * @memberof northstar.data_hub.BrowserSession
-             * @instance
-             */
-            $Object.defineProperty(BrowserSession.prototype, "_csrf", {
-                get: $util.oneOfGetter($oneOfFields = ["csrf"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * Creates a new BrowserSession instance using the specified properties.
-             * @function create
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {northstar.data_hub.BrowserSession.$Properties=} [properties] Properties to set
-             * @returns {northstar.data_hub.BrowserSession} BrowserSession instance
-             * @type {{
-             *   (properties: northstar.data_hub.BrowserSession.$Shape): northstar.data_hub.BrowserSession & northstar.data_hub.BrowserSession.$Shape;
-             *   (properties?: northstar.data_hub.BrowserSession.$Properties): northstar.data_hub.BrowserSession;
-             * }}
-             */
-            BrowserSession.create = function(properties) {
-                return new BrowserSession(properties);
-            };
-
-            /**
-             * Encodes the specified BrowserSession message. Does not implicitly {@link northstar.data_hub.BrowserSession.verify|verify} messages.
-             * @function encode
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {northstar.data_hub.BrowserSession.$Properties} message BrowserSession message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            BrowserSession.encode = function (message, writer, _depth) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.csrf);
-                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
-                    for (let i = 0; i < message.$unknowns.length; ++i)
-                        writer.raw(message.$unknowns[i]);
-                return writer;
-            };
-
-            /**
-             * Decodes a BrowserSession message from the specified reader or buffer.
-             * @function decode
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.data_hub.BrowserSession & northstar.data_hub.BrowserSession.$Shape} BrowserSession
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            BrowserSession.decode = function (reader, length, _end, _depth, _target) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $Reader.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let end, message;
-                if (length === $undefined)
-                    end = reader.len;
-                else {
-                    end = reader.pos + length;
-                    if (end > reader.len)
-                        throw $RangeError("index out of range");
-                    length = reader.len;
-                    reader.len = end;
-                }
-                message = _target || new $root.northstar.data_hub.BrowserSession();
-                while (reader.pos < end) {
-                    let start = reader.pos;
-                    let tag = reader.tag();
-                    if (tag === _end) {
-                        _end = $undefined;
-                        break;
-                    }
-                    let wireType = tag & 7;
-                    switch (tag >>>= 3) {
-                    case 1: {
-                            if (wireType !== 2)
-                                break;
-                            message.csrf = reader.stringVerify();
-                            message._csrf = "csrf";
-                            continue;
-                        }
-                    }
-                    reader.skipType(wireType, _depth, tag);
-                    if (!reader.discardUnknown) {
-                        $util.makeProp(message, "$unknowns", false);
-                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
-                    }
-                }
-                if (length !== $undefined) {
-                    if (reader.pos !== end)
-                        throw $RangeError("index out of range");
-                    reader.len = length;
-                }
-                if (_end !== $undefined)
-                    throw $Error("missing end group");
-                return message;
-            };
-
-            /**
-             * Verifies a BrowserSession message.
-             * @function verify
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            BrowserSession.verify = function (message, _depth) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    return "max depth exceeded";
-                let properties = {};
-                if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
-                    properties._csrf = 1;
-                    if (!$util.isString(message.csrf))
-                        return "csrf: string expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates a BrowserSession message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.data_hub.BrowserSession} BrowserSession
-             */
-            BrowserSession.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.data_hub.BrowserSession)
-                    return object;
-                if (!$util.isObject(object))
-                    throw $TypeError(".northstar.data_hub.BrowserSession: object expected");
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let message = new $root.northstar.data_hub.BrowserSession();
-                if (object.csrf != null)
-                    message.csrf = $String(object.csrf);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a BrowserSession message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {northstar.data_hub.BrowserSession} message BrowserSession
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            BrowserSession.toObject = function (message, options, _depth) {
-                if (!options)
-                    options = {};
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let object = {};
-                if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
-                    object.csrf = message.csrf;
-                    if (options.oneofs)
-                        object._csrf = "csrf";
-                }
-                return object;
-            };
-
-            /**
-             * Converts this BrowserSession to JSON.
-             * @function toJSON
-             * @memberof northstar.data_hub.BrowserSession
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            BrowserSession.prototype.toJSON = function() {
-                return BrowserSession.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the type url for BrowserSession
-             * @function getTypeUrl
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
-             * @returns {string} The type url
-             */
-            BrowserSession.getTypeUrl = function(prefix) {
-                if (prefix === $undefined)
-                    prefix = "type.googleapis.com";
-                return prefix + "/northstar.data_hub.BrowserSession";
-            };
-
-            return BrowserSession;
-        })();
-
         data_hub.DatasetDetails = (function() {
 
             /**
@@ -1771,6 +1504,8 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [symbol] DatasetDetails symbol
              * @property {Array.<string>|null} [trading_days] DatasetDetails trading_days
              * @property {Array.<string>|null} [null_fields] DatasetDetails null_fields
+             * @property {Array.<northstar.accounting.SettlementFact.$Properties>|null} [settlements] DatasetDetails settlements
+             * @property {Array.<northstar.accounting.FuturesTerms.$Properties>|null} [terms] DatasetDetails terms
              * @property {"availability_basis"} [_availability_basis] DatasetDetails _availability_basis
              * @property {"availability_note"} [_availability_note] DatasetDetails _availability_note
              * @property {"bar_count"} [_bar_count] DatasetDetails _bar_count
@@ -1820,6 +1555,8 @@ export const northstar = $root.northstar = (() => {
              *   symbol?: string|null;
              *   trading_days?: Array.<string>|null;
              *   null_fields?: Array.<string>|null;
+             *   settlements?: Array.<northstar.accounting.SettlementFact.$Shape>|null;
+             *   terms?: Array.<northstar.accounting.FuturesTerms.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _availability_basis?: undefined; availability_basis?: null }|{ _availability_basis?: "availability_basis"; availability_basis: string })
@@ -1868,6 +1605,8 @@ export const northstar = $root.northstar = (() => {
                 this.sources = [];
                 this.trading_days = [];
                 this.null_fields = [];
+                this.settlements = [];
+                this.terms = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -2033,6 +1772,22 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             DatasetDetails.prototype.null_fields = $util.emptyArray;
+
+            /**
+             * DatasetDetails settlements.
+             * @member {Array.<northstar.accounting.SettlementFact.$Properties>} settlements
+             * @memberof northstar.data_hub.DatasetDetails
+             * @instance
+             */
+            DatasetDetails.prototype.settlements = $util.emptyArray;
+
+            /**
+             * DatasetDetails terms.
+             * @member {Array.<northstar.accounting.FuturesTerms.$Properties>} terms
+             * @memberof northstar.data_hub.DatasetDetails
+             * @instance
+             */
+            DatasetDetails.prototype.terms = $util.emptyArray;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -2276,6 +2031,12 @@ export const northstar = $root.northstar = (() => {
                 if (message.trading_days != null && message.trading_days.length)
                     for (let i = 0; i < message.trading_days.length; ++i)
                         writer.uint32(/* id 19, wireType 2 =*/154).string(message.trading_days[i]);
+                if (message.settlements != null && message.settlements.length)
+                    for (let i = 0; i < message.settlements.length; ++i)
+                        $root.northstar.accounting.SettlementFact.encode(message.settlements[i], writer.uint32(/* id 20, wireType 2 =*/162).fork(), _depth + 1).ldelim();
+                if (message.terms != null && message.terms.length)
+                    for (let i = 0; i < message.terms.length; ++i)
+                        $root.northstar.accounting.FuturesTerms.encode(message.terms[i], writer.uint32(/* id 21, wireType 2 =*/170).fork(), _depth + 1).ldelim();
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -2468,6 +2229,22 @@ export const northstar = $root.northstar = (() => {
                             message.null_fields.push(reader.stringVerify());
                             continue;
                         }
+                    case 20: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.settlements && message.settlements.length))
+                                message.settlements = [];
+                            message.settlements.push($root.northstar.accounting.SettlementFact.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 21: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.terms && message.terms.length))
+                                message.terms = [];
+                            message.terms.push($root.northstar.accounting.FuturesTerms.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -2624,6 +2401,24 @@ export const northstar = $root.northstar = (() => {
                         if (!$util.isString(message.null_fields[i]))
                             return "null_fields: string[] expected";
                 }
+                if (message.settlements != null && $Object.hasOwnProperty.call(message, "settlements")) {
+                    if (!$Array.isArray(message.settlements))
+                        return "settlements: array expected";
+                    for (let i = 0; i < message.settlements.length; ++i) {
+                        let error = $root.northstar.accounting.SettlementFact.verify(message.settlements[i], _depth + 1);
+                        if (error)
+                            return "settlements." + error;
+                    }
+                }
+                if (message.terms != null && $Object.hasOwnProperty.call(message, "terms")) {
+                    if (!$Array.isArray(message.terms))
+                        return "terms: array expected";
+                    for (let i = 0; i < message.terms.length; ++i) {
+                        let error = $root.northstar.accounting.FuturesTerms.verify(message.terms[i], _depth + 1);
+                        if (error)
+                            return "terms." + error;
+                    }
+                }
                 return null;
             };
 
@@ -2732,6 +2527,26 @@ export const northstar = $root.northstar = (() => {
                     for (let i = 0; i < object.null_fields.length; ++i)
                         message.null_fields[i] = $String(object.null_fields[i]);
                 }
+                if (object.settlements) {
+                    if (!$Array.isArray(object.settlements))
+                        throw $TypeError(".northstar.data_hub.DatasetDetails.settlements: array expected");
+                    message.settlements = $Array(object.settlements.length);
+                    for (let i = 0; i < object.settlements.length; ++i) {
+                        if (!$util.isObject(object.settlements[i]))
+                            throw $TypeError(".northstar.data_hub.DatasetDetails.settlements: object expected");
+                        message.settlements[i] = $root.northstar.accounting.SettlementFact.fromObject(object.settlements[i], _depth + 1);
+                    }
+                }
+                if (object.terms) {
+                    if (!$Array.isArray(object.terms))
+                        throw $TypeError(".northstar.data_hub.DatasetDetails.terms: array expected");
+                    message.terms = $Array(object.terms.length);
+                    for (let i = 0; i < object.terms.length; ++i) {
+                        if (!$util.isObject(object.terms[i]))
+                            throw $TypeError(".northstar.data_hub.DatasetDetails.terms: object expected");
+                        message.terms[i] = $root.northstar.accounting.FuturesTerms.fromObject(object.terms[i], _depth + 1);
+                    }
+                }
                 return message;
             };
 
@@ -2757,6 +2572,8 @@ export const northstar = $root.northstar = (() => {
                     object.limitations = [];
                     object.sources = [];
                     object.trading_days = [];
+                    object.settlements = [];
+                    object.terms = [];
                     object.null_fields = [];
                 }
                 if (message.availability_basis != null && $Object.hasOwnProperty.call(message, "availability_basis")) {
@@ -2858,6 +2675,16 @@ export const northstar = $root.northstar = (() => {
                     object.trading_days = $Array(message.trading_days.length);
                     for (let j = 0; j < message.trading_days.length; ++j)
                         object.trading_days[j] = message.trading_days[j];
+                }
+                if (message.settlements && message.settlements.length) {
+                    object.settlements = $Array(message.settlements.length);
+                    for (let j = 0; j < message.settlements.length; ++j)
+                        object.settlements[j] = $root.northstar.accounting.SettlementFact.toObject(message.settlements[j], options, _depth + 1);
+                }
+                if (message.terms && message.terms.length) {
+                    object.terms = $Array(message.terms.length);
+                    for (let j = 0; j < message.terms.length; ++j)
+                        object.terms[j] = $root.northstar.accounting.FuturesTerms.toObject(message.terms[j], options, _depth + 1);
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);
@@ -4527,6 +4354,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of an ImportSpecification.
              * @typedef {Object} northstar.data_hub.ImportSpecification.$Properties
+             * @property {string|null} [interval] ImportSpecification interval
              * @property {string|null} [session_kind] ImportSpecification session_kind
              * @property {string|null} [availability_basis] ImportSpecification availability_basis
              * @property {string|null} [availability_note] ImportSpecification availability_note
@@ -4543,6 +4371,7 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [symbol] ImportSpecification symbol
              * @property {string|null} [timezone] ImportSpecification timezone
              * @property {string|null} [trading_day] ImportSpecification trading_day
+             * @property {"interval"} [_interval] ImportSpecification _interval
              * @property {"session_kind"} [_session_kind] ImportSpecification _session_kind
              * @property {"availability_basis"} [_availability_basis] ImportSpecification _availability_basis
              * @property {"availability_note"} [_availability_note] ImportSpecification _availability_note
@@ -4573,6 +4402,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of an ImportSpecification.
              * @typedef {{
+             *   interval?: string|null;
              *   session_kind?: string|null;
              *   availability_basis?: string|null;
              *   availability_note?: string|null;
@@ -4591,6 +4421,8 @@ export const northstar = $root.northstar = (() => {
              *   trading_day?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _interval?: undefined; interval?: null }|{ _interval?: "interval"; interval: string })
+             * ) & (
              *   ({ _session_kind?: undefined; session_kind?: null }|{ _session_kind?: "session_kind"; session_kind: string })
              * ) & (
              *   ({ _availability_basis?: undefined; availability_basis?: null }|{ _availability_basis?: "availability_basis"; availability_basis: string })
@@ -4639,6 +4471,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * ImportSpecification interval.
+             * @member {string|null|undefined} interval
+             * @memberof northstar.data_hub.ImportSpecification
+             * @instance
+             */
+            ImportSpecification.prototype.interval = null;
 
             /**
              * ImportSpecification session_kind.
@@ -4770,6 +4610,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * ImportSpecification _interval.
+             * @member {"interval"|undefined} _interval
+             * @memberof northstar.data_hub.ImportSpecification
+             * @instance
+             */
+            $Object.defineProperty(ImportSpecification.prototype, "_interval", {
+                get: $util.oneOfGetter($oneOfFields = ["interval"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * ImportSpecification _session_kind.
@@ -5011,6 +4862,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 15, wireType 2 =*/122).string(message.trading_day);
                 if (message.session_kind != null && $Object.hasOwnProperty.call(message, "session_kind"))
                     writer.uint32(/* id 16, wireType 2 =*/130).string(message.session_kind);
+                if (message.interval != null && $Object.hasOwnProperty.call(message, "interval"))
+                    writer.uint32(/* id 17, wireType 2 =*/138).string(message.interval);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -5055,6 +4908,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 17: {
+                            if (wireType !== 2)
+                                break;
+                            message.interval = reader.stringVerify();
+                            message._interval = "interval";
+                            continue;
+                        }
                     case 16: {
                             if (wireType !== 2)
                                 break;
@@ -5200,6 +5060,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.interval != null && $Object.hasOwnProperty.call(message, "interval")) {
+                    properties._interval = 1;
+                    if (!$util.isString(message.interval))
+                        return "interval: string expected";
+                }
                 if (message.session_kind != null && $Object.hasOwnProperty.call(message, "session_kind")) {
                     properties._session_kind = 1;
                     if (!$util.isString(message.session_kind))
@@ -5301,6 +5166,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.data_hub.ImportSpecification();
+                if (object.interval != null)
+                    message.interval = $String(object.interval);
                 if (object.session_kind != null)
                     message.session_kind = $String(object.session_kind);
                 if (object.availability_basis != null)
@@ -5432,6 +5299,11 @@ export const northstar = $root.northstar = (() => {
                     object.session_kind = message.session_kind;
                     if (options.oneofs)
                         object._session_kind = "session_kind";
+                }
+                if (message.interval != null && $Object.hasOwnProperty.call(message, "interval")) {
+                    object.interval = message.interval;
+                    if (options.oneofs)
+                        object._interval = "interval";
                 }
                 return object;
             };
@@ -14013,6 +13885,7 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [fields] ExplorerRows fields
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [versions] ExplorerRows versions
              * @property {string|null} [note] ExplorerRows note
+             * @property {google.protobuf.Struct.$Properties|null} [scan] ExplorerRows scan
              * @property {"export_allowed"} [_export_allowed] ExplorerRows _export_allowed
              * @property {"dataset"} [_dataset] ExplorerRows _dataset
              * @property {"scope"} [_scope] ExplorerRows _scope
@@ -14023,6 +13896,7 @@ export const northstar = $root.northstar = (() => {
              * @property {"offset"} [_offset] ExplorerRows _offset
              * @property {"limit"} [_limit] ExplorerRows _limit
              * @property {"note"} [_note] ExplorerRows _note
+             * @property {"scan"} [_scan] ExplorerRows _scan
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -14052,6 +13926,7 @@ export const northstar = $root.northstar = (() => {
              *   fields?: Array.<google.protobuf.Struct.$Shape>|null;
              *   versions?: Array.<google.protobuf.Struct.$Shape>|null;
              *   note?: string|null;
+             *   scan?: google.protobuf.Struct.$Shape|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _export_allowed?: undefined; export_allowed?: null }|{ _export_allowed?: "export_allowed"; export_allowed: boolean })
@@ -14073,6 +13948,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
              * ) & (
              *   ({ _note?: undefined; note?: null }|{ _note?: "note"; note: string })
+             * ) & (
+             *   ({ _scan?: undefined; scan?: null }|{ _scan?: "scan"; scan: google.protobuf.Struct.$Shape })
              * )} northstar.data_hub.ExplorerRows.$Shape
              */
 
@@ -14216,6 +14093,14 @@ export const northstar = $root.northstar = (() => {
              */
             ExplorerRows.prototype.note = null;
 
+            /**
+             * ExplorerRows scan.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} scan
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.scan = null;
+
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
 
@@ -14330,6 +14215,17 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * ExplorerRows _scan.
+             * @member {"scan"|undefined} _scan
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_scan", {
+                get: $util.oneOfGetter($oneOfFields = ["scan"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new ExplorerRows instance using the specified properties.
              * @function create
              * @memberof northstar.data_hub.ExplorerRows
@@ -14396,6 +14292,8 @@ export const northstar = $root.northstar = (() => {
                         $root.google.protobuf.Struct.encode(message.sources[i], writer.uint32(/* id 14, wireType 2 =*/114).fork(), _depth + 1).ldelim();
                 if (message.export_allowed != null && $Object.hasOwnProperty.call(message, "export_allowed"))
                     writer.uint32(/* id 15, wireType 0 =*/120).bool(message.export_allowed);
+                if (message.scan != null && $Object.hasOwnProperty.call(message, "scan"))
+                    $root.google.protobuf.Struct.encode(message.scan, writer.uint32(/* id 17, wireType 2 =*/138).fork(), _depth + 1).ldelim();
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -14550,6 +14448,13 @@ export const northstar = $root.northstar = (() => {
                             message._note = "note";
                             continue;
                         }
+                    case 17: {
+                            if (wireType !== 2)
+                                break;
+                            message.scan = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.scan);
+                            message._scan = "scan";
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -14676,6 +14581,14 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.note))
                         return "note: string expected";
                 }
+                if (message.scan != null && $Object.hasOwnProperty.call(message, "scan")) {
+                    properties._scan = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.scan, _depth + 1);
+                        if (error)
+                            return "scan." + error;
+                    }
+                }
                 return null;
             };
 
@@ -14785,6 +14698,11 @@ export const northstar = $root.northstar = (() => {
                 }
                 if (object.note != null)
                     message.note = $String(object.note);
+                if (object.scan != null) {
+                    if (!$util.isObject(object.scan))
+                        throw $TypeError(".northstar.data_hub.ExplorerRows.scan: object expected");
+                    message.scan = $root.google.protobuf.Struct.fromObject(object.scan, _depth + 1);
+                }
                 return message;
             };
 
@@ -14901,6 +14819,11 @@ export const northstar = $root.northstar = (() => {
                     object.export_allowed = message.export_allowed;
                     if (options.oneofs)
                         object._export_allowed = "export_allowed";
+                }
+                if (message.scan != null && $Object.hasOwnProperty.call(message, "scan")) {
+                    object.scan = $root.google.protobuf.Struct.toObject(message.scan, options, _depth + 1);
+                    if (options.oneofs)
+                        object._scan = "scan";
                 }
                 return object;
             };
@@ -16064,6 +15987,1690 @@ export const northstar = $root.northstar = (() => {
             return RevisionComparison;
         })();
 
+        data_hub.CompactionRequest = (function() {
+
+            /**
+             * Properties of a CompactionRequest.
+             * @typedef {Object} northstar.data_hub.CompactionRequest.$Properties
+             * @property {string|null} [request_id] CompactionRequest request_id
+             * @property {string|null} [dataset] CompactionRequest dataset
+             * @property {string|null} [scope] CompactionRequest scope
+             * @property {string|null} [start] CompactionRequest start
+             * @property {string|null} [end] CompactionRequest end
+             * @property {Array.<string>|null} [receipt_ids] CompactionRequest receipt_ids
+             * @property {"request_id"} [_request_id] CompactionRequest _request_id
+             * @property {"dataset"} [_dataset] CompactionRequest _dataset
+             * @property {"scope"} [_scope] CompactionRequest _scope
+             * @property {"start"} [_start] CompactionRequest _start
+             * @property {"end"} [_end] CompactionRequest _end
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CompactionRequest.
+             * @memberof northstar.data_hub
+             * @interface ICompactionRequest
+             * @augments northstar.data_hub.CompactionRequest.$Properties
+             * @deprecated Use northstar.data_hub.CompactionRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a CompactionRequest.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   dataset?: string|null;
+             *   scope?: string|null;
+             *   start?: string|null;
+             *   end?: string|null;
+             *   receipt_ids?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * ) & (
+             *   ({ _start?: undefined; start?: null }|{ _start?: "start"; start: string })
+             * ) & (
+             *   ({ _end?: undefined; end?: null }|{ _end?: "end"; end: string })
+             * )} northstar.data_hub.CompactionRequest.$Shape
+             */
+
+            /**
+             * Constructs a new CompactionRequest.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a CompactionRequest.
+             * @constructor
+             * @param {northstar.data_hub.CompactionRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CompactionRequest = function (properties) {
+                this.receipt_ids = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CompactionRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.request_id = null;
+
+            /**
+             * CompactionRequest dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.dataset = null;
+
+            /**
+             * CompactionRequest scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.scope = null;
+
+            /**
+             * CompactionRequest start.
+             * @member {string|null|undefined} start
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.start = null;
+
+            /**
+             * CompactionRequest end.
+             * @member {string|null|undefined} end
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.end = null;
+
+            /**
+             * CompactionRequest receipt_ids.
+             * @member {Array.<string>} receipt_ids
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.receipt_ids = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * CompactionRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionRequest _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionRequest _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionRequest _start.
+             * @member {"start"|undefined} _start
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_start", {
+                get: $util.oneOfGetter($oneOfFields = ["start"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionRequest _end.
+             * @member {"end"|undefined} _end
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_end", {
+                get: $util.oneOfGetter($oneOfFields = ["end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CompactionRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {northstar.data_hub.CompactionRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.CompactionRequest} CompactionRequest instance
+             * @type {{
+             *   (properties: northstar.data_hub.CompactionRequest.$Shape): northstar.data_hub.CompactionRequest & northstar.data_hub.CompactionRequest.$Shape;
+             *   (properties?: northstar.data_hub.CompactionRequest.$Properties): northstar.data_hub.CompactionRequest;
+             * }}
+             */
+            CompactionRequest.create = function(properties) {
+                return new CompactionRequest(properties);
+            };
+
+            /**
+             * Encodes the specified CompactionRequest message. Does not implicitly {@link northstar.data_hub.CompactionRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {northstar.data_hub.CompactionRequest.$Properties} message CompactionRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CompactionRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.dataset);
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.scope);
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.start);
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.end);
+                if (message.receipt_ids != null && message.receipt_ids.length)
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        writer.uint32(/* id 6, wireType 2 =*/50).string(message.receipt_ids[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CompactionRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.CompactionRequest & northstar.data_hub.CompactionRequest.$Shape} CompactionRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CompactionRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.CompactionRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.start = reader.stringVerify();
+                            message._start = "start";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.end = reader.stringVerify();
+                            message._end = "end";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.receipt_ids && message.receipt_ids.length))
+                                message.receipt_ids = [];
+                            message.receipt_ids.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CompactionRequest message.
+             * @function verify
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CompactionRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    properties._start = 1;
+                    if (!$util.isString(message.start))
+                        return "start: string expected";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    properties._end = 1;
+                    if (!$util.isString(message.end))
+                        return "end: string expected";
+                }
+                if (message.receipt_ids != null && $Object.hasOwnProperty.call(message, "receipt_ids")) {
+                    if (!$Array.isArray(message.receipt_ids))
+                        return "receipt_ids: array expected";
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        if (!$util.isString(message.receipt_ids[i]))
+                            return "receipt_ids: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CompactionRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.CompactionRequest} CompactionRequest
+             */
+            CompactionRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.CompactionRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.CompactionRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.CompactionRequest();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                if (object.start != null)
+                    message.start = $String(object.start);
+                if (object.end != null)
+                    message.end = $String(object.end);
+                if (object.receipt_ids) {
+                    if (!$Array.isArray(object.receipt_ids))
+                        throw $TypeError(".northstar.data_hub.CompactionRequest.receipt_ids: array expected");
+                    message.receipt_ids = $Array(object.receipt_ids.length);
+                    for (let i = 0; i < object.receipt_ids.length; ++i)
+                        message.receipt_ids[i] = $String(object.receipt_ids[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CompactionRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {northstar.data_hub.CompactionRequest} message CompactionRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CompactionRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.receipt_ids = [];
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    object.start = message.start;
+                    if (options.oneofs)
+                        object._start = "start";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    object.end = message.end;
+                    if (options.oneofs)
+                        object._end = "end";
+                }
+                if (message.receipt_ids && message.receipt_ids.length) {
+                    object.receipt_ids = $Array(message.receipt_ids.length);
+                    for (let j = 0; j < message.receipt_ids.length; ++j)
+                        object.receipt_ids[j] = message.receipt_ids[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CompactionRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CompactionRequest.prototype.toJSON = function() {
+                return CompactionRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CompactionRequest
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CompactionRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.CompactionRequest";
+            };
+
+            return CompactionRequest;
+        })();
+
+        data_hub.Compaction = (function() {
+
+            /**
+             * Properties of a Compaction.
+             * @typedef {Object} northstar.data_hub.Compaction.$Properties
+             * @property {string|null} [compaction_id] Compaction compaction_id
+             * @property {string|null} [plan_id] Compaction plan_id
+             * @property {google.protobuf.Struct.$Properties|null} [plan] Compaction plan
+             * @property {string|null} [created_at] Compaction created_at
+             * @property {string|null} [status] Compaction status
+             * @property {google.protobuf.Struct.$Properties|null} [result] Compaction result
+             * @property {string|null} [error] Compaction error
+             * @property {Array.<string>|null} [null_fields] Compaction null_fields
+             * @property {"compaction_id"} [_compaction_id] Compaction _compaction_id
+             * @property {"plan_id"} [_plan_id] Compaction _plan_id
+             * @property {"plan"} [_plan] Compaction _plan
+             * @property {"created_at"} [_created_at] Compaction _created_at
+             * @property {"status"} [_status] Compaction _status
+             * @property {"result"} [_result] Compaction _result
+             * @property {"error"} [_error] Compaction _error
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a Compaction.
+             * @memberof northstar.data_hub
+             * @interface ICompaction
+             * @augments northstar.data_hub.Compaction.$Properties
+             * @deprecated Use northstar.data_hub.Compaction.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a Compaction.
+             * @typedef {{
+             *   compaction_id?: string|null;
+             *   plan_id?: string|null;
+             *   plan?: google.protobuf.Struct.$Shape|null;
+             *   created_at?: string|null;
+             *   status?: string|null;
+             *   result?: google.protobuf.Struct.$Shape|null;
+             *   error?: string|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _compaction_id?: undefined; compaction_id?: null }|{ _compaction_id?: "compaction_id"; compaction_id: string })
+             * ) & (
+             *   ({ _plan_id?: undefined; plan_id?: null }|{ _plan_id?: "plan_id"; plan_id: string })
+             * ) & (
+             *   ({ _plan?: undefined; plan?: null }|{ _plan?: "plan"; plan: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _created_at?: undefined; created_at?: null }|{ _created_at?: "created_at"; created_at: string })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _result?: undefined; result?: null }|{ _result?: "result"; result: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _error?: undefined; error?: null }|{ _error?: "error"; error: string })
+             * )} northstar.data_hub.Compaction.$Shape
+             */
+
+            /**
+             * Constructs a new Compaction.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a Compaction.
+             * @constructor
+             * @param {northstar.data_hub.Compaction.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const Compaction = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * Compaction compaction_id.
+             * @member {string|null|undefined} compaction_id
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.compaction_id = null;
+
+            /**
+             * Compaction plan_id.
+             * @member {string|null|undefined} plan_id
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.plan_id = null;
+
+            /**
+             * Compaction plan.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} plan
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.plan = null;
+
+            /**
+             * Compaction created_at.
+             * @member {string|null|undefined} created_at
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.created_at = null;
+
+            /**
+             * Compaction status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.status = null;
+
+            /**
+             * Compaction result.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} result
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.result = null;
+
+            /**
+             * Compaction error.
+             * @member {string|null|undefined} error
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.error = null;
+
+            /**
+             * Compaction null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * Compaction _compaction_id.
+             * @member {"compaction_id"|undefined} _compaction_id
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_compaction_id", {
+                get: $util.oneOfGetter($oneOfFields = ["compaction_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _plan_id.
+             * @member {"plan_id"|undefined} _plan_id
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_plan_id", {
+                get: $util.oneOfGetter($oneOfFields = ["plan_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _plan.
+             * @member {"plan"|undefined} _plan
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_plan", {
+                get: $util.oneOfGetter($oneOfFields = ["plan"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _created_at.
+             * @member {"created_at"|undefined} _created_at
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_created_at", {
+                get: $util.oneOfGetter($oneOfFields = ["created_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _result.
+             * @member {"result"|undefined} _result
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_result", {
+                get: $util.oneOfGetter($oneOfFields = ["result"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _error.
+             * @member {"error"|undefined} _error
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_error", {
+                get: $util.oneOfGetter($oneOfFields = ["error"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new Compaction instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {northstar.data_hub.Compaction.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.Compaction} Compaction instance
+             * @type {{
+             *   (properties: northstar.data_hub.Compaction.$Shape): northstar.data_hub.Compaction & northstar.data_hub.Compaction.$Shape;
+             *   (properties?: northstar.data_hub.Compaction.$Properties): northstar.data_hub.Compaction;
+             * }}
+             */
+            Compaction.create = function(properties) {
+                return new Compaction(properties);
+            };
+
+            /**
+             * Encodes the specified Compaction message. Does not implicitly {@link northstar.data_hub.Compaction.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {northstar.data_hub.Compaction.$Properties} message Compaction message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Compaction.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.compaction_id != null && $Object.hasOwnProperty.call(message, "compaction_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.compaction_id);
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.plan_id);
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan"))
+                    $root.google.protobuf.Struct.encode(message.plan, writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.created_at);
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.status);
+                if (message.result != null && $Object.hasOwnProperty.call(message, "result"))
+                    $root.google.protobuf.Struct.encode(message.result, writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.error != null && $Object.hasOwnProperty.call(message, "error"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.error);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a Compaction message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.Compaction & northstar.data_hub.Compaction.$Shape} Compaction
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Compaction.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.Compaction();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.compaction_id = reader.stringVerify();
+                            message._compaction_id = "compaction_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.plan_id = reader.stringVerify();
+                            message._plan_id = "plan_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.plan = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.plan);
+                            message._plan = "plan";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.created_at = reader.stringVerify();
+                            message._created_at = "created_at";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.result = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.result);
+                            message._result = "result";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.error = reader.stringVerify();
+                            message._error = "error";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a Compaction message.
+             * @function verify
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            Compaction.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.compaction_id != null && $Object.hasOwnProperty.call(message, "compaction_id")) {
+                    properties._compaction_id = 1;
+                    if (!$util.isString(message.compaction_id))
+                        return "compaction_id: string expected";
+                }
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id")) {
+                    properties._plan_id = 1;
+                    if (!$util.isString(message.plan_id))
+                        return "plan_id: string expected";
+                }
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    properties._plan = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.plan, _depth + 1);
+                        if (error)
+                            return "plan." + error;
+                    }
+                }
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
+                    properties._created_at = 1;
+                    if (!$util.isString(message.created_at))
+                        return "created_at: string expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.result != null && $Object.hasOwnProperty.call(message, "result")) {
+                    properties._result = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.result, _depth + 1);
+                        if (error)
+                            return "result." + error;
+                    }
+                }
+                if (message.error != null && $Object.hasOwnProperty.call(message, "error")) {
+                    properties._error = 1;
+                    if (!$util.isString(message.error))
+                        return "error: string expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a Compaction message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.Compaction} Compaction
+             */
+            Compaction.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.Compaction)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.Compaction: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.Compaction();
+                if (object.compaction_id != null)
+                    message.compaction_id = $String(object.compaction_id);
+                if (object.plan_id != null)
+                    message.plan_id = $String(object.plan_id);
+                if (object.plan != null) {
+                    if (!$util.isObject(object.plan))
+                        throw $TypeError(".northstar.data_hub.Compaction.plan: object expected");
+                    message.plan = $root.google.protobuf.Struct.fromObject(object.plan, _depth + 1);
+                }
+                if (object.created_at != null)
+                    message.created_at = $String(object.created_at);
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.result != null) {
+                    if (!$util.isObject(object.result))
+                        throw $TypeError(".northstar.data_hub.Compaction.result: object expected");
+                    message.result = $root.google.protobuf.Struct.fromObject(object.result, _depth + 1);
+                }
+                if (object.error != null)
+                    message.error = $String(object.error);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.data_hub.Compaction.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a Compaction message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {northstar.data_hub.Compaction} message Compaction
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            Compaction.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.compaction_id != null && $Object.hasOwnProperty.call(message, "compaction_id")) {
+                    object.compaction_id = message.compaction_id;
+                    if (options.oneofs)
+                        object._compaction_id = "compaction_id";
+                }
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id")) {
+                    object.plan_id = message.plan_id;
+                    if (options.oneofs)
+                        object._plan_id = "plan_id";
+                }
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    object.plan = $root.google.protobuf.Struct.toObject(message.plan, options, _depth + 1);
+                    if (options.oneofs)
+                        object._plan = "plan";
+                }
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
+                    object.created_at = message.created_at;
+                    if (options.oneofs)
+                        object._created_at = "created_at";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.result != null && $Object.hasOwnProperty.call(message, "result")) {
+                    object.result = $root.google.protobuf.Struct.toObject(message.result, options, _depth + 1);
+                    if (options.oneofs)
+                        object._result = "result";
+                }
+                if (message.error != null && $Object.hasOwnProperty.call(message, "error")) {
+                    object.error = message.error;
+                    if (options.oneofs)
+                        object._error = "error";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this Compaction to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            Compaction.prototype.toJSON = function() {
+                return Compaction.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for Compaction
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            Compaction.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.Compaction";
+            };
+
+            return Compaction;
+        })();
+
+        data_hub.CompactionPage = (function() {
+
+            /**
+             * Properties of a CompactionPage.
+             * @typedef {Object} northstar.data_hub.CompactionPage.$Properties
+             * @property {number|Long|null} [offset] CompactionPage offset
+             * @property {number|Long|null} [limit] CompactionPage limit
+             * @property {"offset"} [_offset] CompactionPage _offset
+             * @property {"limit"} [_limit] CompactionPage _limit
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CompactionPage.
+             * @memberof northstar.data_hub
+             * @interface ICompactionPage
+             * @augments northstar.data_hub.CompactionPage.$Properties
+             * @deprecated Use northstar.data_hub.CompactionPage.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a CompactionPage.
+             * @typedef {{
+             *   offset?: number|Long|null;
+             *   limit?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
+             * )} northstar.data_hub.CompactionPage.$Shape
+             */
+
+            /**
+             * Constructs a new CompactionPage.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a CompactionPage.
+             * @constructor
+             * @param {northstar.data_hub.CompactionPage.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CompactionPage = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CompactionPage offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             */
+            CompactionPage.prototype.offset = null;
+
+            /**
+             * CompactionPage limit.
+             * @member {number|Long|null|undefined} limit
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             */
+            CompactionPage.prototype.limit = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * CompactionPage _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             */
+            $Object.defineProperty(CompactionPage.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionPage _limit.
+             * @member {"limit"|undefined} _limit
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             */
+            $Object.defineProperty(CompactionPage.prototype, "_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CompactionPage instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {northstar.data_hub.CompactionPage.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.CompactionPage} CompactionPage instance
+             * @type {{
+             *   (properties: northstar.data_hub.CompactionPage.$Shape): northstar.data_hub.CompactionPage & northstar.data_hub.CompactionPage.$Shape;
+             *   (properties?: northstar.data_hub.CompactionPage.$Properties): northstar.data_hub.CompactionPage;
+             * }}
+             */
+            CompactionPage.create = function(properties) {
+                return new CompactionPage(properties);
+            };
+
+            /**
+             * Encodes the specified CompactionPage message. Does not implicitly {@link northstar.data_hub.CompactionPage.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {northstar.data_hub.CompactionPage.$Properties} message CompactionPage message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CompactionPage.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.offset);
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.limit);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CompactionPage message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.CompactionPage & northstar.data_hub.CompactionPage.$Shape} CompactionPage
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CompactionPage.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.CompactionPage();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.limit = reader.int64();
+                            message._limit = "limit";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CompactionPage message.
+             * @function verify
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CompactionPage.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    properties._limit = 1;
+                    if (!$util.isInteger(message.limit) && !(message.limit && $util.isInteger(message.limit.low) && $util.isInteger(message.limit.high)))
+                        return "limit: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CompactionPage message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.CompactionPage} CompactionPage
+             */
+            CompactionPage.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.CompactionPage)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.CompactionPage: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.CompactionPage();
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.limit != null)
+                    if ($util.Long)
+                        message.limit = $util.Long.fromValue(object.limit, false);
+                    else if (typeof object.limit === "string")
+                        message.limit = $parseInt(object.limit, 10);
+                    else if (typeof object.limit === "number")
+                        message.limit = object.limit;
+                    else if (typeof object.limit === "object")
+                        message.limit = new $util.LongBits(object.limit.low >>> 0, object.limit.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CompactionPage message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {northstar.data_hub.CompactionPage} message CompactionPage
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CompactionPage.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.limit = typeof message.limit === "number" ? $BigInt(message.limit) : $util.Long.fromBits(message.limit.low >>> 0, message.limit.high >>> 0, false).toBigInt();
+                    else if (typeof message.limit === "number")
+                        object.limit = options.longs === $String ? $String(message.limit) : message.limit;
+                    else
+                        object.limit = options.longs === $String ? $util.Long.prototype.toString.call(message.limit) : options.longs === $Number ? new $util.LongBits(message.limit.low >>> 0, message.limit.high >>> 0).toNumber() : message.limit;
+                    if (options.oneofs)
+                        object._limit = "limit";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CompactionPage to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CompactionPage.prototype.toJSON = function() {
+                return CompactionPage.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CompactionPage
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CompactionPage.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.CompactionPage";
+            };
+
+            return CompactionPage;
+        })();
+
+        data_hub.CompactionList = (function() {
+
+            /**
+             * Properties of a CompactionList.
+             * @typedef {Object} northstar.data_hub.CompactionList.$Properties
+             * @property {Array.<northstar.data_hub.Compaction.$Properties>|null} [items] CompactionList items
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CompactionList.
+             * @memberof northstar.data_hub
+             * @interface ICompactionList
+             * @augments northstar.data_hub.CompactionList.$Properties
+             * @deprecated Use northstar.data_hub.CompactionList.$Properties instead.
+             */
+
+            /**
+             * Shape of a CompactionList.
+             * @typedef {{
+             *   items?: Array.<northstar.data_hub.Compaction.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * }} northstar.data_hub.CompactionList.$Shape
+             */
+
+            /**
+             * Constructs a new CompactionList.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a CompactionList.
+             * @constructor
+             * @param {northstar.data_hub.CompactionList.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CompactionList = function (properties) {
+                this.items = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CompactionList items.
+             * @member {Array.<northstar.data_hub.Compaction.$Properties>} items
+             * @memberof northstar.data_hub.CompactionList
+             * @instance
+             */
+            CompactionList.prototype.items = $util.emptyArray;
+
+            /**
+             * Creates a new CompactionList instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {northstar.data_hub.CompactionList.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.CompactionList} CompactionList instance
+             * @type {{
+             *   (properties: northstar.data_hub.CompactionList.$Shape): northstar.data_hub.CompactionList & northstar.data_hub.CompactionList.$Shape;
+             *   (properties?: northstar.data_hub.CompactionList.$Properties): northstar.data_hub.CompactionList;
+             * }}
+             */
+            CompactionList.create = function(properties) {
+                return new CompactionList(properties);
+            };
+
+            /**
+             * Encodes the specified CompactionList message. Does not implicitly {@link northstar.data_hub.CompactionList.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {northstar.data_hub.CompactionList.$Properties} message CompactionList message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CompactionList.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.items != null && message.items.length)
+                    for (let i = 0; i < message.items.length; ++i)
+                        $root.northstar.data_hub.Compaction.encode(message.items[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CompactionList message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.CompactionList & northstar.data_hub.CompactionList.$Shape} CompactionList
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CompactionList.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.CompactionList();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.items && message.items.length))
+                                message.items = [];
+                            message.items.push($root.northstar.data_hub.Compaction.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CompactionList message.
+             * @function verify
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CompactionList.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                if (message.items != null && $Object.hasOwnProperty.call(message, "items")) {
+                    if (!$Array.isArray(message.items))
+                        return "items: array expected";
+                    for (let i = 0; i < message.items.length; ++i) {
+                        let error = $root.northstar.data_hub.Compaction.verify(message.items[i], _depth + 1);
+                        if (error)
+                            return "items." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CompactionList message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.CompactionList} CompactionList
+             */
+            CompactionList.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.CompactionList)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.CompactionList: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.CompactionList();
+                if (object.items) {
+                    if (!$Array.isArray(object.items))
+                        throw $TypeError(".northstar.data_hub.CompactionList.items: array expected");
+                    message.items = $Array(object.items.length);
+                    for (let i = 0; i < object.items.length; ++i) {
+                        if (!$util.isObject(object.items[i]))
+                            throw $TypeError(".northstar.data_hub.CompactionList.items: object expected");
+                        message.items[i] = $root.northstar.data_hub.Compaction.fromObject(object.items[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CompactionList message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {northstar.data_hub.CompactionList} message CompactionList
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CompactionList.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.items = [];
+                if (message.items && message.items.length) {
+                    object.items = $Array(message.items.length);
+                    for (let j = 0; j < message.items.length; ++j)
+                        object.items[j] = $root.northstar.data_hub.Compaction.toObject(message.items[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CompactionList to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.CompactionList
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CompactionList.prototype.toJSON = function() {
+                return CompactionList.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CompactionList
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CompactionList.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.CompactionList";
+            };
+
+            return CompactionList;
+        })();
+
         return data_hub;
     })();
 
@@ -16773,7 +18380,2654 @@ export const northstar = $root.northstar = (() => {
             return Error;
         })();
 
+        web.auth = (function() {
+
+            /**
+             * Namespace auth.
+             * @memberof northstar.web
+             * @namespace
+             */
+            const auth = {};
+
+            auth.BrowserSession = (function() {
+
+                /**
+                 * Properties of a BrowserSession.
+                 * @typedef {Object} northstar.web.auth.BrowserSession.$Properties
+                 * @property {boolean|null} [setup_required] BrowserSession setup_required
+                 * @property {boolean|null} [authenticated] BrowserSession authenticated
+                 * @property {string|null} [csrf] BrowserSession csrf
+                 * @property {string|null} [operator] BrowserSession operator
+                 * @property {string|null} [expires_at] BrowserSession expires_at
+                 * @property {Array.<string>|null} [null_fields] BrowserSession null_fields
+                 * @property {"setup_required"} [_setup_required] BrowserSession _setup_required
+                 * @property {"authenticated"} [_authenticated] BrowserSession _authenticated
+                 * @property {"csrf"} [_csrf] BrowserSession _csrf
+                 * @property {"operator"} [_operator] BrowserSession _operator
+                 * @property {"expires_at"} [_expires_at] BrowserSession _expires_at
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+
+                /**
+                 * Properties of a BrowserSession.
+                 * @memberof northstar.web.auth
+                 * @interface IBrowserSession
+                 * @augments northstar.web.auth.BrowserSession.$Properties
+                 * @deprecated Use northstar.web.auth.BrowserSession.$Properties instead.
+                 */
+
+                /**
+                 * Narrowed shape of a BrowserSession.
+                 * @typedef {{
+                 *   setup_required?: boolean|null;
+                 *   authenticated?: boolean|null;
+                 *   csrf?: string|null;
+                 *   operator?: string|null;
+                 *   expires_at?: string|null;
+                 *   null_fields?: Array.<string>|null;
+                 *   $unknowns?: Array.<Uint8Array>;
+                 * } & (
+                 *   ({ _setup_required?: undefined; setup_required?: null }|{ _setup_required?: "setup_required"; setup_required: boolean })
+                 * ) & (
+                 *   ({ _authenticated?: undefined; authenticated?: null }|{ _authenticated?: "authenticated"; authenticated: boolean })
+                 * ) & (
+                 *   ({ _csrf?: undefined; csrf?: null }|{ _csrf?: "csrf"; csrf: string })
+                 * ) & (
+                 *   ({ _operator?: undefined; operator?: null }|{ _operator?: "operator"; operator: string })
+                 * ) & (
+                 *   ({ _expires_at?: undefined; expires_at?: null }|{ _expires_at?: "expires_at"; expires_at: string })
+                 * )} northstar.web.auth.BrowserSession.$Shape
+                 */
+
+                /**
+                 * Constructs a new BrowserSession.
+                 * @memberof northstar.web.auth
+                 * @classdesc Represents a BrowserSession.
+                 * @constructor
+                 * @param {northstar.web.auth.BrowserSession.$Properties=} [properties] Properties to set
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+                const BrowserSession = function (properties) {
+                    this.null_fields = [];
+                    if (properties)
+                        for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                                this[keys[i]] = properties[keys[i]];
+                };
+
+                /**
+                 * BrowserSession setup_required.
+                 * @member {boolean|null|undefined} setup_required
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.setup_required = null;
+
+                /**
+                 * BrowserSession authenticated.
+                 * @member {boolean|null|undefined} authenticated
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.authenticated = null;
+
+                /**
+                 * BrowserSession csrf.
+                 * @member {string|null|undefined} csrf
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.csrf = null;
+
+                /**
+                 * BrowserSession operator.
+                 * @member {string|null|undefined} operator
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.operator = null;
+
+                /**
+                 * BrowserSession expires_at.
+                 * @member {string|null|undefined} expires_at
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.expires_at = null;
+
+                /**
+                 * BrowserSession null_fields.
+                 * @member {Array.<string>} null_fields
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.null_fields = $util.emptyArray;
+
+                // OneOf field names bound to virtual getters and setters
+                let $oneOfFields;
+
+                /**
+                 * BrowserSession _setup_required.
+                 * @member {"setup_required"|undefined} _setup_required
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_setup_required", {
+                    get: $util.oneOfGetter($oneOfFields = ["setup_required"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _authenticated.
+                 * @member {"authenticated"|undefined} _authenticated
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_authenticated", {
+                    get: $util.oneOfGetter($oneOfFields = ["authenticated"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _csrf.
+                 * @member {"csrf"|undefined} _csrf
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_csrf", {
+                    get: $util.oneOfGetter($oneOfFields = ["csrf"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _operator.
+                 * @member {"operator"|undefined} _operator
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_operator", {
+                    get: $util.oneOfGetter($oneOfFields = ["operator"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _expires_at.
+                 * @member {"expires_at"|undefined} _expires_at
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_expires_at", {
+                    get: $util.oneOfGetter($oneOfFields = ["expires_at"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * Creates a new BrowserSession instance using the specified properties.
+                 * @function create
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {northstar.web.auth.BrowserSession.$Properties=} [properties] Properties to set
+                 * @returns {northstar.web.auth.BrowserSession} BrowserSession instance
+                 * @type {{
+                 *   (properties: northstar.web.auth.BrowserSession.$Shape): northstar.web.auth.BrowserSession & northstar.web.auth.BrowserSession.$Shape;
+                 *   (properties?: northstar.web.auth.BrowserSession.$Properties): northstar.web.auth.BrowserSession;
+                 * }}
+                 */
+                BrowserSession.create = function(properties) {
+                    return new BrowserSession(properties);
+                };
+
+                /**
+                 * Encodes the specified BrowserSession message. Does not implicitly {@link northstar.web.auth.BrowserSession.verify|verify} messages.
+                 * @function encode
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {northstar.web.auth.BrowserSession.$Properties} message BrowserSession message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BrowserSession.encode = function (message, writer, _depth) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).bool(message.authenticated);
+                    if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf"))
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.csrf);
+                    if (message.operator != null && $Object.hasOwnProperty.call(message, "operator"))
+                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.operator);
+                    if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at"))
+                        writer.uint32(/* id 4, wireType 2 =*/34).string(message.expires_at);
+                    if (message.setup_required != null && $Object.hasOwnProperty.call(message, "setup_required"))
+                        writer.uint32(/* id 5, wireType 0 =*/40).bool(message.setup_required);
+                    if (message.null_fields != null && message.null_fields.length)
+                        for (let i = 0; i < message.null_fields.length; ++i)
+                            writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                    if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                        for (let i = 0; i < message.$unknowns.length; ++i)
+                            writer.raw(message.$unknowns[i]);
+                    return writer;
+                };
+
+                /**
+                 * Decodes a BrowserSession message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {northstar.web.auth.BrowserSession & northstar.web.auth.BrowserSession.$Shape} BrowserSession
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BrowserSession.decode = function (reader, length, _end, _depth, _target) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $Reader.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let end, message;
+                    if (length === $undefined)
+                        end = reader.len;
+                    else {
+                        end = reader.pos + length;
+                        if (end > reader.len)
+                            throw $RangeError("index out of range");
+                        length = reader.len;
+                        reader.len = end;
+                    }
+                    message = _target || new $root.northstar.web.auth.BrowserSession();
+                    while (reader.pos < end) {
+                        let start = reader.pos;
+                        let tag = reader.tag();
+                        if (tag === _end) {
+                            _end = $undefined;
+                            break;
+                        }
+                        let wireType = tag & 7;
+                        switch (tag >>>= 3) {
+                        case 5: {
+                                if (wireType !== 0)
+                                    break;
+                                message.setup_required = reader.bool();
+                                message._setup_required = "setup_required";
+                                continue;
+                            }
+                        case 1: {
+                                if (wireType !== 0)
+                                    break;
+                                message.authenticated = reader.bool();
+                                message._authenticated = "authenticated";
+                                continue;
+                            }
+                        case 2: {
+                                if (wireType !== 2)
+                                    break;
+                                message.csrf = reader.stringVerify();
+                                message._csrf = "csrf";
+                                continue;
+                            }
+                        case 3: {
+                                if (wireType !== 2)
+                                    break;
+                                message.operator = reader.stringVerify();
+                                message._operator = "operator";
+                                continue;
+                            }
+                        case 4: {
+                                if (wireType !== 2)
+                                    break;
+                                message.expires_at = reader.stringVerify();
+                                message._expires_at = "expires_at";
+                                continue;
+                            }
+                        case 2046: {
+                                if (wireType !== 2)
+                                    break;
+                                if (!(message.null_fields && message.null_fields.length))
+                                    message.null_fields = [];
+                                message.null_fields.push(reader.stringVerify());
+                                continue;
+                            }
+                        }
+                        reader.skipType(wireType, _depth, tag);
+                        if (!reader.discardUnknown) {
+                            $util.makeProp(message, "$unknowns", false);
+                            (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                        }
+                    }
+                    if (length !== $undefined) {
+                        if (reader.pos !== end)
+                            throw $RangeError("index out of range");
+                        reader.len = length;
+                    }
+                    if (_end !== $undefined)
+                        throw $Error("missing end group");
+                    return message;
+                };
+
+                /**
+                 * Verifies a BrowserSession message.
+                 * @function verify
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                BrowserSession.verify = function (message, _depth) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        return "max depth exceeded";
+                    let properties = {};
+                    if (message.setup_required != null && $Object.hasOwnProperty.call(message, "setup_required")) {
+                        properties._setup_required = 1;
+                        if (typeof message.setup_required !== "boolean")
+                            return "setup_required: boolean expected";
+                    }
+                    if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated")) {
+                        properties._authenticated = 1;
+                        if (typeof message.authenticated !== "boolean")
+                            return "authenticated: boolean expected";
+                    }
+                    if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
+                        properties._csrf = 1;
+                        if (!$util.isString(message.csrf))
+                            return "csrf: string expected";
+                    }
+                    if (message.operator != null && $Object.hasOwnProperty.call(message, "operator")) {
+                        properties._operator = 1;
+                        if (!$util.isString(message.operator))
+                            return "operator: string expected";
+                    }
+                    if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                        properties._expires_at = 1;
+                        if (!$util.isString(message.expires_at))
+                            return "expires_at: string expected";
+                    }
+                    if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                        if (!$Array.isArray(message.null_fields))
+                            return "null_fields: array expected";
+                        for (let i = 0; i < message.null_fields.length; ++i)
+                            if (!$util.isString(message.null_fields[i]))
+                                return "null_fields: string[] expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a BrowserSession message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {northstar.web.auth.BrowserSession} BrowserSession
+                 */
+                BrowserSession.fromObject = function (object, _depth) {
+                    if (object instanceof $root.northstar.web.auth.BrowserSession)
+                        return object;
+                    if (!$util.isObject(object))
+                        throw $TypeError(".northstar.web.auth.BrowserSession: object expected");
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let message = new $root.northstar.web.auth.BrowserSession();
+                    if (object.setup_required != null)
+                        message.setup_required = $Boolean(object.setup_required);
+                    if (object.authenticated != null)
+                        message.authenticated = $Boolean(object.authenticated);
+                    if (object.csrf != null)
+                        message.csrf = $String(object.csrf);
+                    if (object.operator != null)
+                        message.operator = $String(object.operator);
+                    if (object.expires_at != null)
+                        message.expires_at = $String(object.expires_at);
+                    if (object.null_fields) {
+                        if (!$Array.isArray(object.null_fields))
+                            throw $TypeError(".northstar.web.auth.BrowserSession.null_fields: array expected");
+                        message.null_fields = $Array(object.null_fields.length);
+                        for (let i = 0; i < object.null_fields.length; ++i)
+                            message.null_fields[i] = $String(object.null_fields[i]);
+                    }
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a BrowserSession message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {northstar.web.auth.BrowserSession} message BrowserSession
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                BrowserSession.toObject = function (message, options, _depth) {
+                    if (!options)
+                        options = {};
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let object = {};
+                    if (options.arrays || options.defaults)
+                        object.null_fields = [];
+                    if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated")) {
+                        object.authenticated = message.authenticated;
+                        if (options.oneofs)
+                            object._authenticated = "authenticated";
+                    }
+                    if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
+                        object.csrf = message.csrf;
+                        if (options.oneofs)
+                            object._csrf = "csrf";
+                    }
+                    if (message.operator != null && $Object.hasOwnProperty.call(message, "operator")) {
+                        object.operator = message.operator;
+                        if (options.oneofs)
+                            object._operator = "operator";
+                    }
+                    if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                        object.expires_at = message.expires_at;
+                        if (options.oneofs)
+                            object._expires_at = "expires_at";
+                    }
+                    if (message.setup_required != null && $Object.hasOwnProperty.call(message, "setup_required")) {
+                        object.setup_required = message.setup_required;
+                        if (options.oneofs)
+                            object._setup_required = "setup_required";
+                    }
+                    if (message.null_fields && message.null_fields.length) {
+                        object.null_fields = $Array(message.null_fields.length);
+                        for (let j = 0; j < message.null_fields.length; ++j)
+                            object.null_fields[j] = message.null_fields[j];
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this BrowserSession to JSON.
+                 * @function toJSON
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                BrowserSession.prototype.toJSON = function() {
+                    return BrowserSession.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the type url for BrowserSession
+                 * @function getTypeUrl
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+                 * @returns {string} The type url
+                 */
+                BrowserSession.getTypeUrl = function(prefix) {
+                    if (prefix === $undefined)
+                        prefix = "type.googleapis.com";
+                    return prefix + "/northstar.web.auth.BrowserSession";
+                };
+
+                return BrowserSession;
+            })();
+
+            auth.LoginRequest = (function() {
+
+                /**
+                 * Properties of a LoginRequest.
+                 * @typedef {Object} northstar.web.auth.LoginRequest.$Properties
+                 * @property {string|null} [username] LoginRequest username
+                 * @property {string|null} [password] LoginRequest password
+                 * @property {"username"} [_username] LoginRequest _username
+                 * @property {"password"} [_password] LoginRequest _password
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+
+                /**
+                 * Properties of a LoginRequest.
+                 * @memberof northstar.web.auth
+                 * @interface ILoginRequest
+                 * @augments northstar.web.auth.LoginRequest.$Properties
+                 * @deprecated Use northstar.web.auth.LoginRequest.$Properties instead.
+                 */
+
+                /**
+                 * Narrowed shape of a LoginRequest.
+                 * @typedef {{
+                 *   username?: string|null;
+                 *   password?: string|null;
+                 *   $unknowns?: Array.<Uint8Array>;
+                 * } & (
+                 *   ({ _username?: undefined; username?: null }|{ _username?: "username"; username: string })
+                 * ) & (
+                 *   ({ _password?: undefined; password?: null }|{ _password?: "password"; password: string })
+                 * )} northstar.web.auth.LoginRequest.$Shape
+                 */
+
+                /**
+                 * Constructs a new LoginRequest.
+                 * @memberof northstar.web.auth
+                 * @classdesc Represents a LoginRequest.
+                 * @constructor
+                 * @param {northstar.web.auth.LoginRequest.$Properties=} [properties] Properties to set
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+                const LoginRequest = function (properties) {
+                    if (properties)
+                        for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                                this[keys[i]] = properties[keys[i]];
+                };
+
+                /**
+                 * LoginRequest username.
+                 * @member {string|null|undefined} username
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                LoginRequest.prototype.username = null;
+
+                /**
+                 * LoginRequest password.
+                 * @member {string|null|undefined} password
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                LoginRequest.prototype.password = null;
+
+                // OneOf field names bound to virtual getters and setters
+                let $oneOfFields;
+
+                /**
+                 * LoginRequest _username.
+                 * @member {"username"|undefined} _username
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                $Object.defineProperty(LoginRequest.prototype, "_username", {
+                    get: $util.oneOfGetter($oneOfFields = ["username"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * LoginRequest _password.
+                 * @member {"password"|undefined} _password
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                $Object.defineProperty(LoginRequest.prototype, "_password", {
+                    get: $util.oneOfGetter($oneOfFields = ["password"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * Creates a new LoginRequest instance using the specified properties.
+                 * @function create
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {northstar.web.auth.LoginRequest.$Properties=} [properties] Properties to set
+                 * @returns {northstar.web.auth.LoginRequest} LoginRequest instance
+                 * @type {{
+                 *   (properties: northstar.web.auth.LoginRequest.$Shape): northstar.web.auth.LoginRequest & northstar.web.auth.LoginRequest.$Shape;
+                 *   (properties?: northstar.web.auth.LoginRequest.$Properties): northstar.web.auth.LoginRequest;
+                 * }}
+                 */
+                LoginRequest.create = function(properties) {
+                    return new LoginRequest(properties);
+                };
+
+                /**
+                 * Encodes the specified LoginRequest message. Does not implicitly {@link northstar.web.auth.LoginRequest.verify|verify} messages.
+                 * @function encode
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {northstar.web.auth.LoginRequest.$Properties} message LoginRequest message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                LoginRequest.encode = function (message, writer, _depth) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    if (message.password != null && $Object.hasOwnProperty.call(message, "password"))
+                        writer.uint32(/* id 1, wireType 2 =*/10).string(message.password);
+                    if (message.username != null && $Object.hasOwnProperty.call(message, "username"))
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.username);
+                    if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                        for (let i = 0; i < message.$unknowns.length; ++i)
+                            writer.raw(message.$unknowns[i]);
+                    return writer;
+                };
+
+                /**
+                 * Decodes a LoginRequest message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {northstar.web.auth.LoginRequest & northstar.web.auth.LoginRequest.$Shape} LoginRequest
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                LoginRequest.decode = function (reader, length, _end, _depth, _target) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $Reader.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let end, message;
+                    if (length === $undefined)
+                        end = reader.len;
+                    else {
+                        end = reader.pos + length;
+                        if (end > reader.len)
+                            throw $RangeError("index out of range");
+                        length = reader.len;
+                        reader.len = end;
+                    }
+                    message = _target || new $root.northstar.web.auth.LoginRequest();
+                    while (reader.pos < end) {
+                        let start = reader.pos;
+                        let tag = reader.tag();
+                        if (tag === _end) {
+                            _end = $undefined;
+                            break;
+                        }
+                        let wireType = tag & 7;
+                        switch (tag >>>= 3) {
+                        case 2: {
+                                if (wireType !== 2)
+                                    break;
+                                message.username = reader.stringVerify();
+                                message._username = "username";
+                                continue;
+                            }
+                        case 1: {
+                                if (wireType !== 2)
+                                    break;
+                                message.password = reader.stringVerify();
+                                message._password = "password";
+                                continue;
+                            }
+                        }
+                        reader.skipType(wireType, _depth, tag);
+                        if (!reader.discardUnknown) {
+                            $util.makeProp(message, "$unknowns", false);
+                            (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                        }
+                    }
+                    if (length !== $undefined) {
+                        if (reader.pos !== end)
+                            throw $RangeError("index out of range");
+                        reader.len = length;
+                    }
+                    if (_end !== $undefined)
+                        throw $Error("missing end group");
+                    return message;
+                };
+
+                /**
+                 * Verifies a LoginRequest message.
+                 * @function verify
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                LoginRequest.verify = function (message, _depth) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        return "max depth exceeded";
+                    let properties = {};
+                    if (message.username != null && $Object.hasOwnProperty.call(message, "username")) {
+                        properties._username = 1;
+                        if (!$util.isString(message.username))
+                            return "username: string expected";
+                    }
+                    if (message.password != null && $Object.hasOwnProperty.call(message, "password")) {
+                        properties._password = 1;
+                        if (!$util.isString(message.password))
+                            return "password: string expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a LoginRequest message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {northstar.web.auth.LoginRequest} LoginRequest
+                 */
+                LoginRequest.fromObject = function (object, _depth) {
+                    if (object instanceof $root.northstar.web.auth.LoginRequest)
+                        return object;
+                    if (!$util.isObject(object))
+                        throw $TypeError(".northstar.web.auth.LoginRequest: object expected");
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let message = new $root.northstar.web.auth.LoginRequest();
+                    if (object.username != null)
+                        message.username = $String(object.username);
+                    if (object.password != null)
+                        message.password = $String(object.password);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a LoginRequest message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {northstar.web.auth.LoginRequest} message LoginRequest
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                LoginRequest.toObject = function (message, options, _depth) {
+                    if (!options)
+                        options = {};
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let object = {};
+                    if (message.password != null && $Object.hasOwnProperty.call(message, "password")) {
+                        object.password = message.password;
+                        if (options.oneofs)
+                            object._password = "password";
+                    }
+                    if (message.username != null && $Object.hasOwnProperty.call(message, "username")) {
+                        object.username = message.username;
+                        if (options.oneofs)
+                            object._username = "username";
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this LoginRequest to JSON.
+                 * @function toJSON
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                LoginRequest.prototype.toJSON = function() {
+                    return LoginRequest.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the type url for LoginRequest
+                 * @function getTypeUrl
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+                 * @returns {string} The type url
+                 */
+                LoginRequest.getTypeUrl = function(prefix) {
+                    if (prefix === $undefined)
+                        prefix = "type.googleapis.com";
+                    return prefix + "/northstar.web.auth.LoginRequest";
+                };
+
+                return LoginRequest;
+            })();
+
+            return auth;
+        })();
+
         return web;
+    })();
+
+    northstar.accounting = (function() {
+
+        /**
+         * Namespace accounting.
+         * @memberof northstar
+         * @namespace
+         */
+        const accounting = {};
+
+        accounting.ChargeRate = (function() {
+
+            /**
+             * Properties of a ChargeRate.
+             * @typedef {Object} northstar.accounting.ChargeRate.$Properties
+             * @property {string|null} [by_money] ChargeRate by_money
+             * @property {string|null} [by_volume] ChargeRate by_volume
+             * @property {"by_money"} [_by_money] ChargeRate _by_money
+             * @property {"by_volume"} [_by_volume] ChargeRate _by_volume
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ChargeRate.
+             * @memberof northstar.accounting
+             * @interface IChargeRate
+             * @augments northstar.accounting.ChargeRate.$Properties
+             * @deprecated Use northstar.accounting.ChargeRate.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ChargeRate.
+             * @typedef {{
+             *   by_money?: string|null;
+             *   by_volume?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _by_money?: undefined; by_money?: null }|{ _by_money?: "by_money"; by_money: string })
+             * ) & (
+             *   ({ _by_volume?: undefined; by_volume?: null }|{ _by_volume?: "by_volume"; by_volume: string })
+             * )} northstar.accounting.ChargeRate.$Shape
+             */
+
+            /**
+             * Constructs a new ChargeRate.
+             * @memberof northstar.accounting
+             * @classdesc Represents a ChargeRate.
+             * @constructor
+             * @param {northstar.accounting.ChargeRate.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ChargeRate = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ChargeRate by_money.
+             * @member {string|null|undefined} by_money
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            ChargeRate.prototype.by_money = null;
+
+            /**
+             * ChargeRate by_volume.
+             * @member {string|null|undefined} by_volume
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            ChargeRate.prototype.by_volume = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ChargeRate _by_money.
+             * @member {"by_money"|undefined} _by_money
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            $Object.defineProperty(ChargeRate.prototype, "_by_money", {
+                get: $util.oneOfGetter($oneOfFields = ["by_money"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ChargeRate _by_volume.
+             * @member {"by_volume"|undefined} _by_volume
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            $Object.defineProperty(ChargeRate.prototype, "_by_volume", {
+                get: $util.oneOfGetter($oneOfFields = ["by_volume"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ChargeRate instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {northstar.accounting.ChargeRate.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.ChargeRate} ChargeRate instance
+             * @type {{
+             *   (properties: northstar.accounting.ChargeRate.$Shape): northstar.accounting.ChargeRate & northstar.accounting.ChargeRate.$Shape;
+             *   (properties?: northstar.accounting.ChargeRate.$Properties): northstar.accounting.ChargeRate;
+             * }}
+             */
+            ChargeRate.create = function(properties) {
+                return new ChargeRate(properties);
+            };
+
+            /**
+             * Encodes the specified ChargeRate message. Does not implicitly {@link northstar.accounting.ChargeRate.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {northstar.accounting.ChargeRate.$Properties} message ChargeRate message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ChargeRate.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.by_money != null && $Object.hasOwnProperty.call(message, "by_money"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.by_money);
+                if (message.by_volume != null && $Object.hasOwnProperty.call(message, "by_volume"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.by_volume);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ChargeRate message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.ChargeRate & northstar.accounting.ChargeRate.$Shape} ChargeRate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ChargeRate.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.ChargeRate();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.by_money = reader.stringVerify();
+                            message._by_money = "by_money";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.by_volume = reader.stringVerify();
+                            message._by_volume = "by_volume";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ChargeRate message.
+             * @function verify
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ChargeRate.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.by_money != null && $Object.hasOwnProperty.call(message, "by_money")) {
+                    properties._by_money = 1;
+                    if (!$util.isString(message.by_money))
+                        return "by_money: string expected";
+                }
+                if (message.by_volume != null && $Object.hasOwnProperty.call(message, "by_volume")) {
+                    properties._by_volume = 1;
+                    if (!$util.isString(message.by_volume))
+                        return "by_volume: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ChargeRate message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.ChargeRate} ChargeRate
+             */
+            ChargeRate.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.ChargeRate)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.ChargeRate: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.ChargeRate();
+                if (object.by_money != null)
+                    message.by_money = $String(object.by_money);
+                if (object.by_volume != null)
+                    message.by_volume = $String(object.by_volume);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ChargeRate message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {northstar.accounting.ChargeRate} message ChargeRate
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ChargeRate.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.by_money != null && $Object.hasOwnProperty.call(message, "by_money")) {
+                    object.by_money = message.by_money;
+                    if (options.oneofs)
+                        object._by_money = "by_money";
+                }
+                if (message.by_volume != null && $Object.hasOwnProperty.call(message, "by_volume")) {
+                    object.by_volume = message.by_volume;
+                    if (options.oneofs)
+                        object._by_volume = "by_volume";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ChargeRate to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ChargeRate.prototype.toJSON = function() {
+                return ChargeRate.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ChargeRate
+             * @function getTypeUrl
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ChargeRate.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.ChargeRate";
+            };
+
+            return ChargeRate;
+        })();
+
+        accounting.FuturesTerms = (function() {
+
+            /**
+             * Properties of a FuturesTerms.
+             * @typedef {Object} northstar.accounting.FuturesTerms.$Properties
+             * @property {string|null} [terms_id] FuturesTerms terms_id
+             * @property {string|null} [contract_id] FuturesTerms contract_id
+             * @property {string|null} [effective_from] FuturesTerms effective_from
+             * @property {string|null} [effective_until] FuturesTerms effective_until
+             * @property {string|null} [available_at] FuturesTerms available_at
+             * @property {string|null} [source_reference] FuturesTerms source_reference
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [open_fee] FuturesTerms open_fee
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [close_today_fee] FuturesTerms close_today_fee
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [close_yesterday_fee] FuturesTerms close_yesterday_fee
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [long_margin] FuturesTerms long_margin
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [short_margin] FuturesTerms short_margin
+             * @property {string|null} [lower_limit] FuturesTerms lower_limit
+             * @property {string|null} [upper_limit] FuturesTerms upper_limit
+             * @property {string|null} [money_quantum] FuturesTerms money_quantum
+             * @property {string|null} [fee_rounding] FuturesTerms fee_rounding
+             * @property {"terms_id"} [_terms_id] FuturesTerms _terms_id
+             * @property {"contract_id"} [_contract_id] FuturesTerms _contract_id
+             * @property {"effective_from"} [_effective_from] FuturesTerms _effective_from
+             * @property {"effective_until"} [_effective_until] FuturesTerms _effective_until
+             * @property {"available_at"} [_available_at] FuturesTerms _available_at
+             * @property {"source_reference"} [_source_reference] FuturesTerms _source_reference
+             * @property {"open_fee"} [_open_fee] FuturesTerms _open_fee
+             * @property {"close_today_fee"} [_close_today_fee] FuturesTerms _close_today_fee
+             * @property {"close_yesterday_fee"} [_close_yesterday_fee] FuturesTerms _close_yesterday_fee
+             * @property {"long_margin"} [_long_margin] FuturesTerms _long_margin
+             * @property {"short_margin"} [_short_margin] FuturesTerms _short_margin
+             * @property {"lower_limit"} [_lower_limit] FuturesTerms _lower_limit
+             * @property {"upper_limit"} [_upper_limit] FuturesTerms _upper_limit
+             * @property {"money_quantum"} [_money_quantum] FuturesTerms _money_quantum
+             * @property {"fee_rounding"} [_fee_rounding] FuturesTerms _fee_rounding
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a FuturesTerms.
+             * @memberof northstar.accounting
+             * @interface IFuturesTerms
+             * @augments northstar.accounting.FuturesTerms.$Properties
+             * @deprecated Use northstar.accounting.FuturesTerms.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a FuturesTerms.
+             * @typedef {{
+             *   terms_id?: string|null;
+             *   contract_id?: string|null;
+             *   effective_from?: string|null;
+             *   effective_until?: string|null;
+             *   available_at?: string|null;
+             *   source_reference?: string|null;
+             *   open_fee?: northstar.accounting.ChargeRate.$Shape|null;
+             *   close_today_fee?: northstar.accounting.ChargeRate.$Shape|null;
+             *   close_yesterday_fee?: northstar.accounting.ChargeRate.$Shape|null;
+             *   long_margin?: northstar.accounting.ChargeRate.$Shape|null;
+             *   short_margin?: northstar.accounting.ChargeRate.$Shape|null;
+             *   lower_limit?: string|null;
+             *   upper_limit?: string|null;
+             *   money_quantum?: string|null;
+             *   fee_rounding?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _terms_id?: undefined; terms_id?: null }|{ _terms_id?: "terms_id"; terms_id: string })
+             * ) & (
+             *   ({ _contract_id?: undefined; contract_id?: null }|{ _contract_id?: "contract_id"; contract_id: string })
+             * ) & (
+             *   ({ _effective_from?: undefined; effective_from?: null }|{ _effective_from?: "effective_from"; effective_from: string })
+             * ) & (
+             *   ({ _effective_until?: undefined; effective_until?: null }|{ _effective_until?: "effective_until"; effective_until: string })
+             * ) & (
+             *   ({ _available_at?: undefined; available_at?: null }|{ _available_at?: "available_at"; available_at: string })
+             * ) & (
+             *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
+             * ) & (
+             *   ({ _open_fee?: undefined; open_fee?: null }|{ _open_fee?: "open_fee"; open_fee: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _close_today_fee?: undefined; close_today_fee?: null }|{ _close_today_fee?: "close_today_fee"; close_today_fee: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _close_yesterday_fee?: undefined; close_yesterday_fee?: null }|{ _close_yesterday_fee?: "close_yesterday_fee"; close_yesterday_fee: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _long_margin?: undefined; long_margin?: null }|{ _long_margin?: "long_margin"; long_margin: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _short_margin?: undefined; short_margin?: null }|{ _short_margin?: "short_margin"; short_margin: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _lower_limit?: undefined; lower_limit?: null }|{ _lower_limit?: "lower_limit"; lower_limit: string })
+             * ) & (
+             *   ({ _upper_limit?: undefined; upper_limit?: null }|{ _upper_limit?: "upper_limit"; upper_limit: string })
+             * ) & (
+             *   ({ _money_quantum?: undefined; money_quantum?: null }|{ _money_quantum?: "money_quantum"; money_quantum: string })
+             * ) & (
+             *   ({ _fee_rounding?: undefined; fee_rounding?: null }|{ _fee_rounding?: "fee_rounding"; fee_rounding: string })
+             * )} northstar.accounting.FuturesTerms.$Shape
+             */
+
+            /**
+             * Constructs a new FuturesTerms.
+             * @memberof northstar.accounting
+             * @classdesc Represents a FuturesTerms.
+             * @constructor
+             * @param {northstar.accounting.FuturesTerms.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const FuturesTerms = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * FuturesTerms terms_id.
+             * @member {string|null|undefined} terms_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.terms_id = null;
+
+            /**
+             * FuturesTerms contract_id.
+             * @member {string|null|undefined} contract_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.contract_id = null;
+
+            /**
+             * FuturesTerms effective_from.
+             * @member {string|null|undefined} effective_from
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.effective_from = null;
+
+            /**
+             * FuturesTerms effective_until.
+             * @member {string|null|undefined} effective_until
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.effective_until = null;
+
+            /**
+             * FuturesTerms available_at.
+             * @member {string|null|undefined} available_at
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.available_at = null;
+
+            /**
+             * FuturesTerms source_reference.
+             * @member {string|null|undefined} source_reference
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.source_reference = null;
+
+            /**
+             * FuturesTerms open_fee.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} open_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.open_fee = null;
+
+            /**
+             * FuturesTerms close_today_fee.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} close_today_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.close_today_fee = null;
+
+            /**
+             * FuturesTerms close_yesterday_fee.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} close_yesterday_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.close_yesterday_fee = null;
+
+            /**
+             * FuturesTerms long_margin.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} long_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.long_margin = null;
+
+            /**
+             * FuturesTerms short_margin.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} short_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.short_margin = null;
+
+            /**
+             * FuturesTerms lower_limit.
+             * @member {string|null|undefined} lower_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.lower_limit = null;
+
+            /**
+             * FuturesTerms upper_limit.
+             * @member {string|null|undefined} upper_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.upper_limit = null;
+
+            /**
+             * FuturesTerms money_quantum.
+             * @member {string|null|undefined} money_quantum
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.money_quantum = null;
+
+            /**
+             * FuturesTerms fee_rounding.
+             * @member {string|null|undefined} fee_rounding
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.fee_rounding = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * FuturesTerms _terms_id.
+             * @member {"terms_id"|undefined} _terms_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_terms_id", {
+                get: $util.oneOfGetter($oneOfFields = ["terms_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _contract_id.
+             * @member {"contract_id"|undefined} _contract_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_contract_id", {
+                get: $util.oneOfGetter($oneOfFields = ["contract_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _effective_from.
+             * @member {"effective_from"|undefined} _effective_from
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_effective_from", {
+                get: $util.oneOfGetter($oneOfFields = ["effective_from"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _effective_until.
+             * @member {"effective_until"|undefined} _effective_until
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_effective_until", {
+                get: $util.oneOfGetter($oneOfFields = ["effective_until"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _available_at.
+             * @member {"available_at"|undefined} _available_at
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_available_at", {
+                get: $util.oneOfGetter($oneOfFields = ["available_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _source_reference.
+             * @member {"source_reference"|undefined} _source_reference
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_source_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["source_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _open_fee.
+             * @member {"open_fee"|undefined} _open_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_open_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["open_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _close_today_fee.
+             * @member {"close_today_fee"|undefined} _close_today_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_close_today_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["close_today_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _close_yesterday_fee.
+             * @member {"close_yesterday_fee"|undefined} _close_yesterday_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_close_yesterday_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["close_yesterday_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _long_margin.
+             * @member {"long_margin"|undefined} _long_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_long_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["long_margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _short_margin.
+             * @member {"short_margin"|undefined} _short_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_short_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["short_margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _lower_limit.
+             * @member {"lower_limit"|undefined} _lower_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_lower_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["lower_limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _upper_limit.
+             * @member {"upper_limit"|undefined} _upper_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_upper_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["upper_limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _money_quantum.
+             * @member {"money_quantum"|undefined} _money_quantum
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_money_quantum", {
+                get: $util.oneOfGetter($oneOfFields = ["money_quantum"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _fee_rounding.
+             * @member {"fee_rounding"|undefined} _fee_rounding
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_fee_rounding", {
+                get: $util.oneOfGetter($oneOfFields = ["fee_rounding"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new FuturesTerms instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {northstar.accounting.FuturesTerms.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.FuturesTerms} FuturesTerms instance
+             * @type {{
+             *   (properties: northstar.accounting.FuturesTerms.$Shape): northstar.accounting.FuturesTerms & northstar.accounting.FuturesTerms.$Shape;
+             *   (properties?: northstar.accounting.FuturesTerms.$Properties): northstar.accounting.FuturesTerms;
+             * }}
+             */
+            FuturesTerms.create = function(properties) {
+                return new FuturesTerms(properties);
+            };
+
+            /**
+             * Encodes the specified FuturesTerms message. Does not implicitly {@link northstar.accounting.FuturesTerms.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {northstar.accounting.FuturesTerms.$Properties} message FuturesTerms message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            FuturesTerms.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.terms_id);
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.contract_id);
+                if (message.effective_from != null && $Object.hasOwnProperty.call(message, "effective_from"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.effective_from);
+                if (message.effective_until != null && $Object.hasOwnProperty.call(message, "effective_until"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.effective_until);
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.available_at);
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.source_reference);
+                if (message.open_fee != null && $Object.hasOwnProperty.call(message, "open_fee"))
+                    $root.northstar.accounting.ChargeRate.encode(message.open_fee, writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+                if (message.close_today_fee != null && $Object.hasOwnProperty.call(message, "close_today_fee"))
+                    $root.northstar.accounting.ChargeRate.encode(message.close_today_fee, writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
+                if (message.close_yesterday_fee != null && $Object.hasOwnProperty.call(message, "close_yesterday_fee"))
+                    $root.northstar.accounting.ChargeRate.encode(message.close_yesterday_fee, writer.uint32(/* id 9, wireType 2 =*/74).fork(), _depth + 1).ldelim();
+                if (message.long_margin != null && $Object.hasOwnProperty.call(message, "long_margin"))
+                    $root.northstar.accounting.ChargeRate.encode(message.long_margin, writer.uint32(/* id 10, wireType 2 =*/82).fork(), _depth + 1).ldelim();
+                if (message.short_margin != null && $Object.hasOwnProperty.call(message, "short_margin"))
+                    $root.northstar.accounting.ChargeRate.encode(message.short_margin, writer.uint32(/* id 11, wireType 2 =*/90).fork(), _depth + 1).ldelim();
+                if (message.lower_limit != null && $Object.hasOwnProperty.call(message, "lower_limit"))
+                    writer.uint32(/* id 12, wireType 2 =*/98).string(message.lower_limit);
+                if (message.upper_limit != null && $Object.hasOwnProperty.call(message, "upper_limit"))
+                    writer.uint32(/* id 13, wireType 2 =*/106).string(message.upper_limit);
+                if (message.money_quantum != null && $Object.hasOwnProperty.call(message, "money_quantum"))
+                    writer.uint32(/* id 14, wireType 2 =*/114).string(message.money_quantum);
+                if (message.fee_rounding != null && $Object.hasOwnProperty.call(message, "fee_rounding"))
+                    writer.uint32(/* id 15, wireType 2 =*/122).string(message.fee_rounding);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a FuturesTerms message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.FuturesTerms & northstar.accounting.FuturesTerms.$Shape} FuturesTerms
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            FuturesTerms.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.FuturesTerms();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.terms_id = reader.stringVerify();
+                            message._terms_id = "terms_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.contract_id = reader.stringVerify();
+                            message._contract_id = "contract_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.effective_from = reader.stringVerify();
+                            message._effective_from = "effective_from";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.effective_until = reader.stringVerify();
+                            message._effective_until = "effective_until";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_at = reader.stringVerify();
+                            message._available_at = "available_at";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_reference = reader.stringVerify();
+                            message._source_reference = "source_reference";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.open_fee = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.open_fee);
+                            message._open_fee = "open_fee";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.close_today_fee = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.close_today_fee);
+                            message._close_today_fee = "close_today_fee";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.close_yesterday_fee = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.close_yesterday_fee);
+                            message._close_yesterday_fee = "close_yesterday_fee";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            message.long_margin = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.long_margin);
+                            message._long_margin = "long_margin";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.short_margin = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.short_margin);
+                            message._short_margin = "short_margin";
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 2)
+                                break;
+                            message.lower_limit = reader.stringVerify();
+                            message._lower_limit = "lower_limit";
+                            continue;
+                        }
+                    case 13: {
+                            if (wireType !== 2)
+                                break;
+                            message.upper_limit = reader.stringVerify();
+                            message._upper_limit = "upper_limit";
+                            continue;
+                        }
+                    case 14: {
+                            if (wireType !== 2)
+                                break;
+                            message.money_quantum = reader.stringVerify();
+                            message._money_quantum = "money_quantum";
+                            continue;
+                        }
+                    case 15: {
+                            if (wireType !== 2)
+                                break;
+                            message.fee_rounding = reader.stringVerify();
+                            message._fee_rounding = "fee_rounding";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a FuturesTerms message.
+             * @function verify
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            FuturesTerms.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id")) {
+                    properties._terms_id = 1;
+                    if (!$util.isString(message.terms_id))
+                        return "terms_id: string expected";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    properties._contract_id = 1;
+                    if (!$util.isString(message.contract_id))
+                        return "contract_id: string expected";
+                }
+                if (message.effective_from != null && $Object.hasOwnProperty.call(message, "effective_from")) {
+                    properties._effective_from = 1;
+                    if (!$util.isString(message.effective_from))
+                        return "effective_from: string expected";
+                }
+                if (message.effective_until != null && $Object.hasOwnProperty.call(message, "effective_until")) {
+                    properties._effective_until = 1;
+                    if (!$util.isString(message.effective_until))
+                        return "effective_until: string expected";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    properties._available_at = 1;
+                    if (!$util.isString(message.available_at))
+                        return "available_at: string expected";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    properties._source_reference = 1;
+                    if (!$util.isString(message.source_reference))
+                        return "source_reference: string expected";
+                }
+                if (message.open_fee != null && $Object.hasOwnProperty.call(message, "open_fee")) {
+                    properties._open_fee = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.open_fee, _depth + 1);
+                        if (error)
+                            return "open_fee." + error;
+                    }
+                }
+                if (message.close_today_fee != null && $Object.hasOwnProperty.call(message, "close_today_fee")) {
+                    properties._close_today_fee = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.close_today_fee, _depth + 1);
+                        if (error)
+                            return "close_today_fee." + error;
+                    }
+                }
+                if (message.close_yesterday_fee != null && $Object.hasOwnProperty.call(message, "close_yesterday_fee")) {
+                    properties._close_yesterday_fee = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.close_yesterday_fee, _depth + 1);
+                        if (error)
+                            return "close_yesterday_fee." + error;
+                    }
+                }
+                if (message.long_margin != null && $Object.hasOwnProperty.call(message, "long_margin")) {
+                    properties._long_margin = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.long_margin, _depth + 1);
+                        if (error)
+                            return "long_margin." + error;
+                    }
+                }
+                if (message.short_margin != null && $Object.hasOwnProperty.call(message, "short_margin")) {
+                    properties._short_margin = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.short_margin, _depth + 1);
+                        if (error)
+                            return "short_margin." + error;
+                    }
+                }
+                if (message.lower_limit != null && $Object.hasOwnProperty.call(message, "lower_limit")) {
+                    properties._lower_limit = 1;
+                    if (!$util.isString(message.lower_limit))
+                        return "lower_limit: string expected";
+                }
+                if (message.upper_limit != null && $Object.hasOwnProperty.call(message, "upper_limit")) {
+                    properties._upper_limit = 1;
+                    if (!$util.isString(message.upper_limit))
+                        return "upper_limit: string expected";
+                }
+                if (message.money_quantum != null && $Object.hasOwnProperty.call(message, "money_quantum")) {
+                    properties._money_quantum = 1;
+                    if (!$util.isString(message.money_quantum))
+                        return "money_quantum: string expected";
+                }
+                if (message.fee_rounding != null && $Object.hasOwnProperty.call(message, "fee_rounding")) {
+                    properties._fee_rounding = 1;
+                    if (!$util.isString(message.fee_rounding))
+                        return "fee_rounding: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a FuturesTerms message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.FuturesTerms} FuturesTerms
+             */
+            FuturesTerms.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.FuturesTerms)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.FuturesTerms: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.FuturesTerms();
+                if (object.terms_id != null)
+                    message.terms_id = $String(object.terms_id);
+                if (object.contract_id != null)
+                    message.contract_id = $String(object.contract_id);
+                if (object.effective_from != null)
+                    message.effective_from = $String(object.effective_from);
+                if (object.effective_until != null)
+                    message.effective_until = $String(object.effective_until);
+                if (object.available_at != null)
+                    message.available_at = $String(object.available_at);
+                if (object.source_reference != null)
+                    message.source_reference = $String(object.source_reference);
+                if (object.open_fee != null) {
+                    if (!$util.isObject(object.open_fee))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.open_fee: object expected");
+                    message.open_fee = $root.northstar.accounting.ChargeRate.fromObject(object.open_fee, _depth + 1);
+                }
+                if (object.close_today_fee != null) {
+                    if (!$util.isObject(object.close_today_fee))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.close_today_fee: object expected");
+                    message.close_today_fee = $root.northstar.accounting.ChargeRate.fromObject(object.close_today_fee, _depth + 1);
+                }
+                if (object.close_yesterday_fee != null) {
+                    if (!$util.isObject(object.close_yesterday_fee))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.close_yesterday_fee: object expected");
+                    message.close_yesterday_fee = $root.northstar.accounting.ChargeRate.fromObject(object.close_yesterday_fee, _depth + 1);
+                }
+                if (object.long_margin != null) {
+                    if (!$util.isObject(object.long_margin))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.long_margin: object expected");
+                    message.long_margin = $root.northstar.accounting.ChargeRate.fromObject(object.long_margin, _depth + 1);
+                }
+                if (object.short_margin != null) {
+                    if (!$util.isObject(object.short_margin))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.short_margin: object expected");
+                    message.short_margin = $root.northstar.accounting.ChargeRate.fromObject(object.short_margin, _depth + 1);
+                }
+                if (object.lower_limit != null)
+                    message.lower_limit = $String(object.lower_limit);
+                if (object.upper_limit != null)
+                    message.upper_limit = $String(object.upper_limit);
+                if (object.money_quantum != null)
+                    message.money_quantum = $String(object.money_quantum);
+                if (object.fee_rounding != null)
+                    message.fee_rounding = $String(object.fee_rounding);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a FuturesTerms message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {northstar.accounting.FuturesTerms} message FuturesTerms
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            FuturesTerms.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id")) {
+                    object.terms_id = message.terms_id;
+                    if (options.oneofs)
+                        object._terms_id = "terms_id";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    object.contract_id = message.contract_id;
+                    if (options.oneofs)
+                        object._contract_id = "contract_id";
+                }
+                if (message.effective_from != null && $Object.hasOwnProperty.call(message, "effective_from")) {
+                    object.effective_from = message.effective_from;
+                    if (options.oneofs)
+                        object._effective_from = "effective_from";
+                }
+                if (message.effective_until != null && $Object.hasOwnProperty.call(message, "effective_until")) {
+                    object.effective_until = message.effective_until;
+                    if (options.oneofs)
+                        object._effective_until = "effective_until";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    object.available_at = message.available_at;
+                    if (options.oneofs)
+                        object._available_at = "available_at";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    object.source_reference = message.source_reference;
+                    if (options.oneofs)
+                        object._source_reference = "source_reference";
+                }
+                if (message.open_fee != null && $Object.hasOwnProperty.call(message, "open_fee")) {
+                    object.open_fee = $root.northstar.accounting.ChargeRate.toObject(message.open_fee, options, _depth + 1);
+                    if (options.oneofs)
+                        object._open_fee = "open_fee";
+                }
+                if (message.close_today_fee != null && $Object.hasOwnProperty.call(message, "close_today_fee")) {
+                    object.close_today_fee = $root.northstar.accounting.ChargeRate.toObject(message.close_today_fee, options, _depth + 1);
+                    if (options.oneofs)
+                        object._close_today_fee = "close_today_fee";
+                }
+                if (message.close_yesterday_fee != null && $Object.hasOwnProperty.call(message, "close_yesterday_fee")) {
+                    object.close_yesterday_fee = $root.northstar.accounting.ChargeRate.toObject(message.close_yesterday_fee, options, _depth + 1);
+                    if (options.oneofs)
+                        object._close_yesterday_fee = "close_yesterday_fee";
+                }
+                if (message.long_margin != null && $Object.hasOwnProperty.call(message, "long_margin")) {
+                    object.long_margin = $root.northstar.accounting.ChargeRate.toObject(message.long_margin, options, _depth + 1);
+                    if (options.oneofs)
+                        object._long_margin = "long_margin";
+                }
+                if (message.short_margin != null && $Object.hasOwnProperty.call(message, "short_margin")) {
+                    object.short_margin = $root.northstar.accounting.ChargeRate.toObject(message.short_margin, options, _depth + 1);
+                    if (options.oneofs)
+                        object._short_margin = "short_margin";
+                }
+                if (message.lower_limit != null && $Object.hasOwnProperty.call(message, "lower_limit")) {
+                    object.lower_limit = message.lower_limit;
+                    if (options.oneofs)
+                        object._lower_limit = "lower_limit";
+                }
+                if (message.upper_limit != null && $Object.hasOwnProperty.call(message, "upper_limit")) {
+                    object.upper_limit = message.upper_limit;
+                    if (options.oneofs)
+                        object._upper_limit = "upper_limit";
+                }
+                if (message.money_quantum != null && $Object.hasOwnProperty.call(message, "money_quantum")) {
+                    object.money_quantum = message.money_quantum;
+                    if (options.oneofs)
+                        object._money_quantum = "money_quantum";
+                }
+                if (message.fee_rounding != null && $Object.hasOwnProperty.call(message, "fee_rounding")) {
+                    object.fee_rounding = message.fee_rounding;
+                    if (options.oneofs)
+                        object._fee_rounding = "fee_rounding";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this FuturesTerms to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            FuturesTerms.prototype.toJSON = function() {
+                return FuturesTerms.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for FuturesTerms
+             * @function getTypeUrl
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            FuturesTerms.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.FuturesTerms";
+            };
+
+            return FuturesTerms;
+        })();
+
+        accounting.SettlementFact = (function() {
+
+            /**
+             * Properties of a SettlementFact.
+             * @typedef {Object} northstar.accounting.SettlementFact.$Properties
+             * @property {string|null} [settlement_id] SettlementFact settlement_id
+             * @property {string|null} [contract_id] SettlementFact contract_id
+             * @property {string|null} [trading_day] SettlementFact trading_day
+             * @property {string|null} [next_trading_day] SettlementFact next_trading_day
+             * @property {string|null} [settled_at] SettlementFact settled_at
+             * @property {string|null} [available_at] SettlementFact available_at
+             * @property {string|null} [price] SettlementFact price
+             * @property {string|null} [source_reference] SettlementFact source_reference
+             * @property {"settlement_id"} [_settlement_id] SettlementFact _settlement_id
+             * @property {"contract_id"} [_contract_id] SettlementFact _contract_id
+             * @property {"trading_day"} [_trading_day] SettlementFact _trading_day
+             * @property {"next_trading_day"} [_next_trading_day] SettlementFact _next_trading_day
+             * @property {"settled_at"} [_settled_at] SettlementFact _settled_at
+             * @property {"available_at"} [_available_at] SettlementFact _available_at
+             * @property {"price"} [_price] SettlementFact _price
+             * @property {"source_reference"} [_source_reference] SettlementFact _source_reference
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SettlementFact.
+             * @memberof northstar.accounting
+             * @interface ISettlementFact
+             * @augments northstar.accounting.SettlementFact.$Properties
+             * @deprecated Use northstar.accounting.SettlementFact.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SettlementFact.
+             * @typedef {{
+             *   settlement_id?: string|null;
+             *   contract_id?: string|null;
+             *   trading_day?: string|null;
+             *   next_trading_day?: string|null;
+             *   settled_at?: string|null;
+             *   available_at?: string|null;
+             *   price?: string|null;
+             *   source_reference?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _settlement_id?: undefined; settlement_id?: null }|{ _settlement_id?: "settlement_id"; settlement_id: string })
+             * ) & (
+             *   ({ _contract_id?: undefined; contract_id?: null }|{ _contract_id?: "contract_id"; contract_id: string })
+             * ) & (
+             *   ({ _trading_day?: undefined; trading_day?: null }|{ _trading_day?: "trading_day"; trading_day: string })
+             * ) & (
+             *   ({ _next_trading_day?: undefined; next_trading_day?: null }|{ _next_trading_day?: "next_trading_day"; next_trading_day: string })
+             * ) & (
+             *   ({ _settled_at?: undefined; settled_at?: null }|{ _settled_at?: "settled_at"; settled_at: string })
+             * ) & (
+             *   ({ _available_at?: undefined; available_at?: null }|{ _available_at?: "available_at"; available_at: string })
+             * ) & (
+             *   ({ _price?: undefined; price?: null }|{ _price?: "price"; price: string })
+             * ) & (
+             *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
+             * )} northstar.accounting.SettlementFact.$Shape
+             */
+
+            /**
+             * Constructs a new SettlementFact.
+             * @memberof northstar.accounting
+             * @classdesc Represents a SettlementFact.
+             * @constructor
+             * @param {northstar.accounting.SettlementFact.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SettlementFact = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SettlementFact settlement_id.
+             * @member {string|null|undefined} settlement_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.settlement_id = null;
+
+            /**
+             * SettlementFact contract_id.
+             * @member {string|null|undefined} contract_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.contract_id = null;
+
+            /**
+             * SettlementFact trading_day.
+             * @member {string|null|undefined} trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.trading_day = null;
+
+            /**
+             * SettlementFact next_trading_day.
+             * @member {string|null|undefined} next_trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.next_trading_day = null;
+
+            /**
+             * SettlementFact settled_at.
+             * @member {string|null|undefined} settled_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.settled_at = null;
+
+            /**
+             * SettlementFact available_at.
+             * @member {string|null|undefined} available_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.available_at = null;
+
+            /**
+             * SettlementFact price.
+             * @member {string|null|undefined} price
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.price = null;
+
+            /**
+             * SettlementFact source_reference.
+             * @member {string|null|undefined} source_reference
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.source_reference = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SettlementFact _settlement_id.
+             * @member {"settlement_id"|undefined} _settlement_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_settlement_id", {
+                get: $util.oneOfGetter($oneOfFields = ["settlement_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _contract_id.
+             * @member {"contract_id"|undefined} _contract_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_contract_id", {
+                get: $util.oneOfGetter($oneOfFields = ["contract_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _trading_day.
+             * @member {"trading_day"|undefined} _trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _next_trading_day.
+             * @member {"next_trading_day"|undefined} _next_trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_next_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["next_trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _settled_at.
+             * @member {"settled_at"|undefined} _settled_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_settled_at", {
+                get: $util.oneOfGetter($oneOfFields = ["settled_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _available_at.
+             * @member {"available_at"|undefined} _available_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_available_at", {
+                get: $util.oneOfGetter($oneOfFields = ["available_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _price.
+             * @member {"price"|undefined} _price
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_price", {
+                get: $util.oneOfGetter($oneOfFields = ["price"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _source_reference.
+             * @member {"source_reference"|undefined} _source_reference
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_source_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["source_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SettlementFact instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {northstar.accounting.SettlementFact.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.SettlementFact} SettlementFact instance
+             * @type {{
+             *   (properties: northstar.accounting.SettlementFact.$Shape): northstar.accounting.SettlementFact & northstar.accounting.SettlementFact.$Shape;
+             *   (properties?: northstar.accounting.SettlementFact.$Properties): northstar.accounting.SettlementFact;
+             * }}
+             */
+            SettlementFact.create = function(properties) {
+                return new SettlementFact(properties);
+            };
+
+            /**
+             * Encodes the specified SettlementFact message. Does not implicitly {@link northstar.accounting.SettlementFact.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {northstar.accounting.SettlementFact.$Properties} message SettlementFact message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SettlementFact.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.settlement_id);
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.contract_id);
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.trading_day);
+                if (message.next_trading_day != null && $Object.hasOwnProperty.call(message, "next_trading_day"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.next_trading_day);
+                if (message.settled_at != null && $Object.hasOwnProperty.call(message, "settled_at"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.settled_at);
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.available_at);
+                if (message.price != null && $Object.hasOwnProperty.call(message, "price"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.price);
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.source_reference);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SettlementFact message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.SettlementFact & northstar.accounting.SettlementFact.$Shape} SettlementFact
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SettlementFact.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.SettlementFact();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.settlement_id = reader.stringVerify();
+                            message._settlement_id = "settlement_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.contract_id = reader.stringVerify();
+                            message._contract_id = "contract_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.trading_day = reader.stringVerify();
+                            message._trading_day = "trading_day";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.next_trading_day = reader.stringVerify();
+                            message._next_trading_day = "next_trading_day";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.settled_at = reader.stringVerify();
+                            message._settled_at = "settled_at";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_at = reader.stringVerify();
+                            message._available_at = "available_at";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.price = reader.stringVerify();
+                            message._price = "price";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_reference = reader.stringVerify();
+                            message._source_reference = "source_reference";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SettlementFact message.
+             * @function verify
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SettlementFact.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id")) {
+                    properties._settlement_id = 1;
+                    if (!$util.isString(message.settlement_id))
+                        return "settlement_id: string expected";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    properties._contract_id = 1;
+                    if (!$util.isString(message.contract_id))
+                        return "contract_id: string expected";
+                }
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    properties._trading_day = 1;
+                    if (!$util.isString(message.trading_day))
+                        return "trading_day: string expected";
+                }
+                if (message.next_trading_day != null && $Object.hasOwnProperty.call(message, "next_trading_day")) {
+                    properties._next_trading_day = 1;
+                    if (!$util.isString(message.next_trading_day))
+                        return "next_trading_day: string expected";
+                }
+                if (message.settled_at != null && $Object.hasOwnProperty.call(message, "settled_at")) {
+                    properties._settled_at = 1;
+                    if (!$util.isString(message.settled_at))
+                        return "settled_at: string expected";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    properties._available_at = 1;
+                    if (!$util.isString(message.available_at))
+                        return "available_at: string expected";
+                }
+                if (message.price != null && $Object.hasOwnProperty.call(message, "price")) {
+                    properties._price = 1;
+                    if (!$util.isString(message.price))
+                        return "price: string expected";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    properties._source_reference = 1;
+                    if (!$util.isString(message.source_reference))
+                        return "source_reference: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SettlementFact message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.SettlementFact} SettlementFact
+             */
+            SettlementFact.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.SettlementFact)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.SettlementFact: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.SettlementFact();
+                if (object.settlement_id != null)
+                    message.settlement_id = $String(object.settlement_id);
+                if (object.contract_id != null)
+                    message.contract_id = $String(object.contract_id);
+                if (object.trading_day != null)
+                    message.trading_day = $String(object.trading_day);
+                if (object.next_trading_day != null)
+                    message.next_trading_day = $String(object.next_trading_day);
+                if (object.settled_at != null)
+                    message.settled_at = $String(object.settled_at);
+                if (object.available_at != null)
+                    message.available_at = $String(object.available_at);
+                if (object.price != null)
+                    message.price = $String(object.price);
+                if (object.source_reference != null)
+                    message.source_reference = $String(object.source_reference);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SettlementFact message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {northstar.accounting.SettlementFact} message SettlementFact
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SettlementFact.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id")) {
+                    object.settlement_id = message.settlement_id;
+                    if (options.oneofs)
+                        object._settlement_id = "settlement_id";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    object.contract_id = message.contract_id;
+                    if (options.oneofs)
+                        object._contract_id = "contract_id";
+                }
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    object.trading_day = message.trading_day;
+                    if (options.oneofs)
+                        object._trading_day = "trading_day";
+                }
+                if (message.next_trading_day != null && $Object.hasOwnProperty.call(message, "next_trading_day")) {
+                    object.next_trading_day = message.next_trading_day;
+                    if (options.oneofs)
+                        object._next_trading_day = "next_trading_day";
+                }
+                if (message.settled_at != null && $Object.hasOwnProperty.call(message, "settled_at")) {
+                    object.settled_at = message.settled_at;
+                    if (options.oneofs)
+                        object._settled_at = "settled_at";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    object.available_at = message.available_at;
+                    if (options.oneofs)
+                        object._available_at = "available_at";
+                }
+                if (message.price != null && $Object.hasOwnProperty.call(message, "price")) {
+                    object.price = message.price;
+                    if (options.oneofs)
+                        object._price = "price";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    object.source_reference = message.source_reference;
+                    if (options.oneofs)
+                        object._source_reference = "source_reference";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SettlementFact to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SettlementFact.prototype.toJSON = function() {
+                return SettlementFact.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SettlementFact
+             * @function getTypeUrl
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SettlementFact.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.SettlementFact";
+            };
+
+            return SettlementFact;
+        })();
+
+        return accounting;
     })();
 
     return northstar;

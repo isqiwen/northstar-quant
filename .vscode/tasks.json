@@ -540,8 +540,7 @@
         "deploy",
         "start",
         "restart",
-        "stop",
-        "init-host"
+        "stop"
       ],
       "default": "status"
     },

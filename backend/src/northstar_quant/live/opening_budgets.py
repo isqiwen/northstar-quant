@@ -23,24 +23,26 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    Uuid,
     select,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.ledger import BrokerLedger
-from northstar_quant.broker.market import ctp_day_quote_time
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
+from northstar_quant.broker.events import ACCOUNT_ACTIVITY_CALLBACKS
+from northstar_quant.broker.market import ctp_quote_time
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.data_management.broker import verify_broker_contract
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.execution.orders import Side
 from northstar_quant.execution.reviews import OrderReviews
-from northstar_quant.live.storage import write_transaction
 from northstar_quant.live.streams import LiveStreams
+from northstar_quant.market_data.sessions import SessionSchedule
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 from northstar_quant.risk import (
     OpeningAccount,
     OpeningCandidate,
@@ -53,11 +55,11 @@ _metadata = MetaData()
 _budgets = Table(
     "broker_opening_budgets",
     _metadata,
-    Column("budget_id", PGUUID(as_uuid=True), primary_key=True),
-    Column("stream_id", PGUUID(as_uuid=True), nullable=False),
+    Column("budget_id", Uuid(as_uuid=True), primary_key=True),
+    Column("stream_id", Uuid(as_uuid=True), nullable=False),
     Column("sequence", Integer, nullable=False),
-    Column("order_check_id", PGUUID(as_uuid=True), nullable=False),
-    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("order_check_id", Uuid(as_uuid=True), nullable=False),
+    Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
 )
@@ -177,9 +179,7 @@ def _calculate(
         )
     ):
         raise ValueError("FIRST_OPENING_REQUIRES_FLAT_ACCOUNT_WITHOUT_ACTIVITY")
-    if any(
-        event["callback"] in {"OnRtnTrade", "OnRtnOrder"} for event in batch["capture"]["events"]
-    ):
+    if any(event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in batch["capture"]["events"]):
         raise ValueError("ACCOUNT_ACTIVITY_DURING_QUERY")
     funds = _one(batch, "account")
     if (
@@ -225,10 +225,17 @@ def _calculate(
         or not isinstance(quote, dict)
         or quote.get("InstrumentID") != binding["instrument"]
         or quote.get("TradingDay") != bar["trading_day"]
-        or quote.get("ActionDay") != bar["trading_day"]
         or _at(event["received_at"]) > _at(intent["generated_at"])
     ):
-        raise ValueError("CONFIRMING_DAY_QUOTE_NOT_IDENTIFIED")
+        raise ValueError("CONFIRMING_QUOTE_NOT_IDENTIFIED")
+    ctp_quote_time(
+        quote,
+        schedule=(
+            SessionSchedule.from_dict(binding["request"]["schedule"])
+            if "schedule" in binding["request"]
+            else None
+        ),
+    )
     return evaluate_opening_budget(
         account=OpeningAccount(
             equity=_amount(funds.get("Balance")),
@@ -364,7 +371,14 @@ class BrokerOpeningBudgets:
             ):
                 blockers.append("ACCOUNT_QUERY_NOT_CURRENT_AT_TARGET")
         try:
-            source_time = ctp_day_quote_time(decision["event"]["data"] or {})
+            source_time = ctp_quote_time(
+                decision["event"]["data"] or {},
+                schedule=(
+                    SessionSchedule.from_dict(binding["request"]["schedule"])
+                    if "schedule" in binding["request"]
+                    else None
+                ),
+            )
         except ValueError:
             source_time = None
         if (
