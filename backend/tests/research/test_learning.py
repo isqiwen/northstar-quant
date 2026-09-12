@@ -9,10 +9,11 @@ import pytest
 
 from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.market_data import Instrument, MarketBar
+from northstar_quant.market_data.engine import BarStream
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.learning import LearningRecipe, fit, training_rows
 from northstar_quant.strategies.configuration import StrategyConfig
-from northstar_quant.strategies.runtime import StrategyRuntime
+from northstar_quant.strategies.trader import StrategyBinding, Trader
 
 
 def sample():
@@ -67,9 +68,11 @@ def test_fitted_coefficients_are_fixed_and_use_shared_strategy_decisions():
     assert len(trained["candidates"]) == 3
     for config in trained["candidates"].values():
         strategy = StrategyConfig.from_dict(config["strategy"])
-        runtime = StrategyRuntime(strategy, dataset.market.contract_id)
+        runtime = Trader(
+            (StrategyBinding("main", strategy, BarStream(dataset.market.contract_id, 60)),)
+        )
         for bar in dataset.bars:
-            step = runtime.advance(bar)
+            step = runtime.advance(BarStream(dataset.market.contract_id, 60), bar)["main"]
         assert step.intent is not None
         assert abs(step.intent.target_fraction) <= Decimal("0.5")
         assert all(factor.available_at <= step.intent.generated_at for _, factor in step.factors)

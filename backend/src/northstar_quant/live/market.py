@@ -10,8 +10,9 @@ from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.broker.market import DAY, FRESH, SHANGHAI
 from northstar_quant.broker.sampling import sample_market
 from northstar_quant.market_data import MarketBar
+from northstar_quant.market_data.engine import BarStream
 from northstar_quant.strategies.configuration import StrategyConfig
-from northstar_quant.strategies.runtime import StrategyRuntime
+from northstar_quant.strategies.trader import StrategyBinding, Trader
 
 
 def advance_market(
@@ -53,14 +54,17 @@ def advance_market(
     completed = result["completed_bar"]
     decision = {"kind": "INPUT_UNAVAILABLE", "reason": "NO_COMPLETED_BAR", "factors": {}}
     if completed is not None:
-        runtime = StrategyRuntime(
-            config, contract_id, history=tuple(_bar(item) for item in recent), state=strategy_state
+        stream = BarStream(contract_id, 60)
+        runtime = Trader(
+            (StrategyBinding("main", config, stream),),
+            history={stream: tuple(_bar(item) for item in recent)},
+            states={"main": strategy_state},
         )
-        signal = runtime.advance(_bar(completed), at=now)
+        signal = runtime.advance(stream, _bar(completed), at=now).get("main")
         if signal is None:
             raise ValueError("sampler repeated a completed bar")
         recent.append(dict(completed))
-        recent = recent[-len(runtime.history) :]
+        recent = recent[-len(runtime.history("main")) :]
         strategy_state = signal.decision.state
         decision = {
             "kind": signal.decision.kind.value,

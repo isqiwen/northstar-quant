@@ -28,12 +28,13 @@ from northstar_quant.execution.orders import (
     reservation,
 )
 from northstar_quant.market_data import Instrument, MarketBar
+from northstar_quant.market_data.engine import BarStream
 from northstar_quant.messaging import Endpoint, Topic
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.evaluation import EvaluationPlan
 from northstar_quant.risk.engine import RiskEngine
 from northstar_quant.simulation import simulate_fill
-from northstar_quant.strategies.runtime import StrategyRuntime
+from northstar_quant.strategies.trader import StrategyBinding, Trader
 from northstar_quant.trading.environment import Environment
 from northstar_quant.trading.kernel import FailurePolicy, TradingKernel
 
@@ -157,7 +158,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "22"
+    REVISION = "23"
 
     def __init__(
         self,
@@ -225,9 +226,8 @@ class TradingSession:
         self.account = Account(config.simulation.initial_cash, (market,))
         self._execution = ExecutionEngine()
         self._risk = RiskEngine(market, config.risk_policy(), self._terms)
-        self._trader = StrategyRuntime(
-            config.strategy, market.contract_id, interval_seconds, source_scope=content_hash
-        )
+        self._stream = BarStream(market.contract_id, interval_seconds, content_hash)
+        self._trader = Trader((StrategyBinding("main", config.strategy, self._stream),))
         self._trading_day: date | None = None
         self._last: MarketBar | None = None
         self._bar_count = 0
@@ -298,10 +298,11 @@ class TradingSession:
 
     def close(self) -> None:
         self.kernel.close()
+        self._trader.close()
 
     def _process(self, bar: MarketBar) -> TradingStep | None:
         self._validate_bar(bar)
-        if not self._trader.accepts(bar):
+        if not self._trader.accepts(self._stream, bar):
             return None
 
         with localcontext() as context:
@@ -384,7 +385,7 @@ class TradingSession:
             "drawdown_fraction": decimal_text(drawdown_fraction),
         }
         decision: dict[str, object] | None = None
-        signal = self._trader.advance(bar)
+        signal = self._trader.advance(self._stream, bar)["main"]
         assert signal is not None
         point["strategy"] = {
             "kind": signal.decision.kind.value,
@@ -540,7 +541,7 @@ class TradingSession:
             "engine_revision": self.REVISION,
             "evaluation_plan": self.evaluation.to_dict(),
             "environment": self.kernel.status.environment.value,
-            "strategy_state": dict(self._trader.state),
+            "strategy_state": dict(self._trader.state("main")),
             "last_decision": None
             if self._last_decision is None
             else {
@@ -560,7 +561,7 @@ class TradingSession:
             "interval_seconds": self.interval_seconds,
             "config": self.config.to_dict(),
             "account": self.account.checkpoint(),
-            "history": [_bar_dict(bar) for bar in self._trader.history],
+            "history": [_bar_dict(bar) for bar in self._trader.history("main")],
             "last": None if self._last is None else _bar_dict(self._last),
             "trading_day": None if self._trading_day is None else self._trading_day.isoformat(),
             "pending": None if self.pending is None else self.pending.to_dict(),
@@ -706,13 +707,10 @@ class TradingSession:
         raw_state = _object(checkpoint["strategy_state"])
         if any(type(value) not in {str, int} for value in raw_state.values()):
             raise ValueError("invalid strategy checkpoint state")
-        session._trader = StrategyRuntime(
-            config.strategy,
-            market.contract_id,
-            interval_seconds,
-            source_scope=content_hash,
-            history=tuple(accepted_history),
-            state=tuple((key, value) for key, value in raw_state.items()),  # type: ignore[misc]
+        session._trader = Trader(
+            (StrategyBinding("main", config.strategy, session._stream),),
+            history={session._stream: tuple(accepted_history)},
+            states={"main": tuple((key, value) for key, value in raw_state.items())},  # type: ignore[misc]
         )
         session._peak = _money(checkpoint["peak"])
         session._maximum_drawdown = _money(checkpoint["maximum_drawdown"])
