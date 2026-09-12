@@ -30,12 +30,14 @@ def compare_resolutions(
     candidates = {}
     for basis in ("BAR_END", "BAR_START"):
         observations = []
+        coverage: dict[datetime, list[dict[str, str]]] = {at: [] for at in by_time}
         for row in large:
             label = datetime.fromisoformat(row["trade_time"])
             first = label - timedelta(minutes=minutes - 1) if basis == "BAR_END" else label
             labels = [first + timedelta(minutes=i) for i in range(minutes)]
             observed = [by_time[at] for at in labels if at in by_time]
             differences = []
+            values: dict[str, Decimal] = {}
             if len(observed) == minutes:
                 with localcontext() as context:
                     context.prec = 96
@@ -56,15 +58,35 @@ def compare_resolutions(
                 if differences
                 else "MATCHED"
             )
+            for at in labels:
+                if at in coverage:
+                    coverage[at].append({"label": row["trade_time"], "status": status})
             observations.append(
                 {
                     "label": row["trade_time"],
                     "status": status,
                     "observed_minutes": len(observed),
                     "different_fields": differences,
+                    "missing_labels": [at.isoformat(sep=" ") for at in labels if at not in by_time],
+                    "field_differences": {
+                        name: {"aggregated": str(values[name]), "reported": row[name]}
+                        for name in differences
+                    },
                 }
             )
+        unresolved = [
+            {"label": by_time[at]["trade_time"], "windows": windows}
+            for at, windows in sorted(coverage.items())
+            if len(windows) != 1 or windows[0]["status"] != "MATCHED"
+        ]
         candidates[basis] = {
+            "fine_coverage": {
+                "total": len(small),
+                "matched_once": len(small) - len(unresolved),
+                "unreferenced": sum(not windows for windows in coverage.values()),
+                "multiple_windows": sum(len(windows) > 1 for windows in coverage.values()),
+                "unresolved": unresolved,
+            },
             "counts": {
                 state: sum(item["status"] == state for item in observations)
                 for state in ("MATCHED", "MISMATCH", "INCOMPLETE_MINUTES")
@@ -72,7 +94,7 @@ def compare_resolutions(
             "observations": observations,
         }
     return {
-        "rule": "tushare-resolution-comparison/1",
+        "rule": "tushare-resolution-comparison/2",
         "contract": contract,
         "minutes": minutes,
         "start": start,

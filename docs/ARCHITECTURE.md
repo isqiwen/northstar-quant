@@ -168,6 +168,8 @@ Data Hub 仅自动同步 Tushare 全部期货历史数据；没有手工上传�
 区分三种身份：**供应商响应**记录收到什么；**加工版本**记录用何规则处理；**研究清单**固定本次使用哪些结果。
 内容相同但规则变更可以形成新校验证据。研究不能通过扫描目录或跟随“最新数据”隐式改变输入。
 2026-09-12 对照 [Nautilus Data latest](https://nautilustrader.io/docs/latest/concepts/data/) 的标的与数据时间边界，将多时段组合从验收辅助代码落实到 `DataLibrary.assemble_research`：只接收已确认的固定清单，统一截止时间重新检查每段质量，保留原始观察身份及已有结算/条款，不以新版本替换旧输入。逻辑清单提交后再原子发布文件；中断重试复用同一清单，文件未完成时不出现在可运行数据列表中。此接口不推断 Tushare 标签或交易日历，也不将合成时段验收等同真实数据装配完成。
+2026-09-13 再核对 [Nautilus Data latest](https://nautilustrader.io/docs/latest/concepts/data/) 的外部 Bar/内部聚合区别及 [Tushare 历史分钟 doc 313](https://tushare.pro/document/2?doc_id=313)。Northstar 的跨周期核对仅作为来源证据，不生成可交易 Bar；规则 `tushare-resolution-comparison/2` 对每条细周期记录列出未解释/重复覆盖窗口、缺失标签和精确 OHLCV 差额，避免大周期匹配统计隐藏开盘记录。匹配不能验证交易日历、首次可得或历史条款，不引入参考框架依赖。
+
 当前 `tushare-response/4` 对行情接口强制 OHLCV 和完整时间标签，固定 `tushare-numbers/1` 数值规则及参数进入校验内容摘要；
 部署不会追溯改写旧 receipt，已有数据按后续刷新/重试接受新规则，旧规则结果不冒充已重新核验。
 Parquet 物理布局服务于按数据类型、合约、周期和时间范围读取；内容哈希与清单负责身份，不依赖文件名猜语义。

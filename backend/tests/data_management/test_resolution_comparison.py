@@ -91,3 +91,44 @@ def test_conflicts_wrong_contract_and_value_mismatch_are_not_silently_accepted()
         compare([*fine, {**fine[0], "vol": "1"}], coarse)
     with pytest.raises(InvalidResponse):
         compare(fine, [{**coarse[0], "ts_code": "OTHER.SHF"}])
+
+
+def test_opening_records_and_missing_labels_remain_explainable():
+    fine, coarse = sample()
+    opening = {**fine[0], "trade_time": "2026-09-08 21:00:00"}
+    result = compare([*fine, opening], [*coarse, opening])
+    candidate = result["candidates"]["BAR_END"]
+    assert candidate["fine_coverage"]["total"] == 16
+    assert candidate["fine_coverage"]["matched_once"] == 15
+    assert candidate["fine_coverage"]["unresolved"] == [
+        {
+            "label": opening["trade_time"],
+            "windows": [{"label": opening["trade_time"], "status": "INCOMPLETE_MINUTES"}],
+        }
+    ]
+    assert len(candidate["observations"][1]["missing_labels"]) == 14
+    orphan = compare([*fine, opening], coarse)["candidates"]["BAR_END"]["fine_coverage"]
+    assert orphan["unreferenced"] == 1
+    assert orphan["unresolved"][0]["windows"] == []
+    assert result["admitted"] is False
+
+
+def test_overlapping_coarse_windows_cannot_count_a_fine_minute_as_uniquely_explained():
+    fine, coarse = sample()
+    overlap = {**coarse[0], "trade_time": "2026-09-08 09:14:00"}
+    coverage = compare(fine, [overlap, *coarse])["candidates"]["BAR_END"]["fine_coverage"]
+    assert coverage["multiple_windows"] == 14
+    assert coverage["matched_once"] == 1
+    assert all(len(item["windows"]) == 2 for item in coverage["unresolved"])
+
+
+def test_mismatches_include_exact_values_and_do_not_hide_fine_records():
+    fine, coarse = sample()
+    coarse[0]["vol"] = "1"
+    candidate = compare(fine, coarse)["candidates"]["BAR_END"]
+    assert candidate["observations"][0]["field_differences"]["vol"] == {
+        "aggregated": "150000000000000000000000.000000000015",
+        "reported": "1",
+    }
+    assert candidate["fine_coverage"]["matched_once"] == 0
+    assert len(candidate["fine_coverage"]["unresolved"]) == 15
