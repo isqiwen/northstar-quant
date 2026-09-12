@@ -43,13 +43,11 @@ from northstar_quant.data_management.quality.evaluations import (
 )
 from northstar_quant.data_management.quality.import_evidence import (
     SAFE_ERROR_CODE,
-    ProviderRetrievalEvidence,
-    load_provider_retrieval_evidence,
     load_terminal_import_run,
     terminal_error_category,
 )
 
-_STREAM_PROTOCOL_VERSION = "import_integrity/2.0.0"
+_STREAM_PROTOCOL_VERSION = f"import_integrity/{IMPORT_QUALITY_RULE_SET_VERSION}"
 _MAX_EVIDENCE_SAMPLE_IDENTIFIERS = 8
 _MAX_EVIDENCE_SAMPLE_ROWS = 20
 _MAX_EVIDENCE_CATEGORIES = 8
@@ -57,7 +55,6 @@ _MAX_EVIDENCE_CATEGORY_CHARACTERS = 96
 _MAX_EVIDENCE_BYTES = 2048
 _EVIDENCE_TRIM_ORDER = (
     "sample_source_row_numbers",
-    "sample_provider_retrieval_ids",
     "sample_canonical_bar_ids",
     "sample_import_record_ids",
     "categories",
@@ -103,7 +100,6 @@ class _StreamingFindingSpec:
     evidence_reason: str
     records: tuple[_RecordFact, ...] = ()
     bars: tuple[_BarFact, ...] = ()
-    retrieval_ids: tuple[UUID, ...] = ()
     categories: tuple[str, ...] = ()
     categories_truncated: bool = False
 
@@ -140,7 +136,6 @@ class _StreamingScan:
 class _BoundedSamples:
     records: list[_RecordFact] = field(default_factory=list)
     bars: list[_BarFact] = field(default_factory=list)
-    retrieval_ids: list[UUID] = field(default_factory=list)
 
     def add_record(self, record: _RecordFact) -> None:
         if len(self.records) < _MAX_EVIDENCE_SAMPLE_IDENTIFIERS:
@@ -149,10 +144,6 @@ class _BoundedSamples:
     def add_bar(self, bar: _BarFact) -> None:
         if len(self.bars) < _MAX_EVIDENCE_SAMPLE_IDENTIFIERS:
             self.bars.append(bar)
-
-    def add_retrieval_id(self, retrieval_id: UUID) -> None:
-        if len(self.retrieval_ids) < _MAX_EVIDENCE_SAMPLE_IDENTIFIERS:
-            self.retrieval_ids.append(retrieval_id)
 
 
 @dataclass
@@ -184,7 +175,6 @@ class _ConsistencyAccumulator:
         *,
         record: _RecordFact | None = None,
         bar: _BarFact | None = None,
-        retrieval_id: UUID | None = None,
         occurrence_count: int = 1,
     ) -> None:
         self.occurrence_count += occurrence_count
@@ -193,8 +183,6 @@ class _ConsistencyAccumulator:
             self.samples.add_record(record)
         if bar is not None:
             self.samples.add_bar(bar)
-        if retrieval_id is not None:
-            self.samples.add_retrieval_id(retrieval_id)
 
 
 class _FramedHasher:
@@ -327,41 +315,6 @@ class _StreamingAccumulator:
             self.consistency.add("inserted_canonical_bar_receipt_hash_mismatch", bar=bar)
         if bar.normalized_payload_hash is None:
             self.consistency.add("inserted_canonical_bar_payload_hash_missing", bar=bar)
-
-    def observe_provider_evidence(self, evidence: ProviderRetrievalEvidence) -> None:
-        if evidence.reconciliation_reason is not None:
-            self.consistency.add(
-                evidence.reconciliation_reason,
-                retrieval_id=evidence.expected_retrieval_id,
-            )
-        for retrieval in evidence.retrievals:
-            if retrieval.import_run_id != self.import_run.id:
-                self.consistency.add(
-                    "provider_retrieval_import_run_mismatch", retrieval_id=retrieval.id
-                )
-            if retrieval.series_id != self.import_run.series_id:
-                self.consistency.add(
-                    "provider_retrieval_series_mismatch", retrieval_id=retrieval.id
-                )
-            if retrieval.source_receipt_id != self.import_run.source_receipt_id:
-                self.consistency.add(
-                    "provider_retrieval_receipt_mismatch", retrieval_id=retrieval.id
-                )
-            if retrieval.source_name != self.import_run.source_name:
-                self.consistency.add(
-                    "provider_retrieval_source_name_mismatch", retrieval_id=retrieval.id
-                )
-            if retrieval.source_timezone_name != self.import_run.source_timezone_name:
-                self.consistency.add(
-                    "provider_retrieval_timezone_mismatch", retrieval_id=retrieval.id
-                )
-            if retrieval.status in {"PENDING", "RUNNING"}:
-                self.consistency.add("provider_retrieval_not_terminal", retrieval_id=retrieval.id)
-            if self.import_run.status == "SUCCEEDED" and retrieval.status != "SUCCEEDED":
-                self.consistency.add(
-                    "successful_import_provider_retrieval_not_succeeded",
-                    retrieval_id=retrieval.id,
-                )
 
     def finalize(
         self,
@@ -725,11 +678,13 @@ def _scan_streaming_import_evidence(session: Session, import_run: ImportRun) -> 
             "inserted canonical Bars", MAX_IMPORT_QUALITY_INSERTED_BARS
         )
 
-    provider_evidence = load_provider_retrieval_evidence(session, import_run)
     accumulator = _StreamingAccumulator(import_run)
-    accumulator.observe_provider_evidence(provider_evidence)
-    record_hasher = _FramedHasher("import_integrity_quality/2.0.0/import-record-stream")
-    inserted_bar_hasher = _FramedHasher("import_integrity_quality/2.0.0/inserted-bar-stream")
+    record_hasher = _FramedHasher(
+        f"import_integrity_quality/{IMPORT_QUALITY_RULE_SET_VERSION}/import-record-stream"
+    )
+    inserted_bar_hasher = _FramedHasher(
+        f"import_integrity_quality/{IMPORT_QUALITY_RULE_SET_VERSION}/inserted-bar-stream"
+    )
     _scan_records(session, import_run.id, accumulator, record_hasher)
     _scan_inserted_bars(session, import_run.id, accumulator, inserted_bar_hasher)
     inserted_record_link_violations = _count_inserted_record_link_violations(session, import_run.id)
@@ -746,7 +701,6 @@ def _scan_streaming_import_evidence(session: Session, import_run: ImportRun) -> 
         analysis=analysis,
         input_fingerprint=_streaming_input_fingerprint(
             import_run=import_run,
-            provider_evidence=provider_evidence,
             record_count=record_count,
             inserted_bar_count=inserted_bar_count,
             record_stream_hash=record_hasher.hexdigest(),
@@ -993,7 +947,6 @@ def _streaming_findings(accumulator: _StreamingAccumulator) -> _StreamingAnalysi
                 evidence_reason="terminal_import_evidence_is_missing_or_self_contradictory",
                 records=tuple(accumulator.consistency.samples.records),
                 bars=tuple(accumulator.consistency.samples.bars),
-                retrieval_ids=tuple(accumulator.consistency.samples.retrieval_ids),
                 categories=tuple(sorted(accumulator.consistency.categories.values)),
                 categories_truncated=accumulator.consistency.categories.truncated,
             )
@@ -1077,14 +1030,13 @@ def _streaming_findings(accumulator: _StreamingAccumulator) -> _StreamingAnalysi
 def _streaming_input_fingerprint(
     *,
     import_run: ImportRun,
-    provider_evidence: ProviderRetrievalEvidence,
     record_count: int,
     inserted_bar_count: int,
     record_stream_hash: str,
     inserted_bar_stream_hash: str,
 ) -> str:
     receipt = import_run.source_receipt
-    hasher = _FramedHasher("import_integrity_quality/2.0.0/root")
+    hasher = _FramedHasher(f"import_integrity_quality/{IMPORT_QUALITY_RULE_SET_VERSION}/root")
     hasher.add(
         {
             "rule_set": (f"{IMPORT_QUALITY_RULE_SET_NAME}/{IMPORT_QUALITY_RULE_SET_VERSION}"),
@@ -1099,28 +1051,6 @@ def _streaming_input_fingerprint(
             "record_stream_hash": record_stream_hash,
             "inserted_bar_count": inserted_bar_count,
             "inserted_bar_stream_hash": inserted_bar_stream_hash,
-        }
-    )
-    for retrieval in provider_evidence.retrievals:
-        hasher.add(
-            {
-                "provider_retrieval": [
-                    str(retrieval.id),
-                    _string_or_none(retrieval.series_id),
-                    _string_or_none(retrieval.import_run_id),
-                    _string_or_none(retrieval.source_receipt_id),
-                    retrieval.source_name,
-                    retrieval.source_timezone_name,
-                    retrieval.status,
-                ]
-            }
-        )
-    hasher.add(
-        {
-            "provider_retrieval_reconciliation": {
-                "expected_retrieval_id": _string_or_none(provider_evidence.expected_retrieval_id),
-                "reason": provider_evidence.reconciliation_reason,
-            }
         }
     )
     return hasher.hexdigest()
@@ -1232,9 +1162,6 @@ def _render_streaming_evidence(finding: _StreamingFindingSpec) -> str:
         :_MAX_EVIDENCE_SAMPLE_ROWS
     ]
     bar_ids = sorted({str(bar.id) for bar in finding.bars})[:_MAX_EVIDENCE_SAMPLE_IDENTIFIERS]
-    retrieval_ids = sorted({str(item) for item in finding.retrieval_ids})[
-        :_MAX_EVIDENCE_SAMPLE_IDENTIFIERS
-    ]
     payload: dict[str, object] = {
         "evidence_version": (f"{IMPORT_QUALITY_RULE_SET_NAME}/{IMPORT_QUALITY_RULE_SET_VERSION}"),
         "protocol": _STREAM_PROTOCOL_VERSION,
@@ -1254,7 +1181,6 @@ def _render_streaming_evidence(finding: _StreamingFindingSpec) -> str:
         "sample_import_record_ids": list(record_ids),
         "sample_source_row_numbers": list(source_rows),
         "sample_canonical_bar_ids": list(bar_ids),
-        "sample_provider_retrieval_ids": list(retrieval_ids),
     }
     return _render_bounded_streaming_evidence(
         payload=payload,

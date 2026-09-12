@@ -11,6 +11,7 @@ from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from northstar_quant.data_management.db.base import Base
+from northstar_quant.data_management.quality.evaluations import IMPORT_QUALITY_RULE_SET_VERSION
 from northstar_quant.persistence.sql import UTCDateTime
 
 Uuid = sa.Uuid(as_uuid=True)
@@ -22,19 +23,6 @@ Price = sa.Numeric(24, 12, asdecimal=True)
 Quantity = sa.Numeric(28, 12, asdecimal=True)
 Turnover = sa.Numeric(32, 12, asdecimal=True)
 
-# These values pin the single manually operated SHFE daily path. They are not a
-# provider registry and do not introduce configurable provider policy.
-SHFE_DAILY_SOURCE_NAME = "SHFE_OFFICIAL_DAILY"
-SHFE_DAILY_ADAPTER_NAME = "shfe_official_daily_json"
-SHFE_DAILY_ADAPTER_VERSION = "1.0.0"
-SHFE_DAILY_MAPPING_VERSION = "shfe_official_daily_json/1.0.0"
-SHFE_DAILY_ENDPOINT_ID = "shfe_daily_data_v1"
-SHFE_DAILY_SOURCE_ADMISSION_REVIEW_STATUSES = (
-    "APPROVED",
-    "RESTRICTED",
-    "BLOCKED",
-    "UNKNOWN",
-)
 # Source-use policy is a deliberately closed, source-receipt-level decision.
 # Adapters never accept operator-supplied free-text policy.
 SOURCE_RECEIPT_ACQUISITION_USES = (
@@ -50,10 +38,6 @@ SOURCE_RECEIPT_REDISTRIBUTION_POLICIES = (
 SOURCE_RECEIPT_DEFAULT_ACQUISITION_USE = "UNKNOWN"
 SOURCE_RECEIPT_DEFAULT_REDISTRIBUTION_POLICY = "UNKNOWN"
 
-SHFE_DAILY_ACQUISITION_USE = "PRIVATE_RESEARCH_ONLY"
-SHFE_DAILY_RETENTION_POLICY = "TRANSIENT_ONLY"
-SHFE_DAILY_REDISTRIBUTION_POLICY = "PROHIBITED"
-SHFE_DAILY_AVAILABLE_AT_BASIS = "OPERATOR_ATTESTED"
 # The command boundary owns the exact opaque-identifier allowlist. The database
 # keeps a shallow backstop against source-like content.
 _OPAQUE_IDENTIFIER_FORBIDDEN_CHARACTERS = (" ", "/", "\\", ":", "?", "#", "@", "&", "=", "%")
@@ -350,7 +334,6 @@ class DataSeries(CreatedAtMixin, Base):
     contract: Mapped[FuturesContract] = relationship(back_populates="data_series")
     calendar: Mapped[TradingCalendar] = relationship(back_populates="data_series")
     bars: Mapped[list[CanonicalBar]] = relationship(back_populates="series")
-    provider_retrievals: Mapped[list[ProviderRetrieval]] = relationship(back_populates="series")
     quality_evaluations: Mapped[list[QualityEvaluation]] = relationship(back_populates="series")
     snapshot_partitions: Mapped[list[DatasetSnapshotPartition]] = relationship(
         back_populates="series"
@@ -573,7 +556,6 @@ class JobRun(CreatedAtMixin, Base):
     error_code: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
 
     import_run: Mapped[ImportRun | None] = relationship(back_populates="job_run")
-    provider_retrieval: Mapped[ProviderRetrieval | None] = relationship(back_populates="job_run")
 
 
 class SourceReceipt(CreatedAtMixin, Base):
@@ -640,9 +622,6 @@ class SourceReceipt(CreatedAtMixin, Base):
     )
 
     import_runs: Mapped[list[ImportRun]] = relationship(back_populates="source_receipt")
-    provider_retrievals: Mapped[list[ProviderRetrieval]] = relationship(
-        back_populates="source_receipt"
-    )
 
 
 class ImportRun(CreatedAtMixin, Base):
@@ -761,456 +740,6 @@ class ImportRun(CreatedAtMixin, Base):
     snapshot_import_quality_pins: Mapped[list[DatasetSnapshotImportQualityPin]] = relationship(
         back_populates="import_run"
     )
-    provider_retrievals: Mapped[list[ProviderRetrieval]] = relationship(back_populates="import_run")
-
-
-class ProviderRetrieval(CreatedAtMixin, Base):
-    """Durable, non-secret evidence for one provider retrieval request.
-
-    This model deliberately records request identity and bounded retrieval
-    metadata before any provider adapter is implemented.  ``request_descriptor``
-    may contain only canonical, non-secret request parameters; credentials,
-    signed URLs, and request headers never belong in this table.
-
-    A provider retrieval is distinct from both a ``SourceReceipt`` (the bytes
-    received) and an ``ImportRun`` (canonical normalization/application).  It
-    owns one durable request intent and outcome; a later manual recovery may
-    terminalize an abandoned active reservation but must append separate audit
-    evidence instead of replacing the original request identity.
-    """
-
-    __tablename__ = "provider_retrieval"
-    __table_args__ = (
-        sa.UniqueConstraint("job_run_id", name="provider_retrieval_job_run"),
-        sa.UniqueConstraint("request_fingerprint", name="provider_retrieval_request_fingerprint"),
-        sa.UniqueConstraint(
-            "recovery_of_provider_retrieval_id",
-            name="provider_retrieval_recovery_parent",
-        ),
-        sa.CheckConstraint("length(source_name) > 0", name="source_name_present"),
-        sa.CheckConstraint("length(adapter_name) > 0", name="adapter_name_present"),
-        sa.CheckConstraint("length(adapter_version) > 0", name="adapter_version_present"),
-        sa.CheckConstraint(
-            "length(request_fingerprint) = 64",
-            name="request_fingerprint_length",
-        ),
-        sa.CheckConstraint(
-            "length(source_timezone_name) > 0",
-            name="source_timezone_present",
-        ),
-        sa.CheckConstraint(
-            "status IN ('PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED', 'QUARANTINED', 'STALE')",
-            name="status",
-        ),
-        sa.CheckConstraint("attempt_count >= 0", name="attempt_count_nonnegative"),
-        sa.CheckConstraint(
-            "response_http_status IS NULL OR response_http_status BETWEEN 100 AND 599",
-            name="response_http_status",
-        ),
-        sa.CheckConstraint(
-            "response_etag IS NULL OR length(response_etag) <= 512",
-            name="response_etag_bounded",
-        ),
-        sa.CheckConstraint(
-            "response_last_modified IS NULL OR length(response_last_modified) <= 128",
-            name="response_last_modified_bounded",
-        ),
-        sa.CheckConstraint(
-            "provider_request_id IS NULL OR length(provider_request_id) <= 256",
-            name="provider_request_id_bounded",
-        ),
-        sa.CheckConstraint(
-            "error_detail IS NULL OR length(error_detail) <= 1024",
-            name="error_detail_bounded",
-        ),
-        sa.CheckConstraint(
-            "response_content_type IS NULL OR length(response_content_type) <= 128",
-            name="response_content_type_bounded",
-        ),
-        sa.CheckConstraint(
-            "status <> 'SUCCEEDED' OR source_receipt_id IS NOT NULL",
-            name="success_requires_receipt",
-        ),
-        sa.CheckConstraint(
-            "import_run_id IS NULL OR source_receipt_id IS NOT NULL",
-            name="import_requires_receipt",
-        ),
-        sa.Index("ix_provider_retrieval_series_id", "series_id"),
-        sa.Index("ix_provider_retrieval_import_run_id", "import_run_id"),
-        sa.Index("ix_provider_retrieval_source_receipt_id", "source_receipt_id"),
-        sa.Index("ix_provider_retrieval_status", "status"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    job_run_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid,
-        sa.ForeignKey("job_run.id", ondelete="RESTRICT"),
-        nullable=False,
-    )
-    series_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid,
-        sa.ForeignKey("data_series.id", ondelete="RESTRICT"),
-        nullable=False,
-    )
-    import_run_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid,
-        sa.ForeignKey("import_run.id", ondelete="RESTRICT"),
-        nullable=True,
-    )
-    source_receipt_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid,
-        sa.ForeignKey("source_receipt.id", ondelete="RESTRICT"),
-        nullable=True,
-    )
-    recovery_of_provider_retrieval_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid,
-        sa.ForeignKey(
-            "provider_retrieval.id",
-            name="fk_retrieval_recovery_parent",
-            ondelete="RESTRICT",
-        ),
-        nullable=True,
-    )
-    source_name: Mapped[str] = mapped_column(sa.String(128), nullable=False)
-    adapter_name: Mapped[str] = mapped_column(sa.String(64), nullable=False)
-    adapter_version: Mapped[str] = mapped_column(sa.String(64), nullable=False)
-    request_fingerprint: Mapped[str] = mapped_column(sa.String(64), nullable=False)
-    request_descriptor: Mapped[dict[str, object]] = mapped_column(sa.JSON(), nullable=False)
-    source_timezone_name: Mapped[str] = mapped_column(sa.String(64), nullable=False)
-    status: Mapped[str] = mapped_column(sa.String(16), nullable=False, server_default="PENDING")
-    attempt_count: Mapped[int] = mapped_column(sa.Integer(), nullable=False, server_default="0")
-    response_http_status: Mapped[int | None] = mapped_column(sa.SmallInteger(), nullable=True)
-    response_content_type: Mapped[str | None] = mapped_column(sa.String(128), nullable=True)
-    response_etag: Mapped[str | None] = mapped_column(sa.String(512), nullable=True)
-    response_last_modified: Mapped[str | None] = mapped_column(sa.String(128), nullable=True)
-    provider_request_id: Mapped[str | None] = mapped_column(sa.String(256), nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True).with_variant(UTCDateTime(), "sqlite"), nullable=True
-    )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True).with_variant(UTCDateTime(), "sqlite"), nullable=True
-    )
-    error_code: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
-    error_detail: Mapped[str | None] = mapped_column(sa.String(1024), nullable=True)
-    error_retryable: Mapped[bool | None] = mapped_column(sa.Boolean(), nullable=True)
-
-    job_run: Mapped[JobRun] = relationship(back_populates="provider_retrieval")
-    series: Mapped[DataSeries] = relationship(back_populates="provider_retrievals")
-    import_run: Mapped[ImportRun | None] = relationship(back_populates="provider_retrievals")
-    source_receipt: Mapped[SourceReceipt | None] = relationship(
-        back_populates="provider_retrievals"
-    )
-    recovery_parent: Mapped[ProviderRetrieval | None] = relationship(
-        back_populates="recovery_successor",
-        foreign_keys=[recovery_of_provider_retrieval_id],
-        remote_side=[id],
-    )
-    recovery_successor: Mapped[ProviderRetrieval | None] = relationship(
-        back_populates="recovery_parent",
-        foreign_keys=[recovery_of_provider_retrieval_id],
-        uselist=False,
-    )
-    recovery_events: Mapped[list[ProviderRetrievalRecovery]] = relationship(
-        back_populates="provider_retrieval"
-    )
-    source_admission_review_link: Mapped[ShfeDailyRetrievalSourceAdmissionReview | None] = (
-        relationship(
-            back_populates="provider_retrieval",
-            uselist=False,
-            cascade="all, delete-orphan",
-        )
-    )
-
-
-class ProviderRetrievalRecovery(CreatedAtMixin, Base):
-    """Append-only operator evidence for controlled stale-retrieval recovery.
-
-    Recovery does not retry a provider request. It records the active
-    reservation's pre-recovery state and the accountable operator action, then
-    either terminalizes an abandoned reservation or reconnects a terminal inner
-    import that committed before its parent could be finalized.
-    """
-
-    __tablename__ = "provider_retrieval_recovery"
-    __table_args__ = (
-        sa.UniqueConstraint(
-            "provider_retrieval_id",
-            name="provider_retrieval_recovery_one_per_parent",
-        ),
-        sa.UniqueConstraint(
-            "idempotency_key",
-            name="provider_retrieval_recovery_idempotency_key",
-        ),
-        sa.CheckConstraint("action IN ('TERMINALIZED', 'RECONCILED_IMPORT')", name="action"),
-        sa.CheckConstraint("prior_status IN ('PENDING', 'RUNNING')", name="prior_status"),
-        sa.CheckConstraint("prior_attempt_count >= 0", name="prior_attempt_count"),
-        sa.CheckConstraint("length(operator_id) BETWEEN 1 AND 128", name="operator_id_bounded"),
-        sa.CheckConstraint("length(reason) BETWEEN 1 AND 1024", name="reason_bounded"),
-        sa.CheckConstraint(
-            "length(idempotency_key) BETWEEN 1 AND 128",
-            name="idempotency_key_bounded",
-        ),
-        sa.CheckConstraint(
-            "length(correlation_id) BETWEEN 1 AND 128", name="correlation_id_bounded"
-        ),
-        sa.CheckConstraint(
-            "causation_id IS NULL OR length(causation_id) BETWEEN 1 AND 128",
-            name="causation_id_bounded",
-        ),
-        sa.CheckConstraint(
-            "prior_response_http_status IS NULL OR prior_response_http_status BETWEEN 100 AND 599",
-            name="prior_response_http_status",
-        ),
-        sa.CheckConstraint(
-            "prior_error_detail IS NULL OR length(prior_error_detail) <= 1024",
-            name="prior_error_detail_bounded",
-        ),
-        sa.CheckConstraint(
-            "prior_error_code IS NULL OR length(prior_error_code) <= 64",
-            name="prior_error_code_bounded",
-        ),
-        sa.Index("ix_provider_retrieval_recovery_provider_retrieval_id", "provider_retrieval_id"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    provider_retrieval_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid,
-        sa.ForeignKey(
-            "provider_retrieval.id",
-            name="fk_retrieval_recovery_event_parent",
-            ondelete="RESTRICT",
-        ),
-        nullable=False,
-    )
-    action: Mapped[str] = mapped_column(sa.String(32), nullable=False)
-    prior_status: Mapped[str] = mapped_column(sa.String(16), nullable=False)
-    prior_attempt_count: Mapped[int] = mapped_column(sa.Integer(), nullable=False)
-    prior_started_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True).with_variant(UTCDateTime(), "sqlite")
-    )
-    prior_finished_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True).with_variant(UTCDateTime(), "sqlite")
-    )
-    prior_response_http_status: Mapped[int | None] = mapped_column(sa.SmallInteger())
-    prior_error_code: Mapped[str | None] = mapped_column(sa.String(64))
-    prior_error_detail: Mapped[str | None] = mapped_column(sa.String(1024))
-    operator_id: Mapped[str] = mapped_column(sa.String(128), nullable=False)
-    reason: Mapped[str] = mapped_column(sa.String(1024), nullable=False)
-    idempotency_key: Mapped[str] = mapped_column(sa.String(128), nullable=False)
-    correlation_id: Mapped[str] = mapped_column(sa.String(128), nullable=False)
-    causation_id: Mapped[str | None] = mapped_column(sa.String(128))
-
-    provider_retrieval: Mapped[ProviderRetrieval] = relationship(back_populates="recovery_events")
-
-
-class ShfeDailySourceAdmissionReview(CreatedAtMixin, Base):
-    """Append-only, non-secret review evidence for the one SHFE daily source.
-
-    The record deliberately captures a bounded evidence reference/digest and a
-    fixed set of operational conclusions.  It never stores source terms, an
-    endpoint URL, request headers, response bytes, or an unconstrained operator
-    note.  A later review is a new record; it does not rewrite prior evidence.
-    """
-
-    __tablename__ = "shfe_daily_source_admission_review"
-    __table_args__ = (
-        sa.UniqueConstraint(
-            "idempotency_key",
-            name="shfe_daily_source_admission_review_idempotency_key",
-        ),
-        sa.UniqueConstraint(
-            "review_sequence",
-            name="shfe_daily_source_admission_review_sequence",
-        ),
-        sa.CheckConstraint(
-            f"source_name = '{SHFE_DAILY_SOURCE_NAME}'",
-            name="source_name_fixed",
-        ),
-        sa.CheckConstraint(
-            f"adapter_name = '{SHFE_DAILY_ADAPTER_NAME}'",
-            name="adapter_name_fixed",
-        ),
-        sa.CheckConstraint(
-            f"adapter_version = '{SHFE_DAILY_ADAPTER_VERSION}'",
-            name="adapter_version_fixed",
-        ),
-        sa.CheckConstraint(
-            f"mapping_version = '{SHFE_DAILY_MAPPING_VERSION}'",
-            name="mapping_version_fixed",
-        ),
-        sa.CheckConstraint(
-            f"endpoint_id = '{SHFE_DAILY_ENDPOINT_ID}'",
-            name="endpoint_id_fixed",
-        ),
-        sa.CheckConstraint(
-            "status IN ('APPROVED', 'RESTRICTED', 'BLOCKED', 'UNKNOWN')",
-            name="status",
-        ),
-        sa.CheckConstraint(
-            f"acquisition_use = '{SHFE_DAILY_ACQUISITION_USE}'",
-            name="acquisition_use_fixed",
-        ),
-        sa.CheckConstraint(
-            f"retention_policy = '{SHFE_DAILY_RETENTION_POLICY}'",
-            name="retention_policy_fixed",
-        ),
-        sa.CheckConstraint(
-            f"redistribution_policy = '{SHFE_DAILY_REDISTRIBUTION_POLICY}'",
-            name="redistribution_fixed",
-        ),
-        sa.CheckConstraint(
-            f"available_at_basis = '{SHFE_DAILY_AVAILABLE_AT_BASIS}'",
-            name="available_at_basis_fixed",
-        ),
-        sa.CheckConstraint(
-            "valid_until > created_at",
-            name="valid_until_after_created",
-        ),
-        sa.CheckConstraint(
-            "review_sequence > 0",
-            name="review_sequence_positive",
-        ),
-        _lower_hex_sha256_constraint(
-            "evidence_sha256",
-            constraint_name="evidence_sha256_lower_hex",
-        ),
-        _opaque_identifier_constraint(
-            "evidence_ref",
-            constraint_name="evidence_ref_opaque",
-        ),
-        _opaque_identifier_constraint(
-            "reviewer_id",
-            constraint_name="reviewer_id_opaque",
-        ),
-        _opaque_identifier_constraint(
-            "idempotency_key",
-            constraint_name="idempotency_key_opaque",
-        ),
-        _opaque_identifier_constraint(
-            "correlation_id",
-            constraint_name="correlation_id_opaque",
-        ),
-        _opaque_identifier_constraint(
-            "causation_id",
-            constraint_name="causation_id_opaque",
-            nullable=True,
-        ),
-        sa.Index("ix_shfe_daily_source_admission_review_status", "status"),
-        sa.Index("ix_shfe_daily_source_admission_review_valid_until", "valid_until"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    review_sequence: Mapped[int] = mapped_column(sa.BigInteger(), nullable=False)
-    source_name: Mapped[str] = mapped_column(
-        sa.String(32),
-        nullable=False,
-        server_default=SHFE_DAILY_SOURCE_NAME,
-    )
-    adapter_name: Mapped[str] = mapped_column(
-        sa.String(64),
-        nullable=False,
-        server_default=SHFE_DAILY_ADAPTER_NAME,
-    )
-    adapter_version: Mapped[str] = mapped_column(
-        sa.String(16),
-        nullable=False,
-        server_default=SHFE_DAILY_ADAPTER_VERSION,
-    )
-    mapping_version: Mapped[str] = mapped_column(
-        sa.String(64),
-        nullable=False,
-        server_default=SHFE_DAILY_MAPPING_VERSION,
-    )
-    endpoint_id: Mapped[str] = mapped_column(
-        sa.String(64),
-        nullable=False,
-        server_default=SHFE_DAILY_ENDPOINT_ID,
-    )
-    status: Mapped[str] = mapped_column(sa.String(16), nullable=False)
-    acquisition_use: Mapped[str] = mapped_column(
-        sa.String(32),
-        nullable=False,
-        server_default=SHFE_DAILY_ACQUISITION_USE,
-    )
-    retention_policy: Mapped[str] = mapped_column(
-        sa.String(32),
-        nullable=False,
-        server_default=SHFE_DAILY_RETENTION_POLICY,
-    )
-    redistribution_policy: Mapped[str] = mapped_column(
-        sa.String(32),
-        nullable=False,
-        server_default=SHFE_DAILY_REDISTRIBUTION_POLICY,
-    )
-    available_at_basis: Mapped[str] = mapped_column(
-        sa.String(32),
-        nullable=False,
-        server_default=SHFE_DAILY_AVAILABLE_AT_BASIS,
-    )
-    evidence_ref: Mapped[str] = mapped_column(sa.String(128), nullable=False)
-    evidence_sha256: Mapped[str] = mapped_column(sa.String(64), nullable=False)
-    reviewer_id: Mapped[str] = mapped_column(sa.String(128), nullable=False)
-    valid_until: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True).with_variant(UTCDateTime(), "sqlite"), nullable=False
-    )
-    idempotency_key: Mapped[str] = mapped_column(sa.String(128), nullable=False)
-    correlation_id: Mapped[str] = mapped_column(sa.String(128), nullable=False)
-    causation_id: Mapped[str | None] = mapped_column(sa.String(128), nullable=True)
-
-    retrieval_links: Mapped[list[ShfeDailyRetrievalSourceAdmissionReview]] = relationship(
-        back_populates="source_admission_review"
-    )
-
-
-class ShfeDailyRetrievalSourceAdmissionReview(CreatedAtMixin, Base):
-    """The source-admission evidence that authorized one SHFE retrieval.
-
-    A review may serve multiple matching retrievals, but each retrieval has one
-    durable review association.  The service enforces matching retrieval
-    semantics before inserting this relation; the database enforces one
-    non-null relation and RESTRICT foreign keys.  The application exposes no
-    reassignment or deletion command, and production database roles must keep
-    that evidence plane append-only.
-    """
-
-    __tablename__ = "provider_retrieval_source_admission_review"
-    __table_args__ = (
-        sa.UniqueConstraint(
-            "provider_retrieval_id",
-            name="retrieval_source_admission_review_one_per_retrieval",
-        ),
-        sa.Index(
-            "ix_retrieval_source_admission_review_review_id",
-            "source_admission_review_id",
-        ),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    provider_retrieval_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid,
-        sa.ForeignKey(
-            "provider_retrieval.id",
-            name="fk_retrieval_source_admission_review_retrieval",
-            ondelete="RESTRICT",
-        ),
-        nullable=False,
-    )
-    source_admission_review_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid,
-        sa.ForeignKey(
-            "shfe_daily_source_admission_review.id",
-            name="fk_retrieval_source_admission_review_review",
-            ondelete="RESTRICT",
-        ),
-        nullable=False,
-    )
-
-    provider_retrieval: Mapped[ProviderRetrieval] = relationship(
-        back_populates="source_admission_review_link"
-    )
-    source_admission_review: Mapped[ShfeDailySourceAdmissionReview] = relationship(
-        back_populates="retrieval_links"
-    )
 
 
 class ImportRecord(CreatedAtMixin, Base):
@@ -1280,7 +809,7 @@ class ImportQualityEvaluation(CreatedAtMixin, Base):
             name="iqe_rule_set",
         ),
         sa.CheckConstraint(
-            "rule_set_version = '2.0.0'",
+            f"rule_set_version = '{IMPORT_QUALITY_RULE_SET_VERSION}'",
             name="iqe_rule_version",
         ),
         _lower_hex_sha256_constraint("input_fingerprint", constraint_name="iqe_fingerprint"),
@@ -1340,7 +869,7 @@ class ImportQualityEvaluation(CreatedAtMixin, Base):
         sa.String(64), nullable=False, server_default="import_integrity_quality"
     )
     rule_set_version: Mapped[str] = mapped_column(
-        sa.String(16), nullable=False, server_default="2.0.0"
+        sa.String(16), nullable=False, server_default=IMPORT_QUALITY_RULE_SET_VERSION
     )
     input_fingerprint: Mapped[str] = mapped_column(sa.String(64), nullable=False)
     observed_status: Mapped[str] = mapped_column(sa.String(16), nullable=False)
@@ -1677,7 +1206,9 @@ class DatasetSnapshotImportQualityPin(CreatedAtMixin, Base):
             "manifest_id", "import_quality_evaluation_id", name="snapshot_import_pin_manifest_eval"
         ),
         sa.CheckConstraint("rule_set_name = 'import_integrity_quality'", name="rule_set"),
-        sa.CheckConstraint("rule_set_version = '2.0.0'", name="rule_version"),
+        sa.CheckConstraint(
+            f"rule_set_version = '{IMPORT_QUALITY_RULE_SET_VERSION}'", name="rule_version"
+        ),
         _lower_hex_sha256_constraint("input_fingerprint", constraint_name="fingerprint"),
         sa.CheckConstraint("outcome IN ('PASS', 'WARN')", name="outcome"),
         sa.CheckConstraint("delivery_gate = 'ELIGIBLE'", name="delivery_gate"),
