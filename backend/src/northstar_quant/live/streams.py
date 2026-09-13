@@ -36,6 +36,7 @@ from northstar_quant.data_management.broker import resolve_broker_contract, veri
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
 from northstar_quant.live.materials import StrategyMaterials
+from northstar_quant.live.order_control import CANCEL_ORDER, ReceiverOrders
 from northstar_quant.market_data.sessions import SessionSchedule
 from northstar_quant.messaging import Endpoint
 from northstar_quant.persistence.locks import FileLock
@@ -234,6 +235,7 @@ class LiveStreams:
         self._ledger = BrokerLedger(engine)
         self._check_ownership = check_ownership
         self._guard = threading.Lock()
+        self._order_controls: dict[UUID, ReceiverOrders] = {}
         self._workers: dict[UUID, tuple[threading.Thread, threading.Event]] = {}
 
     def start(
@@ -421,12 +423,23 @@ class LiveStreams:
 
         failure: str | None = None
         # The SDK channel enters one owner thread; faults require local recovery.
+        controls = ReceiverOrders(
+            self._engine, self.runtime_id, identifier, self._check_ownership or (lambda: None)
+        )
+
+        def receive(event: BrokerEvent) -> None:
+            self.accept(identifier, event)
+            controls.observe(event)
+
         kernel = TradingKernel(
             ACCEPT_BROKER_EVENT,
-            lambda event: self.accept(identifier, event),
+            receive,
             environment=environment,
         )
+        kernel.register(CANCEL_ORDER, controls.cancel)
         kernel.start()
+        with self._guard:
+            self._order_controls[identifier] = controls
         try:
             pid_query = "SELECT 1" if owner.dialect.name == "sqlite" else "SELECT pg_backend_pid()"
             owner_pid = owner.execute(text(pid_query)).scalar_one()
@@ -462,7 +475,10 @@ class LiveStreams:
                 if owner.invalidated or owner.execute(text(pid_query)).scalar_one() != owner_pid:
                     raise ValueError("receiver ownership connection was lost")
                 last_check = time.monotonic()
-                return self._poll(identifier, stopped)
+                stopping = self._poll(identifier, stopped)
+                if not stopping:
+                    controls.poll(lambda command: kernel.execute(CANCEL_ORDER, command))
+                return stopping
 
             with write_transaction(self._engine) as connection:
                 connection.execute(
@@ -479,6 +495,7 @@ class LiveStreams:
                 cast(Credentials, credentials),
                 str(binding["instrument"]),
                 on_event=kernel.advance,
+                on_transport=controls.bind,
                 should_stop=should_stop,
                 duration_seconds=cast(int, _object(binding["request"])["duration_seconds"]),
             )
@@ -487,6 +504,9 @@ class LiveStreams:
         finally:
             if kernel.status.state == KernelState.FAULTED:
                 failure = "RECEPTION_OR_PERSISTENCE_FAILED"
+            controls.close()
+            with self._guard:
+                self._order_controls.pop(identifier, None)
             kernel.close()
             try:
                 self._terminal(
@@ -501,6 +521,31 @@ class LiveStreams:
                 pass
             finally:
                 self._unlock(owner, locks)
+
+    def cancellation_available(self, identifier: UUID | None = None) -> bool:
+        with self._guard:
+            return any(
+                control.ready
+                and not control.closed
+                and control.channel is not None
+                and not control.channel.closed
+                and not control.channel.failed
+                for stream_id, control in self._order_controls.items()
+                if identifier is None or stream_id == identifier
+            )
+
+    def cancel_order(
+        self, stream_id: UUID, order_id: str, *, request_id: UUID
+    ) -> dict[str, object]:
+        """Handoff only to this runtime's active core; never reconnect to cancel."""
+        if self._check_ownership is None:
+            raise ValueError("cancellation requires an owned Live instance")
+        self._check_ownership()
+        with self._guard:
+            control = self._order_controls.get(stream_id)
+        if control is None:
+            return {"status": "REJECTED", "reason": "RECEIVER_NOT_ATTACHED", "order_id": order_id}
+        return control.request(order_id, request_id)
 
     def _terminal(self, identifier: UUID, status: str, reason: str, *, paused: bool) -> None:
         with write_transaction(self._engine) as connection:
@@ -946,7 +991,7 @@ class LiveStreams:
             "created_at": str(row["created_at"]),
             "updated_at": str(row["updated_at"]),
             "order_sending": False,
-            "cancel_sending": False,
+            "cancel_sending": self.cancellation_available(identifier),
             "archives": self._library.stream_attempts(identifier),
             "steps": [
                 {

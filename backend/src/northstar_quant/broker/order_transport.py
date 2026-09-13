@@ -288,7 +288,7 @@ class CtpExecution:
     ) -> dict[str, Any]:
         def prepare(connection: Connection) -> None:
             admit(connection)
-            binding = self._binding(connection, order_id)
+            binding = self.binding(connection, order_id)
             old = binding["session"]
             if any(
                 old[key] != self.session.to_dict()[key]
@@ -319,7 +319,7 @@ class CtpExecution:
         )
 
     @staticmethod
-    def _binding(connection: Connection, order_id: str) -> dict[str, Any]:
+    def binding(connection: Connection, order_id: str) -> dict[str, Any]:
         row = (
             connection.exec_driver_sql(
                 "SELECT * FROM ctp_order_bindings WHERE order_id=?", (order_id,)
@@ -367,9 +367,7 @@ class CtpExecution:
         expires_at = datetime.now(UTC) + timedelta(seconds=2)
         if kind == "INSERT":
             with self.engine.connect() as connection:
-                order = PendingOrder.from_dict(
-                    self._binding(connection, row["order_id"])["request"]
-                )
+                order = PendingOrder.from_dict(self.binding(connection, row["order_id"])["request"])
             if not order.submitted_at <= datetime.now(UTC) < order.expires_at:
                 raise ValueError("CTP send is outside its fixed order lifetime")
             expires_at = min(expires_at, order.expires_at)

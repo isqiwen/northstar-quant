@@ -139,7 +139,11 @@ export function Action<P extends CommandPath>({
               runtime.id,
             );
             setResult(result);
-            message.success("内核已确认操作");
+            if ("status" in result && result.status === "REJECTED") {
+              message.warning("内核已拒绝此操作，请查看原因");
+            } else {
+              message.success("内核已确认操作");
+            }
             onDone?.(result);
           } catch (e) {
             message.error((e as Error).message);
@@ -158,7 +162,9 @@ export function Action<P extends CommandPath>({
                 f.initial ?? (f.kind === "check" ? false : undefined)
               }
               valuePropName={f.kind === "check" ? "checked" : "value"}
-              rules={f.kind === "check" || f.optional ? [] : [{ required: true }]}
+              rules={
+                f.kind === "check" || f.optional ? [] : [{ required: true }]
+              }
             >
               {f.kind === "select" ? (
                 <Select

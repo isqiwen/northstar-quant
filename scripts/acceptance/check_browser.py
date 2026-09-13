@@ -21,6 +21,7 @@ from sqlalchemy import create_engine, text
 from support.authority_browser import check_authority
 from support.broker_account_browser import check_broker_account
 from support.market import seed_market
+from support.order_browser import check_order_cancel
 from support.processes import InstalledApplication
 from support.session_schedule_browser import check_session_schedule
 from support.studies import seed_learning
@@ -687,6 +688,7 @@ def main() -> None:
                         screenshot("local-order-pending-fees")
                         assert app.command("status")["order_sending"] is False
                         check_authority(page, url, visit, screenshot, original)
+                        check_order_cancel(page, url, visit, screenshot, original)
                         check_broker_account(page, url, visit, screenshot)
                         check_session_schedule(page, url, visit, screenshot)
                         visit(url)

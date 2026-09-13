@@ -108,8 +108,21 @@ def prepare(
                 raise errors[0]
 
         calls["accept"] = accept
+        if calls.get("order_transport"):
+            from northstar_quant.broker.order_channel import OrderChannel
+
+            channel = OrderChannel(Queue(maxsize=1), Queue(maxsize=1))
+            calls["native_orders"] = channel.requests
+            calls["native_returns"] = channel.responses
+            calls["native_returned"] = Event()
+            kwargs["on_transport"](channel)
         calls["ready"].set()
         while not kwargs["should_stop"]():
+            if calls.get("order_transport"):
+                awaiting = channel.pending is not None
+                channel.poll()
+                if awaiting and channel.pending is None:
+                    calls["native_returned"].set()
             try:
                 event, completed, errors = incoming.get(timeout=0.01)
             except Empty:

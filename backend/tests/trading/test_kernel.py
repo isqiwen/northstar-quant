@@ -124,3 +124,35 @@ def test_external_execution_never_allows_rollback_policy(environment):
     kernel = TradingKernel(INPUT, lambda event: event, environment=environment)
     assert kernel.status.environment is environment
     kernel.close()
+
+
+def test_control_and_market_share_core_failure_boundary_without_cross_topic_notification():
+    control = Endpoint[Event, Event]("test.cancel", Event)
+    seen, completed = [], []
+    kernel = TradingKernel(
+        INPUT, lambda e: seen.append(e) or e, environment=Environment.SANDBOX, completed=COMPLETED
+    )
+
+    def cancel(event):
+        seen.append(event)
+        if event.value == 9:
+            raise ValueError("failed after durable command")
+        return event
+
+    kernel.register(control, cancel)
+    kernel.subscribe(COMPLETED, completed.append)
+    kernel.start()
+    assert kernel.advance(Event(1)) == Event(1)
+    assert kernel.execute(control, Event(2)) == Event(2)
+    assert completed == [Event(1)]
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with pytest.raises(RuntimeError, match="another core"):
+            pool.submit(kernel.execute, control, Event(3)).result()
+    with pytest.raises(RuntimeError, match="before start"):
+        kernel.register(control, cancel)
+    with pytest.raises(ValueError):
+        kernel.execute(control, Event(9))
+    assert kernel.status.state == KernelState.FAULTED
+    with pytest.raises(RuntimeError, match="faulted"):
+        kernel.advance(Event(4))
+    assert seen == [Event(1), Event(2), Event(9)]

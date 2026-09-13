@@ -3,13 +3,15 @@
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query, Request
 from pydantic import JsonValue
 from starlette.concurrency import run_in_threadpool
 
 from northstar_quant.web.access import WorkspaceAccess
-from northstar_quant.web.requests import ApiModel, EvidenceRecord
+from northstar_quant.web.requests import ApiModel, EvidenceRecord, UUIDText
 
+from .broker_api import CommandRecord
+from .commands import _runtime_header
 from .instances import Instances
 
 
@@ -55,6 +57,11 @@ class LocalOrderDetail(EvidenceRecord):
     next_after: int | None
 
 
+class CancelOrderRequest(ApiModel):
+    stream_id: UUIDText
+    request_id: UUIDText
+
+
 def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> None:
     @app.get("/api/orders", response_model=LocalOrderPage, response_model_exclude_unset=True)
     async def orders(
@@ -73,4 +80,24 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
         access.require_request(request)
         return await run_in_threadpool(
             instances.for_request(request).read, f"/execution/orders/{order_id}?after={after}"
+        )
+
+    @app.post(
+        "/api/orders/{order_id}/cancel",
+        response_model=CommandRecord,
+        response_model_exclude_unset=True,
+    )
+    async def cancel(
+        request: Request,
+        order_id: UUID,
+        document: CancelOrderRequest,
+        runtime: Annotated[UUID, Depends(_runtime_header)],
+    ) -> dict[str, Any]:
+        access.protect(request)
+        live = instances.for_request(request).for_runtime(runtime)
+        return await run_in_threadpool(
+            live.mutate,
+            f"/execution/orders/{order_id}/cancel",
+            {"stream_id": str(document.stream_id)},
+            UUID(str(document.request_id)),
         )

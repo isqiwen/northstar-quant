@@ -1511,6 +1511,26 @@
       "array": false,
       "evidence": true
     },
+    "northstar.live.CancelOrderRequest": {
+      "fields": {
+        "stream_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.live.QueryRequest": {
       "fields": {
         "settlement_day": {
@@ -3029,6 +3049,13 @@
       "path": "/api/authorizations/{identifier}/revoke",
       "input": "northstar.live.RevokeConsent",
       "output": "northstar.live.ExecutionConsent",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/{order_id}/cancel",
+      "input": "northstar.live.CancelOrderRequest",
+      "output": "northstar.live.CommandRecord",
       "runtime": false
     },
     {

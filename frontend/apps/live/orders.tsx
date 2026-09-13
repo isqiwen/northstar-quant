@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Alert, Button, Card, Space } from "antd";
 import { query } from "./api/client";
+import { Action } from "./runtime";
 import { useData } from "../../shared/data";
 import {
   Evidence,
@@ -60,7 +61,7 @@ export function Orders() {
         type="info"
         showIcon
         title="请求不等于确认成交"
-        description="发送返回、撤单请求、断线和授权到期都不会释放未决预算。UNKNOWN 需要核对，不能盲目重发。成交已完成但费用尚未确认时，仍保留手续费预占，账户现金不可用于新增风险。当前尚未开放柜台报撤单入口。"
+        description="发送返回、撤单请求、断线和授权到期都不会释放未决预算。UNKNOWN 需要核对，不能盲目重发。成交已完成但费用尚未确认时，仍保留手续费预占，账户现金不可用于新增风险。可向当前接收核心请求撤单；新增报单尚未开放。"
       />
       <Records
         title="本地订单"
@@ -122,6 +123,8 @@ export function OrderDetail() {
     query(`/api/orders/${id}?after=${pages[pages.length - 1]}`),
   );
   const record = q.error ? undefined : q.data?.record;
+  const streams = useData(query("/api/streams"), 5000);
+  const receivers = streams.data?.filter((s) => s.status === "RECEIVING") ?? [];
   return (
     <>
       <Heading
@@ -155,6 +158,23 @@ export function OrderDetail() {
               }}
             />
           </Card>
+          <Action
+            title="请求撤销此订单"
+            path={`/api/orders/${id}/cancel`}
+            fields={[
+              {
+                name: "stream_id",
+                label: "当前接收会话",
+                kind: "select",
+                options: receivers.map((s) => ({
+                  label: s.stream_id,
+                  value: s.stream_id,
+                })),
+              },
+            ]}
+            disabled={!!streams.error || receivers.length === 0}
+            onDone={() => q.refresh()}
+          />
           <Card title="剩余预占">
             <Fields
               value={{

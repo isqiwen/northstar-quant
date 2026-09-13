@@ -37,7 +37,7 @@ P extends `/api/broker/status` ? messages.BrokerStatus :
 P extends `/api/live/status` ? messages.RuntimeStatus :
 P extends `/api/streams` ? messages.GetApiStreamsResponse :
 P extends `/api/orders` ? messages.LocalOrderPage : never;
-export type CommandPath = `/api/streams/${string}/position-entries` | `/api/streams/${string}/account-catchup` | `/api/streams/${string}/opening-budgets` | `/api/streams/${string}/authorizations` | `/api/authorizations/${string}/revoke` | `/api/sources/${string}/reprocess` | `/api/streams/${string}/archive` | `/api/streams/${string}/control` | `/api/broker/position-entries` | `/api/broker/baseline-checks` | `/api/broker/position-checks` | `/api/broker/funds-entries` | `/api/broker/order-checks` | `/api/strategy-materials` | `/api/broker/baselines` | `/api/broker/queries` | `/api/streams` | `/api/logout` | `/api/setup` | `/api/login`;
+export type CommandPath = `/api/streams/${string}/position-entries` | `/api/streams/${string}/account-catchup` | `/api/streams/${string}/opening-budgets` | `/api/streams/${string}/authorizations` | `/api/authorizations/${string}/revoke` | `/api/sources/${string}/reprocess` | `/api/streams/${string}/archive` | `/api/streams/${string}/control` | `/api/orders/${string}/cancel` | `/api/broker/position-entries` | `/api/broker/baseline-checks` | `/api/broker/position-checks` | `/api/broker/funds-entries` | `/api/broker/order-checks` | `/api/strategy-materials` | `/api/broker/baselines` | `/api/broker/queries` | `/api/streams` | `/api/logout` | `/api/setup` | `/api/login`;
 export type CommandResponse<P> = P extends `/api/streams/${string}/position-entries` ? messages.PositionEntry :
 P extends `/api/streams/${string}/account-catchup` ? messages.AccountProgress :
 P extends `/api/streams/${string}/opening-budgets` ? messages.OpeningBudget :
@@ -46,6 +46,7 @@ P extends `/api/authorizations/${string}/revoke` ? messages.ExecutionConsent :
 P extends `/api/sources/${string}/reprocess` ? messages.ArchiveAttempt :
 P extends `/api/streams/${string}/archive` ? messages.StreamArchive :
 P extends `/api/streams/${string}/control` ? messages.StreamControl :
+P extends `/api/orders/${string}/cancel` ? messages.CommandRecord :
 P extends `/api/broker/position-entries` ? messages.PositionEntry :
 P extends `/api/broker/baseline-checks` ? messages.CheckRecord :
 P extends `/api/broker/position-checks` ? messages.CheckRecord :
@@ -66,6 +67,7 @@ P extends `/api/authorizations/${string}/revoke` ? messages.RevokeConsent :
 P extends `/api/sources/${string}/reprocess` ? messages.ArchiveReprocessRequest :
 P extends `/api/streams/${string}/archive` ? messages.ArchiveRequest :
 P extends `/api/streams/${string}/control` ? messages.ControlRequest :
+P extends `/api/orders/${string}/cancel` ? messages.CancelOrderRequest :
 P extends `/api/broker/position-entries` ? messages.PositionEntryRequest :
 P extends `/api/broker/baseline-checks` ? messages.BaselineCheckRequest :
 P extends `/api/broker/position-checks` ? messages.PositionCheckRequest :

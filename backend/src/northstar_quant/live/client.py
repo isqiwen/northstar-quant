@@ -14,7 +14,7 @@ import httpx2 as httpx
 from .auth import LiveAuth
 
 # Bump for changes to the current request/response or command semantics.
-PROTOCOL_VERSION = "4"
+PROTOCOL_VERSION = "5"
 
 
 class RuntimeUnavailable(RuntimeError):

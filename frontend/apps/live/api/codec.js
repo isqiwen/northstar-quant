@@ -18282,6 +18282,318 @@ export const northstar = $root.northstar = (() => {
             return QueryRecord;
         })();
 
+        live.CancelOrderRequest = (function() {
+
+            /**
+             * Properties of a CancelOrderRequest.
+             * @typedef {Object} northstar.live.CancelOrderRequest.$Properties
+             * @property {string|null} [stream_id] CancelOrderRequest stream_id
+             * @property {string|null} [request_id] CancelOrderRequest request_id
+             * @property {"stream_id"} [_stream_id] CancelOrderRequest _stream_id
+             * @property {"request_id"} [_request_id] CancelOrderRequest _request_id
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CancelOrderRequest.
+             * @memberof northstar.live
+             * @interface ICancelOrderRequest
+             * @augments northstar.live.CancelOrderRequest.$Properties
+             * @deprecated Use northstar.live.CancelOrderRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a CancelOrderRequest.
+             * @typedef {{
+             *   stream_id?: string|null;
+             *   request_id?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _stream_id?: undefined; stream_id?: null }|{ _stream_id?: "stream_id"; stream_id: string })
+             * ) & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * )} northstar.live.CancelOrderRequest.$Shape
+             */
+
+            /**
+             * Constructs a new CancelOrderRequest.
+             * @memberof northstar.live
+             * @classdesc Represents a CancelOrderRequest.
+             * @constructor
+             * @param {northstar.live.CancelOrderRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CancelOrderRequest = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CancelOrderRequest stream_id.
+             * @member {string|null|undefined} stream_id
+             * @memberof northstar.live.CancelOrderRequest
+             * @instance
+             */
+            CancelOrderRequest.prototype.stream_id = null;
+
+            /**
+             * CancelOrderRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.live.CancelOrderRequest
+             * @instance
+             */
+            CancelOrderRequest.prototype.request_id = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * CancelOrderRequest _stream_id.
+             * @member {"stream_id"|undefined} _stream_id
+             * @memberof northstar.live.CancelOrderRequest
+             * @instance
+             */
+            $Object.defineProperty(CancelOrderRequest.prototype, "_stream_id", {
+                get: $util.oneOfGetter($oneOfFields = ["stream_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CancelOrderRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.live.CancelOrderRequest
+             * @instance
+             */
+            $Object.defineProperty(CancelOrderRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CancelOrderRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.CancelOrderRequest
+             * @static
+             * @param {northstar.live.CancelOrderRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.CancelOrderRequest} CancelOrderRequest instance
+             * @type {{
+             *   (properties: northstar.live.CancelOrderRequest.$Shape): northstar.live.CancelOrderRequest & northstar.live.CancelOrderRequest.$Shape;
+             *   (properties?: northstar.live.CancelOrderRequest.$Properties): northstar.live.CancelOrderRequest;
+             * }}
+             */
+            CancelOrderRequest.create = function(properties) {
+                return new CancelOrderRequest(properties);
+            };
+
+            /**
+             * Encodes the specified CancelOrderRequest message. Does not implicitly {@link northstar.live.CancelOrderRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.CancelOrderRequest
+             * @static
+             * @param {northstar.live.CancelOrderRequest.$Properties} message CancelOrderRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CancelOrderRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.stream_id != null && $Object.hasOwnProperty.call(message, "stream_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.stream_id);
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.request_id);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CancelOrderRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.CancelOrderRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.CancelOrderRequest & northstar.live.CancelOrderRequest.$Shape} CancelOrderRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CancelOrderRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.CancelOrderRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.stream_id = reader.stringVerify();
+                            message._stream_id = "stream_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CancelOrderRequest message.
+             * @function verify
+             * @memberof northstar.live.CancelOrderRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CancelOrderRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.stream_id != null && $Object.hasOwnProperty.call(message, "stream_id")) {
+                    properties._stream_id = 1;
+                    if (!$util.isString(message.stream_id))
+                        return "stream_id: string expected";
+                }
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CancelOrderRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.CancelOrderRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.CancelOrderRequest} CancelOrderRequest
+             */
+            CancelOrderRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.CancelOrderRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.CancelOrderRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.CancelOrderRequest();
+                if (object.stream_id != null)
+                    message.stream_id = $String(object.stream_id);
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CancelOrderRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.CancelOrderRequest
+             * @static
+             * @param {northstar.live.CancelOrderRequest} message CancelOrderRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CancelOrderRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.stream_id != null && $Object.hasOwnProperty.call(message, "stream_id")) {
+                    object.stream_id = message.stream_id;
+                    if (options.oneofs)
+                        object._stream_id = "stream_id";
+                }
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CancelOrderRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.live.CancelOrderRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CancelOrderRequest.prototype.toJSON = function() {
+                return CancelOrderRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CancelOrderRequest
+             * @function getTypeUrl
+             * @memberof northstar.live.CancelOrderRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CancelOrderRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.CancelOrderRequest";
+            };
+
+            return CancelOrderRequest;
+        })();
+
         live.QueryRequest = (function() {
 
             /**

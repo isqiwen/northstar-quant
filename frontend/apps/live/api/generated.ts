@@ -244,6 +244,10 @@ export type QueryRecord = {
   status: string;
   [key: string]: unknown;
 };
+export type CancelOrderRequest = {
+  stream_id: string;
+  request_id: string;
+};
 export type QueryRequest = {
   settlement_day?: string | null;
   instrument: string;

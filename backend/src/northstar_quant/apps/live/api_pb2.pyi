@@ -648,6 +648,14 @@ class QueryRecord(_message.Message):
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     def __init__(self, settlement_statement: _Optional[_Union[SettlementStatement, _Mapping]] = ..., batch_id: _Optional[str] = ..., instrument: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
+class CancelOrderRequest(_message.Message):
+    __slots__ = ("stream_id", "request_id")
+    STREAM_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    stream_id: str
+    request_id: str
+    def __init__(self, stream_id: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
+
 class QueryRequest(_message.Message):
     __slots__ = ("settlement_day", "instrument", "request_id")
     SETTLEMENT_DAY_FIELD_NUMBER: _ClassVar[int]

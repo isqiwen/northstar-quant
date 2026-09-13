@@ -281,6 +281,10 @@ def _apply_fee(
     row["status"] = _status(row)
 
 
+class CancellationPending(ValueError):
+    """A prior cancellation has no broker rejection and cannot be retried."""
+
+
 class OrderJournal:
     """No credentials or authority are inferred from an authorization UUID.
 
@@ -422,7 +426,9 @@ class OrderJournal:
                 else:
                     rejected.add(event["document"]["attempt_id"])
             if attempted - rejected:
-                raise ValueError("previous cancellation is unresolved; query before retrying")
+                raise CancellationPending(
+                    "previous cancellation is unresolved; query before retrying"
+                )
             admit(connection)
             _record(
                 connection,
