@@ -218,3 +218,38 @@ def test_recovery_rejects_money_with_valid_chain_but_no_retained_broker_source(
         assert replay(connection, str(baseline)).net_cash_flow == Decimal(100)
     with pytest.raises(ValueError, match="unowned broker source"):
         ledger.verify_all()
+
+
+@pytest.mark.parametrize(
+    "unsupported", [{"HedgeFlag": "3"}, {"InstrumentID": "cu2610"}, {"OffsetFlag": "2"}]
+)
+def test_mixed_broker_batch_posts_supported_facts_without_claiming_complete_coverage(
+    postgres_engine, clean_database, unsupported
+):
+    from uuid import uuid4
+
+    from northstar_quant.accounting.ledger import BrokerLedger
+    from tests.accounting.test_ledger import ledger_query, position_baseline, trade
+
+    baseline = position_baseline(postgres_engine)
+    ledger = BrokerLedger(postgres_engine)
+    source = ledger_query(
+        postgres_engine, trades=(trade(), trade("unsupported", **unsupported))
+    )
+    command = uuid4()
+    entry = ledger.ingest(baseline, source, request_id=command)
+    assert entry["status"] == "UNKNOWN"
+    assert entry["monetary_status"] == "PARTIAL"
+    assert len(entry["added_fills"]) == 2
+    assert entry["cash_projection"] is None
+    assert entry["execution"]["order_sending"] is False
+    assert ledger.ingest(baseline, source, request_id=command) == entry
+    with postgres_engine.connect() as connection:
+        account = replay(connection, str(baseline))
+        assert account.fill_count == 1
+        assert account.position(account.markets[0].contract_id).long_today == 2
+        assert len(account.pending_fee_fill_ids) == 1
+        with pytest.raises(ValueError, match="confirmed fees"):
+            _ = account.cash
+    assert ledger.context(source)["accounting_projection"]["status"] == "UNAVAILABLE"
+    assert ledger.verify_all()["position_entries_count"] == 1

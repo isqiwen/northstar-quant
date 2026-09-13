@@ -5,7 +5,7 @@ projection adds no durable account authority. Identified cash movements do not
 establish complete transfer coverage, settlement or unknown CTP execution fees.
 """
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -20,16 +20,25 @@ from .fills import FillFact
 from .journal import AccountJournalError
 
 
-def entry_facts(entry: dict[str, Any], *, trading_day: str) -> tuple[FillFact | CashFlowFact, ...]:
+@dataclass(frozen=True, slots=True)
+class BrokerFacts:
+    facts: tuple[FillFact | CashFlowFact, ...]
+    unvalued_fill_ids: tuple[str, ...]
+
+
+def entry_facts(entry: dict[str, Any], *, trading_day: str) -> BrokerFacts:
     facts: list[FillFact | CashFlowFact] = []
+    unvalued: list[str] = []
     at = datetime.fromisoformat(entry["recorded_at"])
     for fill in entry["added_fills"]:
         if (
             not isinstance(fill["contract_id"], str)
             or fill["hedge_flag"] != "1"
             or fill["trading_day"] != trading_day
+            or fill["offset"] not in {offset.value for offset in Offset}
         ):
-            raise ValueError("broker monetary fact lacks its supported contract/day/hedge scope")
+            unvalued.append(fill["fill_id"])
+            continue
         if fill["fee"] is not None:
             raise ValueError("broker fees require separately identified coverage")
         order_id = ":".join((fill["exchange"], fill["trading_day"], fill["order_sys_id"]))
@@ -51,7 +60,7 @@ def entry_facts(entry: dict[str, Any], *, trading_day: str) -> tuple[FillFact | 
         )
     for row in entry["added_cash_flows"]:
         facts.append(replace(CashFlowFact.from_dict(row), available_at=at))
-    return tuple(facts)
+    return BrokerFacts(tuple(facts), tuple(unvalued))
 
 
 def project_account(

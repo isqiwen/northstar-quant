@@ -588,13 +588,18 @@ class BrokerLedger:
                 try:
                     with connection.begin_nested():
                         market = resolve_contract().market
-                        document["monetary_status"] = "POSTED"
+                        accepted = entry_facts(document, trading_day=baseline["trading_day"])
+                        if accepted.unvalued_fill_ids and not accepted.facts:
+                            raise ValueError("broker receipt has no supported monetary facts")
+                        document["monetary_status"] = (
+                            "PARTIAL" if accepted.unvalued_fill_ids else "POSTED"
+                        )
                         post(
                             connection,
                             str(baseline_id),
                             opening_cash=Decimal(baseline["opening"]["funds"]["Balance"]),
                             markets=(market,),
-                            facts=entry_facts(document, trading_day=baseline["trading_day"]),
+                            facts=accepted.facts,
                             source_id=document["entry_id"],
                             source_hash=_hash(document),
                         )
@@ -847,14 +852,21 @@ class BrokerLedger:
                 history = self._history(baseline_id)
                 counts["position_entries_count"] += len(history)
                 for entry in history:
-                    if entry["monetary_status"] == "POSTED":
+                    if entry["monetary_status"] in {"POSTED", "PARTIAL"}:
+                        accepted = entry_facts(entry, trading_day=baseline["trading_day"])
+                        if (entry["monetary_status"] == "PARTIAL") != bool(
+                            accepted.unvalued_fill_ids
+                        ) or (accepted.unvalued_fill_ids and not accepted.facts):
+                            raise AccountJournalError(
+                                "broker monetary coverage differs from source"
+                            )
                         expected_sources.add((str(baseline_id), entry["entry_id"]))
                         verify_source(
                             connection,
                             str(baseline_id),
                             entry["entry_id"],
                             _hash(entry),
-                            entry_facts(entry, trading_day=baseline["trading_day"]),
+                            accepted.facts,
                         )
             # The execution owner separately verifies every fee posting against
             # its retained FeeFact. All other current Live monetary batches must
