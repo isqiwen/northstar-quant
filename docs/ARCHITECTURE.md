@@ -805,3 +805,5 @@ Data Hub 上游下载仅由 `data_management.tushare` 自动同步。移除旧�
 共享 Docker/主机依赖不属于项目卸载范围。实现与使用边界见 deploy/README.md。
 
 2026-09-13：#18 沿用已有固定清单流程，将原先写死的 1m 改为显式 1/5/15/30/60 分钟。周期随原始声明、DataSeries、快照和 Protobuf 明细固定，完成/可得时间及质量网格按该周期计算；Research/Paper 不要求同时存在其他周期。此层只接收明确 BAR_START 且完整连续的时段，不替 Tushare 推断标签或跨休市分段规则；供应商响应的真实时间装配仍待验收。无新增依赖、重采样或跨周期比较。
+
+2026-09-13：Data Hub 的 `/api/research-inputs` 仅从已发布 Tushare receipt 准备研究输入，核对固定 manifest/Parquet/原文身份、合约和官方周期。显式固定完整时段与经核实的 BAR_START/BAR_END 解释及依据，只允许 FINAL_REVISED；不推断历史首次可得，不丢弃时段开盘处无法解释的结束标签。转为既有内部 CONVERTED_CSV 并引用原始 TUSHARE_RESPONSE，持久排队交独立 worker 处理，关闭 API 不影响已受理任务。该接口不接收上传行情、不下载、不改变全市场同步配置。真实时标/交易日历及条款证据仍独立验收。

@@ -242,6 +242,13 @@ export type CompactionPage = {
   limit: number;
 };
 export type CompactionList = (Compaction)[];
+export type PrepareResearchRequest = {
+  receipt_id: string;
+  request_id: string;
+  specification: ImportSpecification;
+  label_convention: "BAR_START" | "BAR_END";
+  interpretation_reference: string;
+};
 export type Empty = {
 };
 export type Error = {

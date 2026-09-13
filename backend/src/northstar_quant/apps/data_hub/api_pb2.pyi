@@ -552,3 +552,17 @@ class CompactionList(_message.Message):
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[Compaction]
     def __init__(self, items: _Optional[_Iterable[_Union[Compaction, _Mapping]]] = ...) -> None: ...
+
+class PrepareResearchRequest(_message.Message):
+    __slots__ = ("receipt_id", "request_id", "specification", "label_convention", "interpretation_reference")
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    SPECIFICATION_FIELD_NUMBER: _ClassVar[int]
+    LABEL_CONVENTION_FIELD_NUMBER: _ClassVar[int]
+    INTERPRETATION_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    receipt_id: str
+    request_id: str
+    specification: ImportSpecification
+    label_convention: str
+    interpretation_reference: str
+    def __init__(self, receipt_id: _Optional[str] = ..., request_id: _Optional[str] = ..., specification: _Optional[_Union[ImportSpecification, _Mapping]] = ..., label_convention: _Optional[str] = ..., interpretation_reference: _Optional[str] = ...) -> None: ...

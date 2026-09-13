@@ -1570,6 +1570,47 @@
       "array": true,
       "evidence": false
     },
+    "northstar.data_hub.PrepareResearchRequest": {
+      "fields": {
+        "receipt_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "specification": {
+          "id": 3,
+          "presence": true,
+          "type": "northstar.data_hub.ImportSpecification",
+          "required": true,
+          "nullable": false
+        },
+        "label_convention": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "interpretation_reference": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.web.Empty": {
       "fields": {},
       "array": false,
@@ -1887,6 +1928,13 @@
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/research-inputs",
+      "input": "northstar.data_hub.PrepareResearchRequest",
+      "output": "northstar.data_hub.ProcessingAttempt",
+      "runtime": false
+    },
     {
       "method": "POST",
       "path": "/api/explorer/compactions",

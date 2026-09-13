@@ -17671,6 +17671,459 @@ export const northstar = $root.northstar = (() => {
             return CompactionList;
         })();
 
+        data_hub.PrepareResearchRequest = (function() {
+
+            /**
+             * Properties of a PrepareResearchRequest.
+             * @typedef {Object} northstar.data_hub.PrepareResearchRequest.$Properties
+             * @property {string|null} [receipt_id] PrepareResearchRequest receipt_id
+             * @property {string|null} [request_id] PrepareResearchRequest request_id
+             * @property {northstar.data_hub.ImportSpecification.$Properties|null} [specification] PrepareResearchRequest specification
+             * @property {string|null} [label_convention] PrepareResearchRequest label_convention
+             * @property {string|null} [interpretation_reference] PrepareResearchRequest interpretation_reference
+             * @property {"receipt_id"} [_receipt_id] PrepareResearchRequest _receipt_id
+             * @property {"request_id"} [_request_id] PrepareResearchRequest _request_id
+             * @property {"specification"} [_specification] PrepareResearchRequest _specification
+             * @property {"label_convention"} [_label_convention] PrepareResearchRequest _label_convention
+             * @property {"interpretation_reference"} [_interpretation_reference] PrepareResearchRequest _interpretation_reference
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a PrepareResearchRequest.
+             * @memberof northstar.data_hub
+             * @interface IPrepareResearchRequest
+             * @augments northstar.data_hub.PrepareResearchRequest.$Properties
+             * @deprecated Use northstar.data_hub.PrepareResearchRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a PrepareResearchRequest.
+             * @typedef {{
+             *   receipt_id?: string|null;
+             *   request_id?: string|null;
+             *   specification?: northstar.data_hub.ImportSpecification.$Shape|null;
+             *   label_convention?: string|null;
+             *   interpretation_reference?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _receipt_id?: undefined; receipt_id?: null }|{ _receipt_id?: "receipt_id"; receipt_id: string })
+             * ) & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
+             *   ({ _specification?: undefined; specification?: null }|{ _specification?: "specification"; specification: northstar.data_hub.ImportSpecification.$Shape })
+             * ) & (
+             *   ({ _label_convention?: undefined; label_convention?: null }|{ _label_convention?: "label_convention"; label_convention: string })
+             * ) & (
+             *   ({ _interpretation_reference?: undefined; interpretation_reference?: null }|{ _interpretation_reference?: "interpretation_reference"; interpretation_reference: string })
+             * )} northstar.data_hub.PrepareResearchRequest.$Shape
+             */
+
+            /**
+             * Constructs a new PrepareResearchRequest.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a PrepareResearchRequest.
+             * @constructor
+             * @param {northstar.data_hub.PrepareResearchRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const PrepareResearchRequest = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * PrepareResearchRequest receipt_id.
+             * @member {string|null|undefined} receipt_id
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            PrepareResearchRequest.prototype.receipt_id = null;
+
+            /**
+             * PrepareResearchRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            PrepareResearchRequest.prototype.request_id = null;
+
+            /**
+             * PrepareResearchRequest specification.
+             * @member {northstar.data_hub.ImportSpecification.$Properties|null|undefined} specification
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            PrepareResearchRequest.prototype.specification = null;
+
+            /**
+             * PrepareResearchRequest label_convention.
+             * @member {string|null|undefined} label_convention
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            PrepareResearchRequest.prototype.label_convention = null;
+
+            /**
+             * PrepareResearchRequest interpretation_reference.
+             * @member {string|null|undefined} interpretation_reference
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            PrepareResearchRequest.prototype.interpretation_reference = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * PrepareResearchRequest _receipt_id.
+             * @member {"receipt_id"|undefined} _receipt_id
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            $Object.defineProperty(PrepareResearchRequest.prototype, "_receipt_id", {
+                get: $util.oneOfGetter($oneOfFields = ["receipt_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PrepareResearchRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            $Object.defineProperty(PrepareResearchRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PrepareResearchRequest _specification.
+             * @member {"specification"|undefined} _specification
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            $Object.defineProperty(PrepareResearchRequest.prototype, "_specification", {
+                get: $util.oneOfGetter($oneOfFields = ["specification"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PrepareResearchRequest _label_convention.
+             * @member {"label_convention"|undefined} _label_convention
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            $Object.defineProperty(PrepareResearchRequest.prototype, "_label_convention", {
+                get: $util.oneOfGetter($oneOfFields = ["label_convention"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PrepareResearchRequest _interpretation_reference.
+             * @member {"interpretation_reference"|undefined} _interpretation_reference
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             */
+            $Object.defineProperty(PrepareResearchRequest.prototype, "_interpretation_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["interpretation_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new PrepareResearchRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @static
+             * @param {northstar.data_hub.PrepareResearchRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.PrepareResearchRequest} PrepareResearchRequest instance
+             * @type {{
+             *   (properties: northstar.data_hub.PrepareResearchRequest.$Shape): northstar.data_hub.PrepareResearchRequest & northstar.data_hub.PrepareResearchRequest.$Shape;
+             *   (properties?: northstar.data_hub.PrepareResearchRequest.$Properties): northstar.data_hub.PrepareResearchRequest;
+             * }}
+             */
+            PrepareResearchRequest.create = function(properties) {
+                return new PrepareResearchRequest(properties);
+            };
+
+            /**
+             * Encodes the specified PrepareResearchRequest message. Does not implicitly {@link northstar.data_hub.PrepareResearchRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @static
+             * @param {northstar.data_hub.PrepareResearchRequest.$Properties} message PrepareResearchRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PrepareResearchRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.receipt_id != null && $Object.hasOwnProperty.call(message, "receipt_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.receipt_id);
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.request_id);
+                if (message.specification != null && $Object.hasOwnProperty.call(message, "specification"))
+                    $root.northstar.data_hub.ImportSpecification.encode(message.specification, writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.label_convention != null && $Object.hasOwnProperty.call(message, "label_convention"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.label_convention);
+                if (message.interpretation_reference != null && $Object.hasOwnProperty.call(message, "interpretation_reference"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.interpretation_reference);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a PrepareResearchRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.PrepareResearchRequest & northstar.data_hub.PrepareResearchRequest.$Shape} PrepareResearchRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PrepareResearchRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.PrepareResearchRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.receipt_id = reader.stringVerify();
+                            message._receipt_id = "receipt_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.specification = $root.northstar.data_hub.ImportSpecification.decode(reader, reader.uint32(), $undefined, _depth + 1, message.specification);
+                            message._specification = "specification";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.label_convention = reader.stringVerify();
+                            message._label_convention = "label_convention";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.interpretation_reference = reader.stringVerify();
+                            message._interpretation_reference = "interpretation_reference";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a PrepareResearchRequest message.
+             * @function verify
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            PrepareResearchRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.receipt_id != null && $Object.hasOwnProperty.call(message, "receipt_id")) {
+                    properties._receipt_id = 1;
+                    if (!$util.isString(message.receipt_id))
+                        return "receipt_id: string expected";
+                }
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.specification != null && $Object.hasOwnProperty.call(message, "specification")) {
+                    properties._specification = 1;
+                    {
+                        let error = $root.northstar.data_hub.ImportSpecification.verify(message.specification, _depth + 1);
+                        if (error)
+                            return "specification." + error;
+                    }
+                }
+                if (message.label_convention != null && $Object.hasOwnProperty.call(message, "label_convention")) {
+                    properties._label_convention = 1;
+                    if (!$util.isString(message.label_convention))
+                        return "label_convention: string expected";
+                }
+                if (message.interpretation_reference != null && $Object.hasOwnProperty.call(message, "interpretation_reference")) {
+                    properties._interpretation_reference = 1;
+                    if (!$util.isString(message.interpretation_reference))
+                        return "interpretation_reference: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a PrepareResearchRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.PrepareResearchRequest} PrepareResearchRequest
+             */
+            PrepareResearchRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.PrepareResearchRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.PrepareResearchRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.PrepareResearchRequest();
+                if (object.receipt_id != null)
+                    message.receipt_id = $String(object.receipt_id);
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.specification != null) {
+                    if (!$util.isObject(object.specification))
+                        throw $TypeError(".northstar.data_hub.PrepareResearchRequest.specification: object expected");
+                    message.specification = $root.northstar.data_hub.ImportSpecification.fromObject(object.specification, _depth + 1);
+                }
+                if (object.label_convention != null)
+                    message.label_convention = $String(object.label_convention);
+                if (object.interpretation_reference != null)
+                    message.interpretation_reference = $String(object.interpretation_reference);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a PrepareResearchRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @static
+             * @param {northstar.data_hub.PrepareResearchRequest} message PrepareResearchRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            PrepareResearchRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.receipt_id != null && $Object.hasOwnProperty.call(message, "receipt_id")) {
+                    object.receipt_id = message.receipt_id;
+                    if (options.oneofs)
+                        object._receipt_id = "receipt_id";
+                }
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                if (message.specification != null && $Object.hasOwnProperty.call(message, "specification")) {
+                    object.specification = $root.northstar.data_hub.ImportSpecification.toObject(message.specification, options, _depth + 1);
+                    if (options.oneofs)
+                        object._specification = "specification";
+                }
+                if (message.label_convention != null && $Object.hasOwnProperty.call(message, "label_convention")) {
+                    object.label_convention = message.label_convention;
+                    if (options.oneofs)
+                        object._label_convention = "label_convention";
+                }
+                if (message.interpretation_reference != null && $Object.hasOwnProperty.call(message, "interpretation_reference")) {
+                    object.interpretation_reference = message.interpretation_reference;
+                    if (options.oneofs)
+                        object._interpretation_reference = "interpretation_reference";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this PrepareResearchRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            PrepareResearchRequest.prototype.toJSON = function() {
+                return PrepareResearchRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for PrepareResearchRequest
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.PrepareResearchRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            PrepareResearchRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.PrepareResearchRequest";
+            };
+
+            return PrepareResearchRequest;
+        })();
+
         return data_hub;
     })();
 

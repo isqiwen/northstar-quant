@@ -296,7 +296,20 @@ message CompactionPage {
 }
 message CompactionList { option (northstar.web.root_array) = true; repeated Compaction items = 1; }
 
+message PrepareResearchRequest {
+  optional string receipt_id = 1 [json_name = "receipt_id", (northstar.web.required_field) = true];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+  ImportSpecification specification = 3 [json_name = "specification", (northstar.web.required_field) = true];
+  optional string label_convention = 4 [json_name = "label_convention", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"BAR_START\",\"BAR_END\"]"];
+  optional string interpretation_reference = 5 [json_name = "interpretation_reference", (northstar.web.required_field) = true];
+}
+
 service BrowserApi {
+  rpc PostApiResearchInputs (PrepareResearchRequest) returns (ProcessingAttempt) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/research-inputs";
+  }
+
   rpc SubmitCompaction(CompactionRequest) returns (Compaction) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions"; }
   rpc ListCompactions(northstar.web.Empty) returns (CompactionList) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer/compactions"; }
   rpc GetCompaction(northstar.web.Empty) returns (Compaction) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}"; }
