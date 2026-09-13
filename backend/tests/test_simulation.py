@@ -45,6 +45,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         date(2026, 1, 5),
         Decimal(102),
         Decimal(100),
+        contract_id=market.contract_id,
     )
     assert (
         simulate_fill(
@@ -107,6 +108,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         date(2026, 1, 5),
         Decimal(105),
         Decimal(100),
+        contract_id=market.contract_id,
     )
     closing_fact = simulate_fill(
         closing,
@@ -334,7 +336,19 @@ def test_participation_uses_only_post_order_volume_and_explains_each_rejection()
         at.date(),
         Decimal(100),
         Decimal(19),
+        contract_id=market.contract_id,
     )
+
+    with pytest.raises(ValueError, match="bar belongs to a different contract"):
+        simulate_fill(
+            order,
+            replace(bar, contract_id=UUID(int=999)),
+            market,
+            interval_seconds=60,
+            fee_per_lot=Decimal(2),
+            slippage_ticks=0,
+            max_volume_participation=Decimal("0.1"),
+        )
 
     def attempt(request=order, observation=bar):
         return simulate_fill(
@@ -407,6 +421,7 @@ def test_limit_queue_keeps_order_and_reservation_without_inventing_a_fill(side, 
         at.date(),
         price,
         Decimal(1000),
+        contract_id=market.contract_id,
     )
 
     def attempt(request, observation):

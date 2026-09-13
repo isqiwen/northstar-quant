@@ -37,6 +37,8 @@ def simulate_fill(
 
     if order.contract_id != market.contract_id:
         raise ValueError("simulation order belongs to a different contract")
+    if bar.contract_id != market.contract_id:
+        raise ValueError("simulation bar belongs to a different contract")
     bar.validate(interval_seconds=interval_seconds, price_tick=market.price_tick)
     if terms is not None:
         terms.require_available(bar.available_at, start=bar.event_time)

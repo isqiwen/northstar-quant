@@ -1,6 +1,6 @@
 """Immutable market values shared by data adapters and trading calculations."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -28,6 +28,7 @@ class MarketBar:
     trading_day: date
     close: Decimal
     volume: Decimal
+    contract_id: UUID = field(kw_only=True)
 
     def validate(self, *, interval_seconds: int, price_tick: Decimal | None = None) -> None:
         if type(interval_seconds) is not int or interval_seconds <= 0:
@@ -35,6 +36,8 @@ class MarketBar:
         bar = self
         if not isinstance(bar, MarketBar) or not isinstance(bar.observation_id, UUID):
             raise ValueError("research requires canonical observations")
+        if not isinstance(bar.contract_id, UUID):
+            raise ValueError("bar requires a canonical contract")
         for at in (bar.event_time, bar.completed_at, bar.available_at):
             if not isinstance(at, datetime) or at.utcoffset() != timedelta(0):
                 raise ValueError("bar times must be aware UTC")

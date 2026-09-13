@@ -53,6 +53,8 @@ class DataEngine:
             if self.window(stream).capacity == capacity and not history:
                 return self
             raise ValueError("an active stream cannot replace its fixed warmup binding")
+        if any(bar.contract_id != stream.contract_id for bar in history):
+            raise ValueError("warmup belongs to a different contract")
         window = MarketWindow(capacity, stream.interval_seconds, history)
         latest = history[-1].available_at if history else self._at
         at = max(self._at, latest) if self._at and latest else latest
@@ -69,13 +71,16 @@ class DataEngine:
         raise ValueError("market stream has no active subscription")
 
     def accepts(self, stream: BarStream, bar: MarketBar) -> bool:
-        return self.window(stream).accepts(bar)
+        window = self.window(stream)
+        if bar.contract_id != stream.contract_id:
+            raise ValueError("bar belongs to a different contract")
+        return window.accepts(bar)
 
     def advance(
         self, stream: BarStream, bar: MarketBar, *, at: datetime
     ) -> tuple[DataEngine, MarketFrame | None]:
         window = self.window(stream)
-        if not window.accepts(bar):
+        if not self.accepts(stream, bar):
             return self, None
         if not isinstance(at, datetime) or at.utcoffset() != timedelta(0):
             raise ValueError("market clock must be aware UTC")

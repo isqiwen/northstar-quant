@@ -198,7 +198,11 @@ def test_multiple_streams_route_only_to_their_bound_instances():
     )
     assert list(trader.advance(first, data.bars[0])) == ["first"]
     assert trader.history("second") == ()
-    assert list(trader.advance(second, data.bars[1])) == ["second"]
+    with pytest.raises(ValueError, match="different contract"):
+        trader.advance(second, data.bars[1])
+    assert trader.history("second") == ()
+    other = replace(data.bars[1], contract_id=second.contract_id)
+    assert list(trader.advance(second, other)) == ["second"]
     with pytest.raises(ValueError, match="backwards"):
         trader.advance(
             first,

@@ -167,6 +167,7 @@ def _read_partition(
         bars.append(
             MarketBar(
                 observation_id=bar.id,
+                contract_id=partition.contract_id,
                 event_time=member.event_time,
                 completed_at=completed,
                 available_at=member.available_at,

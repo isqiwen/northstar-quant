@@ -28,6 +28,7 @@ def sample():
             start.date(),
             Decimal(3100 + (i * i + 7 * i) % 41),
             Decimal(100),
+            contract_id=market.contract_id,
         )
         for i in range(60)
     )

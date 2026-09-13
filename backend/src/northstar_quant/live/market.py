@@ -111,6 +111,7 @@ def _bar(item: dict[str, Any]) -> MarketBar:
         datetime.strptime(item["trading_day"], "%Y%m%d").date(),
         Decimal(item["close"]),
         Decimal(item["volume"]),
+        contract_id=UUID(item["contract_id"]),
     )
 
 

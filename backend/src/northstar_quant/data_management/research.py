@@ -83,6 +83,10 @@ class ResearchDataset:
     # read/import supplies verified details; absence is never historical evidence.
     details: DatasetDetails | None = None
 
+    def __post_init__(self) -> None:
+        if any(bar.contract_id != self.market.contract_id for bar in self.bars):
+            raise ValueError("research dataset contains a different contract")
+
 
 @dataclass(frozen=True, slots=True)
 class DatasetSummary:

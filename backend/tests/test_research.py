@@ -36,6 +36,7 @@ def dataset(prices: tuple[str, ...]) -> ResearchDataset:
                 date(2026, 1, 5),
                 Decimal(price),
                 Decimal(100),
+                contract_id=UUID(int=200),
             )
             for index, price in enumerate(prices)
         ),
@@ -301,6 +302,21 @@ def test_overlapping_market_interval_cannot_fill_a_pending_order() -> None:
     session.advance(data.bars[1])
     assert session.pending is not None
     before = session.checkpoint()
+    with pytest.raises(ValueError, match="different contract"):
+        session.advance(replace(data.bars[2], contract_id=UUID(int=999)))
+    assert session.checkpoint() == before
+    wrong_history = [dict(bar) for bar in before["history"]]
+    wrong_history[0]["contract_id"] = str(UUID(int=999))
+    with pytest.raises(ValueError, match="different contract"):
+        TradingSession.from_checkpoint(
+            data.market,
+            ResearchConfig(),
+            snapshot_id=data.snapshot_id,
+            content_hash=data.content_hash,
+            checkpoint={**before, "history": wrong_history},
+            account=session.account,
+            interval_seconds=data.interval_seconds,
+        )
     overlap = replace(
         data.bars[2],
         event_time=data.bars[2].event_time - timedelta(seconds=30),

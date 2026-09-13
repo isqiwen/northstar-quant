@@ -376,6 +376,7 @@ class TradingSession:
         self._maximum_drawdown_fraction = max(self._maximum_drawdown_fraction, drawdown_fraction)
         point: dict[str, object] = {
             "observation_id": str(bar.observation_id),
+            "contract_id": str(bar.contract_id),
             "at": bar.available_at.isoformat(),
             "event_time": bar.event_time.isoformat(),
             "trading_day": bar.trading_day.isoformat(),
@@ -408,6 +409,7 @@ class TradingSession:
             )
             decision = {
                 "observation_id": str(bar.observation_id),
+                "contract_id": str(bar.contract_id),
                 "at": bar.available_at.isoformat(),
                 "strategy_id": intent.strategy_id,
                 "decision_kind": signal.decision.kind.value,
@@ -742,6 +744,8 @@ class TradingSession:
     def _validate_bar(self, bar: MarketBar) -> None:
         if not isinstance(bar, MarketBar):
             raise ValueError("research requires canonical observations")
+        if bar.contract_id != self.market.contract_id:
+            raise ValueError("research bar belongs to a different contract")
         bar.validate(interval_seconds=self.interval_seconds, price_tick=self.market.price_tick)
 
 
@@ -773,6 +777,7 @@ def _money(value: object) -> Decimal:
 def _bar_dict(bar: MarketBar) -> dict[str, object]:
     return {
         "observation_id": str(bar.observation_id),
+        "contract_id": str(bar.contract_id),
         "event_time": bar.event_time.isoformat(),
         "completed_at": bar.completed_at.isoformat(),
         "available_at": bar.available_at.isoformat(),
@@ -792,6 +797,7 @@ def _bar_from_dict(value: dict[str, object]) -> MarketBar:
             date.fromisoformat(str(value["trading_day"])),
             _money(value["close"]),
             _money(value["volume"]),
+            contract_id=UUID(str(value["contract_id"])),
         )
     except (KeyError, TypeError, ArithmeticError) as error:
         raise ValueError("invalid persisted warmup observation") from error

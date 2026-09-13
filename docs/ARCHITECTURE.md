@@ -946,3 +946,14 @@ OrderJournal 在新开仓事务中检查整个实例账户的 UNKNOWN、事实�
 同一事务还直接核验本接收进程首次查询的原始前缀，禁止用另一连接的成功查询替代。
 首次查询后出现重登录、断线或心跳异常时，旧查询保留作历史证据，不能继续作为该会话的
 执行起点；即使缺失断线回调也检查新登录。当前账户/行情/风险检查仍是另外的必需条件。
+
+
+### 行情身份贯穿计算与恢复（2026-09-13）
+
+参考 NautilusTrader [Data / Bar types](https://nautilustrader.io/docs/latest/concepts/data/#bar-types)
+当日 latest 文档：行情属于明确标的，Bar 类型同时区分标的、周期与来源。Northstar 的
+`MarketBar` 强制携带规范合约 UUID；现有 `BarStream` 继续绑定周期和固定来源。
+DataEngine 在接收与预热时核验合约，MarketWindow 拒绝混合合约；研究输入、检查点与
+模拟成交使用同一身份校验。发布的 Parquet 与检查点保留该字段，数据适配器在业务边界
+提供明确身份，不由调用者根据价格或订阅名猜测。Tushare 官方各周期仍独立使用，
+不增加跨周期比较或重采样功能。不引入框架依赖或第二套行情模型。
