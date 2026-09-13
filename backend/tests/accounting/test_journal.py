@@ -147,3 +147,41 @@ def test_broker_receipt_and_monetary_post_share_rollback_and_recovery(
         connection.exec_driver_sql("ALTER TABLE account_journal ENABLE TRIGGER immutable")
     with pytest.raises(ValueError, match="missing.*monetary journal"):
         ledger.verify_all()
+
+
+@pytest.mark.parametrize("failed_before_fill", [False, True])
+def test_reception_uncertainty_does_not_discard_later_identified_monetary_facts(
+    postgres_engine, clean_database, failed_before_fill
+):
+    from uuid import uuid4
+
+    from northstar_quant.accounting.ledger import BrokerLedger
+    from tests.accounting.test_ledger import ledger_query, position_baseline, trade
+
+    baseline = position_baseline(postgres_engine)
+    ledger = BrokerLedger(postgres_engine)
+    if failed_before_fill:
+        ledger.ingest(
+            baseline,
+            ledger_query(postgres_engine, failure="SYNTHETIC_QUERY_TIMEOUT"),
+            request_id=uuid4(),
+        )
+    entry = ledger.ingest(
+        baseline,
+        ledger_query(
+            postgres_engine,
+            trades=(trade(),),
+            failure=None if failed_before_fill else "SYNTHETIC_QUERY_TIMEOUT",
+        ),
+        request_id=uuid4(),
+    )
+    assert entry["status"] == "UNKNOWN"
+    assert entry["monetary_status"] == "POSTED"
+    assert entry["execution"]["order_sending"] is False
+    with postgres_engine.connect() as connection:
+        account = replay(connection, str(baseline))
+        assert account.fill_count == 1
+        assert account.position(account.markets[0].contract_id).long_today == 2
+        with pytest.raises(ValueError, match="confirmed fees"):
+            _ = account.cash
+    assert ledger.verify_all()["position_entries_count"] == (2 if failed_before_fill else 1)

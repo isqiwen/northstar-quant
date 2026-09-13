@@ -42,8 +42,13 @@ def prepare(tmp_path):
         journal.submit(
             order, authorization_id=uuid4(), admit=lambda _: None, dispatch=lambda *_: None
         )
+        journal.report(order.order_id, evidence_id=uuid4(), state="ACCEPTED", cumulative_lots=0)
+    for order in orders:
         fact = replace(fill(order, 3), fee=None)
-        state = journal.fill(fact, post_account=post_fill)
+        journal.fill(fact, post_account=post_fill)
+        state = journal.report(
+            order.order_id, evidence_id=uuid4(), state="FILLED", cumulative_lots=3
+        )
         assert state["status"] == "FILLED" and state["pending_fees"] == {fact.fill_id: 3}
         assert state["requires_reconciliation"] and state["reservation"]["reserved_fee"] == "6"
         assert state["reservation"]["reserved_margin"] == "0"
@@ -80,6 +85,13 @@ def test_aggregate_fee_commits_once_with_all_order_reservations_and_restarts(tmp
         )
     fee = charge(fills)
     before = [journal.get(order.order_id) for order in orders]
+    with pytest.raises(ValueError, match="account has unresolved"):
+        journal.submit(
+            request(),
+            authorization_id=uuid4(),
+            admit=lambda _: pytest.fail("unpriced account must not reach admission"),
+            dispatch=lambda *_: pytest.fail("unpriced account must not dispatch"),
+        )
     original = execution.post_fee
 
     def fail(*args):

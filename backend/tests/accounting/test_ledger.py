@@ -243,6 +243,7 @@ def test_unsupported_or_incomplete_facts_never_create_zero_fees_or_reverse_posit
     assert entry["status"] == "UNKNOWN"
     assert code in {item["code"] for item in entry["problems"]}
     assert entry["position_projection"] == {"status": "UNKNOWN", "positions": []}
+    assert entry["monetary_status"] == "UNAVAILABLE"
     assert entry["cash_projection"] is None
     assert (
         len(

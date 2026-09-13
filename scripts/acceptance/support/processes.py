@@ -127,9 +127,10 @@ order = PendingOrder(str(uuid4()), uuid4(), now, now + timedelta(seconds=60),
     budget=OrderBudget(Decimal('2'), Decimal('101'), Decimal('1010'), Decimal('10')))
 journal = OrderJournal(engine, uuid4())
 journal.submit(order, uuid4(), admit=lambda connection: None, dispatch=lambda value: None)
-journal.report(order.order_id, evidence_id=uuid4(), state='CANCELED', cumulative_lots=1)
+journal.report(order.order_id, evidence_id=uuid4(), state='ACCEPTED', cumulative_lots=0)
 priced_later = replace(order, order_id=str(uuid4()), contract_id=uuid4())
 journal.submit(priced_later, uuid4(), admit=lambda connection: None, dispatch=lambda value: None)
+journal.report(order.order_id, evidence_id=uuid4(), state='CANCELED', cumulative_lots=1)
 received = datetime.now(UTC)
 journal.fill(FillFact(str(uuid4()), priced_later.order_id, priced_later.contract_id,
     None, received, received.date(), Side.BUY, Offset.OPEN, 3, Decimal('100'), None,

@@ -352,14 +352,16 @@ def test_browser_reads_exact_order_facts_and_cannot_submit(live_engine, live_web
 def test_order_history_pages_do_not_drop_or_duplicate_facts(tmp_path):
     engine, journal = setup_journal(tmp_path)
     identifiers = []
-    for _ in range(102):
+    for index in range(102):
         order = request()
         identifiers.append(order.order_id)
         journal.submit(order, uuid4(), admit=lambda c: None, dispatch=lambda o: None)
+        if index < 101:
+            journal.report(order.order_id, evidence_id=uuid4(), state="ACCEPTED", cumulative_lots=0)
     assert journal.health() == {
         "orders": 102,
         "working_orders": 102,
-        "unknown_orders": 102,
+        "unknown_orders": 1,
         "orders_with_pending_fees": 0,
         "conflicted_orders": 0,
     }
@@ -377,7 +379,7 @@ def test_order_history_pages_do_not_drop_or_duplicate_facts(tmp_path):
     assert len(following["events"]) == 3 and following["next_after"] is None
     assert len({e["event_id"] for e in events["events"] + following["events"]}) == 103
     assert journal.verify_all() == 102
-    assert journal.health()["unknown_orders"] == 101
+    assert journal.health()["unknown_orders"] == 0
     engine.dispose()
 
 
@@ -400,3 +402,29 @@ def test_health_retains_terminal_unknown_fees_and_does_not_modify_order(tmp_path
         assert reopened.health() == journal.health()
     finally:
         engine.dispose()
+
+
+def test_account_unknown_send_blocks_other_contract_until_confirmed_and_preserves_cancel(tmp_path):
+    engine, journal = setup_journal(tmp_path)
+    first, next_order = request(), request()
+    sent = []
+    journal.submit(first, uuid4(), admit=lambda _: None, dispatch=lambda value: sent.append(value))
+    with pytest.raises(ValueError, match="account has unresolved"):
+        journal.submit(
+            next_order,
+            uuid4(),
+            admit=lambda _: pytest.fail("unknown account cannot enter risk admission"),
+            dispatch=lambda _: pytest.fail("unknown account cannot send another opening"),
+        )
+    canceled = []
+    journal.cancel(first.order_id, uuid4(), admit=lambda _: None, dispatch=canceled.append)
+    assert len(canceled) == 1 and len(sent) == 1
+    with pytest.raises(ValueError, match="account has unresolved"):
+        journal.submit(next_order, uuid4(), admit=lambda _: None, dispatch=lambda _: None)
+    journal.report(first.order_id, evidence_id=uuid4(), state="CANCELED", cumulative_lots=0)
+    journal.submit(
+        next_order, uuid4(), admit=lambda _: None, dispatch=lambda value: sent.append(value)
+    )
+    assert len(sent) == 2
+    assert journal.verify_all() == 2
+    engine.dispose()

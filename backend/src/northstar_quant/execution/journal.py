@@ -34,8 +34,8 @@ from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.journal import initialize as initialize_account_journal
 from northstar_quant.persistence.sql import write_transaction
 
-from .accounting import post_fee, verify_fee, verify_fee_sources
-from .orders import PendingOrder, reservation
+from .fees import post_fee, verify_fee, verify_fee_sources
+from .orders import Offset, PendingOrder, reservation
 
 _metadata = MetaData()
 _orders = Table(
@@ -346,6 +346,18 @@ class OrderJournal:
             )
             if active is not None:
                 raise ValueError("contract already has an unresolved execution order")
+            if order.offset is Offset.OPEN:
+                unresolved = connection.scalar(
+                    select(_orders.c.order_id)
+                    .where(
+                        (_orders.c.status == "UNKNOWN")
+                        | (_orders.c.conflicted != 0)
+                        | (func.json(_orders.c.pending_fees) != "{}")
+                    )
+                    .limit(1)
+                )
+                if unresolved is not None:
+                    raise ValueError("account has unresolved execution facts; new risk is blocked")
             admit(connection)
             connection.execute(
                 _orders.insert().values(

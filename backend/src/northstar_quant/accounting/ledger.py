@@ -577,9 +577,11 @@ class BrokerLedger:
             }
             if prefix is not None:
                 document["source_stream"] = _stream_reference(prefix, after_sequence)
-            if (prefix is not None or projection["added_fills"] or history) and all(
-                item["position_projection"]["status"] == "KNOWN" for item in [*history, document]
-            ):
+            # Uncertainty in reception/reconciliation is not permission to ignore
+            # separately identified executions or transfers. Accounting validates
+            # the new economic facts against its retained history; unsupported
+            # facts remain raw, and the source's uncertainty still blocks risk.
+            if prefix is not None or projection["added_fills"] or history:
                 from northstar_quant.accounting.broker_account import entry_facts
                 from northstar_quant.accounting.journal import post
 
@@ -592,7 +594,7 @@ class BrokerLedger:
                             str(baseline_id),
                             opening_cash=Decimal(baseline["opening"]["funds"]["Balance"]),
                             markets=(market,),
-                            facts=entry_facts(document),
+                            facts=entry_facts(document, trading_day=baseline["trading_day"]),
                             source_id=document["entry_id"],
                             source_hash=_hash(document),
                         )
@@ -833,8 +835,8 @@ class BrokerLedger:
             if not set(accounts) <= {str(value) for value in baseline_ids}:
                 raise AccountJournalError("monetary journal has no retained account source")
             for baseline_id in baseline_ids:
+                baseline = self._baselines.get_baseline(baseline_id)
                 if str(baseline_id) in accounts:
-                    baseline = self._baselines.get_baseline(baseline_id)
                     if accounts[str(baseline_id)].initial_cash != Decimal(
                         baseline["opening"]["funds"]["Balance"]
                     ):
@@ -850,7 +852,7 @@ class BrokerLedger:
                             str(baseline_id),
                             entry["entry_id"],
                             _hash(entry),
-                            entry_facts(entry),
+                            entry_facts(entry, trading_day=baseline["trading_day"]),
                         )
             for check_id in connection.scalars(select(_checks.c.check_id)).yield_per(100):
                 self.get_check(check_id)

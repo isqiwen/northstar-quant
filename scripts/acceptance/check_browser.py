@@ -679,7 +679,7 @@ def main() -> None:
                             page.get_by_role("cell", name="发送尝试已保存", exact=True)
                         ).to_be_visible()
                         expect(
-                            page.get_by_role("cell", name="柜台订单回报", exact=True)
+                            page.get_by_role("cell", name="柜台订单回报", exact=True).first
                         ).to_be_visible()
                         screenshot("local-order-events")
                         visit(url + "/orders/" + local_order["fee_order_id"])
