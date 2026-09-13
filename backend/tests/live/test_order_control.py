@@ -114,6 +114,13 @@ def test_current_owner_cancel_runs_on_receiver_and_retains_budget_until_broker_a
     assert missing["status"] == "REJECTED" and missing["reason"] == "ORDER_NOT_OWNED"
     assert client.streams.get(stream_id)["status"] == "RECEIVING"
     assert adapter.journal.verify_all() == 1
+    # A repeated/new TD login cannot inherit the previous connection's
+    # readiness when a disconnect notification was lost.
+    assert client.streams.get(stream_id)["cancel_sending"] is True
+    calls["accept"](replace(events[0], sequence=4))
+    assert client.streams.get(stream_id)["cancel_sending"] is False
+    calls["accept"](replace(events[2], sequence=5))
+    assert client.streams.get(stream_id)["cancel_sending"] is True
 
 
 def test_control_rejects_missing_receiver_without_creating_an_sdk_connection(

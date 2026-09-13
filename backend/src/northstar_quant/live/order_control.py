@@ -75,6 +75,10 @@ class ReceiverOrders:
             self.ready = False
             self.session = None
         elif event.channel == "TD" and event.callback == "OnRspUserLogin" and not event.error_id:
+            # A new login starts a new transport readiness sequence, even when
+            # no preceding disconnect callback was delivered.
+            self.ready = False
+            self.session = None
             with self.engine.connect() as connection:
                 binding = cast(
                     dict[str, Any], read_stream_source(connection, self.stream_id)["binding"]
