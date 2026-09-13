@@ -182,9 +182,15 @@ class AccountSnapshot:
     sources: tuple[tuple[str, str], ...]
 
 
-def snapshot(connection: Connection, account_id: str) -> AccountSnapshot:
-    """Capture the current monetary projection for management reads, not admission."""
+def snapshot(
+    connection: Connection, account_id: str, *, through_ordinal: int | None = None
+) -> AccountSnapshot:
+    """Reconstruct a fixed local ledger cut; external coverage remains the caller's duty."""
     entries = _read(connection, account_id)
+    if through_ordinal is not None:
+        if type(through_ordinal) is not int or not 1 <= through_ordinal <= len(entries):
+            raise ValueError("account snapshot requires an existing ledger ordinal")
+        entries = entries[:through_ordinal]
     account = _replay(entries)
     return AccountSnapshot(
         account,

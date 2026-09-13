@@ -453,11 +453,13 @@ class BrokerLedger:
 
         return _StreamAccount(self).advance(stream_id, through_sequence, transaction=transaction)
 
-    def stream_progress(self, stream_id: UUID) -> dict[str, Any]:
+    def stream_progress(
+        self, stream_id: UUID, *, transaction: Connection | None = None
+    ) -> dict[str, Any]:
         """Read bounded local progress; this is not proof of external account coverage."""
         from northstar_quant.accounting.stream_progress import _StreamAccount
 
-        return _StreamAccount(self).progress(stream_id)
+        return _StreamAccount(self).progress(stream_id, transaction=transaction)
 
     def _ingest(
         self,

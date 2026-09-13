@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
 from northstar_quant.accounting.journal import snapshot
 from northstar_quant.broker.events import ACCOUNT_ACTIVITY_CALLBACKS, BrokerEvent
@@ -136,6 +136,15 @@ def execute_opening(
 
     def check_account(connection: Connection) -> None:
         require_no_execution_exposure(connection)
+        progress = BrokerLedger(receiver.engine).stream_progress(
+            receiver.stream_id, transaction=connection
+        )
+        if (
+            progress["status"] != "READY"
+            or progress["pending"] != 0
+            or progress["baseline_id"] != entry["baseline_id"]
+        ):
+            raise OpeningRejected("ACCOUNT_RECEIVER_NOT_BOUND_AND_CAUGHT_UP")
         current = receiver_query(connection, receiver.stream_id)
         at = datetime.now(UTC)
         if current is None or _hash(current) != fixed["inputs"]["query_hash"]:
@@ -260,6 +269,7 @@ def execute_opening(
             quote_sequence=last_quote.sequence,
             quote_hash=_hash(last_quote.to_dict()),
             scope="INITIAL_FLAT_SANDBOX_OPENING",
+            account_progress=progress,
         )
 
     def admit(connection: Connection) -> dict[str, Any]:
@@ -303,3 +313,63 @@ def execute_opening(
         )
     except AdmissionRejected as error:
         return {**identity, "status": "REJECTED", "reason": str(error)}
+
+
+def verify_admissions(engine: Engine, library: DataLibrary) -> int:
+    """Check retained sending inputs after restore without reevaluating or resending."""
+    from northstar_quant.accounting.ledger import BrokerLedger
+    from northstar_quant.broker.stream_records import read_stream_event
+    from northstar_quant.execution.journal import OrderJournal
+    from northstar_quant.live.opening_budgets import BrokerOpeningBudgets, _hash
+
+    budgets = BrokerOpeningBudgets(engine, library)
+    journal = OrderJournal(engine, UUID(int=0))
+    count, before = 0, None
+    while True:
+        page = journal.list(before=before)
+        for order in page["orders"]:
+            with engine.connect() as connection:
+                try:
+                    binding = CtpExecution.binding(connection, order["order_id"])
+                except LookupError:
+                    continue
+            proof = binding["admission"]
+            if proof is None:
+                continue  # Low-level execution fixtures have no Live admission.
+            budget = budgets.get(UUID(proof["budget_id"]))
+            entry = BrokerLedger(engine).get(UUID(proof["entry_id"]))
+            with engine.connect() as connection:
+                quote = read_stream_event(
+                    connection, UUID(proof["stream_id"]), proof["quote_sequence"]
+                )
+                account = snapshot(
+                    connection, entry["baseline_id"], through_ordinal=proof["journal_ordinal"]
+                )
+            if (
+                proof["scope"] != "INITIAL_FLAT_SANDBOX_OPENING"
+                or proof["budget_hash"] != _hash(budget)
+                or proof["entry_hash"] != _hash(entry)
+                or proof["entry_id"] != budget["entry_id"]
+                or proof["query_id"] != budget["query_id"]
+                or proof["query_hash"] != budget["inputs"]["query_hash"]
+                or proof["stream_id"] != budget["stream_id"]
+                or proof["quote_hash"] != _hash(quote.to_dict())
+                or not budget["sequence"] <= quote.sequence <= proof["through_sequence"]
+                or account.content_hash != proof["journal_hash"]
+                or account.sources[-1] != (entry["entry_id"], _hash(entry))
+                or binding["request"]["observation_id"] != budget["budget_id"]
+                or not datetime.fromisoformat(binding["request"]["submitted_at"])
+                <= datetime.fromisoformat(proof["checked_at"])
+                < datetime.fromisoformat(binding["request"]["expires_at"])
+                or proof["account_progress"]["status"] != "READY"
+                or proof["account_progress"]["pending"] != 0
+                or proof["account_progress"]["baseline_id"] != entry["baseline_id"]
+                or proof["account_progress"]["through_sequence"] != proof["through_sequence"]
+            ):
+                raise ValueError(
+                    "opening admission differs from retained account and market inputs"
+                )
+            count += 1
+        before = page["next_before"]
+        if before is None:
+            return count

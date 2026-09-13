@@ -17,6 +17,7 @@ from northstar_quant.execution.reviews import OrderReviews
 from northstar_quant.live.execution_authority import ExecutionAuthority
 from northstar_quant.live.materials import StrategyMaterials
 from northstar_quant.live.opening_budgets import BrokerOpeningBudgets
+from northstar_quant.live.opening_execution import verify_admissions
 from northstar_quant.live.storage import require_current
 from northstar_quant.live.streams import LiveStreams
 
@@ -51,6 +52,7 @@ def verify(engine: Engine, library: DataLibrary) -> dict[str, int]:
     BrokerFunds(engine).verify_all()
     streams = LiveStreams(engine, library).verify_all()
     BrokerOpeningBudgets(engine, library).verify_all()
+    verify_admissions(engine, library)
     return {
         "authorizations_count": ExecutionAuthority(engine, UUID(int=0), lambda: None).verify_all(),
         "ctp_orders_count": verify_ctp(engine),

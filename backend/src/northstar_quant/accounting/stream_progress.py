@@ -295,8 +295,12 @@ class _StreamAccount:
             "execution": {"order_sending": False, "cancel_sending": False},
         }
 
-    def progress(self, stream_id: UUID) -> dict[str, Any]:
-        with self.engine.connect() as connection:
+    def progress(self, stream_id: UUID, *, transaction: Connection | None = None) -> dict[str, Any]:
+        with (
+            nullcontext(transaction)
+            if transaction is not None
+            else self.engine.connect() as connection
+        ):
             return self._view(stream_id, self._read(connection, stream_id))
 
     def bind(self, baseline_id: UUID, stream_id: UUID) -> dict[str, Any]:

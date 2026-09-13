@@ -323,3 +323,89 @@ def test_pause_after_commit_retains_unknown_attempt_without_native_send(
     assert result["reservation"]["reserved_margin"] != "0"
     assert calls["native_orders"].empty()
     assert client.streams.get(stream)["status"] == "RECEIVING"
+
+
+def test_admitted_order_confirmed_fill_posts_to_bound_account_once(
+    live_engine, opening_context, monkeypatch
+):
+    from northstar_quant.accounting.journal import snapshot
+    from northstar_quant.broker.execution_fills import verify_all
+    from northstar_quant.execution.journal import OrderJournal
+    from tests.accounting.test_ledger import trade
+
+    class CommitClock(ReceiverClock):
+        @classmethod
+        def now(cls, tz=None):
+            return Clock.at - timedelta(microseconds=1)
+
+    client, stream, budget, consent, calls = opening_context
+    identifier = uuid4()
+    client.streams.submit_opening(stream, UUID(budget["budget_id"]), consent, request_id=identifier)
+    wire = json.loads(calls["native_orders"].get(timeout=1))
+    calls["native_returns"].put((wire["request_id"], 0))
+    assert calls["native_returned"].wait(2)
+    monkeypatch.setattr("northstar_quant.live.storage.datetime", CommitClock)
+    Clock.at += timedelta(seconds=1)
+    sequence = client.streams.get(stream)["received"]
+    calls["accept"](
+        BrokerEvent(
+            sequence + 1,
+            "TD",
+            "OnRtnOrder",
+            None,
+            None,
+            Clock.at.isoformat().replace("+00:00", "Z"),
+            0,
+            {
+                **wire["fields"],
+                "FrontID": 7,
+                "SessionID": 99,
+                "TradingDay": "20260907",
+                "OrderSysID": "sys1",
+                "OrderStatus": "0",
+                "OrderSubmitStatus": "3",
+                "VolumeTraded": 1,
+                "VolumeTotal": 0,
+            },
+        )
+    )
+    Clock.at += timedelta(milliseconds=1)
+    fill = BrokerEvent(
+        sequence + 2,
+        "TD",
+        "OnRtnTrade",
+        None,
+        None,
+        Clock.at.isoformat().replace("+00:00", "Z"),
+        0,
+        trade("open1", Price="3110", Volume=1, TradeTime="09:03:01", OrderSysID="sys1"),
+    )
+    calls["accept"](fill)
+    journal = OrderJournal(live_engine, UUID(client.status()["runtime_id"]))
+    result = journal.get(str(identifier))
+    assert result["status"] == "FILLED" and result["filled_lots"] == 1
+    assert result["fee_pending_lots"] == 1
+    assert result["reservation"]["reserved_margin"] == "0"
+    assert result["reservation"]["reserved_fee"] != "0"
+    with live_engine.connect() as connection:
+        entry = BrokerLedger(live_engine).get(UUID(budget["entry_id"]))
+        account = snapshot(connection, entry["baseline_id"]).account
+        assert (
+            account.position(
+                UUID(budget["inputs"]["decision"]["binding"]["contract_id"])
+            ).long_today
+            == 1
+        )
+        assert len(account.pending_fee_fill_ids) == 1
+    Clock.at += timedelta(milliseconds=1)
+    calls["accept"](
+        replace(
+            fill, sequence=sequence + 3, received_at=Clock.at.isoformat().replace("+00:00", "Z")
+        )
+    )
+    assert journal.get(str(identifier)) == result
+    assert verify_all(live_engine) == 1
+    assert journal.verify_all() == 1
+    from northstar_quant.live.opening_execution import verify_admissions
+
+    assert verify_admissions(live_engine, calls["library"]) == 1
