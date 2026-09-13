@@ -257,16 +257,14 @@ class BrokerStatus(_message.Message):
     def __init__(self, connection: _Optional[str] = ..., credentials: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution: _Optional[_Mapping[str, bool]] = ..., profiles: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., sdk: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class BudgetContext(_message.Message):
-    __slots__ = ("budgets", "live_runtime", "order_checks", "null_fields")
+    __slots__ = ("budgets", "live_runtime", "null_fields")
     BUDGETS_FIELD_NUMBER: _ClassVar[int]
     LIVE_RUNTIME_FIELD_NUMBER: _ClassVar[int]
-    ORDER_CHECKS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     budgets: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     live_runtime: _struct_pb2.Struct
-    order_checks: _containers.RepeatedCompositeFieldContainer[CheckRecord]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, budgets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., live_runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., order_checks: _Optional[_Iterable[_Union[CheckRecord, _Mapping]]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, budgets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., live_runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CheckRecord(_message.Message):
     __slots__ = ("check_id", "evidence_fields")
@@ -553,16 +551,18 @@ class OpeningBudget(_message.Message):
     def __init__(self, budget_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class OpeningBudgetRequest(_message.Message):
-    __slots__ = ("limit_price", "order_check_id", "request_id", "sequence")
+    __slots__ = ("entry_id", "limit_price", "query_id", "request_id", "sequence")
+    ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
     LIMIT_PRICE_FIELD_NUMBER: _ClassVar[int]
-    ORDER_CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    QUERY_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    entry_id: str
     limit_price: str
-    order_check_id: str
+    query_id: str
     request_id: str
     sequence: int
-    def __init__(self, limit_price: _Optional[str] = ..., order_check_id: _Optional[str] = ..., request_id: _Optional[str] = ..., sequence: _Optional[int] = ...) -> None: ...
+    def __init__(self, entry_id: _Optional[str] = ..., limit_price: _Optional[str] = ..., query_id: _Optional[str] = ..., request_id: _Optional[str] = ..., sequence: _Optional[int] = ...) -> None: ...
 
 class OrderCheckRequest(_message.Message):
     __slots__ = ("position_check_id", "request_id")

@@ -127,7 +127,6 @@ message BrokerStatus {
 message BudgetContext {
   repeated google.protobuf.Struct budgets = 1 [json_name = "budgets", (northstar.web.required_field) = true];
   optional google.protobuf.Struct live_runtime = 2 [json_name = "live_runtime", (northstar.web.nullable) = true];
-  repeated CheckRecord order_checks = 3 [json_name = "order_checks", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
 }
 
@@ -264,8 +263,9 @@ message OpeningBudget {
 }
 
 message OpeningBudgetRequest {
+  optional string entry_id = 5 [json_name = "entry_id", (northstar.web.required_field) = true];
   optional string limit_price = 1 [json_name = "limit_price", (northstar.web.required_field) = true];
-  optional string order_check_id = 2 [json_name = "order_check_id", (northstar.web.required_field) = true];
+  optional string query_id = 2 [json_name = "query_id", (northstar.web.required_field) = true];
   optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
   optional int64 sequence = 4 [json_name = "sequence", (northstar.web.required_field) = true];
 }

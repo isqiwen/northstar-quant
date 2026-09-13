@@ -98,7 +98,6 @@ export type BrokerStatus = {
 export type BudgetContext = {
   budgets: (Record<string, JsonValue>)[];
   live_runtime?: Record<string, JsonValue> | null;
-  order_checks: (CheckRecord)[];
 };
 export type CheckRecord = {
   check_id: string;
@@ -205,8 +204,9 @@ export type OpeningBudget = {
   [key: string]: unknown;
 };
 export type OpeningBudgetRequest = {
+  entry_id: string;
   limit_price: string;
-  order_check_id: string;
+  query_id: string;
   request_id: string;
   sequence: number;
 };

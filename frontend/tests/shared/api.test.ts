@@ -68,7 +68,8 @@ describe("fixed Protobuf commands", () => {
       request_id: "saved-command",
       limit_price: "1234567890.123456789",
       sequence: 7,
-      order_check_id: "check",
+      query_id: "query",
+      entry_id: "entry",
     };
     const first = api.mutate(
       "/api/streams/s/opening-budgets",
@@ -228,7 +229,8 @@ it("submits commands on LAN HTTP without crypto.randomUUID", async () => {
         request_id: id,
         limit_price: "123.45",
         sequence: 7,
-        order_check_id: "check",
+        query_id: "query",
+        entry_id: "entry",
       }),
     ).resolves.toMatchObject({ status: "RECORDED" });
     expect(fetch).toHaveBeenCalledTimes(2);

@@ -19,14 +19,14 @@ from northstar_quant.web.requests import (
     _uuid_field,
 )
 
-from .broker_api import CheckRecord
 from .commands import _runtime_header
 from .instances import Instances
 
 
 class OpeningBudgetRequest(ApiModel):
     sequence: int
-    order_check_id: UUIDText
+    query_id: UUIDText
+    entry_id: UUIDText
     limit_price: str
     request_id: UUIDText
 
@@ -126,7 +126,6 @@ class OpeningBudget(EvidenceRecord):
 
 class BudgetContext(ApiModel):
     budgets: list[dict[str, JsonValue]]
-    order_checks: list[CheckRecord]
     live_runtime: dict[str, JsonValue] | None = None
 
 
@@ -170,7 +169,8 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             command_live.opening_budgets.create,
             stream_id,
             payload["sequence"],
-            _uuid_field(payload, "order_check_id"),
+            _uuid_field(payload, "query_id"),
+            _uuid_field(payload, "entry_id"),
             limit_price=limit_price,
             request_id=_uuid_field(payload, "request_id"),
         )

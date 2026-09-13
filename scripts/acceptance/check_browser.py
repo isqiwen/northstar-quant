@@ -778,9 +778,10 @@ def main() -> None:
                             lambda route: fulfill(
                                 route,
                                 "/api/streams/{stream_id}/opening-budgets",
-                                {"budgets": [], "order_checks": []},
+                                {"budgets": []},
                             ),
                         )
+                        ledger_context = {"baseline_id": None, "entries": [], "checks": []}
                         page.route(
                             "**/api/broker/queries/"
                             + stream["binding"]["request"]["query_batch_id"]
@@ -788,7 +789,7 @@ def main() -> None:
                             lambda route: fulfill(
                                 route,
                                 "/api/broker/queries/{batch_id}/ledger-context",
-                                {"baseline_id": None, "entries": [], "checks": []},
+                                ledger_context,
                             ),
                         )
                         commands = []
@@ -861,23 +862,105 @@ def main() -> None:
                             page.get_by_text("数据不可用", exact=True)
                         ).not_to_be_visible()
                         screenshot("receiver-account-refresh")
-                        expect(page.get_by_role("link", name="查看固定查询", exact=True)).not_to_be_visible()
-                        fixed_query = dict(stream["latest_query"], status="COMPLETE",
-                            reason="FIXED_RECEIVER_QUERY", query_id=refreshed[0]["request_id"],
-                            finished_at=datetime.now(UTC).isoformat())
+                        expect(
+                            page.get_by_role("link", name="查看固定查询", exact=True)
+                        ).not_to_be_visible()
+                        fixed_query = dict(
+                            stream["latest_query"],
+                            status="COMPLETE",
+                            reason="FIXED_RECEIVER_QUERY",
+                            query_id=refreshed[0]["request_id"],
+                            finished_at=datetime.now(UTC).isoformat(),
+                        )
                         stream["latest_query"] = fixed_query
-                        pattern = "**/api/streams/browser-synthetic/account-queries/" + fixed_query["query_id"]
-                        page.route(pattern, lambda route: fulfill(route,
-                            "/api/streams/{stream_id}/account-queries/{query_id}", fixed_query))
+                        pattern = (
+                            "**/api/streams/browser-synthetic/account-queries/"
+                            + fixed_query["query_id"]
+                        )
+                        page.route(
+                            pattern,
+                            lambda route: fulfill(
+                                route,
+                                "/api/streams/{stream_id}/account-queries/{query_id}",
+                                fixed_query,
+                            ),
+                        )
                         page.get_by_role("button", name="刷新观察", exact=True).click()
                         page.get_by_role("link", name="查看固定查询", exact=True).click()
-                        expect(page.get_by_role("heading", name="固定账户查询", exact=True)).to_be_visible()
-                        stream["latest_query"] = dict(fixed_query, status="FAILED", source_hash="c" * 64)
+                        expect(
+                            page.get_by_role("heading", name="固定账户查询", exact=True)
+                        ).to_be_visible()
+                        stream["latest_query"] = dict(
+                            fixed_query, status="FAILED", source_hash="c" * 64
+                        )
                         page.reload()
                         expect(page.get_by_text("b" * 64, exact=True)).to_be_visible()
                         expect(page.get_by_text("COMPLETE", exact=True)).to_be_visible()
                         screenshot("receiver-fixed-query")
                         visit(url + "/streams/browser-synthetic")
+                        page.get_by_role("tab", name="开仓预算", exact=True).click()
+                        expect(
+                            page.get_by_role("button", name="计算固定开仓预算", exact=True)
+                        ).to_be_disabled()
+                        entry_id = str(uuid4())
+                        ledger_context["entries"] = [{"entry_id": entry_id}]
+                        stream["latest_query"] = fixed_query
+                        stream["steps"] = [
+                            {
+                                "sequence": 5,
+                                "result": {
+                                    "intent": {"target_fraction": "0.5"},
+                                    "bar": None,
+                                    "reason": None,
+                                },
+                            }
+                        ]
+                        budget_requests = []
+
+                        def opening_budget(route):
+                            descriptor = methods("live")[
+                                ("POST", "/api/streams/{stream_id}/opening-budgets")
+                            ]
+                            body = decode(descriptor.input_type, route.request.post_data_buffer)
+                            budget_requests.append(body)
+                            route.fulfill(
+                                content_type="application/protobuf",
+                                body=pack(
+                                    descriptor.output_type,
+                                    {
+                                        "budget_id": body["request_id"],
+                                        "status": "UNKNOWN",
+                                        "execution": {"order_sending": False},
+                                    },
+                                ).SerializeToString(),
+                            )
+
+                        page.route(
+                            "**/api/streams/browser-synthetic/opening-budgets",
+                            lambda route: (
+                                opening_budget(route)
+                                if route.request.method == "POST"
+                                else fulfill(
+                                    route,
+                                    "/api/streams/{stream_id}/opening-budgets",
+                                    {"budgets": []},
+                                )
+                            ),
+                        )
+                        page.get_by_role("button", name="刷新观察", exact=True).click()
+                        expect(
+                            page.get_by_role("button", name="计算固定开仓预算", exact=True)
+                        ).to_be_enabled()
+                        choose("已保存策略步骤", "5")
+                        page.get_by_label("限价", exact=True).fill("3110")
+                        page.get_by_role("button", name="计算固定开仓预算", exact=True).click()
+                        expect(page.get_by_text("内核已确认操作", exact=True)).to_be_visible()
+                        assert len(budget_requests) == 1
+                        assert budget_requests[0]["query_id"] == fixed_query["query_id"]
+                        assert budget_requests[0]["entry_id"] == entry_id
+                        assert "order_check_id" not in budget_requests[0]
+                        expect(page.get_by_text("数据不可用", exact=True)).not_to_be_visible()
+                        screenshot("receiver-opening-budget")
                         page.unroute(pattern)
                         page.unroute("**/api/streams/browser-synthetic/refresh-account")
                         page.get_by_role("button", name="暂停影子计算", exact=True).click()

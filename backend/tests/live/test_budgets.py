@@ -14,10 +14,10 @@ from sqlalchemy.exc import DBAPIError
 
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
+from northstar_quant.broker.events import BrokerEvent, QueryCapture
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.data_management.library import DataLibrary
-from northstar_quant.execution.reviews import OrderReviews
 from northstar_quant.live import opening_budgets as budget_module
 from northstar_quant.live.opening_budgets import BrokerOpeningBudgets
 from northstar_quant.live.streams import LiveStreams
@@ -25,7 +25,7 @@ from tests.apps.browser import ProtocolClient as TestClient
 from tests.apps.browser import login_response
 from tests.broker.test_records import _capture
 from tests.live.test_market import OPEN, tick
-from tests.live.test_streams import Clock, logins, prepare, start
+from tests.live.test_streams import Clock, prepare, start
 
 
 class AccountClock(datetime):
@@ -115,7 +115,8 @@ def budget_case(
     *,
     changes: dict[str, dict[str, Any]] | None = None,
     receipt_delay: timedelta = timedelta(0),
-) -> tuple[DataLibrary, UUID, UUID, int]:
+    finish_after_market: bool = False,
+) -> tuple[DataLibrary, UUID, UUID, UUID, int]:
     AccountClock.at = OPEN - timedelta(minutes=10)
     for module in (
         "northstar_quant.broker.records",
@@ -132,17 +133,64 @@ def budget_case(
     ledger = BrokerLedger(engine)
     entry = ledger.ingest(baseline, first, request_id=uuid4())
     source = budget_query(engine, changes)
-    comparison = ledger.compare(UUID(entry["entry_id"]), source, request_id=uuid4())
-    checked = OrderReviews(engine).check(UUID(comparison["check_id"]), request_id=uuid4())
     streams, identifier = LiveStreams(engine, library), uuid4()
     try:
         start(streams, source, configuration, identifier)
         assert calls["ready"].wait(3)
-        logins(calls["accept"])
+        events = QueryCapture.from_dict(BrokerRecords(engine).get(source)["capture"]).events
+        # The receiver retains its own startup and refreshed account facts.
+        at = (OPEN - timedelta(seconds=2)).isoformat().replace("+00:00", "Z")
+        for event in events[:-1]:
+            calls["accept"](replace(event, received_at=at))
+        sequence = len(events) - 1
+        query_id = uuid4()
+        at = (OPEN - timedelta(seconds=1)).isoformat().replace("+00:00", "Z")
+        sequence += 1
+        calls["accept"](
+            BrokerEvent(
+                sequence,
+                "TD",
+                "AccountQueryStarted",
+                None,
+                None,
+                at,
+                0,
+                {"query_id": str(query_id)},
+            )
+        )
+        for event in events:
+            if event.callback.startswith("OnRspQry") or (
+                event.callback == "RequestSent"
+                and str((event.data or {}).get("method", "")).startswith("ReqQry")
+            ):
+                sequence += 1
+                calls["accept"](
+                    replace(
+                        event, sequence=sequence, request_id=event.request_id + 1000, received_at=at
+                    )
+                )
+
+        def finish(number: int, received_at: str) -> None:
+            calls["accept"](
+                BrokerEvent(
+                    number,
+                    "TD",
+                    "AccountQueryFinished",
+                    None,
+                    None,
+                    received_at,
+                    0,
+                    {"query_id": str(query_id), "status": "COMPLETE", "reason": None},
+                )
+            )
+
+        if not finish_after_market:
+            sequence += 1
+            finish(sequence, at)
         # Keep every prior source quote fresh while the real idle poll runs.
         # The delayed case becomes stale only after its final explicit clock advance.
         interval_ms = 500 if receipt_delay else 4000
-        for sequence, elapsed_ms in enumerate(range(0, 180_001, interval_ms), 3):
+        for sequence, elapsed_ms in enumerate(range(0, 180_001, interval_ms), sequence + 1):
             event = tick(
                 sequence,
                 OPEN + timedelta(milliseconds=elapsed_ms),
@@ -163,10 +211,12 @@ def budget_case(
             )
             Clock.at = datetime.fromisoformat(event.received_at)
             calls["accept"](event)
+        if finish_after_market:
+            finish(sequence + 1, Clock.at.isoformat().replace("+00:00", "Z"))
     finally:
         streams.close()
     assert calls["count"] == 1
-    return library, identifier, UUID(checked["check_id"]), sequence
+    return library, identifier, query_id, UUID(entry["entry_id"]), sequence
 
 
 def test_fixed_shadow_to_one_lot_budget_is_idempotent_immutable_and_not_a_send(
@@ -176,13 +226,15 @@ def test_fixed_shadow_to_one_lot_budget_is_idempotent_immutable_and_not_a_send(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    library, stream, order, sequence = budget_case(postgres_engine, tmp_path, monkeypatch)
+    library, stream, query_id, entry_id, sequence = budget_case(
+        postgres_engine, tmp_path, monkeypatch
+    )
     budgets, command = BrokerOpeningBudgets(postgres_engine, library), uuid4()
     original = LiveStreams(postgres_engine, library).get(stream)
 
     def create() -> dict[str, Any]:
         return budgets.create(
-            stream, sequence, order, limit_price=Decimal("3110"), request_id=command
+            stream, sequence, query_id, entry_id, limit_price=Decimal("3110"), request_id=command
         )
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -195,21 +247,22 @@ def test_fixed_shadow_to_one_lot_budget_is_idempotent_immutable_and_not_a_send(
     assert first["budget"]["fee_budget"] == "4.12"
     assert first["budget"]["capital_budget"] == "4206.12"
     assert first["inputs"]["decision"]["result"]["intent"]["target_fraction"] == "0.5"
-    assert "ACCOUNT_QUERY_NOT_CURRENT_AT_TARGET" in first["execution_blockers"]
+    assert "ACCOUNT_QUERY_NOT_CURRENT_AT_RISK" in first["execution_blockers"]
     assert first["execution"] == {"order_sending": False, "cancel_sending": False}
     assert BrokerOpeningBudgets(postgres_engine, library).get(command) == first
     assert budgets.verify_all() == 1
     assert len(budgets.context(stream)["budgets"]) == 1
     assert LiveStreams(postgres_engine, library).get(stream) == original
     with pytest.raises(ValueError, match="already bound"):
-        budgets.create(stream, sequence, order, limit_price=Decimal("3111"), request_id=command)
+        budgets.create(
+            stream, sequence, query_id, entry_id, limit_price=Decimal("3111"), request_id=command
+        )
     with pytest.raises(DBAPIError), postgres_engine.begin() as connection:
         connection.execute(
             text("DELETE FROM broker_opening_budgets WHERE budget_id=:id"), {"id": command}
         )
     # A later query/ledger append cannot rebind an already saved budget's parents.
-    parent = OrderReviews(postgres_engine).get(order)
-    entry = BrokerLedger(postgres_engine).get(UUID(parent["entry_id"]))
+    entry = BrokerLedger(postgres_engine).get(entry_id)
     BrokerLedger(postgres_engine).ingest(
         UUID(entry["baseline_id"]), budget_query(postgres_engine), request_id=uuid4()
     )
@@ -234,13 +287,13 @@ def test_budget_freshness_checks_source_clock_not_only_later_receipt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    library, stream, order, sequence = budget_case(
+    library, stream, query_id, entry_id, sequence = budget_case(
         postgres_engine, tmp_path, monkeypatch, receipt_delay=timedelta(seconds=4)
     )
     Clock.at += timedelta(seconds=2)
     monkeypatch.setattr(budget_module, "datetime", Clock)
     result = BrokerOpeningBudgets(postgres_engine, library).create(
-        stream, sequence, order, limit_price=Decimal("3110"), request_id=uuid4()
+        stream, sequence, query_id, entry_id, limit_price=Decimal("3110"), request_id=uuid4()
     )
     assert result["status"] == "WITHIN_BUDGET", result
     assert "MARKET_OBSERVATION_NOT_CURRENT" in result["execution_blockers"]
@@ -278,13 +331,14 @@ def test_missing_scope_relative_rates_freezes_and_one_cent_short_cannot_pass(
     reason: str,
 ) -> None:
     del clean_database
-    library, stream, order, sequence = budget_case(
+    library, stream, query_id, entry_id, sequence = budget_case(
         postgres_engine, tmp_path, monkeypatch, changes=changes
     )
     result = BrokerOpeningBudgets(postgres_engine, library).create(
         stream,
         sequence,
-        order,
+        query_id,
+        entry_id,
         limit_price=Decimal("3110"),
         request_id=uuid4(),
     )
@@ -299,14 +353,15 @@ def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_un
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    library, stream, order, sequence = budget_case(live_engine, tmp_path, monkeypatch)
+    library, stream, query_id, entry_id, sequence = budget_case(live_engine, tmp_path, monkeypatch)
     with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as client:
         page = login_response(client)
         assert page.status_code == 200
         csrf = page.json()["csrf"]
         payload = {
             "sequence": sequence,
-            "order_check_id": str(order),
+            "query_id": str(query_id),
+            "entry_id": str(entry_id),
             "limit_price": "3110",
             "request_id": str(uuid4()),
         }
@@ -335,3 +390,43 @@ def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_un
         unknown = client.post(url, json=payload, headers=headers)
         assert unknown.status_code == 200 and unknown.json()["status"] == "UNKNOWN"
         assert client.get(f"/broker/opening-budgets/{payload['request_id']}").status_code == 404
+
+
+def test_fixed_receiver_budget_survives_empty_database_restore(
+    live_engine: Engine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from northstar_quant.apps.live.maintenance import backup, restore
+    from northstar_quant.data_management.files import SourceFiles
+    from tests.live.test_recovery import _empty_restore_database
+
+    library, stream, query_id, entry_id, sequence = budget_case(live_engine, tmp_path, monkeypatch)
+    identifier = uuid4()
+    saved = BrokerOpeningBudgets(live_engine, library).create(
+        stream, sequence, query_id, entry_id, limit_price=Decimal("3110"), request_id=identifier
+    )
+    backup(live_engine, SourceFiles(tmp_path / "archive"), tmp_path / "backup")
+    with _empty_restore_database(tmp_path) as target:
+        result = restore(target, tmp_path / "restored", tmp_path / "backup")
+        restored_library = DataLibrary(target, SourceFiles(tmp_path / "restored"))
+        assert result["execution"] == "RECONCILIATION_REQUIRED"
+        assert BrokerOpeningBudgets(target, restored_library).get(identifier) == saved
+        assert LiveStreams(target, restored_library).account_query(stream, query_id) == (
+            LiveStreams(live_engine, library).account_query(stream, query_id)
+        )
+
+
+def test_late_query_completion_does_not_refresh_an_earlier_account_observation(
+    live_engine: Engine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    library, stream, query_id, entry_id, sequence = budget_case(
+        live_engine, tmp_path, monkeypatch, finish_after_market=True
+    )
+    monkeypatch.setattr(budget_module, "datetime", Clock)
+    saved = BrokerOpeningBudgets(live_engine, library).create(
+        stream, sequence, query_id, entry_id, limit_price=Decimal("3110"), request_id=uuid4()
+    )
+    assert saved["status"] == "WITHIN_BUDGET", saved
+    assert "MARKET_OBSERVATION_NOT_CURRENT" not in saved["execution_blockers"]
+    assert "ACCOUNT_QUERY_NOT_CURRENT_AT_RISK" in saved["execution_blockers"]
+    assert datetime.fromisoformat(saved["inputs"]["query_window"]["finished_at"]) == Clock.at
+    assert saved["execution"]["order_sending"] is False

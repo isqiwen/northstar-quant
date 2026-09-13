@@ -122,7 +122,8 @@ def check_broker_access(
             f"/api/streams/{missing_query}/opening-budgets",
             {
                 "sequence": 1,
-                "order_check_id": missing_query,
+                "query_id": missing_query,
+                "entry_id": missing_query,
                 "limit_price": "3101",
                 "request_id": str(uuid4()),
             },

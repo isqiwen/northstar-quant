@@ -290,17 +290,37 @@ export function Stream() {
                       onDone={refresh}
                     />
                     {q.data.latest_query && (
-                      <Card title="接收连接的最新查询" extra={q.data.latest_query.query_id && q.data.latest_query.finished_at ? (
-                        <Link href={`/streams/${id}/account-queries/${q.data.latest_query.query_id}`}>查看固定查询</Link>
-                      ) : undefined}>
-                        <p>查询期间继续接收柜台回报。这是固定查询窗口，尚未完成账户核对，也不授予交易权限。</p>
-                        <Fields value={{
-                          查询状态: q.data.latest_query.status,
-                          来源前缀: q.data.latest_query.through_sequence,
-                          内容身份: q.data.latest_query.source_hash,
-                        }} />
-                        <Evidence value={q.data.latest_query.account_observation} title="柜台资金观察（尚未核对）" />
-                        <Evidence value={q.data.latest_query.completeness} title="查询内容与缺项" />
+                      <Card
+                        title="接收连接的最新查询"
+                        extra={
+                          q.data.latest_query.query_id &&
+                          q.data.latest_query.finished_at ? (
+                            <Link
+                              href={`/streams/${id}/account-queries/${q.data.latest_query.query_id}`}
+                            >
+                              查看固定查询
+                            </Link>
+                          ) : undefined
+                        }
+                      >
+                        <p>
+                          查询期间继续接收柜台回报。这是固定查询窗口，尚未完成账户核对，也不授予交易权限。
+                        </p>
+                        <Fields
+                          value={{
+                            查询状态: q.data.latest_query.status,
+                            来源前缀: q.data.latest_query.through_sequence,
+                            内容身份: q.data.latest_query.source_hash,
+                          }}
+                        />
+                        <Evidence
+                          value={q.data.latest_query.account_observation}
+                          title="柜台资金观察（尚未核对）"
+                        />
+                        <Evidence
+                          value={q.data.latest_query.completeness}
+                          title="查询内容与缺项"
+                        />
                       </Card>
                     )}
                     {q.data.startup_query && (
@@ -333,7 +353,15 @@ export function Stream() {
                     <Action
                       title="计算固定开仓预算"
                       path={`/api/streams/${id}/opening-budgets`}
-                      disabled={!safe}
+                      disabled={
+                        !safe ||
+                        !q.data.latest_query?.finished_at ||
+                        !ledger.data?.entries?.[0]?.entry_id
+                      }
+                      fixed={{
+                        query_id: q.data.latest_query?.query_id,
+                        entry_id: ledger.data?.entries?.[0]?.entry_id,
+                      }}
                       fields={[
                         {
                           name: "sequence",
@@ -345,15 +373,6 @@ export function Stream() {
                               value: r.sequence,
                               label: String(r.sequence),
                             })),
-                        },
-                        {
-                          name: "order_check_id",
-                          label: "固定委托核对",
-                          kind: "select",
-                          options: budgets.data?.order_checks?.map((c) => ({
-                            value: c.check_id,
-                            label: c.check_id,
-                          })),
                         },
                         { name: "limit_price", label: "限价" },
                       ]}

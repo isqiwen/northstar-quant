@@ -18,7 +18,8 @@ class OpeningBudget(BaseModel):
     model_config = ConfigDict(extra="forbid")
     stream_id: UUID
     sequence: StrictInt = Field(ge=1, le=100_000)
-    order_check_id: UUID
+    query_id: UUID
+    entry_id: UUID
     limit_price: Decimal = Field(gt=0, allow_inf_nan=False)
 
 
@@ -42,7 +43,8 @@ def routes(owner: LiveOwner) -> APIRouter:
             lambda identifier: owner.opening_budgets.create(
                 body.stream_id,
                 body.sequence,
-                body.order_check_id,
+                body.query_id,
+                body.entry_id,
                 limit_price=body.limit_price,
                 request_id=identifier,
             ),

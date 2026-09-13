@@ -20,7 +20,8 @@ def budget(arguments: argparse.Namespace, client: LiveClient) -> int:
         budget_result = budgets.create(
             arguments.stream_id,
             arguments.sequence,
-            arguments.order_check,
+            arguments.query,
+            arguments.entry,
             limit_price=limit_price,
             request_id=arguments.request_id,
         )
@@ -183,7 +184,8 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     parser.set_defaults(scope="broker", operation="broker-opening-budget")
     parser.add_argument("stream_id", type=UUID)
     parser.add_argument("--sequence", type=int, required=True)
-    parser.add_argument("--order-check", type=UUID, required=True)
+    parser.add_argument("--query", type=UUID, required=True, help="接收连接的固定账户查询")
+    parser.add_argument("--entry", type=UUID, required=True, help="固定账本记录")
     parser.add_argument("--limit-price", required=True, help="exact decimal limit price")
     parser.add_argument("--request-id", type=UUID, required=True)
     parser = commands.add_parser("opening-budget-show", help="查看固定的历史预算")
