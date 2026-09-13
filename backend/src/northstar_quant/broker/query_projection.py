@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import Protocol, cast
 
-from .events import ACCOUNT_ACTIVITY_CALLBACKS, TRANSFER_CALLBACKS, BrokerEvent
+from .events import ACCOUNT_ACTIVITY_CALLBACKS, TRANSFER_CALLBACKS, BrokerEvent, is_order_rejection
 
 # One ordered native query plan is used by reception and evidence reconstruction.
 QUERY_TYPES = (
@@ -83,7 +83,9 @@ def project_query(binding: dict[str, object], capture: QueryEvidence | None) -> 
         for event in capture.events:
             data = event.data
             key = None if event.request_id is None else (event.channel, event.request_id)
-            if event.error_id:
+            if event.error_id and not is_order_rejection(
+                event, broker_id=str(profile["broker_id"]), account_id=str(account_id)
+            ):
                 reasons.add("BROKER_REPORTED_ERROR")
                 fatal = True
             if event.callback == "CaptureStarted":

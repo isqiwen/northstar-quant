@@ -24,6 +24,7 @@ from northstar_quant.broker.events import (
     ACCOUNT_ACTIVITY_CALLBACKS,
     TRANSFER_CALLBACKS,
     BrokerEvent,
+    is_order_rejection,
 )
 from northstar_quant.broker.stream_records import read_stream_source
 from northstar_quant.persistence.sql import UTCDateTime, write_transaction
@@ -124,6 +125,8 @@ def _material(event: BrokerEvent, binding: dict[str, Any]) -> bool:
         return True
     if event.channel != "TD":
         return False
+    if is_order_rejection(event, broker_id=binding["broker_id"], account_id=binding["account_id"]):
+        return False
     if event.error_id or event.callback in {"OnFrontDisconnected", "OnHeartBeatWarning"}:
         return True
     if event.callback == "OnRspUserLogin":
@@ -162,7 +165,13 @@ def _apply(checkpoint: dict[str, Any], binding: dict[str, Any], item: dict[str, 
         elif checkpoint["status"] != "UNKNOWN":
             checkpoint.update(status="READY", reason=None)
     if event.channel == "TD" and (
-        event.error_id or event.callback in {"OnFrontDisconnected", "OnHeartBeatWarning"}
+        (
+            event.error_id
+            and not is_order_rejection(
+                event, broker_id=binding["broker_id"], account_id=binding["account_id"]
+            )
+        )
+        or event.callback in {"OnFrontDisconnected", "OnHeartBeatWarning"}
     ):
         checkpoint.update(
             td_confirmed=False, status="UNKNOWN", reason="STREAM_ACCOUNT_CONNECTION_ERROR"

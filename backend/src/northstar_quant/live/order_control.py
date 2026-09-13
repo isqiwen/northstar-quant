@@ -19,7 +19,7 @@ from uuid import UUID
 
 from sqlalchemy import Connection, Engine
 
-from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.events import BrokerEvent, is_order_rejection
 from northstar_quant.broker.order_channel import OrderChannel
 from northstar_quant.broker.order_transport import CtpExecution, CtpSession
 from northstar_quant.broker.stream_records import read_stream_source, text
@@ -80,13 +80,14 @@ class ReceiverOrders:
         self._core()
         if (
             event.error_id
-            and event.callback
-            not in {
-                "OnRspOrderInsert",
-                "OnErrRtnOrderInsert",
-                "OnRspOrderAction",
-                "OnErrRtnOrderAction",
-            }
+            and not (
+                self.session is not None
+                and is_order_rejection(
+                    event,
+                    broker_id=self.session.broker_id,
+                    account_id=self.session.account_id,
+                )
+            )
         ) or event.callback in {"OnFrontDisconnected", "OnHeartBeatWarning"}:
             self.ready = False
             self.session = None

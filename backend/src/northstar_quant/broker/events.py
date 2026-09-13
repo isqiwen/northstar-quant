@@ -56,6 +56,9 @@ TRANSFER_CALLBACKS = frozenset(
     }
 )
 ACCOUNT_ACTIVITY_CALLBACKS = TRANSFER_CALLBACKS | {"OnRtnOrder", "OnRtnTrade"}
+ORDER_REJECTION_CALLBACKS = frozenset(
+    {"OnRspOrderInsert", "OnErrRtnOrderInsert", "OnRspOrderAction", "OnErrRtnOrderAction"}
+)
 _TRANSFER_FIELDS = tuple(
     "TradeCode BrokerID AccountID UserID TradingDay TradeDate TradeTime PlateSerial "
     "FutureSerial SessionID CurrencyID TradeAmount CustFee BrokerFee RequestID "
@@ -65,7 +68,7 @@ _REPEAL_FIELDS = tuple(
     "RepealedTimes BankRepealFlag BrokerRepealFlag PlateRepealSerial FutureRepealSerial".split()
 )
 
-# These are the exact CTP fields this read-only application retains. Native code
+# These are the exact CTP fields this application retains. Native code
 # copies these named attributes immediately; pointers, credentials, unrestricted
 # error strings and machine-identification fields never cross the Interface.
 CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
@@ -365,3 +368,19 @@ def parse_time(value: str) -> datetime:
 
 def timestamp(value: datetime) -> str:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def is_order_rejection(event: BrokerEvent, *, broker_id: str, account_id: str) -> bool:
+    """Protocol category only; OMS must separately verify the exact sending attempt.
+
+    A scoped operation rejection is not a lost connection or a monetary fact.
+    Unknown/foreign operations still require the runtime's reconciliation gate.
+    """
+    data = event.data or {}
+    return bool(
+        event.channel == "TD"
+        and event.error_id
+        and event.callback in ORDER_REJECTION_CALLBACKS
+        and data.get("BrokerID") == broker_id
+        and data.get("InvestorID") == account_id
+    )

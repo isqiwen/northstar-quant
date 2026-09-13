@@ -27,7 +27,7 @@ from northstar_quant import code_revision
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker import ctp
-from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.events import BrokerEvent, is_order_rejection
 from northstar_quant.broker.market import FRESH
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import configured_profile, load_credentials
@@ -725,6 +725,7 @@ class LiveStreams:
     def accept(self, identifier: UUID, event: BrokerEvent) -> None:
         """Persist actual copied content before processing; retries never advance twice."""
         encoded = event.to_dict()
+        order_id: str | None = None
         with write_transaction(self._engine) as connection:
             self._timeouts(connection)
             row = self._row(connection, identifier, lock=True)
@@ -784,7 +785,17 @@ class LiveStreams:
                     reason = "ACCOUNT_IDENTITY_MISMATCH"
                 else:
                     state[event.channel + "_trading_day"] = data.get("TradingDay")
-            if event.error_id or event.callback in {"OnFrontDisconnected", "OnHeartBeatWarning"}:
+            scoped_rejection = is_order_rejection(
+                event,
+                broker_id=str(_object(binding["profile"])["broker_id"]),
+                account_id=str(binding["account_id"]),
+            )
+            if scoped_rejection and order_id is None:
+                reason = "ORDER_REJECTION_UNMATCHED"
+            elif (event.error_id and not scoped_rejection) or event.callback in {
+                "OnFrontDisconnected",
+                "OnHeartBeatWarning",
+            }:
                 reason = "CONNECTION_OR_CALLBACK_ERROR"
             if event.callback in {"OnRtnOrder", "OnRtnTrade"} and (
                 data.get("InvestorID") != binding["account_id"]

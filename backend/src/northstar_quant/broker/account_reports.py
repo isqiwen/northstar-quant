@@ -13,7 +13,12 @@ from zoneinfo import ZoneInfo
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.observations import ACCOUNT_AMOUNT_FIELDS, compare_account_amounts
-from northstar_quant.broker.events import ACCOUNT_ACTIVITY_CALLBACKS, TRANSFER_CALLBACKS
+from northstar_quant.broker.events import (
+    ACCOUNT_ACTIVITY_CALLBACKS,
+    TRANSFER_CALLBACKS,
+    BrokerEvent,
+    is_order_rejection,
+)
 
 _MONEY = (
     "Balance",
@@ -176,7 +181,14 @@ def stream_trades(
             else:
                 confirmed_day = None
                 problems.append({"code": "STREAM_TD_IDENTITY_NOT_CONFIRMED", **locator})
-        if event["error_id"] or event["callback"] in {"OnFrontDisconnected", "OnHeartBeatWarning"}:
+        if (
+            event["error_id"]
+            and not is_order_rejection(
+                BrokerEvent.from_dict(event),
+                broker_id=binding["profile"]["broker_id"],
+                account_id=binding["account_id"],
+            )
+        ) or event["callback"] in {"OnFrontDisconnected", "OnHeartBeatWarning"}:
             confirmed_day = None
             problems.append({"code": "STREAM_ACCOUNT_CONNECTION_ERROR", **locator})
         received = _time(event["received_at"])
