@@ -908,6 +908,7 @@ def main() -> None:
                         stream["steps"] = [
                             {
                                 "sequence": 5,
+                                "committed_at": datetime.now(UTC).isoformat(),
                                 "result": {
                                     "intent": {"target_fraction": "0.5"},
                                     "bar": None,
