@@ -54,7 +54,9 @@ def status(engine: Engine) -> dict[str, Any]:
                 text("""
             SELECT request_id,dataset,scope,start_at,end_at,status,attempts,next_at,error,
                 receipt_id,updated_at FROM data_sync_jobs
-            ORDER BY updated_at DESC,request_id LIMIT 50
+            ORDER BY CASE status WHEN 'BLOCKED' THEN 0 WHEN 'RUNNING' THEN 1
+                WHEN 'WAITING' THEN 2 WHEN 'VALIDATED' THEN 3 ELSE 4 END,
+                updated_at DESC,request_id LIMIT 50
         """)
             ).mappings()
         ]

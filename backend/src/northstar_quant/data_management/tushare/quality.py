@@ -49,6 +49,10 @@ class Empty(ValueError):
     pass
 
 
+class EmptyResponse(Empty):
+    """The provider returned no rows, distinct from incomplete local coverage."""
+
+
 def number(value: Any) -> Decimal:
     """Malformed supplier numerics are quality failures, not worker crashes."""
     try:
@@ -84,7 +88,7 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     if len(data["items"]) >= definition.limit:
         raise Truncated("达到接口行数上限，不能认定区间完整")
     if not data["items"]:
-        raise Empty("源端返回空结果，等待发布或覆盖核查；不推进完整覆盖")
+        raise EmptyResponse("源端返回空结果，等待发布或覆盖核查；不推进完整覆盖")
     required = (
         (*definition.identity, *_OHLC, "vol")
         if definition.api in _BAR_APIS

@@ -45,6 +45,12 @@ def enqueue(
     )
 
 
+def invalidate_catalog(connection: Connection) -> None:
+    """Replan dependent ranges without resetting downloaded jobs or coverage."""
+    connection.execute(text("UPDATE data_sync_contracts SET planned_revision=0"))
+    connection.execute(text("UPDATE data_sync_settings SET planned_at=NULL"))
+
+
 def target_day() -> date:
     now = datetime.now(ZoneInfo("Asia/Shanghai"))
     # Target is a completed session, never an assertion that the vendor has published it.

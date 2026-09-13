@@ -225,7 +225,10 @@ export function TushareSync() {
           ]}
         />
       </Card>
-      <Card title="最近任务与异常">
+      <Card title="异常与最近任务">
+        <p className="muted">
+          优先显示受阻、处理中及等待复核的任务；空结果不计入完成。
+        </p>
         <Table
           scroll={{ x: 1000 }}
           rowKey="request_id"
@@ -247,6 +250,13 @@ export function TushareSync() {
             },
             { title: "请求次数", dataIndex: "attempts" },
             { title: "原因", dataIndex: "error" },
+            {
+              title: "下次重试",
+              render: (_, r) =>
+                r.status === "WAITING" && r.next_at
+                  ? new Date(String(r.next_at)).toLocaleString()
+                  : "—",
+            },
             {
               title: "查看",
               render: (_, r) => (

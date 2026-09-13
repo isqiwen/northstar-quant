@@ -925,3 +925,92 @@ def test_only_confirmed_permission_failure_blocks_other_windows(automatic, monke
             )
             == "BLOCKED"
         )
+
+
+@pytest.mark.parametrize(
+    "message,label,retry",
+    [
+        ("积分不足", "权限不足", False),
+        ("参数不正确", "参数或范围", False),
+        ("接口不存在", "接口不可用", False),
+        ("每天最多调用", "限频", True),
+        ("unclassified", "原因未确认", False),
+    ],
+)
+def test_provider_failure_classification_never_echoes_secrets(message, label, retry):
+    with pytest.raises(acquisition.DownloadError) as caught:
+        acquisition.decode(json.dumps({"code": 50101, "msg": message + TOKEN}).encode())
+    assert label in str(caught.value)
+    assert TOKEN not in str(caught.value)
+    assert caught.value.retry is retry
+
+
+def test_historical_empty_remains_uncovered_with_slow_automatic_recheck(automatic, monkeypatch):
+    from datetime import UTC, date, datetime, timedelta
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
+    with automatic._engine.begin() as c:
+        planning.enqueue(
+            c,
+            "15min",
+            "RB9505.SHF",
+            {"ts_code": "RB9505.SHF", "freq": "15min"},
+            "1995-04-17",
+            "1995-04-30",
+        )
+        c.execute(text("UPDATE data_sync_jobs SET attempts=6"))
+    payload = json.loads(response())
+    payload["data"]["items"] = []
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: json.dumps(payload).encode())
+    before = datetime.now(UTC)
+    result = jobs.process_next(automatic)
+    assert result["status"] == "WAITING"
+    assert "7 天" in result["error"]
+    assert datetime.fromisoformat(result["next_at"]) >= before + timedelta(days=7)
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
+    assert jobs.process_next(automatic) is None
+
+
+def test_catalog_arrival_replans_continuous_ranges_without_duplicate_downloads(
+    automatic, monkeypatch
+):
+    from datetime import date
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
+    with automatic._engine.begin() as c:
+        c.execute(text("DELETE FROM data_sync_contracts"))
+        c.execute(
+            text("INSERT INTO data_sync_contracts VALUES ('A.DCE','DCE','A','2','{}',NULL,0)")
+        )
+    planning.plan(automatic._engine)
+    with automatic._engine.begin() as c:
+        assert c.scalar(text("SELECT planning_error FROM data_sync_contracts"))
+        planning.enqueue(c, "contracts", "DCE", {"exchange": "DCE", "fut_type": "1"}, "", "")
+    row = {
+        "ts_code": "A2609.DCE",
+        "exchange": "DCE",
+        "fut_code": "A",
+        "list_date": "20260901",
+        "delist_date": "20260909",
+    }
+    payload = json.dumps(
+        {"code": 0, "data": {"fields": list(row), "items": [list(row.values())]}}
+    ).encode()
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: payload)
+    completed = jobs.process_next(automatic)
+    assert completed["status"] == "VALIDATED", completed
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        assert (
+            c.scalar(text("SELECT planning_error FROM data_sync_contracts WHERE ts_code='A.DCE'"))
+            is None
+        )
+        count = c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A.DCE'"))
+        assert count > 0
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A.DCE'")) == count
+    visible = settings.status(automatic._engine)["jobs"]
+    # Completed/attempted work cannot be displaced by the flood of newly planned jobs.
+    assert visible[0]["request_id"] == completed["request_id"]

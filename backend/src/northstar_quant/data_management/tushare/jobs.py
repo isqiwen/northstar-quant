@@ -13,7 +13,14 @@ from ..library import DataLibrary
 from ..maintenance import library_write
 from . import acquisition, coverage, credentials, planning, publication
 from .catalog import BY_KEY
-from .quality import Empty, InvalidResponse, Truncated, closed_interval_evidence, normalize
+from .quality import (
+    Empty,
+    EmptyResponse,
+    InvalidResponse,
+    Truncated,
+    closed_interval_evidence,
+    normalize,
+)
 from .store import initialize, job, serial, settings
 
 __all__ = ["initialize", "process_next"]
@@ -175,12 +182,16 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 bool(selected["end_at"])
                 and selected["end_at"] >= (planning.target_day() - timedelta(days=10)).isoformat()
             )
+            historical_empty = isinstance(error, EmptyResponse) and not recent
             _fail(
                 engine,
                 selected,
-                str(error),
+                "历史区间返回空数据，7 天后复核覆盖；不认定已完成"
+                if historical_empty
+                else str(error),
                 retry=not selected["source_generation"],
-                waiting=recent,
+                waiting=True,
+                retry_after=timedelta(days=7) if historical_empty else None,
             )
         except acquisition.DownloadError as error:
             _fail(engine, selected, str(error), retry=error.retry)
@@ -241,9 +252,10 @@ def _fail(
     retry: bool,
     waiting: bool = False,
     quality: dict[str, Any] | None = None,
+    retry_after: timedelta | None = None,
 ) -> None:
     allowed = retry and (waiting or selected["attempts"] < 6)
-    delay = timedelta(
+    delay = retry_after or timedelta(
         seconds=max(3600 if waiting else 30, min(21600, 30 * 2 ** min(selected["attempts"], 10)))
     )
     with engine.begin() as connection:
@@ -320,13 +332,20 @@ def _commit(
             {"id": selected["request_id"], "receipt": receipt},
         )
         if selected["dataset"] == "contracts":
+            changed = False
             for row in rows:
                 if not row.get("fut_code") or not row.get("exchange"):
                     raise ValueError("合约目录缺少品种或交易所")
-                connection.execute(
+                updated = connection.execute(
                     text("""INSERT INTO data_sync_contracts(ts_code,exchange,product,kind,details)
                     VALUES(:code,:exchange,:product,:kind,CAST(:details AS jsonb))
-                    ON CONFLICT(ts_code) DO UPDATE SET details=EXCLUDED.details"""),
+                    ON CONFLICT(ts_code) DO UPDATE SET details=EXCLUDED.details,
+                    exchange=EXCLUDED.exchange,product=EXCLUDED.product,kind=EXCLUDED.kind
+                    WHERE (data_sync_contracts.details,data_sync_contracts.exchange,
+                           data_sync_contracts.product,data_sync_contracts.kind)
+                    IS DISTINCT FROM (EXCLUDED.details,EXCLUDED.exchange,
+                                      EXCLUDED.product,EXCLUDED.kind)
+                    RETURNING ts_code"""),
                     {
                         "code": row["ts_code"],
                         "exchange": row["exchange"],
@@ -335,6 +354,11 @@ def _commit(
                         "details": json.dumps(row),
                     },
                 )
+                changed = updated.scalar_one_or_none() is not None or changed
+            if changed:
+                # Continuous/product/market ranges also depend on other catalog rows.
+                # Re-plan on the same transaction; immutable jobs deduplicate by identity.
+                planning.invalidate_catalog(connection)
         if selected["dataset"] == "calendar":
             for row in rows:
                 connection.execute(

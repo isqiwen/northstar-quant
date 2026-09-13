@@ -80,16 +80,34 @@ def decode(content: bytes) -> dict[str, Any]:
         if document["code"]:
             # Classify only locally; never propagate the provider's raw message.
             msg = str(document.get("msg", ""))
-            rate = any(word in msg for word in ("频次", "每分钟", "每小时", "每秒"))
+            rate = any(
+                word in msg for word in ("频次", "每分钟", "每小时", "每秒", "每天最多", "每日上限")
+            )
             permission = any(
                 word in msg
-                for word in ("没有访问该接口的权限", "没有权限", "无权限", "权限不足", "权限已过期")
+                for word in (
+                    "没有访问该接口的权限",
+                    "没有权限",
+                    "无权限",
+                    "权限不足",
+                    "权限已过期",
+                    "积分不足",
+                    "权限不够",
+                )
             )
+            invalid = any(
+                word in msg for word in ("参数错误", "参数不合法", "参数不正确", "请求范围无效")
+            )
+            unavailable = any(word in msg for word in ("接口不存在", "接口名称错误", "接口已停用"))
             raise DownloadError(
                 "Tushare 限频，等待退避重试"
                 if rate
                 else f"Tushare 权限不足（代码 {document['code']}），请核对该接口授权"
                 if permission
+                else f"Tushare 参数或范围被拒绝（代码 {document['code']}），请核查此分片请求"
+                if invalid
+                else f"Tushare 接口不可用（代码 {document['code']}），请核查接口定义"
+                if unavailable
                 else f"Tushare 请求异常（代码 {document['code']}），原因未确认；仅暂停此分片",
                 retry=rate,
             )
