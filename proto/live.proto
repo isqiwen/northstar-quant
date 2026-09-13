@@ -402,6 +402,8 @@ message ReceiverQuery {
   optional string source_hash = 4 [json_name = "source_hash", (northstar.web.required_field) = true];
   optional google.protobuf.Struct completeness = 5 [json_name = "completeness", (northstar.web.required_field) = true];
   optional google.protobuf.Struct account_observation = 6 [json_name = "account_observation"];
+  optional string query_id = 7 [json_name = "query_id"];
+  optional string finished_at = 8 [json_name = "finished_at"];
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 
@@ -782,6 +784,10 @@ service BrowserApi {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/streams/{stream_id}/control";
     option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiStreamsStreamIdAccountQueriesQueryId (northstar.web.Empty) returns (ReceiverQuery) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/account-queries/{query_id}";
   }
   rpc GetApiStreamsStreamIdDecisionsSequence (northstar.web.Empty) returns (StreamDecision) {
     option (northstar.web.http_method) = "GET";

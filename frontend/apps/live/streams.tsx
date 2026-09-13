@@ -290,7 +290,9 @@ export function Stream() {
                       onDone={refresh}
                     />
                     {q.data.latest_query && (
-                      <Card title="接收连接的最新查询">
+                      <Card title="接收连接的最新查询" extra={q.data.latest_query.query_id && q.data.latest_query.finished_at ? (
+                        <Link href={`/streams/${id}/account-queries/${q.data.latest_query.query_id}`}>查看固定查询</Link>
+                      ) : undefined}>
                         <p>查询期间继续接收柜台回报。这是固定查询窗口，尚未完成账户核对，也不授予交易权限。</p>
                         <Fields value={{
                           查询状态: q.data.latest_query.status,

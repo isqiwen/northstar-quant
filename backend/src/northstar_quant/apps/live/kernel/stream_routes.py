@@ -95,6 +95,10 @@ def routes(owner: LiveOwner) -> APIRouter:
             lambda identifier: owner.streams.control(stream_id, body.action, request_id=identifier),
         )
 
+    @router.get("/streams/{stream_id}/account-queries/{query_id}")
+    def account_query(stream_id: UUID, query_id: UUID) -> dict[str, Any]:
+        return owner.read(owner.streams.account_query(stream_id, query_id))
+
     @router.post("/streams/{stream_id}/refresh-account")
     def refresh_account(request: Request, stream_id: UUID) -> dict[str, Any]:
         if request.headers.get("x-northstar-operator") != "owner":

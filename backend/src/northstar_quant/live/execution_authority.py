@@ -295,9 +295,9 @@ class ExecutionAuthority:
             raise ValueError("execution receiver is stopped or paused")
         if stream["cursor"] != stream["received"]:
             raise ValueError("execution requires processing every retained receiver callback")
-        from northstar_quant.broker.query_window import latest_query
+        from northstar_quant.broker.query_window import receiver_query
 
-        refresh = latest_query(connection, stream_id)
+        refresh = receiver_query(connection, stream_id)
         if refresh is not None and refresh["status"] != "COMPLETE":
             raise ValueError("execution requires completing the receiver account refresh")
         query = startup_query(connection, stream_id)

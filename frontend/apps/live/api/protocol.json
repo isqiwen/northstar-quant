@@ -1909,6 +1909,20 @@
           "required": false,
           "nullable": false
         },
+        "query_id": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
+        "finished_at": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
         "evidence_fields": {
           "id": 1000,
           "presence": false,
@@ -3455,6 +3469,13 @@
       "input": "northstar.live.ControlRequest",
       "output": "northstar.live.StreamControl",
       "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/streams/{stream_id}/account-queries/{query_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.ReceiverQuery",
+      "runtime": false
     },
     {
       "method": "GET",

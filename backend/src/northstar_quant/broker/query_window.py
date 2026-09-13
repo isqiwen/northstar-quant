@@ -30,19 +30,35 @@ class _Window:
         return self.source
 
 
-def latest_query(engine: Engine | Connection, identifier: UUID) -> dict[str, Any] | None:
+def receiver_query(
+    engine: Engine | Connection, identifier: UUID, *, query_id: UUID | None = None
+) -> dict[str, Any] | None:
+    if query_id is not None and not isinstance(query_id, UUID):
+        raise ValueError("receiver query identity must be a UUID")
     with engine.connect() if isinstance(engine, Engine) else nullcontext(engine) as connection:
         source = read_stream_source(connection, identifier)
-        marker = connection.execute(
-            text(
-                "SELECT sequence FROM broker_stream_events WHERE stream_id=:id "
-                "AND sequence<=:through AND event->>'callback'='AccountQueryStarted' "
-                "ORDER BY sequence DESC LIMIT 1"
-            ),
-            {"id": identifier, "through": source["received"]},
-        ).scalar_one_or_none()
-        if marker is None:
+        markers = (
+            connection.execute(
+                text(
+                    "SELECT sequence FROM broker_stream_events WHERE stream_id=:id "
+                    "AND sequence<=:through AND event->>'callback'='AccountQueryStarted' "
+                    "AND (:query IS NULL OR event->'data'->>'query_id'=:query) "
+                    "ORDER BY sequence DESC LIMIT 2"
+                ),
+                {
+                    "id": identifier,
+                    "through": source["received"],
+                    "query": None if query_id is None else str(query_id),
+                },
+            )
+            .scalars()
+            .all()
+        )
+        if not markers:
             return None
+        if query_id is not None and len(markers) != 1:
+            raise ValueError("receiver query identity has repeated starts")
+        marker = markers[0]
         startup = startup_query(connection, identifier)
         context_end = startup["through_sequence"]
         interrupted = connection.execute(
@@ -82,7 +98,7 @@ def latest_query(engine: Engine | Connection, identifier: UUID) -> dict[str, Any
             )
         )
         expected, size, count = 1, 0, 0
-        query_id: str | None = None
+        observed_id: str | None = None
         finished: BrokerEvent | None = None
         through = marker - 1
         started_at: str | None = None
@@ -130,12 +146,12 @@ def latest_query(engine: Engine | Connection, identifier: UUID) -> dict[str, Any
             )
             data = event.data or {}
             if event.sequence == marker:
-                query_id = str(UUID(str(data.get("query_id"))))
+                observed_id = str(UUID(str(data.get("query_id"))))
                 if event.callback != "AccountQueryStarted" or event.channel != "TD":
                     raise ValueError("receiver query window start is invalid")
             if event.callback in {"OnRspUserLogin", "OnFrontDisconnected", "OnHeartBeatWarning"}:
                 failure = "QUERY_SESSION_INTERRUPTED"
-            if event.callback == "AccountQueryFinished" and data.get("query_id") == query_id:
+            if event.callback == "AccountQueryFinished" and data.get("query_id") == observed_id:
                 finished = event
                 if event.channel != "TD" or event.error_id:
                     failure = "QUERY_COMPLETION_INVALID"
@@ -149,7 +165,7 @@ def latest_query(engine: Engine | Connection, identifier: UUID) -> dict[str, Any
     assert isinstance(binding, dict)
     reference: dict[str, object] = {
         "stream_id": str(identifier),
-        "query_id": query_id,
+        "query_id": observed_id,
         "from_sequence": marker,
         "through_sequence": through,
         "started_at": started_at,

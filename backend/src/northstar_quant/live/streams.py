@@ -549,6 +549,16 @@ class LiveStreams:
                 if identifier is None or stream_id == identifier
             )
 
+    def account_query(self, identifier: UUID, query_id: UUID) -> dict[str, Any]:
+        from northstar_quant.broker.query_window import receiver_query
+
+        result = receiver_query(self._engine, identifier, query_id=query_id)
+        if result is None:
+            raise LookupError("receiver query not found")
+        if result["finished_at"] is None:
+            raise ValueError("receiver query is not finished")
+        return result
+
     def refresh_account(self, stream_id: UUID, *, request_id: UUID) -> dict[str, object]:
         if self._check_ownership is None:
             raise ValueError("account query requires an owned Live instance")
@@ -963,7 +973,7 @@ class LiveStreams:
         )
 
     def get(self, identifier: UUID) -> dict[str, object]:
-        from northstar_quant.broker.query_window import latest_query
+        from northstar_quant.broker.query_window import receiver_query
         from northstar_quant.broker.stream_queries import startup_query
 
         with self._engine.connect() as connection:
@@ -1020,7 +1030,7 @@ class LiveStreams:
             "state": state,
             "account_progress": account_progress,
             "startup_query": startup_query(self._engine, identifier),
-            "latest_query": latest_query(self._engine, identifier),
+            "latest_query": receiver_query(self._engine, identifier),
             "market_age_seconds": age,
             "created_at": str(row["created_at"]),
             "updated_at": str(row["updated_at"]),

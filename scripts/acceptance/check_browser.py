@@ -861,6 +861,24 @@ def main() -> None:
                             page.get_by_text("数据不可用", exact=True)
                         ).not_to_be_visible()
                         screenshot("receiver-account-refresh")
+                        expect(page.get_by_role("link", name="查看固定查询", exact=True)).not_to_be_visible()
+                        fixed_query = dict(stream["latest_query"], status="COMPLETE",
+                            reason="FIXED_RECEIVER_QUERY", query_id=refreshed[0]["request_id"],
+                            finished_at=datetime.now(UTC).isoformat())
+                        stream["latest_query"] = fixed_query
+                        pattern = "**/api/streams/browser-synthetic/account-queries/" + fixed_query["query_id"]
+                        page.route(pattern, lambda route: fulfill(route,
+                            "/api/streams/{stream_id}/account-queries/{query_id}", fixed_query))
+                        page.get_by_role("button", name="刷新观察", exact=True).click()
+                        page.get_by_role("link", name="查看固定查询", exact=True).click()
+                        expect(page.get_by_role("heading", name="固定账户查询", exact=True)).to_be_visible()
+                        stream["latest_query"] = dict(fixed_query, status="FAILED", source_hash="c" * 64)
+                        page.reload()
+                        expect(page.get_by_text("b" * 64, exact=True)).to_be_visible()
+                        expect(page.get_by_text("COMPLETE", exact=True)).to_be_visible()
+                        screenshot("receiver-fixed-query")
+                        visit(url + "/streams/browser-synthetic")
+                        page.unroute(pattern)
                         page.unroute("**/api/streams/browser-synthetic/refresh-account")
                         page.get_by_role("button", name="暂停影子计算", exact=True).click()
                         expect(page.get_by_text("操作结果未知", exact=True)).to_be_visible()

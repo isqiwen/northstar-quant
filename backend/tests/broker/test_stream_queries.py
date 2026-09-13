@@ -89,7 +89,7 @@ def test_receiver_incomplete_and_failed_query_cannot_inherit_prior_success(
 def test_receiver_refresh_preserves_session_and_fixed_window(
     live_engine, live_client, tmp_path, monkeypatch, regressed
 ):
-    from northstar_quant.broker.query_window import latest_query
+    from northstar_quant.broker.query_window import receiver_query
 
     library, source, config, calls = prepare(live_engine, tmp_path, monkeypatch)
     client = live_client(live_engine, library).for_operator("owner")
@@ -99,7 +99,7 @@ def test_receiver_refresh_preserves_session_and_fixed_window(
     events = _capture().events
     for event in events:
         calls["accept"](event)
-    assert latest_query(live_engine, identifier) is None
+    assert receiver_query(live_engine, identifier) is None
     sequence = len(events)
 
     def marker(callback, data):
@@ -110,7 +110,7 @@ def test_receiver_refresh_preserves_session_and_fixed_window(
         )
 
     marker("AccountQueryStarted", {"query_id": str(query_id)})
-    assert latest_query(live_engine, identifier)["status"] == "INCOMPLETE"
+    assert receiver_query(live_engine, identifier)["status"] == "INCOMPLETE"
     for event in events:
         if event.callback.startswith("OnRspQry") or (
             event.callback == "RequestSent"
@@ -132,7 +132,7 @@ def test_receiver_refresh_preserves_session_and_fixed_window(
     marker(
         "AccountQueryFinished", {"query_id": str(query_id), "status": "COMPLETE", "reason": None}
     )
-    fixed = latest_query(live_engine, identifier)
+    fixed = receiver_query(live_engine, identifier)
     if regressed:
         assert fixed["status"] == "FAILED"
         assert "QUERY_RECEIPT_TIME_REGRESSED" in fixed["completeness"]["reasons"]
@@ -150,12 +150,16 @@ def test_receiver_refresh_preserves_session_and_fixed_window(
     assert fixed["reconciliation"]["status"] == "UNRECONCILED"
     assert fixed["execution"]["order_sending"] is False
     marker("OnFrontDisconnected", {"Reason": 4097})
-    assert latest_query(live_engine, identifier) == fixed
+    assert receiver_query(live_engine, identifier) == fixed
     marker("AccountQueryStarted", {"query_id": str(uuid4())})
-    assert latest_query(live_engine, identifier)["status"] == "FAILED"
+    assert receiver_query(live_engine, identifier)["status"] == "FAILED"
     assert calls["count"] == 1
     client.streams.control(identifier, "STOP", request_id=uuid4())
-    assert latest_query(live_engine, identifier)["status"] == "FAILED"
+    assert receiver_query(live_engine, identifier)["status"] == "FAILED"
+    assert receiver_query(live_engine, identifier, query_id=query_id) == fixed
+    assert client.streams.account_query(identifier, query_id)["source_hash"] == fixed["source_hash"]
+    with pytest.raises(LookupError, match="not found"):
+        client.streams.account_query(identifier, uuid4())
     with live_engine.begin() as connection:
         connection.exec_driver_sql("DROP TRIGGER immutable_broker_stream_events_UPDATE")
         connection.exec_driver_sql(
@@ -163,4 +167,4 @@ def test_receiver_refresh_preserves_session_and_fixed_window(
             ("0" * 64, identifier.hex, sequence),
         )
     with pytest.raises(ValueError, match="source is missing or damaged"):
-        latest_query(live_engine, identifier)
+        receiver_query(live_engine, identifier)

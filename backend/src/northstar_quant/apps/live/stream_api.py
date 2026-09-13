@@ -108,6 +108,14 @@ class StreamEvent(ApiModel):
     committed_at: str
 
 
+class ReceiverQuery(EvidenceRecord):
+    status: str
+    reason: str
+    through_sequence: int
+    source_hash: str
+    completeness: dict[str, JsonValue]
+
+
 class StreamControl(EvidenceRecord):
     stream_id: str
 
@@ -244,6 +252,16 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             _string_field(payload, "action"),
             request_id=_uuid_field(payload, "request_id"),
         )
+
+    @app.get(
+        "/api/streams/{stream_id}/account-queries/{query_id}",
+        response_model=ReceiverQuery,
+        response_model_exclude_unset=True,
+    )
+    async def account_query(request: Request, stream_id: UUID, query_id: UUID) -> dict[str, object]:
+        access.require_request(request)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.streams.account_query, stream_id, query_id)
 
     @app.post(
         "/api/streams/{stream_id}/refresh-account",

@@ -312,6 +312,8 @@ export type ReceiverQuery = {
   source_hash: string;
   completeness: Record<string, JsonValue>;
   account_observation?: Record<string, JsonValue>;
+  query_id?: string;
+  finished_at?: string;
   [key: string]: unknown;
 };
 export type StreamDetail = {

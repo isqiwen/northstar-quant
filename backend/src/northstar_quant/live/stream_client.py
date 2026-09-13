@@ -53,6 +53,9 @@ class StreamsClient:
     def control(self, identifier: UUID, action: str, *, request_id: UUID) -> dict[str, Any]:
         return self._live.mutate(f"/streams/{identifier}/control", {"action": action}, request_id)
 
+    def account_query(self, identifier: UUID, query_id: UUID) -> dict[str, Any]:
+        return self._live.read(f"/streams/{identifier}/account-queries/{query_id}")
+
     def refresh_account(self, identifier: UUID, *, request_id: UUID) -> dict[str, Any]:
         return self._live.mutate(f"/streams/{identifier}/refresh-account", {}, request_id)
 

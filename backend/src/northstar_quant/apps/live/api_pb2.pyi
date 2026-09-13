@@ -824,7 +824,7 @@ class StreamDecision(_message.Message):
     def __init__(self, sequence: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class ReceiverQuery(_message.Message):
-    __slots__ = ("status", "reason", "through_sequence", "source_hash", "completeness", "account_observation", "evidence_fields")
+    __slots__ = ("status", "reason", "through_sequence", "source_hash", "completeness", "account_observation", "query_id", "finished_at", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -838,6 +838,8 @@ class ReceiverQuery(_message.Message):
     SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
     COMPLETENESS_FIELD_NUMBER: _ClassVar[int]
     ACCOUNT_OBSERVATION_FIELD_NUMBER: _ClassVar[int]
+    QUERY_ID_FIELD_NUMBER: _ClassVar[int]
+    FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     status: str
     reason: str
@@ -845,8 +847,10 @@ class ReceiverQuery(_message.Message):
     source_hash: str
     completeness: _struct_pb2.Struct
     account_observation: _struct_pb2.Struct
+    query_id: str
+    finished_at: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, status: _Optional[str] = ..., reason: _Optional[str] = ..., through_sequence: _Optional[int] = ..., source_hash: _Optional[str] = ..., completeness: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., account_observation: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, status: _Optional[str] = ..., reason: _Optional[str] = ..., through_sequence: _Optional[int] = ..., source_hash: _Optional[str] = ..., completeness: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., account_observation: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., query_id: _Optional[str] = ..., finished_at: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class StreamDetail(_message.Message):
     __slots__ = ("account_progress", "archives", "binding", "connection", "cursor", "paused", "received", "steps", "stream_id", "startup_query", "latest_query", "evidence_fields")
