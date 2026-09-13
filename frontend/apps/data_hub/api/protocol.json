@@ -1611,6 +1611,20 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.AssembleResearchRequest": {
+      "fields": {
+        "snapshot_ids": {
+          "id": 1,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.web.Empty": {
       "fields": {},
       "array": false,
@@ -1991,6 +2005,13 @@
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/research-inputs/assemble",
+      "input": "northstar.data_hub.AssembleResearchRequest",
+      "output": "northstar.data_hub.DatasetDetails",
+      "runtime": false
+    },
     {
       "method": "POST",
       "path": "/api/research-inputs",

@@ -18124,6 +18124,264 @@ export const northstar = $root.northstar = (() => {
             return PrepareResearchRequest;
         })();
 
+        data_hub.AssembleResearchRequest = (function() {
+
+            /**
+             * Properties of an AssembleResearchRequest.
+             * @typedef {Object} northstar.data_hub.AssembleResearchRequest.$Properties
+             * @property {Array.<string>|null} [snapshot_ids] AssembleResearchRequest snapshot_ids
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an AssembleResearchRequest.
+             * @memberof northstar.data_hub
+             * @interface IAssembleResearchRequest
+             * @augments northstar.data_hub.AssembleResearchRequest.$Properties
+             * @deprecated Use northstar.data_hub.AssembleResearchRequest.$Properties instead.
+             */
+
+            /**
+             * Shape of an AssembleResearchRequest.
+             * @typedef {northstar.data_hub.AssembleResearchRequest.$Properties} northstar.data_hub.AssembleResearchRequest.$Shape
+             */
+
+            /**
+             * Constructs a new AssembleResearchRequest.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an AssembleResearchRequest.
+             * @constructor
+             * @param {northstar.data_hub.AssembleResearchRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const AssembleResearchRequest = function (properties) {
+                this.snapshot_ids = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * AssembleResearchRequest snapshot_ids.
+             * @member {Array.<string>} snapshot_ids
+             * @memberof northstar.data_hub.AssembleResearchRequest
+             * @instance
+             */
+            AssembleResearchRequest.prototype.snapshot_ids = $util.emptyArray;
+
+            /**
+             * Creates a new AssembleResearchRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.AssembleResearchRequest
+             * @static
+             * @param {northstar.data_hub.AssembleResearchRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.AssembleResearchRequest} AssembleResearchRequest instance
+             * @type {{
+             *   (properties: northstar.data_hub.AssembleResearchRequest.$Shape): northstar.data_hub.AssembleResearchRequest & northstar.data_hub.AssembleResearchRequest.$Shape;
+             *   (properties?: northstar.data_hub.AssembleResearchRequest.$Properties): northstar.data_hub.AssembleResearchRequest;
+             * }}
+             */
+            AssembleResearchRequest.create = function(properties) {
+                return new AssembleResearchRequest(properties);
+            };
+
+            /**
+             * Encodes the specified AssembleResearchRequest message. Does not implicitly {@link northstar.data_hub.AssembleResearchRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.AssembleResearchRequest
+             * @static
+             * @param {northstar.data_hub.AssembleResearchRequest.$Properties} message AssembleResearchRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            AssembleResearchRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.snapshot_ids != null && message.snapshot_ids.length)
+                    for (let i = 0; i < message.snapshot_ids.length; ++i)
+                        writer.uint32(/* id 1, wireType 2 =*/10).string(message.snapshot_ids[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an AssembleResearchRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.AssembleResearchRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.AssembleResearchRequest & northstar.data_hub.AssembleResearchRequest.$Shape} AssembleResearchRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            AssembleResearchRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.AssembleResearchRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.snapshot_ids && message.snapshot_ids.length))
+                                message.snapshot_ids = [];
+                            message.snapshot_ids.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an AssembleResearchRequest message.
+             * @function verify
+             * @memberof northstar.data_hub.AssembleResearchRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            AssembleResearchRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                if (message.snapshot_ids != null && $Object.hasOwnProperty.call(message, "snapshot_ids")) {
+                    if (!$Array.isArray(message.snapshot_ids))
+                        return "snapshot_ids: array expected";
+                    for (let i = 0; i < message.snapshot_ids.length; ++i)
+                        if (!$util.isString(message.snapshot_ids[i]))
+                            return "snapshot_ids: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an AssembleResearchRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.AssembleResearchRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.AssembleResearchRequest} AssembleResearchRequest
+             */
+            AssembleResearchRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.AssembleResearchRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.AssembleResearchRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.AssembleResearchRequest();
+                if (object.snapshot_ids) {
+                    if (!$Array.isArray(object.snapshot_ids))
+                        throw $TypeError(".northstar.data_hub.AssembleResearchRequest.snapshot_ids: array expected");
+                    message.snapshot_ids = $Array(object.snapshot_ids.length);
+                    for (let i = 0; i < object.snapshot_ids.length; ++i)
+                        message.snapshot_ids[i] = $String(object.snapshot_ids[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an AssembleResearchRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.AssembleResearchRequest
+             * @static
+             * @param {northstar.data_hub.AssembleResearchRequest} message AssembleResearchRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            AssembleResearchRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.snapshot_ids = [];
+                if (message.snapshot_ids && message.snapshot_ids.length) {
+                    object.snapshot_ids = $Array(message.snapshot_ids.length);
+                    for (let j = 0; j < message.snapshot_ids.length; ++j)
+                        object.snapshot_ids[j] = message.snapshot_ids[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this AssembleResearchRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.AssembleResearchRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            AssembleResearchRequest.prototype.toJSON = function() {
+                return AssembleResearchRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for AssembleResearchRequest
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.AssembleResearchRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            AssembleResearchRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.AssembleResearchRequest";
+            };
+
+            return AssembleResearchRequest;
+        })();
+
         return data_hub;
     })();
 

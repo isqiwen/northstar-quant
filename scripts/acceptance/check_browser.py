@@ -439,6 +439,18 @@ def main() -> None:
                     assert shifted["status"] == "PUBLISHED", shifted
                     study_snapshots.append(shifted["snapshot_id"])
                 learning_snapshots = seed_learning(app, spec, study["archive"])
+                with app.web("data-api") as data_url:
+                    visit(data_url + "/datasets")
+                    expect(page.get_by_role("heading", name="研究快照", exact=True)).to_be_visible()
+                    for snapshot in learning_snapshots[:2]:
+                        page.locator(f'tr[data-row-key="{snapshot}"]').get_by_role(
+                            "checkbox"
+                        ).check()
+                    page.get_by_role("button", name="装配研究输入（2）", exact=True).click()
+                    expect(page.get_by_text("研究输入已固定", exact=True)).to_be_visible()
+                    screenshot("research-assembly")
+                    page.get_by_role("link", name=re.compile("查看 .*来源与条款")).click()
+                    expect(page.get_by_role("heading", name=re.compile("固定快照"))).to_be_visible()
                 with (
                     app.api("data-api"),
                     app.research_worker(),

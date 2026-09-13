@@ -24,9 +24,10 @@ P extends `/api/attempts` ? messages.GetApiAttemptsResponse :
 P extends `/api/datasets` ? messages.GetApiDatasetsResponse :
 P extends `/api/sources` ? messages.GetApiSourcesResponse :
 P extends `/api/sync` ? messages.SyncStatus : never;
-export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/explorer/compactions` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/research-inputs` | `/api/explorer/export` | `/api/explorer/query` | `/api/sync/reprocess` | `/api/sync/settings` | `/api/sync/token` | `/api/logout` | `/api/setup` | `/api/login`;
+export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/research-inputs/assemble` | `/api/explorer/compactions` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/research-inputs` | `/api/explorer/export` | `/api/explorer/query` | `/api/sync/reprocess` | `/api/sync/settings` | `/api/sync/token` | `/api/logout` | `/api/setup` | `/api/login`;
 export type CommandResponse<P> = P extends `/api/explorer/compactions/${string}/export` ? messages.ExplorerRows :
 P extends `/api/explorer/compactions/${string}/query` ? messages.ExplorerRows :
+P extends `/api/research-inputs/assemble` ? messages.DatasetDetails :
 P extends `/api/explorer/compactions` ? messages.Compaction :
 P extends `/api/explorer/contracts` ? messages.ExplorerList :
 P extends `/api/explorer/versions` ? messages.ExplorerList :
@@ -43,6 +44,7 @@ P extends `/api/setup` ? messages.BrowserSession :
 P extends `/api/login` ? messages.BrowserSession : never;
 export type CommandBody<P> = P extends `/api/explorer/compactions/${string}/export` ? messages.CompactionPage :
 P extends `/api/explorer/compactions/${string}/query` ? messages.CompactionPage :
+P extends `/api/research-inputs/assemble` ? messages.AssembleResearchRequest :
 P extends `/api/explorer/compactions` ? messages.CompactionRequest :
 P extends `/api/explorer/contracts` ? messages.ContractSearch :
 P extends `/api/explorer/versions` ? messages.ExplorerRange :

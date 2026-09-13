@@ -304,7 +304,15 @@ message PrepareResearchRequest {
   optional string interpretation_reference = 5 [json_name = "interpretation_reference", (northstar.web.required_field) = true];
 }
 
+message AssembleResearchRequest {
+  repeated string snapshot_ids = 1 [(northstar.web.required_field) = true];
+}
+
 service BrowserApi {
+  rpc AssembleResearch (AssembleResearchRequest) returns (DatasetDetails) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/research-inputs/assemble";
+  }
   rpc PostApiResearchInputs (PrepareResearchRequest) returns (ProcessingAttempt) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/research-inputs";

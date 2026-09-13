@@ -249,6 +249,9 @@ export type PrepareResearchRequest = {
   label_convention: "BAR_START" | "BAR_END";
   interpretation_reference: string;
 };
+export type AssembleResearchRequest = {
+  snapshot_ids: (string)[];
+};
 export type Empty = {
 };
 export type Error = {

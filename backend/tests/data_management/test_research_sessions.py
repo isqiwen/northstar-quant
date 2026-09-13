@@ -2,7 +2,7 @@
 
 from dataclasses import replace
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx2
 import pytest
@@ -30,7 +30,7 @@ from northstar_quant.data_management.snapshots.publication import (
 )
 from northstar_quant.data_management.snapshots.service import DatasetSnapshotPublicationService
 from northstar_quant.web.protobuf import decode
-from tests.apps.browser import login_response
+from tests.apps.browser import ProtocolClient, _browser_session, login_response
 from tests.data_management.test_research import _csv, _receive, _spec
 
 
@@ -113,6 +113,36 @@ def _shift(library, path, *, offset, trading_day=None, kind="DAY", symbol="RB260
             symbol=symbol,
         ),
     )
+
+
+def test_browser_assembly_is_authenticated_fixed_and_retryable(
+    postgres_engine,
+    clean_database,
+    tmp_path,
+):
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
+    first = _receive(library, _csv(tmp_path / "day.csv"), _spec())
+    second = _shift(library, tmp_path / "next.csv", offset=timedelta(days=1))
+    body = {"snapshot_ids": [str(second.snapshot_id), str(first.snapshot_id)]}
+    with ProtocolClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
+        assert api.post("/api/research-inputs/assemble", json=body).status_code == 401
+        _browser_session(api)
+        response = api.post("/api/research-inputs/assemble", json=body)
+        assert response.status_code == 200, response.text
+        fixed = response.json()
+        assert fixed["trading_days"] == ["2026-01-07", "2026-01-08"]
+        assert len(fixed["sources"]) == 2
+        assert fixed["settlements"] == []
+        assert fixed["terms"] == []
+        body["snapshot_ids"].reverse()
+        assert api.post("/api/research-inputs/assemble", json=body).json() == fixed
+        duplicate = {"snapshot_ids": [str(first.snapshot_id)] * 2}
+        assert api.post("/api/research-inputs/assemble", json=duplicate).status_code == 422
+    # The response names a complete export usable after the API process exits.
+    saved = PublishedDatasets(library.publications.root).load_dataset(UUID(fixed["snapshot_id"]))
+    assert saved.bars == first.bars + second.bars
+    assert saved.content_hash == fixed["content_hash"]
+    assert library.load_dataset(first.snapshot_id) == first
 
 
 def test_night_day_and_next_day_keep_fixed_sessions_and_offline_parquet(

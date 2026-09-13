@@ -566,3 +566,9 @@ class PrepareResearchRequest(_message.Message):
     label_convention: str
     interpretation_reference: str
     def __init__(self, receipt_id: _Optional[str] = ..., request_id: _Optional[str] = ..., specification: _Optional[_Union[ImportSpecification, _Mapping]] = ..., label_convention: _Optional[str] = ..., interpretation_reference: _Optional[str] = ...) -> None: ...
+
+class AssembleResearchRequest(_message.Message):
+    __slots__ = ("snapshot_ids",)
+    SNAPSHOT_IDS_FIELD_NUMBER: _ClassVar[int]
+    snapshot_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, snapshot_ids: _Optional[_Iterable[str]] = ...) -> None: ...

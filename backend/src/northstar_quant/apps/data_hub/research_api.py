@@ -11,7 +11,7 @@ from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.research_input import ImportSpec
 from northstar_quant.data_management.tushare.research import submit
 from northstar_quant.web.access import WorkspaceAccess
-from northstar_quant.web.datasets import ImportSpecification
+from northstar_quant.web.datasets import DatasetDetails, ImportSpecification
 from northstar_quant.web.requests import ApiModel
 
 from .processing_api import ProcessingAttempt
@@ -25,7 +25,26 @@ class PrepareResearchRequest(ApiModel):
     interpretation_reference: str = Field(min_length=1, max_length=512)
 
 
+class AssembleResearchRequest(ApiModel):
+    snapshot_ids: list[str] = Field(min_length=2, max_length=32)
+
+
 def register(app: FastAPI, access: WorkspaceAccess, library: DataLibrary) -> None:
+    @app.post(
+        "/api/research-inputs/assemble",
+        response_model=DatasetDetails,
+        response_model_exclude_unset=True,
+    )
+    async def assemble(request: Request, document: AssembleResearchRequest) -> dict[str, object]:
+        access.protect(request)
+        fixed = await run_in_threadpool(
+            library.assemble_research, tuple(UUID(item) for item in document.snapshot_ids)
+        )
+        # Economic facts are inherited from fixed publications. The browser
+        # cannot supply substitute fees, settlement prices or trading sessions.
+        assert fixed.details is not None
+        return fixed.details.to_dict()
+
     @app.post(
         "/api/research-inputs",
         response_model=ProcessingAttempt,
