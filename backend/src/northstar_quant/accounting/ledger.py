@@ -98,11 +98,8 @@ def initialize_broker_ledger(connection: Connection) -> None:
             "WHERE json_type(document, '$.source_stream') IS NOT NULL"
         )
         return
-    # Queries and copied stream prefixes are distinct current source kinds. This
-    # changes uniqueness only; retained documents, amounts and hashes stay intact.
+    # Queries and copied stream prefixes have distinct immutable source identities.
     connection.exec_driver_sql("""
-        ALTER TABLE broker_position_entries DROP CONSTRAINT IF EXISTS
-            broker_position_entries_baseline_id_source_batch_id_key;
         CREATE UNIQUE INDEX IF NOT EXISTS broker_position_query_source
             ON broker_position_entries(baseline_id, source_batch_id)
             WHERE NOT (document ? 'source_stream');

@@ -16,7 +16,6 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
-    inspect,
     update,
 )
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
@@ -45,11 +44,6 @@ _commands = Table(
 
 def initialize_live_commands(connection: Connection) -> None:
     _metadata.create_all(connection)
-    if "operator" not in {
-        column["name"] for column in inspect(connection).get_columns("live_commands")
-    }:
-        # Historical commands retain unknown attribution; never invent an operator for old facts.
-        connection.exec_driver_sql("ALTER TABLE live_commands ADD COLUMN operator VARCHAR")
     if connection.dialect.name == "sqlite":
         connection.exec_driver_sql("""
             CREATE TRIGGER IF NOT EXISTS live_command_identity

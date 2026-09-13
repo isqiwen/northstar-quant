@@ -163,13 +163,6 @@ def initialize_library(connection: Connection) -> None:
             "BEGIN SELECT RAISE(ABORT, 'Processing attempts are immutable'); END"
         )
         return
-    # Replace the current constraint without rewriting retained source evidence.
-    connection.exec_driver_sql("""
-        ALTER TABLE data_sources DROP CONSTRAINT IF EXISTS data_sources_input_kind_check;
-        ALTER TABLE data_sources ADD CONSTRAINT data_sources_input_kind_check
-        CHECK (input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV',
-                             'CTP_CALLBACK_SEGMENT', 'TUSHARE_RESPONSE'))
-    """)
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION data_reject_source_change() RETURNS trigger AS $$
         BEGIN

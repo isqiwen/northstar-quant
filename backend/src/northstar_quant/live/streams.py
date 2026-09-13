@@ -234,7 +234,9 @@ class LiveStreams:
         self._configurations = StrategyMaterials(engine)
         self._ledger = BrokerLedger(engine)
         self._check_ownership = check_ownership
-        self._guard = threading.Lock()
+        # Idempotent start reads the existing session while holding this guard;
+        # its status also reads the attached receiver's cancellation capability.
+        self._guard = threading.RLock()
         self._order_controls: dict[UUID, ReceiverOrders] = {}
         self._workers: dict[UUID, tuple[threading.Thread, threading.Event]] = {}
 
