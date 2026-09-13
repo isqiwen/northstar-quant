@@ -140,6 +140,7 @@ def clean_database(postgres_engine: Engine) -> None:
             "broker_account_baselines",
             "broker_baseline_checks",
             "broker_position_entries",
+            "account_journal",
             "broker_position_checks",
             "broker_order_checks",
             "broker_streams",

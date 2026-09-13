@@ -153,6 +153,7 @@ def initialize(engine: Engine) -> None:
 
 def require_current(engine: Engine) -> None:
     required = {
+        "account_journal",
         "live_execution_authorizations",
         "live_execution_revocations",
         "northstar_store",

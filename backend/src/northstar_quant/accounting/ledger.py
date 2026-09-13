@@ -12,6 +12,7 @@ import hashlib
 import json
 from contextlib import nullcontext
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
@@ -34,6 +35,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from northstar_quant import code_revision
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.broker_account import project_account
+from northstar_quant.accounting.journal import AccountJournalError
 from northstar_quant.accounting.position_projection import (
     derive_position_check,
     derive_position_entry,
@@ -76,6 +78,9 @@ _MAX_ENTRIES = 1000
 
 
 def initialize_broker_ledger(connection: Connection) -> None:
+    from northstar_quant.accounting.journal import initialize
+
+    initialize(connection)
     _metadata.create_all(connection)
     if connection.dialect.name == "sqlite":
         for table_name in ("broker_position_entries", "broker_position_checks"):
@@ -565,12 +570,38 @@ class BrokerLedger:
                 **projection,
                 "scope": "SAME_DAY_FLAT_START_SHFE_SPECULATION",
                 "cash_projection": None,
+                "monetary_status": "UNAVAILABLE",
                 "fees": "NOT_ESTABLISHED",
                 "reconciliation": "UNRECONCILED",
                 "execution": dict(_EXECUTION),
             }
             if prefix is not None:
                 document["source_stream"] = _stream_reference(prefix, after_sequence)
+            if (prefix is not None or projection["added_fills"] or history) and all(
+                item["position_projection"]["status"] == "KNOWN" for item in [*history, document]
+            ):
+                from northstar_quant.accounting.broker_account import entry_facts
+                from northstar_quant.accounting.journal import post
+
+                try:
+                    with connection.begin_nested():
+                        market = resolve_contract().market
+                        document["monetary_status"] = "POSTED"
+                        post(
+                            connection,
+                            str(baseline_id),
+                            opening_cash=Decimal(baseline["opening"]["funds"]["Balance"]),
+                            markets=(market,),
+                            facts=entry_facts(document),
+                            source_id=document["entry_id"],
+                            source_hash=_hash(document),
+                        )
+                except AccountJournalError:
+                    raise
+                except ValueError:
+                    # Keep confirmed raw evidence even if its monetary meaning
+                    # cannot yet be valued. A missing journal prefix is unavailable.
+                    document["monetary_status"] = "UNAVAILABLE"
             connection.execute(
                 _entries.insert().values(
                     entry_id=request_id,
@@ -685,6 +716,8 @@ class BrokerLedger:
         }
         if any(entry["position_projection"]["status"] != "KNOWN" for entry in history):
             return unavailable
+        if history[-1]["monetary_status"] != "POSTED":
+            return unavailable
         markets: dict[UUID, Instrument] = {}
         for entry in history:
             missing = {UUID(fill["contract_id"]) for fill in entry["added_fills"]} - markets.keys()
@@ -719,8 +752,21 @@ class BrokerLedger:
                     # second SQLite writer inside the owning funds transaction.
                     return unavailable
                 markets[contract.contract_id] = contract.market
-            return project_account(baseline, history, tuple(markets.values()))
-        except ValueError:
+            from northstar_quant.accounting.journal import replay
+
+            with self._engine.connect() as connection:
+                account = replay(
+                    connection,
+                    baseline["baseline_id"],
+                    source_id=history[-1]["entry_id"],
+                    source_hash=_hash(history[-1]),
+                )
+            if any(account.market(identity) != market for identity, market in markets.items()):
+                raise AccountJournalError("account economics differ from verified broker contracts")
+            return project_account(baseline, history, account)
+        except AccountJournalError:
+            raise
+        except (ValueError, LookupError):
             # Keep the accepted external fills; unsupported valuation is not a
             # reason to discard them, replace prices or invent account cash.
             return unavailable
@@ -777,11 +823,35 @@ class BrokerLedger:
         }
 
     def verify_all(self) -> dict[str, int]:
+        from northstar_quant.accounting.broker_account import entry_facts
+        from northstar_quant.accounting.journal import verify_all, verify_source
+
         counts = {"position_entries_count": 0, "position_checks_count": 0}
         with self._engine.connect() as connection:
             baseline_ids = list(connection.scalars(select(_entries.c.baseline_id).distinct()))
+            accounts = verify_all(connection)
+            if not set(accounts) <= {str(value) for value in baseline_ids}:
+                raise AccountJournalError("monetary journal has no retained account source")
             for baseline_id in baseline_ids:
-                counts["position_entries_count"] += len(self._history(baseline_id))
+                if str(baseline_id) in accounts:
+                    baseline = self._baselines.get_baseline(baseline_id)
+                    if accounts[str(baseline_id)].initial_cash != Decimal(
+                        baseline["opening"]["funds"]["Balance"]
+                    ):
+                        raise AccountJournalError(
+                            "account opening differs from its verified source"
+                        )
+                history = self._history(baseline_id)
+                counts["position_entries_count"] += len(history)
+                for entry in history:
+                    if entry["monetary_status"] == "POSTED":
+                        verify_source(
+                            connection,
+                            str(baseline_id),
+                            entry["entry_id"],
+                            _hash(entry),
+                            entry_facts(entry),
+                        )
             for check_id in connection.scalars(select(_checks.c.check_id)).yield_per(100):
                 self.get_check(check_id)
                 counts["position_checks_count"] += 1
