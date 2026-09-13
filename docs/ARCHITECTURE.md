@@ -917,3 +917,11 @@ OrderJournal 在新开仓事务中检查整个实例账户的 UNKNOWN、事实�
 成交仍进入同一来源批次的账户事实链，金额覆盖标为 PARTIAL；原始记录和未知原因
 完整保留。部分入账不提供可用现金或执行许可，恢复重新推导相同的事实子集。
 若已支持的事实本身无法按账户持仓应用，整个金额批次回滚，原始回报仍保留。
+
+2026-09-13 核对 [上期所螺纹钢业务细则](https://www.shfe.com.cn/regulation/exchangerules/productrules/202512/t20251231_829962.html)
+及 [交易时间](https://www.shfe.cn/services/calenderandholidays/tradinghours/)，确认 RB 合约
+单位 10 吨/手、最小价格变动 1 元/吨及分段日盘。Tushare [ft_mins](https://tushare.pro/document/2?doc_id=313)
+明确五个原生周期，但该接口说明不足以核实历史首次可得时间和夜盘开盘标签。
+留存 RB2610 的 15 分钟数据按显式 BAR_END/FINAL_REVISED 假设通过日盘装配；
+夜盘 21:00 的额外记录仍拒绝完整 Bar 准入。未将此假设提升为已确认供应商时标，
+也未用当前合约最低保证金替代历史账户的有效保证金与费用。
