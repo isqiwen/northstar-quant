@@ -42,7 +42,7 @@ def receiver_query(
                 text(
                     "SELECT sequence FROM broker_stream_events WHERE stream_id=:id "
                     "AND sequence<=:through AND event->>'callback'='AccountQueryStarted' "
-                    "AND (:query IS NULL OR event->'data'->>'query_id'=:query) "
+                    "AND (CAST(:query AS TEXT) IS NULL OR event->'data'->>'query_id'=:query) "
                     "ORDER BY sequence DESC LIMIT 2"
                 ),
                 {
