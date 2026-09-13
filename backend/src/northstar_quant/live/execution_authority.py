@@ -13,6 +13,7 @@ from uuid import UUID
 
 from sqlalchemy import Connection, Engine
 
+from northstar_quant.broker.stream_queries import startup_query
 from northstar_quant.broker.stream_records import read_stream_source, text
 from northstar_quant.execution.orders import OrderBudget, PendingOrder
 from northstar_quant.persistence.sql import write_transaction
@@ -294,6 +295,26 @@ class ExecutionAuthority:
             raise ValueError("execution receiver is stopped or paused")
         if stream["cursor"] != stream["received"]:
             raise ValueError("execution requires processing every retained receiver callback")
+        query = startup_query(connection, stream_id)
+        if query["status"] != "COMPLETE":
+            raise ValueError("execution requires this receiver's complete startup query")
+        if (
+            connection.execute(
+                text(
+                    "SELECT 1 FROM broker_stream_events WHERE stream_id=:id "
+                    "AND sequence>:after AND sequence<=:through "
+                    "AND event->>'callback' IN "
+                    "('OnRspUserLogin','OnFrontDisconnected','OnHeartBeatWarning') LIMIT 1"
+                ),
+                {
+                    "id": stream_id,
+                    "after": query["through_sequence"],
+                    "through": stream["received"],
+                },
+            ).first()
+            is not None
+        ):
+            raise ValueError("execution startup query belongs to an interrupted receiver session")
         if order.expires_at > datetime.fromisoformat(document["request"]["expires_at"]):
             raise ValueError("order outlives execution consent")
         limits = ExecutionLimits.from_dict(document["request"]["limits"])

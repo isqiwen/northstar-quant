@@ -9,17 +9,40 @@ import pytest
 from northstar_quant.execution.journal import OrderJournal
 from northstar_quant.live.execution_authority import ExecutionAuthority
 from tests.execution.test_journal import request
-from tests.live.test_streams import logins, prepare, start
+from tests.live.test_streams import prepare, start
 
 
 @pytest.fixture
-def consent_context(live_engine, live_client, tmp_path, monkeypatch):
+def consent_context(live_engine, live_client, tmp_path, monkeypatch, request):
     library, source, config, calls = prepare(live_engine, tmp_path, monkeypatch)
     client = live_client(live_engine, library)
     stream_id = uuid4()
     start(client.streams, source, config, stream_id)
     assert calls["ready"].wait(3)
-    logins(calls["accept"])
+    from northstar_quant.broker.events import BrokerEvent
+    from northstar_quant.broker.records import BrokerRecords
+
+    events = BrokerRecords(live_engine).get(source)["capture"]["events"]
+    for saved in events:
+        event = BrokerEvent.from_dict(saved)
+        if not getattr(request, "param", True) and event.callback == "OnRspQryTradingAccount":
+            break
+        calls["accept"](event)
+        if event.callback == "OnRspSubMarketData" and event.is_last:
+            break
+    if getattr(request, "param", None) == "relogin":
+        login = next(
+            BrokerEvent.from_dict(saved)
+            for saved in events
+            if saved["channel"] == "TD" and saved["callback"] == "OnRspUserLogin"
+        )
+        calls["accept"](
+            replace(
+                login,
+                sequence=event.sequence + 1,
+                received_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            )
+        )
     runtime = UUID(client.status()["runtime_id"])
     body = dict(
         stream_id=str(stream_id),
@@ -117,12 +140,12 @@ def test_retained_unprocessed_callback_blocks_new_order_before_account_admission
     from northstar_quant.broker.stream_records import append_stream_event
     from northstar_quant.persistence.sql import write_transaction
 
-    _, stream_id, _, authority, _ = consent_context
+    client, stream_id, _, authority, _ = consent_context
     identifier, order = grant(consent_context), order_for(consent_context)
     # The source commit can survive process failure before account/strategy
     # processing. An old READY account must not hide this retained information.
     event = BrokerEvent(
-        3,
+        client.streams.get(stream_id)["received"] + 1,
         "TD",
         "OnFrontDisconnected",
         None,
@@ -136,6 +159,66 @@ def test_retained_unprocessed_callback_blocks_new_order_before_account_admission
     checked, sent = [], []
     journal = OrderJournal(live_engine, authority.runtime_id)
     with pytest.raises(ValueError, match="every retained receiver callback"):
+        journal.submit(
+            order,
+            identifier,
+            admit=lambda connection: authority.admit(
+                connection,
+                identifier,
+                stream_id,
+                order,
+                check_current_account=checked.append,
+            ),
+            dispatch=sent.append,
+        )
+    assert checked == sent == []
+    with pytest.raises(LookupError):
+        journal.get(order.order_id)
+
+
+@pytest.mark.parametrize("consent_context", [False], indirect=True)
+def test_prior_query_cannot_replace_receiver_query_at_durable_admission(
+    live_engine, consent_context
+):
+    from northstar_quant.broker.records import BrokerRecords
+
+    client, stream_id, _, authority, _ = consent_context
+    identifier, order = grant(consent_context), order_for(consent_context)
+    stream = client.streams.get(stream_id)
+    prior = UUID(stream["binding"]["request"]["query_batch_id"])
+    assert BrokerRecords(live_engine).get(prior)["status"] == "COMPLETE"
+    assert stream["startup_query"]["status"] == "INCOMPLETE"
+    journal = OrderJournal(live_engine, authority.runtime_id)
+    checked, sent = [], []
+    with pytest.raises(ValueError, match="receiver's complete startup query"):
+        journal.submit(
+            order,
+            identifier,
+            admit=lambda connection: authority.admit(
+                connection,
+                identifier,
+                stream_id,
+                order,
+                check_current_account=checked.append,
+            ),
+            dispatch=sent.append,
+        )
+    assert checked == sent == []
+    with pytest.raises(LookupError):
+        journal.get(order.order_id)
+
+
+@pytest.mark.parametrize("consent_context", ["relogin"], indirect=True)
+def test_new_login_without_disconnect_cannot_reuse_old_startup_query(live_engine, consent_context):
+    client, stream_id, _, authority, _ = consent_context
+    identifier, order = grant(consent_context), order_for(consent_context)
+    stream = client.streams.get(stream_id)
+    assert stream["startup_query"]["status"] == "COMPLETE"
+    assert stream["received"] == stream["cursor"]
+    assert stream["received"] > stream["startup_query"]["through_sequence"]
+    journal = OrderJournal(live_engine, authority.runtime_id)
+    checked, sent = [], []
+    with pytest.raises(ValueError, match="interrupted receiver session"):
         journal.submit(
             order,
             identifier,

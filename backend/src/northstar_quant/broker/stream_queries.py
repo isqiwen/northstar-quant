@@ -4,24 +4,25 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import nullcontext
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Engine
+from sqlalchemy import Connection, Engine
 
 from .events import MAX_CAPTURE_BYTES, MAX_EVENTS, BrokerEvent, QueryCapture, canonical_bytes
 from .query_projection import project_query
 from .stream_records import read_stream_source, text
 
 
-def startup_query(engine: Engine, identifier: UUID) -> dict[str, Any]:
+def startup_query(engine: Engine | Connection, identifier: UUID) -> dict[str, Any]:
     """Return historical startup evidence, never a current account certificate.
 
     The native receiver performs its standard queries before subscribing to MD.
     Stop at that first subscription response; later fills, disconnects or logins
     cannot silently rewrite the original observation. No SDK or catalog writes.
     """
-    with engine.connect() as connection:
+    with engine.connect() if isinstance(engine, Engine) else nullcontext(engine) as connection:
         source = read_stream_source(connection, identifier)
         binding = source["binding"]
         assert isinstance(binding, dict)
