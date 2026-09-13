@@ -88,11 +88,13 @@ def check_opening_order(page, base_url, runtime_id, template, screenshot):
         page.get_by_title(consent_id, exact=True).click()
         button = page.get_by_role("button", name="提交一手 SimNow 开仓", exact=True)
         expect(button).to_be_enabled()
+        expect(button).to_have_attribute("aria-busy", "false")
         button.click()
         expect(
             page.get_by_text("资金查询已过期，请刷新账户并重新计算预算。", exact=True)
         ).to_be_visible()
         expect(button).to_be_enabled()
+        expect(button).to_have_attribute("aria-busy", "false")
         button.click()
         expect(
             page.get_by_text("操作已完成，结果仍有未知项，请查看记录", exact=True)

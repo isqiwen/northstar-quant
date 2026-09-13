@@ -188,6 +188,8 @@ export function Action<P extends CommandPath>({
           htmlType="submit"
           disabled={!runtime.canControl || disabled}
           loading={busy}
+          aria-label={title}
+          aria-busy={busy}
         >
           {title}
         </Button>
