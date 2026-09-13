@@ -781,6 +781,16 @@ def main() -> None:
                                 {"budgets": [], "order_checks": []},
                             ),
                         )
+                        page.route(
+                            "**/api/broker/queries/"
+                            + stream["binding"]["request"]["query_batch_id"]
+                            + "/ledger-context",
+                            lambda route: fulfill(
+                                route,
+                                "/api/broker/queries/{batch_id}/ledger-context",
+                                {"baseline_id": None, "entries": [], "checks": []},
+                            ),
+                        )
                         commands = []
 
                         def lost(route):
@@ -804,6 +814,7 @@ def main() -> None:
                         expect(page.get_by_text("INCOMPLETE", exact=True)).to_be_visible()
                         expect(page.get_by_text("a" * 64, exact=True)).to_be_visible()
                         expect(page.get_by_text("它不是当前余额", exact=False)).to_be_visible()
+                        expect(page.get_by_text("数据不可用", exact=True)).not_to_be_visible()
                         screenshot("receiver-startup-query")
                         page.get_by_role("button", name="暂停影子计算", exact=True).click()
                         expect(page.get_by_text("操作结果未知", exact=True)).to_be_visible()

@@ -281,7 +281,10 @@ class ExecutionAuthority:
             raise ValueError("execution consent does not cover this contract")
         stream = (
             connection.execute(
-                text("SELECT status, paused FROM broker_streams WHERE stream_id=:id"),
+                text(
+                    "SELECT status, paused, received, cursor FROM broker_streams "
+                    "WHERE stream_id=:id"
+                ),
                 {"id": stream_id},
             )
             .mappings()
@@ -289,6 +292,8 @@ class ExecutionAuthority:
         )
         if stream["status"] != "RECEIVING" or stream["paused"]:
             raise ValueError("execution receiver is stopped or paused")
+        if stream["cursor"] != stream["received"]:
+            raise ValueError("execution requires processing every retained receiver callback")
         if order.expires_at > datetime.fromisoformat(document["request"]["expires_at"]):
             raise ValueError("order outlives execution consent")
         limits = ExecutionLimits.from_dict(document["request"]["limits"])

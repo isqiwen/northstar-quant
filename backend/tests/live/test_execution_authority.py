@@ -110,6 +110,49 @@ def test_consent_does_not_substitute_for_current_account_and_commits_with_order(
     )  # Rejection does not silently replenish the operator's total-attempt limit.
 
 
+def test_retained_unprocessed_callback_blocks_new_order_before_account_admission(
+    live_engine, consent_context
+):
+    from northstar_quant.broker.events import BrokerEvent
+    from northstar_quant.broker.stream_records import append_stream_event
+    from northstar_quant.persistence.sql import write_transaction
+
+    _, stream_id, _, authority, _ = consent_context
+    identifier, order = grant(consent_context), order_for(consent_context)
+    # The source commit can survive process failure before account/strategy
+    # processing. An old READY account must not hide this retained information.
+    event = BrokerEvent(
+        3,
+        "TD",
+        "OnFrontDisconnected",
+        None,
+        None,
+        datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        0,
+        {"Reason": 4097},
+    )
+    with write_transaction(live_engine) as connection:
+        append_stream_event(connection, stream_id, event, receiving=True)
+    checked, sent = [], []
+    journal = OrderJournal(live_engine, authority.runtime_id)
+    with pytest.raises(ValueError, match="every retained receiver callback"):
+        journal.submit(
+            order,
+            identifier,
+            admit=lambda connection: authority.admit(
+                connection,
+                identifier,
+                stream_id,
+                order,
+                check_current_account=checked.append,
+            ),
+            dispatch=sent.append,
+        )
+    assert checked == sent == []
+    with pytest.raises(LookupError):
+        journal.get(order.order_id)
+
+
 @pytest.mark.parametrize(
     "change", ["contract", "expiry", "money", "quantity", "runtime", "pause", "revoked"]
 )
