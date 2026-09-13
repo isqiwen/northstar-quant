@@ -8,9 +8,7 @@ from northstar_quant.web.protobuf import decode, methods, pack
 
 
 def check_closing_order(page, base_url, runtime_id, template, screenshot):
-    stream_id, budget_id, consent_id, order_id, query_id = (
-        str(uuid4()) for _ in range(5)
-    )
+    stream_id, budget_id, consent_id, order_id, query_id = (str(uuid4()) for _ in range(5))
     stream = {
         **template,
         "stream_id": stream_id,
@@ -51,15 +49,11 @@ def check_closing_order(page, base_url, runtime_id, template, screenshot):
     def fulfill(route, path, value):
         route.fulfill(
             content_type="application/protobuf",
-            body=pack(
-                methods("live")[("GET", path)].output_type, value
-            ).SerializeToString(),
+            body=pack(methods("live")[("GET", path)].output_type, value).SerializeToString(),
         )
 
     def submit(route):
-        descriptor = methods("live")[
-            ("POST", "/api/streams/{stream_id}/closing-orders")
-        ]
+        descriptor = methods("live")[("POST", "/api/streams/{stream_id}/closing-orders")]
         body = decode(descriptor.input_type, route.request.post_data_buffer)
         assert route.request.headers["x-live-runtime-id"] == runtime_id
         assert body["opening_order_id"] == order_id and body["query_id"] == query_id
@@ -94,9 +88,7 @@ def check_closing_order(page, base_url, runtime_id, template, screenshot):
         patterns[1],
         lambda route: fulfill(route, "/api/broker/opening-budgets/{budget_id}", budget),
     )
-    page.route(
-        patterns[2], lambda route: fulfill(route, "/api/streams/{stream_id}", stream)
-    )
+    page.route(patterns[2], lambda route: fulfill(route, "/api/streams/{stream_id}", stream))
     page.route(
         patterns[3],
         lambda route: fulfill(

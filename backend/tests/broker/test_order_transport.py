@@ -166,9 +166,7 @@ def test_ctp_close_age_and_exact_limit_are_preserved(live_engine, offset, wire):
         check_owner=lambda: None,
     )
     assert calls[0][1]["CombOffsetFlag"] == wire and calls[0][1]["Direction"] == "1"
-    adapter.journal.report(
-        order.order_id, evidence_id=uuid4(), state="ACCEPTED", cumulative_lots=0
-    )
+    adapter.journal.report(order.order_id, evidence_id=uuid4(), state="ACCEPTED", cumulative_lots=0)
     changed = replace(request(), contract_id=uuid4())
     bad = dict(instrument(changed), PriceTick="3")
     with pytest.raises(ValueError, match="off tick"):

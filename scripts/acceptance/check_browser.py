@@ -230,16 +230,10 @@ def main() -> None:
                     )
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("3 条记录", exact=True)).to_be_visible()
-                    expect(
-                        page.get_by_role("img", name="固定数据结算价曲线")
-                    ).to_be_visible()
+                    expect(page.get_by_role("img", name="固定数据结算价曲线")).to_be_visible()
                     expect(page.get_by_text("结算参数明细", exact=True)).to_be_visible()
-                    expect(
-                        page.get_by_role("cell", name="3100.125", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        page.get_by_role("cell", name="0.06", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_role("cell", name="3100.125", exact=True)).to_be_visible()
+                    expect(page.get_by_role("cell", name="0.06", exact=True)).to_be_visible()
                     screenshot("settlement")
                     visit(
                         data_url + "/versions?dataset=settlement&scope=RB2610.SHF"
@@ -255,14 +249,10 @@ def main() -> None:
                         )
                     ).to_be_visible()
                     expect(
-                        page.get_by_role("dialog").get_by_role(
-                            "cell", name="0.05", exact=True
-                        )
+                        page.get_by_role("dialog").get_by_role("cell", name="0.05", exact=True)
                     ).to_be_visible()
                     expect(
-                        page.get_by_role("dialog").get_by_role(
-                            "cell", name="0.06", exact=True
-                        )
+                        page.get_by_role("dialog").get_by_role("cell", name="0.06", exact=True)
                     ).to_be_visible()
                     screenshot("settlement-revision")
                     page.get_by_role("dialog").locator(".ant-modal-close").click()
@@ -880,9 +870,7 @@ def main() -> None:
                             descriptor = methods("live")[
                                 ("POST", "/api/streams/{stream_id}/refresh-account")
                             ]
-                            body = decode(
-                                descriptor.input_type, route.request.post_data_buffer
-                            )
+                            body = decode(descriptor.input_type, route.request.post_data_buffer)
                             refreshed.append(body)
                             stream["latest_query"] = {
                                 "status": "INCOMPLETE",
@@ -908,16 +896,10 @@ def main() -> None:
                             "**/api/streams/browser-synthetic/refresh-account",
                             account_refresh,
                         )
-                        page.get_by_role(
-                            "button", name="刷新接收账户", exact=True
-                        ).click()
-                        expect(
-                            page.get_by_text("接收连接的最新查询", exact=True)
-                        ).to_be_visible()
+                        page.get_by_role("button", name="刷新接收账户", exact=True).click()
+                        expect(page.get_by_text("接收连接的最新查询", exact=True)).to_be_visible()
                         assert len(refreshed) == 1
-                        expect(
-                            page.get_by_text("数据不可用", exact=True)
-                        ).not_to_be_visible()
+                        expect(page.get_by_text("数据不可用", exact=True)).not_to_be_visible()
                         screenshot("receiver-account-refresh")
                         expect(
                             page.get_by_role("link", name="查看固定查询", exact=True)
