@@ -209,6 +209,18 @@ def verify_all(connection: Connection) -> dict[str, Account]:
     return {identity: replay(connection, identity) for identity in identities}
 
 
+def source_ids(connection: Connection, *, prefix: str) -> set[tuple[str, str]]:
+    """Let a source owner audit both sides of its monetary postings on recovery."""
+    return {
+        (row.account_id, row.source_id)
+        for row in connection.execute(
+            select(_entries.c.account_id, _entries.c.source_id).where(
+                _entries.c.source_id.startswith(prefix, autoescape=True)
+            )
+        )
+    }
+
+
 def post(
     connection: Connection,
     account_id: str,

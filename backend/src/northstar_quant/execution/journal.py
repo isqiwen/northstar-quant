@@ -31,8 +31,10 @@ from sqlalchemy import (
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fees import FeeFact
 from northstar_quant.accounting.fills import FillFact
+from northstar_quant.accounting.journal import initialize as initialize_account_journal
 from northstar_quant.persistence.sql import write_transaction
 
+from .accounting import post_fee, verify_fee, verify_fee_sources
 from .orders import PendingOrder, reservation
 
 _metadata = MetaData()
@@ -65,6 +67,7 @@ _events = Table(
 _fees = Table(
     "execution_fees",
     _metadata,
+    Column("account_id", String, nullable=False),
     Column("fee_id", String, primary_key=True),
     Column("supersedes_fee_id", String, nullable=True, unique=True),
     Column("document", JSON, nullable=False),
@@ -76,6 +79,7 @@ _REPORTS = {"UNKNOWN", "ACCEPTED", "PARTIALLY_FILLED", *_TERMINAL}
 def initialize_journal(connection: Connection) -> None:
     if connection.dialect.name != "sqlite":
         raise ValueError("external execution journal requires local SQLite")
+    initialize_account_journal(connection)
     _metadata.create_all(connection)
     connection.exec_driver_sql("""
         CREATE TRIGGER IF NOT EXISTS execution_order_identity BEFORE UPDATE ON execution_orders
@@ -568,9 +572,7 @@ class OrderJournal:
             )
             return _view(row)
 
-    def confirm_fee(
-        self, fact: FeeFact, *, post_account: Callable[[Connection, FeeFact], None]
-    ) -> tuple[dict[str, Any], ...]:
+    def confirm_fee(self, fact: FeeFact, *, account_id: str) -> tuple[dict[str, Any], ...]:
         """Resolve verified fee coverage and account charge in the same writer commit."""
         with write_transaction(self._engine) as connection:
             groups = _fee_orders(connection, fact)
@@ -580,12 +582,21 @@ class OrderJournal:
                 .one_or_none()
             )
             if previous is not None:
-                if previous["document"] != fact.to_dict():
+                if previous["document"] != fact.to_dict() or previous["account_id"] != account_id:
                     raise ValueError("fee identity is bound to different input")
+                verify_fee(connection, account_id, fact)
                 return tuple(_view(_get(connection, identity)) for identity in sorted(groups))
             prior_document = connection.scalar(
                 select(_fees.c.document).where(_fees.c.fee_id == fact.supersedes_fee_id)
             )
+            if (
+                fact.supersedes_fee_id is not None
+                and connection.scalar(
+                    select(_fees.c.account_id).where(_fees.c.fee_id == fact.supersedes_fee_id)
+                )
+                != account_id
+            ):
+                raise ValueError("fee revision belongs to a different account")
             fact.delta_from(None if prior_document is None else FeeFact.from_dict(prior_document))
             if (
                 fact.supersedes_fee_id is not None
@@ -599,6 +610,7 @@ class OrderJournal:
                 raise ValueError("fee revision must replace the current charge, not fork history")
             connection.execute(
                 _fees.insert().values(
+                    account_id=account_id,
                     fee_id=fact.fee_id,
                     supersedes_fee_id=fact.supersedes_fee_id,
                     document=fact.to_dict(),
@@ -631,7 +643,7 @@ class OrderJournal:
                     )
                 )
                 views.append(_view(row))
-            post_account(connection, fact)
+            post_fee(connection, account_id, fact)
             return tuple(views)
 
     def health(self) -> dict[str, int]:
@@ -737,6 +749,10 @@ class OrderJournal:
             )
             if orphan is not None:
                 raise ValueError("execution event has no owned order")
+            verify_fee_sources(
+                connection,
+                set(connection.execute(select(_fees.c.account_id, _fees.c.fee_id)).tuples()),
+            )
             for fee in connection.execute(select(_fees)).mappings().yield_per(100):
                 fee_fact = FeeFact.from_dict(fee["document"])
                 if (
@@ -744,6 +760,7 @@ class OrderJournal:
                     or fee["supersedes_fee_id"] != fee_fact.supersedes_fee_id
                 ):
                     raise ValueError("execution fee identity is damaged")
+                verify_fee(connection, fee["account_id"], fee_fact)
                 for identity in _fee_orders(connection, fee_fact):
                     event = (
                         connection.execute(

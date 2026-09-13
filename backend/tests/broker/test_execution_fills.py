@@ -164,8 +164,9 @@ def test_original_receipt_is_required_after_restart_even_if_oms_fill_survives(
         verify_all(live_engine)
 
 
+@pytest.mark.parametrize("confirm_fee", [False, True])
 def test_matched_execution_account_prefix_and_pending_fee_restore_together(
-    live_engine, receiving, tmp_path
+    live_engine, receiving, tmp_path, confirm_fee
 ):
     from uuid import uuid4
 
@@ -178,6 +179,28 @@ def test_matched_execution_account_prefix_and_pending_fee_restore_together(
     accept(execution(3))
     accept(report(4, state="1", traded=1))
     accept(execution(5))
+    from decimal import Decimal
+
+    from northstar_quant.accounting.fees import FeeFact
+    from northstar_quant.accounting.journal import replay
+
+    account_id = BrokerLedger(live_engine).stream_progress(stream_id)["baseline_id"]
+    if confirm_fee:
+        at = datetime.now(UTC)
+        with live_engine.connect() as connection:
+            fill_id = connection.exec_driver_sql("SELECT fill_id FROM ctp_fill_facts").scalar_one()
+        fee = FeeFact(
+            str(uuid4()),
+            (fill_id,),
+            Decimal("1.5"),
+            "CNY",
+            at,
+            at,
+            "synthetic explicitly verified coverage; not a counter statement",
+        )
+        adapter.journal.confirm_fee(fee, account_id=account_id)
+    with live_engine.connect() as connection:
+        account_before = replay(connection, account_id).checkpoint()
     expected = adapter.journal.get(order.order_id)
     destination = tmp_path / "fills-backup"
     evidence = backup(live_engine, SourceFiles(tmp_path / "archive"), destination)
@@ -189,7 +212,9 @@ def test_matched_execution_account_prefix_and_pending_fee_restore_together(
         assert verify_all(target) == 1
         reopened = OrderJournal(target, uuid4())
         assert reopened.get(order.order_id) == expected
-        assert reopened.get(order.order_id)["fee_pending_lots"] == 1
+        assert reopened.get(order.order_id)["fee_pending_lots"] == (0 if confirm_fee else 1)
+        with target.connect() as connection:
+            assert replay(connection, account_id).checkpoint() == account_before
         assert apply_pending(target, stream_id, 5) == 0
         assert reopened.verify_all() == 1
     finally:

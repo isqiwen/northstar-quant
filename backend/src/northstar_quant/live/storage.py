@@ -182,6 +182,8 @@ def require_current(engine: Engine) -> None:
         names = set(inspect(connection).get_table_names())
         if (
             not required <= names
+            or "account_id"
+            not in {column["name"] for column in inspect(connection).get_columns("execution_fees")}
             or "broker_profile"
             not in {
                 column["name"]
