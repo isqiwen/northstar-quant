@@ -301,3 +301,12 @@ export type SettlementFact = {
   price: string;
   source_reference: string;
 };
+export type CashFlowFact = {
+  cash_flow_id: string;
+  amount: string;
+  currency: string;
+  transferred_at: string;
+  available_at: string;
+  source_reference: string;
+  reverses_id: string | null;
+};

@@ -1,7 +1,8 @@
 from northstar_quant.web import api_options_pb2 as _api_options_pb2
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Mapping as _Mapping
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -67,3 +68,23 @@ class SettlementFact(_message.Message):
     price: str
     source_reference: str
     def __init__(self, settlement_id: _Optional[str] = ..., contract_id: _Optional[str] = ..., trading_day: _Optional[str] = ..., next_trading_day: _Optional[str] = ..., settled_at: _Optional[str] = ..., available_at: _Optional[str] = ..., price: _Optional[str] = ..., source_reference: _Optional[str] = ...) -> None: ...
+
+class CashFlowFact(_message.Message):
+    __slots__ = ("cash_flow_id", "amount", "currency", "transferred_at", "available_at", "source_reference", "reverses_id", "null_fields")
+    CASH_FLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    CURRENCY_FIELD_NUMBER: _ClassVar[int]
+    TRANSFERRED_AT_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_AT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    REVERSES_ID_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    cash_flow_id: str
+    amount: str
+    currency: str
+    transferred_at: str
+    available_at: str
+    source_reference: str
+    reverses_id: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, cash_flow_id: _Optional[str] = ..., amount: _Optional[str] = ..., currency: _Optional[str] = ..., transferred_at: _Optional[str] = ..., available_at: _Optional[str] = ..., source_reference: _Optional[str] = ..., reverses_id: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...

@@ -37,7 +37,11 @@ def check_restore(
         target_name,
     ]
     subprocess.run(
-        ["createdb", *pg_arguments], env=pg_environment, check=True, capture_output=True, timeout=30
+        ["createdb", "--template=template0", "--encoding=UTF8", *pg_arguments],
+        env=pg_environment,
+        check=True,
+        capture_output=True,
+        timeout=30,
     )
     restored = dict(
         environment,

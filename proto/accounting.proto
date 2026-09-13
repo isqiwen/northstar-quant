@@ -37,3 +37,14 @@ message SettlementFact {
   optional string price = 7 [json_name = "price", (northstar.web.required_field) = true];
   optional string source_reference = 8 [json_name = "source_reference", (northstar.web.required_field) = true];
 }
+
+message CashFlowFact {
+  optional string cash_flow_id = 1 [json_name = "cash_flow_id", (northstar.web.required_field) = true];
+  optional string amount = 2 [json_name = "amount", (northstar.web.required_field) = true];
+  optional string currency = 3 [json_name = "currency", (northstar.web.required_field) = true];
+  optional string transferred_at = 4 [json_name = "transferred_at", (northstar.web.required_field) = true];
+  optional string available_at = 5 [json_name = "available_at", (northstar.web.required_field) = true];
+  optional string source_reference = 6 [json_name = "source_reference", (northstar.web.required_field) = true];
+  optional string reverses_id = 7 [json_name = "reverses_id", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}

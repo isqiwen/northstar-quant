@@ -11,11 +11,27 @@ def check_broker_account(page, base_url, visit, screenshot):
 
     identifier, entry = str(uuid4()), str(uuid4())
     prefix = f"/api/broker/queries/{identifier}"
+    flow = {
+        "cash_flow_id": "synthetic-deposit",
+        "amount": "1234567890.123456789012345678",
+        "currency": "CNY",
+        "transferred_at": "2026-09-07T01:00:01+00:00",
+        "available_at": "2026-09-07T01:00:02+00:00",
+        "source_reference": f"stream:{identifier}:2",
+        "reverses_id": None,
+    }
+    reversal = {
+        **flow,
+        "cash_flow_id": "synthetic-reversal",
+        "amount": "-1234567890.123456789012345678",
+        "source_reference": f"stream:{identifier}:3",
+        "reverses_id": flow["cash_flow_id"],
+    }
     values = {
         "": {"batch_id": identifier, "instrument": "SYNTHETIC", "status": "COMPLETE"},
         "/baseline-context": {"baseline": None},
         "/ledger-context": {
-            "entries": [],
+            "entries": [{"entry_id": entry, "added_cash_flows": [flow, reversal]}],
             "checks": [],
             "accounting_projection": {
                 "status": "INCOMPLETE",
@@ -49,6 +65,18 @@ def check_broker_account(page, base_url, visit, screenshot):
         expect(page.get_by_text("未核定", exact=True)).to_be_visible()
         expect(page.get_by_text("未知", exact=True)).to_be_visible()
         screenshot("broker-account-unknown-cash")
+        page.get_by_role("tab", name="资金与费用", exact=True).click()
+        expect(page.get_by_text("已识别资金流水（不代表完整资金核对）", exact=True)).to_be_visible()
+        expect(page.get_by_text(flow["amount"], exact=True)).to_be_visible()
+        expect(page.get_by_text(reversal["amount"], exact=True)).to_be_visible()
+        expect(page.get_by_role("link", name="回报 2", exact=True)).to_have_attribute(
+            "href", f"/streams/{identifier}"
+        )
+        expect(page.get_by_role("row").filter(has_text="synthetic-reversal")).to_contain_text(
+            "synthetic-deposit"
+        )
+        screenshot("broker-cash-flow-reversal")
+        page.get_by_role("tab", name="持仓与委托核对", exact=True).click()
         values["/ledger-context"]["accounting_projection"] = {
             "status": "UNAVAILABLE",
             "through_entry_id": entry,

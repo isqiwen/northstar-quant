@@ -573,7 +573,7 @@ class PositionCheckRequest(_message.Message):
     def __init__(self, entry_id: _Optional[str] = ..., query_batch_id: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
 
 class PositionEntry(_message.Message):
-    __slots__ = ("entry_id", "evidence_fields")
+    __slots__ = ("entry_id", "added_cash_flows", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -582,10 +582,12 @@ class PositionEntry(_message.Message):
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
     ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    ADDED_CASH_FLOWS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     entry_id: str
+    added_cash_flows: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.CashFlowFact]
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, entry_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, entry_id: _Optional[str] = ..., added_cash_flows: _Optional[_Iterable[_Union[_accounting_pb2.CashFlowFact, _Mapping]]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class PositionEntryRequest(_message.Message):
     __slots__ = ("baseline_id", "request_id", "source_batch_id")

@@ -16244,6 +16244,7 @@ export const northstar = $root.northstar = (() => {
              * Properties of a PositionEntry.
              * @typedef {Object} northstar.live.PositionEntry.$Properties
              * @property {string|null} [entry_id] PositionEntry entry_id
+             * @property {Array.<northstar.accounting.CashFlowFact.$Properties>|null} [added_cash_flows] PositionEntry added_cash_flows
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] PositionEntry evidence_fields
              * @property {"entry_id"} [_entry_id] PositionEntry _entry_id
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
@@ -16261,6 +16262,7 @@ export const northstar = $root.northstar = (() => {
              * Narrowed shape of a PositionEntry.
              * @typedef {{
              *   entry_id?: string|null;
+             *   added_cash_flows?: Array.<northstar.accounting.CashFlowFact.$Shape>|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
@@ -16277,6 +16279,7 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
             const PositionEntry = function (properties) {
+                this.added_cash_flows = [];
                 this.evidence_fields = {};
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
@@ -16291,6 +16294,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             PositionEntry.prototype.entry_id = null;
+
+            /**
+             * PositionEntry added_cash_flows.
+             * @member {Array.<northstar.accounting.CashFlowFact.$Properties>} added_cash_flows
+             * @memberof northstar.live.PositionEntry
+             * @instance
+             */
+            PositionEntry.prototype.added_cash_flows = $util.emptyArray;
 
             /**
              * PositionEntry evidence_fields.
@@ -16348,6 +16359,9 @@ export const northstar = $root.northstar = (() => {
                     throw $Error("max depth exceeded");
                 if (message.entry_id != null && $Object.hasOwnProperty.call(message, "entry_id"))
                     writer.uint32(/* id 1, wireType 2 =*/10).string(message.entry_id);
+                if (message.added_cash_flows != null && message.added_cash_flows.length)
+                    for (let i = 0; i < message.added_cash_flows.length; ++i)
+                        $root.northstar.accounting.CashFlowFact.encode(message.added_cash_flows[i], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim();
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -16402,6 +16416,14 @@ export const northstar = $root.northstar = (() => {
                                 break;
                             message.entry_id = reader.stringVerify();
                             message._entry_id = "entry_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.added_cash_flows && message.added_cash_flows.length))
+                                message.added_cash_flows = [];
+                            message.added_cash_flows.push($root.northstar.accounting.CashFlowFact.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
                     case 1000: {
@@ -16478,6 +16500,15 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.entry_id))
                         return "entry_id: string expected";
                 }
+                if (message.added_cash_flows != null && $Object.hasOwnProperty.call(message, "added_cash_flows")) {
+                    if (!$Array.isArray(message.added_cash_flows))
+                        return "added_cash_flows: array expected";
+                    for (let i = 0; i < message.added_cash_flows.length; ++i) {
+                        let error = $root.northstar.accounting.CashFlowFact.verify(message.added_cash_flows[i], _depth + 1);
+                        if (error)
+                            return "added_cash_flows." + error;
+                    }
+                }
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
                     if (!$util.isObject(message.evidence_fields))
                         return "evidence_fields: object expected";
@@ -16511,6 +16542,16 @@ export const northstar = $root.northstar = (() => {
                 let message = new $root.northstar.live.PositionEntry();
                 if (object.entry_id != null)
                     message.entry_id = $String(object.entry_id);
+                if (object.added_cash_flows) {
+                    if (!$Array.isArray(object.added_cash_flows))
+                        throw $TypeError(".northstar.live.PositionEntry.added_cash_flows: array expected");
+                    message.added_cash_flows = $Array(object.added_cash_flows.length);
+                    for (let i = 0; i < object.added_cash_flows.length; ++i) {
+                        if (!$util.isObject(object.added_cash_flows[i]))
+                            throw $TypeError(".northstar.live.PositionEntry.added_cash_flows: object expected");
+                        message.added_cash_flows[i] = $root.northstar.accounting.CashFlowFact.fromObject(object.added_cash_flows[i], _depth + 1);
+                    }
+                }
                 if (object.evidence_fields) {
                     if (!$util.isObject(object.evidence_fields))
                         throw $TypeError(".northstar.live.PositionEntry.evidence_fields: object expected");
@@ -16543,12 +16584,19 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let object = {};
+                if (options.arrays || options.defaults)
+                    object.added_cash_flows = [];
                 if (options.objects || options.defaults)
                     object.evidence_fields = {};
                 if (message.entry_id != null && $Object.hasOwnProperty.call(message, "entry_id")) {
                     object.entry_id = message.entry_id;
                     if (options.oneofs)
                         object._entry_id = "entry_id";
+                }
+                if (message.added_cash_flows && message.added_cash_flows.length) {
+                    object.added_cash_flows = $Array(message.added_cash_flows.length);
+                    for (let j = 0; j < message.added_cash_flows.length; ++j)
+                        object.added_cash_flows[j] = $root.northstar.accounting.CashFlowFact.toObject(message.added_cash_flows[j], options, _depth + 1);
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
@@ -34583,6 +34631,586 @@ export const northstar = $root.northstar = (() => {
             };
 
             return SettlementFact;
+        })();
+
+        accounting.CashFlowFact = (function() {
+
+            /**
+             * Properties of a CashFlowFact.
+             * @typedef {Object} northstar.accounting.CashFlowFact.$Properties
+             * @property {string|null} [cash_flow_id] CashFlowFact cash_flow_id
+             * @property {string|null} [amount] CashFlowFact amount
+             * @property {string|null} [currency] CashFlowFact currency
+             * @property {string|null} [transferred_at] CashFlowFact transferred_at
+             * @property {string|null} [available_at] CashFlowFact available_at
+             * @property {string|null} [source_reference] CashFlowFact source_reference
+             * @property {string|null} [reverses_id] CashFlowFact reverses_id
+             * @property {Array.<string>|null} [null_fields] CashFlowFact null_fields
+             * @property {"cash_flow_id"} [_cash_flow_id] CashFlowFact _cash_flow_id
+             * @property {"amount"} [_amount] CashFlowFact _amount
+             * @property {"currency"} [_currency] CashFlowFact _currency
+             * @property {"transferred_at"} [_transferred_at] CashFlowFact _transferred_at
+             * @property {"available_at"} [_available_at] CashFlowFact _available_at
+             * @property {"source_reference"} [_source_reference] CashFlowFact _source_reference
+             * @property {"reverses_id"} [_reverses_id] CashFlowFact _reverses_id
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CashFlowFact.
+             * @memberof northstar.accounting
+             * @interface ICashFlowFact
+             * @augments northstar.accounting.CashFlowFact.$Properties
+             * @deprecated Use northstar.accounting.CashFlowFact.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a CashFlowFact.
+             * @typedef {{
+             *   cash_flow_id?: string|null;
+             *   amount?: string|null;
+             *   currency?: string|null;
+             *   transferred_at?: string|null;
+             *   available_at?: string|null;
+             *   source_reference?: string|null;
+             *   reverses_id?: string|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _cash_flow_id?: undefined; cash_flow_id?: null }|{ _cash_flow_id?: "cash_flow_id"; cash_flow_id: string })
+             * ) & (
+             *   ({ _amount?: undefined; amount?: null }|{ _amount?: "amount"; amount: string })
+             * ) & (
+             *   ({ _currency?: undefined; currency?: null }|{ _currency?: "currency"; currency: string })
+             * ) & (
+             *   ({ _transferred_at?: undefined; transferred_at?: null }|{ _transferred_at?: "transferred_at"; transferred_at: string })
+             * ) & (
+             *   ({ _available_at?: undefined; available_at?: null }|{ _available_at?: "available_at"; available_at: string })
+             * ) & (
+             *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
+             * ) & (
+             *   ({ _reverses_id?: undefined; reverses_id?: null }|{ _reverses_id?: "reverses_id"; reverses_id: string })
+             * )} northstar.accounting.CashFlowFact.$Shape
+             */
+
+            /**
+             * Constructs a new CashFlowFact.
+             * @memberof northstar.accounting
+             * @classdesc Represents a CashFlowFact.
+             * @constructor
+             * @param {northstar.accounting.CashFlowFact.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CashFlowFact = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CashFlowFact cash_flow_id.
+             * @member {string|null|undefined} cash_flow_id
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            CashFlowFact.prototype.cash_flow_id = null;
+
+            /**
+             * CashFlowFact amount.
+             * @member {string|null|undefined} amount
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            CashFlowFact.prototype.amount = null;
+
+            /**
+             * CashFlowFact currency.
+             * @member {string|null|undefined} currency
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            CashFlowFact.prototype.currency = null;
+
+            /**
+             * CashFlowFact transferred_at.
+             * @member {string|null|undefined} transferred_at
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            CashFlowFact.prototype.transferred_at = null;
+
+            /**
+             * CashFlowFact available_at.
+             * @member {string|null|undefined} available_at
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            CashFlowFact.prototype.available_at = null;
+
+            /**
+             * CashFlowFact source_reference.
+             * @member {string|null|undefined} source_reference
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            CashFlowFact.prototype.source_reference = null;
+
+            /**
+             * CashFlowFact reverses_id.
+             * @member {string|null|undefined} reverses_id
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            CashFlowFact.prototype.reverses_id = null;
+
+            /**
+             * CashFlowFact null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            CashFlowFact.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * CashFlowFact _cash_flow_id.
+             * @member {"cash_flow_id"|undefined} _cash_flow_id
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            $Object.defineProperty(CashFlowFact.prototype, "_cash_flow_id", {
+                get: $util.oneOfGetter($oneOfFields = ["cash_flow_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CashFlowFact _amount.
+             * @member {"amount"|undefined} _amount
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            $Object.defineProperty(CashFlowFact.prototype, "_amount", {
+                get: $util.oneOfGetter($oneOfFields = ["amount"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CashFlowFact _currency.
+             * @member {"currency"|undefined} _currency
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            $Object.defineProperty(CashFlowFact.prototype, "_currency", {
+                get: $util.oneOfGetter($oneOfFields = ["currency"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CashFlowFact _transferred_at.
+             * @member {"transferred_at"|undefined} _transferred_at
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            $Object.defineProperty(CashFlowFact.prototype, "_transferred_at", {
+                get: $util.oneOfGetter($oneOfFields = ["transferred_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CashFlowFact _available_at.
+             * @member {"available_at"|undefined} _available_at
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            $Object.defineProperty(CashFlowFact.prototype, "_available_at", {
+                get: $util.oneOfGetter($oneOfFields = ["available_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CashFlowFact _source_reference.
+             * @member {"source_reference"|undefined} _source_reference
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            $Object.defineProperty(CashFlowFact.prototype, "_source_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["source_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CashFlowFact _reverses_id.
+             * @member {"reverses_id"|undefined} _reverses_id
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             */
+            $Object.defineProperty(CashFlowFact.prototype, "_reverses_id", {
+                get: $util.oneOfGetter($oneOfFields = ["reverses_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CashFlowFact instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.CashFlowFact
+             * @static
+             * @param {northstar.accounting.CashFlowFact.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.CashFlowFact} CashFlowFact instance
+             * @type {{
+             *   (properties: northstar.accounting.CashFlowFact.$Shape): northstar.accounting.CashFlowFact & northstar.accounting.CashFlowFact.$Shape;
+             *   (properties?: northstar.accounting.CashFlowFact.$Properties): northstar.accounting.CashFlowFact;
+             * }}
+             */
+            CashFlowFact.create = function(properties) {
+                return new CashFlowFact(properties);
+            };
+
+            /**
+             * Encodes the specified CashFlowFact message. Does not implicitly {@link northstar.accounting.CashFlowFact.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.CashFlowFact
+             * @static
+             * @param {northstar.accounting.CashFlowFact.$Properties} message CashFlowFact message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CashFlowFact.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.cash_flow_id != null && $Object.hasOwnProperty.call(message, "cash_flow_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.cash_flow_id);
+                if (message.amount != null && $Object.hasOwnProperty.call(message, "amount"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.amount);
+                if (message.currency != null && $Object.hasOwnProperty.call(message, "currency"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.currency);
+                if (message.transferred_at != null && $Object.hasOwnProperty.call(message, "transferred_at"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.transferred_at);
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.available_at);
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.source_reference);
+                if (message.reverses_id != null && $Object.hasOwnProperty.call(message, "reverses_id"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.reverses_id);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CashFlowFact message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.CashFlowFact
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.CashFlowFact & northstar.accounting.CashFlowFact.$Shape} CashFlowFact
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CashFlowFact.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.CashFlowFact();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.cash_flow_id = reader.stringVerify();
+                            message._cash_flow_id = "cash_flow_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.amount = reader.stringVerify();
+                            message._amount = "amount";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.currency = reader.stringVerify();
+                            message._currency = "currency";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.transferred_at = reader.stringVerify();
+                            message._transferred_at = "transferred_at";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_at = reader.stringVerify();
+                            message._available_at = "available_at";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_reference = reader.stringVerify();
+                            message._source_reference = "source_reference";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.reverses_id = reader.stringVerify();
+                            message._reverses_id = "reverses_id";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CashFlowFact message.
+             * @function verify
+             * @memberof northstar.accounting.CashFlowFact
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CashFlowFact.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.cash_flow_id != null && $Object.hasOwnProperty.call(message, "cash_flow_id")) {
+                    properties._cash_flow_id = 1;
+                    if (!$util.isString(message.cash_flow_id))
+                        return "cash_flow_id: string expected";
+                }
+                if (message.amount != null && $Object.hasOwnProperty.call(message, "amount")) {
+                    properties._amount = 1;
+                    if (!$util.isString(message.amount))
+                        return "amount: string expected";
+                }
+                if (message.currency != null && $Object.hasOwnProperty.call(message, "currency")) {
+                    properties._currency = 1;
+                    if (!$util.isString(message.currency))
+                        return "currency: string expected";
+                }
+                if (message.transferred_at != null && $Object.hasOwnProperty.call(message, "transferred_at")) {
+                    properties._transferred_at = 1;
+                    if (!$util.isString(message.transferred_at))
+                        return "transferred_at: string expected";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    properties._available_at = 1;
+                    if (!$util.isString(message.available_at))
+                        return "available_at: string expected";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    properties._source_reference = 1;
+                    if (!$util.isString(message.source_reference))
+                        return "source_reference: string expected";
+                }
+                if (message.reverses_id != null && $Object.hasOwnProperty.call(message, "reverses_id")) {
+                    properties._reverses_id = 1;
+                    if (!$util.isString(message.reverses_id))
+                        return "reverses_id: string expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CashFlowFact message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.CashFlowFact
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.CashFlowFact} CashFlowFact
+             */
+            CashFlowFact.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.CashFlowFact)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.CashFlowFact: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.CashFlowFact();
+                if (object.cash_flow_id != null)
+                    message.cash_flow_id = $String(object.cash_flow_id);
+                if (object.amount != null)
+                    message.amount = $String(object.amount);
+                if (object.currency != null)
+                    message.currency = $String(object.currency);
+                if (object.transferred_at != null)
+                    message.transferred_at = $String(object.transferred_at);
+                if (object.available_at != null)
+                    message.available_at = $String(object.available_at);
+                if (object.source_reference != null)
+                    message.source_reference = $String(object.source_reference);
+                if (object.reverses_id != null)
+                    message.reverses_id = $String(object.reverses_id);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.accounting.CashFlowFact.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CashFlowFact message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.CashFlowFact
+             * @static
+             * @param {northstar.accounting.CashFlowFact} message CashFlowFact
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CashFlowFact.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.cash_flow_id != null && $Object.hasOwnProperty.call(message, "cash_flow_id")) {
+                    object.cash_flow_id = message.cash_flow_id;
+                    if (options.oneofs)
+                        object._cash_flow_id = "cash_flow_id";
+                }
+                if (message.amount != null && $Object.hasOwnProperty.call(message, "amount")) {
+                    object.amount = message.amount;
+                    if (options.oneofs)
+                        object._amount = "amount";
+                }
+                if (message.currency != null && $Object.hasOwnProperty.call(message, "currency")) {
+                    object.currency = message.currency;
+                    if (options.oneofs)
+                        object._currency = "currency";
+                }
+                if (message.transferred_at != null && $Object.hasOwnProperty.call(message, "transferred_at")) {
+                    object.transferred_at = message.transferred_at;
+                    if (options.oneofs)
+                        object._transferred_at = "transferred_at";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    object.available_at = message.available_at;
+                    if (options.oneofs)
+                        object._available_at = "available_at";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    object.source_reference = message.source_reference;
+                    if (options.oneofs)
+                        object._source_reference = "source_reference";
+                }
+                if (message.reverses_id != null && $Object.hasOwnProperty.call(message, "reverses_id")) {
+                    object.reverses_id = message.reverses_id;
+                    if (options.oneofs)
+                        object._reverses_id = "reverses_id";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CashFlowFact to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.CashFlowFact
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CashFlowFact.prototype.toJSON = function() {
+                return CashFlowFact.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CashFlowFact
+             * @function getTypeUrl
+             * @memberof northstar.accounting.CashFlowFact
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CashFlowFact.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.CashFlowFact";
+            };
+
+            return CashFlowFact;
         })();
 
         return accounting;

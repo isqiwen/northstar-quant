@@ -272,3 +272,38 @@ it("returns to login on 401 without retrying a rejected command", async () => {
   expect(window.dispatchEvent).toHaveBeenCalled();
   expect(fetch).toHaveBeenCalledTimes(2);
 });
+
+it("decodes Python cash-flow facts without losing precision or reversal identity", async () => {
+  const { decodeResponse } = await import("../../shared/protobuf");
+  // Produced by the Python PositionEntry packer; these are synthetic facts.
+  const payload = await decodeResponse(
+    "GET",
+    "/api/broker/position-entries/entry",
+    new Response(
+      new Uint8Array(
+        Buffer.from(
+          "CgVlbnRyeRKCAQoHZGVwb3NpdBIdMTIzNDU2Nzg5MC4xMjM0NTY3ODkwMTIzNDU2NzgaA0NOWSIZMjAyNi0wOS0wN1QwMTowMDowMSswMDowMCoZMjAyNi0wOS0wN1QwMTowMDowMiswMDowMDIPc3RyZWFtOnNvdXJjZToy8n8LcmV2ZXJzZXNfaWQSfwoIcmV2ZXJzYWwSHi0xMjM0NTY3ODkwLjEyMzQ1Njc4OTAxMjM0NTY3OBoDQ05ZIhkyMDI2LTA5LTA3VDAxOjAwOjAxKzAwOjAwKhkyMDI2LTA5LTA3VDAxOjAwOjAyKzAwOjAwMg9zdHJlYW06c291cmNlOjM6B2RlcG9zaXQ=",
+          "base64",
+        ),
+      ),
+      {
+        headers: { "content-type": "application/protobuf" },
+      },
+    ),
+  );
+  expect(payload).toMatchObject({
+    entry_id: "entry",
+    added_cash_flows: [
+      {
+        cash_flow_id: "deposit",
+        amount: "1234567890.123456789012345678",
+        reverses_id: null,
+      },
+      {
+        cash_flow_id: "reversal",
+        amount: "-1234567890.123456789012345678",
+        reverses_id: "deposit",
+      },
+    ],
+  });
+});

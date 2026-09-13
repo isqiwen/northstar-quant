@@ -216,6 +216,7 @@ export type PositionCheckRequest = {
 };
 export type PositionEntry = {
   entry_id: string;
+  added_cash_flows?: (CashFlowFact)[];
   [key: string]: unknown;
 };
 export type PositionEntryRequest = {
@@ -455,4 +456,13 @@ export type SettlementFact = {
   available_at: string;
   price: string;
   source_reference: string;
+};
+export type CashFlowFact = {
+  cash_flow_id: string;
+  amount: string;
+  currency: string;
+  transferred_at: string;
+  available_at: string;
+  source_reference: string;
+  reverses_id: string | null;
 };

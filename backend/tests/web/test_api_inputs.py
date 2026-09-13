@@ -66,3 +66,26 @@ def test_protobuf_commands_reject_unscoped_or_malformed_requests_before_owner() 
         )
         assert client.post(path, content=b"x" * (8 * 1024 * 1024 + 1)).status_code == 413
         assert sent == []
+
+
+def test_cash_flow_protocol_preserves_exact_amount_and_explicit_reversal():
+    from northstar_quant.web.protobuf import pack
+
+    original = dict(
+        cash_flow_id="deposit",
+        amount="1234567890.123456789012345678",
+        currency="CNY",
+        transferred_at="2026-09-07T01:00:01+00:00",
+        available_at="2026-09-07T01:00:02+00:00",
+        source_reference="stream:source:2",
+        reverses_id=None,
+    )
+    reversal = {
+        **original,
+        "cash_flow_id": "reversal",
+        "amount": "-1234567890.123456789012345678",
+        "reverses_id": "deposit",
+    }
+    value = {"entry_id": "entry", "added_cash_flows": [original, reversal]}
+    encoded = pack(api_pb2.PositionEntry.DESCRIPTOR, value).SerializeToString()
+    assert decode(api_pb2.PositionEntry.DESCRIPTOR, encoded) == value

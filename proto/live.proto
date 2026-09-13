@@ -278,6 +278,7 @@ message PositionCheckRequest {
 message PositionEntry {
   option (northstar.web.evidence) = true;
   optional string entry_id = 1 [json_name = "entry_id", (northstar.web.required_field) = true];
+  repeated northstar.accounting.CashFlowFact added_cash_flows = 2 [json_name = "added_cash_flows"];
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 
