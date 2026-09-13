@@ -1014,3 +1014,46 @@ def test_catalog_arrival_replans_continuous_ranges_without_duplicate_downloads(
     visible = settings.status(automatic._engine)["jobs"]
     # Completed/attempted work cannot be displaced by the flood of newly planned jobs.
     assert visible[0]["request_id"] == completed["request_id"]
+
+
+def test_index_planning_sends_explicit_official_codes_and_deduplicates(automatic, monkeypatch):
+    from datetime import date
+
+    from northstar_quant.data_management.tushare.catalog import NANHUA_CODES
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
+    with automatic._engine.begin() as c:
+        c.execute(
+            text(
+                "UPDATE data_sync_contracts SET planned_revision=0, "
+                'details=\'{"list_date":"20260901","delist_date":"20260909"}\''
+            )
+        )
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        rows = (
+            c.execute(text("SELECT scope,parameters FROM data_sync_jobs WHERE dataset='index'"))
+            .mappings()
+            .all()
+        )
+    assert rows
+    assert {r["scope"] for r in rows} == set(NANHUA_CODES)
+    assert all(r["parameters"]["ts_code"] == r["scope"] for r in rows)
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE dataset='index'")) == len(
+            rows
+        )
+
+
+@pytest.mark.parametrize(
+    "message,label",
+    [
+        ("抱歉，您没有接口(ft_limit)访问权限", "权限不足"),
+        ("必填参数, ts_code", "参数或范围"),
+    ],
+)
+def test_observed_provider_rejections_are_classified_without_raw_message(message, label):
+    with pytest.raises(acquisition.DownloadError, match=label) as caught:
+        acquisition.decode(json.dumps({"code": 40203, "msg": message + TOKEN}).encode())
+    assert TOKEN not in str(caught.value)

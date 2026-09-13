@@ -144,7 +144,7 @@ def test_weekly_label_and_actual_cutoff_are_kept_distinct():
         normalize(encoded(row), job)
     row["freq"] = "week"
     row["end_date"] = "20260905"
-    with pytest.raises(InvalidResponse, match="截至日期"):
+    with pytest.raises(InvalidResponse, match="请求窗口"):
         normalize(encoded(row), job)
 
 
@@ -249,3 +249,33 @@ def test_conflicting_rows_report_both_raw_positions():
     issue = caught.value.report["issues"][0]
     assert issue["row_number"] == 2
     assert issue["related_row_number"] == 1
+
+
+@pytest.mark.parametrize("dataset", ["week", "month"])
+def test_historical_period_recalculation_preserves_both_dates(dataset):
+    import io
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from northstar_quant.data_management.exploration.parquet import ResponseScan
+
+    row, job = market_response(dataset)
+    row.update(trade_date="19950428", end_date="20260623")
+    job.update(start_at="1995-04-17", end_at="1995-04-30")
+    accepted, _ = normalize(encoded(row), job)
+    assert accepted[0]["end_date"] == "20260623"
+    raw = io.BytesIO()
+    pq.write_table(pa.Table.from_pylist(accepted), raw)
+    scan = ResponseScan(
+        raw.getvalue(),
+        row_count=1,
+        dataset=dataset,
+        scope=row["ts_code"],
+        start="1995-04-17",
+        end="1995-04-30",
+    )
+    assert list(scan.rows())[0]["trade_date"] == "19950428"
+    job.update(start_at="2026-06-01", end_at="2026-06-30")
+    with pytest.raises(InvalidResponse, match="请求窗口"):
+        normalize(encoded(row), job)

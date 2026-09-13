@@ -28,11 +28,8 @@ class ResponseScan:
         if len(self.parquet.schema.names) > 64:
             raise ValueError("发布字段超过浏览上限")
         self.scope, self.start, self.end = scope, start, end
-        self.clock = (
-            "end_date"
-            if dataset in ("week", "month")
-            else ("trade_time" if "trade_time" in self.parquet.schema.names else "trade_date")
-        )
+        self.period = dataset in ("week", "month")
+        self.clock = "trade_time" if "trade_time" in self.parquet.schema.names else "trade_date"
         self.groups = []
         self.cost = {
             "verified_bytes": len(raw),
@@ -58,7 +55,8 @@ class ResponseScan:
             ):
                 raise ValueError("发布记录不属于所选合约")
             if (
-                stats is not None
+                not self.period
+                and stats is not None
                 and stats.has_min_max
                 and stats.null_count == 0
                 and scope_stats is not None
@@ -88,5 +86,8 @@ class ResponseScan:
                 clock = row.get(self.clock)
                 if not isinstance(clock, str):
                     raise ValueError("发布记录缺少供应商时间标签")
-                if self.start <= day_label(clock) <= self.end:
+                day = day_label(clock)
+                if self.period:
+                    day = min(day, day_label(row["end_date"]))
+                if self.start <= day <= self.end:
                     yield row

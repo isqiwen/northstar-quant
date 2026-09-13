@@ -93,10 +93,12 @@ def decode(content: bytes) -> dict[str, Any]:
                     "权限已过期",
                     "积分不足",
                     "权限不够",
+                    "访问权限",
                 )
             )
             invalid = any(
-                word in msg for word in ("参数错误", "参数不合法", "参数不正确", "请求范围无效")
+                word in msg
+                for word in ("参数错误", "参数不合法", "参数不正确", "请求范围无效", "必填参数")
             )
             unavailable = any(word in msg for word in ("接口不存在", "接口名称错误", "接口已停用"))
             raise DownloadError(

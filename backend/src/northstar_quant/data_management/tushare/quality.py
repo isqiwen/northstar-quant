@@ -11,7 +11,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/6"
+RULE = "tushare-response/7"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -197,11 +197,11 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
         # preserves the actual calculation cutoff instead of treating it as available.
         if definition.frequency in ("week", "month"):
             cutoff = _date(row["end_date"]).date()
-            if cutoff > day or row["freq"] != definition.frequency:
-                raise InvalidResponse(
-                    "周/月线频率或计算截至日期与期末标签不一致", fields=("freq", "end_date")
-                )
-            day = cutoff
+            if row["freq"] != definition.frequency:
+                raise InvalidResponse("周/月线频率与请求不一致", fields=("freq", "end_date"))
+            # Retrospective calculations can have end_date years after the bar.
+            # Keep both source dates; this is a range key, NOT first availability.
+            day = min(day, cutoff)
         if job["start_at"] and not job["start_at"] <= day.isoformat() <= job["end_at"]:
             raise InvalidResponse("行情时间超出请求窗口", fields=(clock_field,))
     try:

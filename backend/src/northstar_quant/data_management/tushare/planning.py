@@ -11,7 +11,7 @@ from sqlalchemy import Connection, Engine, text
 
 from northstar_quant import code_revision
 
-from .catalog import BY_KEY, DATASETS, EXCHANGES
+from .catalog import BY_KEY, DATASETS, EXCHANGES, NANHUA_CODES
 from .store import settings
 
 
@@ -245,7 +245,18 @@ def _window(connection: Connection, key: str, contract: Any, start: date, end: d
             "start_week": start.strftime("%G%V"),
             "end_week": end.strftime("%G%V"),
         }
-    enqueue(connection, key, scope, params, start.isoformat(), end.isoformat())
+    if key == "index":
+        for code in NANHUA_CODES:
+            enqueue(
+                connection,
+                key,
+                code,
+                {**params, "ts_code": code},
+                start.isoformat(),
+                end.isoformat(),
+            )
+    else:
+        enqueue(connection, key, scope, params, start.isoformat(), end.isoformat())
 
 
 def split(connection: Connection, job: dict[str, Any]) -> bool:

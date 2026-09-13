@@ -5,6 +5,18 @@ from dataclasses import dataclass
 EXCHANGES = ("SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX")
 
 
+# Official doc 468 index universe, reviewed 2026-09-14; never infer codes
+# from current contract products (retired index aliases and composites differ).
+NANHUA_CODES = tuple(
+    name + ".NH"
+    for name in (
+        "NHAI NHCI NHECI NHFI NHII NHMI NHNFI NHPMI A AG AL AP AU BB BU C CF CS CU CY "
+        "ER FB FG FU HC I J JD JM JR L LR M ME NI P PB PP RB RM RO RS RU SC SF SM SN "
+        "SP SR TA TC V WR WS Y ZN"
+    ).split()
+)
+
+
 @dataclass(frozen=True)
 class Dataset:
     key: str
