@@ -673,6 +673,9 @@ def _capture(
                 return
             if order_queues is not None:
                 from northstar_quant.broker.order_channel import drain_order
+                from northstar_quant.broker.query_control import QueryRefresh
+
+                refresh = QueryRefresh(receiver, trader, queries, interval=_QUERY_INTERVAL)
 
                 seen: set[int] = set()
                 receiver.poll_orders = lambda: drain_order(
@@ -683,6 +686,7 @@ def _capture(
                     account_id=credentials.user_id,
                     seen=seen,
                     record=receiver.event,
+                    refresh=refresh,
                 )
             receiver.deadline = stream_deadline
             receiver.wait(lambda: False)

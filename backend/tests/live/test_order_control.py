@@ -150,3 +150,34 @@ def test_a_timed_out_handoff_cannot_execute_when_core_later_recovers(live_engine
     assert executed == []
     control.close()
     assert control.request(str(uuid4()), uuid4())["reason"] == "RECEIVER_STOPPED"
+
+
+def test_refresh_uses_owned_receiver_and_durable_command(
+    live_engine, live_client, tmp_path, monkeypatch
+):
+    from tests.broker.test_records import _capture
+
+    library, source, config, calls = prepare(live_engine, tmp_path, monkeypatch)
+    calls["order_transport"] = True
+    client = live_client(live_engine, library).for_operator("owner")
+    stream_id, command_id = uuid4(), uuid4()
+    start(client.streams, source, config, stream_id)
+    assert calls["ready"].wait(3)
+    rejected = client.streams.refresh_account(stream_id, request_id=uuid4())
+    assert rejected["status"] == "REJECTED"
+    for event in _capture().events:
+        if event.callback == "OnRspUserLogin" and event.channel == "TD":
+            event = replace(
+                event, data={**event.data, "FrontID": 7, "SessionID": 99, "MaxOrderRef": "501"}
+            )
+        calls["accept"](event)
+    result = client.streams.refresh_account(stream_id, request_id=command_id)
+    assert result["status"] == "REQUESTED", result
+    native = json.loads(calls["native_orders"].get(timeout=1))
+    assert native["method"] == "RefreshAccount"
+    assert native["fields"] == {"query_id": str(command_id)}
+    assert client.streams.refresh_account(stream_id, request_id=command_id) == result
+    assert calls["native_orders"].empty()
+    assert calls["count"] == 1
+    client.streams.control(stream_id, "STOP", request_id=uuid4())
+    assert client.streams.refresh_account(stream_id, request_id=uuid4())["status"] == "REJECTED"

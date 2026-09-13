@@ -34,6 +34,17 @@ class CancelOrder:
     expires_at: datetime
 
 
+@dataclass(frozen=True, slots=True)
+class RefreshAccount:
+    request_id: UUID
+    expires_at: datetime
+
+
+REFRESH_ACCOUNT: Endpoint[RefreshAccount, dict[str, Any]] = Endpoint(
+    "live.account.refresh", RefreshAccount
+)
+
+
 CANCEL_ORDER: Endpoint[CancelOrder, dict[str, Any]] = Endpoint("live.execution.cancel", CancelOrder)
 
 
@@ -48,7 +59,9 @@ class ReceiverOrders:
         self.session: CtpSession | None = None
         self.ready = False
         self.closed = False
-        self.pending: Queue[tuple[CancelOrder, Future[dict[str, Any]]]] = Queue(maxsize=1)
+        self.pending: Queue[tuple[CancelOrder | RefreshAccount, Future[dict[str, Any]]]] = Queue(
+            maxsize=1
+        )
 
     def bind(self, channel: OrderChannel) -> None:
         self._core()
@@ -115,26 +128,84 @@ class ReceiverOrders:
             )
 
     def request(self, order_id: str, request_id: UUID) -> dict[str, Any]:
+        return self._request(
+            CancelOrder(order_id, request_id, datetime.now(UTC) + timedelta(seconds=3))
+        )
+
+    def request_refresh(self, request_id: UUID) -> dict[str, Any]:
+        return self._request(RefreshAccount(request_id, datetime.now(UTC) + timedelta(seconds=3)))
+
+    def _request(self, command: CancelOrder | RefreshAccount) -> dict[str, Any]:
+        identity = (
+            {"order_id": command.order_id}
+            if isinstance(command, CancelOrder)
+            else {"stream_id": str(self.stream_id), "query_id": str(command.request_id)}
+        )
         if self.closed:
-            return {"status": "REJECTED", "reason": "RECEIVER_STOPPED", "order_id": order_id}
-        command = CancelOrder(order_id, request_id, datetime.now(UTC) + timedelta(seconds=3))
+            return {"status": "REJECTED", "reason": "RECEIVER_STOPPED", **identity}
         result: Future[dict[str, Any]] = Future()
         try:
             self.pending.put_nowait((command, result))
         except Full:
-            return {"status": "REJECTED", "reason": "RECEIVER_BUSY", "order_id": order_id}
+            return {"status": "REJECTED", "reason": "RECEIVER_BUSY", **identity}
         try:
             return result.result(timeout=4)
         except CancelledError:
-            return {"status": "REJECTED", "reason": "RECEIVER_STOPPED", "order_id": order_id}
+            return {"status": "REJECTED", "reason": "RECEIVER_STOPPED", **identity}
         except TimeoutError as error:
             if result.cancel():
-                return {"status": "REJECTED", "reason": "COMMAND_EXPIRED", "order_id": order_id}
+                return {"status": "REJECTED", "reason": "COMMAND_EXPIRED", **identity}
             raise ValueError(
-                "cancellation outcome is unknown; inspect the saved command"
+                "receiver command outcome is unknown; inspect the saved command"
             ) from error
 
-    def poll(self, execute: Callable[[CancelOrder], dict[str, Any]]) -> None:
+    def refresh(self, command: RefreshAccount) -> dict[str, Any]:
+        self._core()
+        self.check_owner()
+        identity = {"stream_id": str(self.stream_id), "query_id": str(command.request_id)}
+        if (
+            self.closed
+            or not self.ready
+            or self.session is None
+            or self.channel is None
+            or self.channel.closed
+            or self.channel.failed
+        ):
+            return {"status": "REJECTED", "reason": "RECEIVER_NOT_READY", **identity}
+        saved = Commands(self.engine, self.runtime_id).get(command.request_id)
+        if (
+            saved["runtime_id"] != str(self.runtime_id)
+            or saved["operator"] != "owner"
+            or saved["status"] != "RUNNING"
+            or saved["path"] != f"/streams/{self.stream_id}/refresh-account"
+            or saved["input"] != {}
+        ):
+            return {"status": "REJECTED", "reason": "COMMAND_IDENTITY_INVALID", **identity}
+        deadline = min(command.expires_at, datetime.fromisoformat(saved["expires_at"]))
+        if datetime.now(UTC) >= deadline:
+            return {"status": "REJECTED", "reason": "COMMAND_EXPIRED", **identity}
+        with self.engine.connect() as connection:
+            source = read_stream_source(connection, self.stream_id)
+            binding = cast(dict[str, Any], source["binding"])
+            status = connection.execute(
+                text("SELECT status FROM broker_streams WHERE stream_id=:id"),
+                {"id": self.stream_id},
+            ).scalar_one()
+            if (
+                status != "RECEIVING"
+                or binding["runtime_id"] != str(self.runtime_id)
+                or binding["environment"] != "SANDBOX"
+                or binding["account_id"] != self.session.account_id
+            ):
+                return {"status": "REJECTED", "reason": "RECEIVER_SCOPE_MISMATCH", **identity}
+        queued = self.channel.refresh_account(command.request_id, deadline)
+        return {
+            **identity,
+            "status": "REQUESTED" if queued else "REJECTED",
+            "reason": "AWAITING_RECEIVER_QUERY" if queued else "RECEIVER_BUSY",
+        }
+
+    def poll(self, execute: Callable[[CancelOrder | RefreshAccount], dict[str, Any]]) -> None:
         self._core()
         try:
             command, result = self.pending.get_nowait()

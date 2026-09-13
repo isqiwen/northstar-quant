@@ -178,3 +178,82 @@ def test_parent_timeout_never_requeues_attempt():
     with pytest.raises(ValueError, match="unavailable"):
         channel.send("ReqOrderInsert", fields(), 100001, datetime.now(UTC) + timedelta(seconds=1))
     assert requests.qsize() == 1
+
+
+def test_refresh_reuses_connection_and_cancellation_remains_available(monkeypatch):
+    from uuid import uuid4
+
+    _available(monkeypatch, None)
+    monkeypatch.setattr(_ctp_worker, "stream", scripted_orders)
+    ports, events, sent = [], [], []
+    query_id = uuid4()
+
+    def accept(event):
+        events.append(event)
+        if event.callback == "OnRspSubMarketData":
+            assert ports[0].refresh_account(query_id, datetime.now(UTC) + timedelta(seconds=2))
+        if event.callback == "AccountQueryStarted":
+            sent.append(
+                ports[0].send(
+                    "ReqOrderAction", fields(), 100001, datetime.now(UTC) + timedelta(seconds=2)
+                )
+            )
+
+    failure = ctp.stream_account(
+        get_profile("simnow_dev"),
+        _credentials(),
+        "rb2610",
+        on_event=accept,
+        should_stop=lambda: (
+            any(e.callback == "AccountQueryFinished" for e in events)
+            and any(e.callback == "OnRspOrderAction" for e in events)
+        ),
+        duration_seconds=10,
+        on_transport=ports.append,
+    )
+    assert failure is None
+    assert sent == [0]
+    assert sum(e.callback == "CaptureStarted" for e in events) == 1
+    assert sum(e.callback == "OnRspUserLogin" and e.channel == "TD" for e in events) == 1
+    requests = [
+        e.request_id
+        for e in events
+        if e.callback == "RequestSent"
+        and e.request_id is not None
+        and 1000 <= e.request_id < 100000
+    ]
+    assert requests == list(range(1000, 1007))
+    finished = next(e for e in events if e.callback == "AccountQueryFinished")
+    assert finished.data == {"query_id": str(query_id), "status": "COMPLETE", "reason": None}
+    assert [e.sequence for e in events] == list(range(1, len(events) + 1))
+
+
+def test_busy_refresh_identity_cannot_later_repeat_queries():
+    from uuid import uuid4
+
+    from northstar_quant.broker.query_control import QueryRefresh
+
+    records, requests = [], []
+    receiver = SimpleNamespace(
+        event=lambda *args: records.append(args) or True,
+        deadline=time.monotonic() + 60,
+        wait=lambda predicate: True,
+        request=lambda *args: requests.append(args) or True,
+        failure=None,
+    )
+    refresh = QueryRefresh(
+        receiver, object(), [("account", "TradingAccount", object())], interval=0
+    )
+    rejected, accepted = uuid4(), uuid4()
+    refresh.active = True
+    refresh(rejected)
+    refresh.active = False
+    refresh(rejected)
+    assert not requests
+    refresh(accepted)
+    refresh(accepted)
+    assert len(requests) == 1
+    assert [r[2]["status"] for r in records if r[1] == "AccountQueryFinished"] == [
+        "REJECTED",
+        "COMPLETE",
+    ]

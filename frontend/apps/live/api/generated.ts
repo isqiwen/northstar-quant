@@ -9,6 +9,9 @@ export type InstanceCatalog = {
   instances: (InstanceRecord)[];
   production_available?: boolean;
 };
+export type AccountQueryRequest = {
+  request_id: string;
+};
 export type AccountCatchupRequest = {
   baseline_id: string;
   request_id: string;
@@ -321,6 +324,7 @@ export type StreamDetail = {
   steps: (StreamStep)[];
   stream_id: string;
   startup_query?: ReceiverQuery;
+  latest_query?: ReceiverQuery;
   [key: string]: unknown;
 };
 export type StreamEvent = {

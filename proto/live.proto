@@ -16,6 +16,10 @@ message InstanceCatalog {
   optional bool production_available = 2 [json_name = "production_available"];
 }
 
+message AccountQueryRequest {
+  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
+}
+
 message AccountCatchupRequest {
   optional string baseline_id = 1 [json_name = "baseline_id", (northstar.web.required_field) = true];
   optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
@@ -412,6 +416,7 @@ message StreamDetail {
   repeated StreamStep steps = 8 [json_name = "steps", (northstar.web.required_field) = true];
   optional string stream_id = 9 [json_name = "stream_id", (northstar.web.required_field) = true];
   optional ReceiverQuery startup_query = 10 [json_name = "startup_query"];
+  optional ReceiverQuery latest_query = 11 [json_name = "latest_query"];
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 
@@ -756,6 +761,11 @@ service BrowserApi {
   rpc GetApiStreamsStreamId (northstar.web.Empty) returns (StreamDetail) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/streams/{stream_id}";
+  }
+  rpc PostApiStreamsStreamIdRefreshAccount (AccountQueryRequest) returns (StreamControl) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/refresh-account";
+    option (northstar.web.runtime_required) = true;
   }
   rpc PostApiStreamsStreamIdAccountCatchup (AccountCatchupRequest) returns (AccountProgress) {
     option (northstar.web.http_method) = "POST";

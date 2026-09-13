@@ -48,6 +48,19 @@
       "array": false,
       "evidence": false
     },
+    "northstar.live.AccountQueryRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.live.AccountCatchupRequest": {
       "fields": {
         "baseline_id": {
@@ -1975,6 +1988,13 @@
           "required": false,
           "nullable": false
         },
+        "latest_query": {
+          "id": 11,
+          "presence": true,
+          "type": "northstar.live.ReceiverQuery",
+          "required": false,
+          "nullable": false
+        },
         "evidence_fields": {
           "id": 1000,
           "presence": false,
@@ -3400,6 +3420,13 @@
       "input": "northstar.web.Empty",
       "output": "northstar.live.StreamDetail",
       "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/streams/{stream_id}/refresh-account",
+      "input": "northstar.live.AccountQueryRequest",
+      "output": "northstar.live.StreamControl",
+      "runtime": true
     },
     {
       "method": "POST",

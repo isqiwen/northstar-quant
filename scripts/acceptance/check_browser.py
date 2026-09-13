@@ -816,6 +816,52 @@ def main() -> None:
                         expect(page.get_by_text("它不是当前余额", exact=False)).to_be_visible()
                         expect(page.get_by_text("数据不可用", exact=True)).not_to_be_visible()
                         screenshot("receiver-startup-query")
+                        refreshed = []
+
+                        def account_refresh(route):
+                            descriptor = methods("live")[
+                                ("POST", "/api/streams/{stream_id}/refresh-account")
+                            ]
+                            body = decode(
+                                descriptor.input_type, route.request.post_data_buffer
+                            )
+                            refreshed.append(body)
+                            stream["latest_query"] = {
+                                "status": "INCOMPLETE",
+                                "reason": "QUERY_NOT_FINISHED",
+                                "through_sequence": 3,
+                                "source_hash": "b" * 64,
+                                "completeness": {"identity": "CONFIRMED"},
+                            }
+                            route.fulfill(
+                                content_type="application/protobuf",
+                                body=pack(
+                                    descriptor.output_type,
+                                    {
+                                        "stream_id": "browser-synthetic",
+                                        "status": "REQUESTED",
+                                        "query_id": body["request_id"],
+                                        "reason": "AWAITING_RECEIVER_QUERY",
+                                    },
+                                ).SerializeToString(),
+                            )
+
+                        page.route(
+                            "**/api/streams/browser-synthetic/refresh-account",
+                            account_refresh,
+                        )
+                        page.get_by_role(
+                            "button", name="刷新接收账户", exact=True
+                        ).click()
+                        expect(
+                            page.get_by_text("接收连接的最新查询", exact=True)
+                        ).to_be_visible()
+                        assert len(refreshed) == 1
+                        expect(
+                            page.get_by_text("数据不可用", exact=True)
+                        ).not_to_be_visible()
+                        screenshot("receiver-account-refresh")
+                        page.unroute("**/api/streams/browser-synthetic/refresh-account")
                         page.get_by_role("button", name="暂停影子计算", exact=True).click()
                         expect(page.get_by_text("操作结果未知", exact=True)).to_be_visible()
                         assert len(commands) == 1 and commands[0]["runtime"] == observed

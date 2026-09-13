@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from queue import Empty, Full
 from threading import get_ident
 from typing import Any
+from uuid import UUID
 
 from northstar_quant.broker.order_transport import native_request
 
@@ -49,6 +50,34 @@ class OrderChannel:
         # RequestSent; neither one establishes order acceptance or releases risk.
         return 0
 
+    def refresh_account(self, identifier: UUID, expires_at: datetime) -> bool:
+        if get_ident() != self.thread or self.closed or self.failed:
+            raise ValueError("CTP receiver channel is unavailable to this core")
+        now = datetime.now(UTC)
+        if (
+            not isinstance(identifier, UUID)
+            or expires_at.utcoffset() != timedelta(0)
+            or not (now < expires_at <= now + timedelta(seconds=3))
+        ):
+            raise ValueError("account query requires a current bounded command")
+        encoded = json.dumps(
+            dict(
+                method="RefreshAccount",
+                fields={"query_id": str(identifier)},
+                request_id=0,
+                expires_at=expires_at.isoformat(),
+            ),
+            separators=(",", ":"),
+        )
+        try:
+            self.requests.put_nowait(encoded)
+        except Full:
+            return False
+        except (OSError, EOFError, ValueError) as error:
+            self.failed = True
+            raise ValueError("account query transport outcome is unknown") from error
+        return True
+
     def poll(self) -> None:
         """Bounded nonblocking completion check on the receiving core thread."""
         if get_ident() != self.thread:
@@ -89,6 +118,7 @@ def drain_order(
     account_id: str,
     seen: set[int],
     record: Any,
+    refresh: Any = None,
 ) -> None:
     """Run only on the native worker's control thread after verified login/query startup."""
     try:
@@ -106,6 +136,32 @@ def drain_order(
     }:
         raise ValueError("invalid CTP order IPC fields")
     request_id, method, fields = message["request_id"], message["method"], message["fields"]
+    if method == "RefreshAccount":
+        if (
+            refresh is None
+            or request_id != 0
+            or not isinstance(fields, dict)
+            or set(fields) != {"query_id"}
+        ):
+            raise ValueError("invalid account refresh operation")
+        identifier = UUID(fields["query_id"])
+        expires_at = datetime.fromisoformat(message["expires_at"])
+        now = datetime.now(UTC)
+        if expires_at.utcoffset() != timedelta(0):
+            raise ValueError("account refresh deadline must be UTC")
+        if not now < expires_at <= now + timedelta(seconds=3):
+            record(
+                "TD",
+                "AccountQueryFinished",
+                {
+                    "query_id": str(identifier),
+                    "status": "REJECTED",
+                    "reason": "COMMAND_EXPIRED",
+                },
+            )
+            return
+        refresh(identifier)
+        return
     if (
         type(request_id) is not int
         or not 100_000 < request_id < 2**31

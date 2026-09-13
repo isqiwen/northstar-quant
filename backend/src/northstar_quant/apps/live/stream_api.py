@@ -41,6 +41,10 @@ class StreamRequest(ApiModel):
     schedule: dict[str, JsonValue] | None = None
 
 
+class AccountQueryRequest(ApiModel):
+    request_id: UUIDText
+
+
 class ControlRequest(ApiModel):
     action: Literal["PAUSE", "RESUME", "STOP"]
     request_id: UUIDText
@@ -239,6 +243,25 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             stream_id,
             _string_field(payload, "action"),
             request_id=_uuid_field(payload, "request_id"),
+        )
+
+    @app.post(
+        "/api/streams/{stream_id}/refresh-account",
+        response_model=StreamControl,
+        response_model_exclude_unset=True,
+    )
+    async def refresh_account(
+        request: Request,
+        document: AccountQueryRequest,
+        stream_id: UUID,
+        runtime: Annotated[UUID, Depends(_runtime_header)],
+    ) -> dict[str, object]:
+        access.protect(request)
+        live = instances.for_request(request).for_runtime(runtime)
+        return await run_in_threadpool(
+            live.streams.refresh_account,
+            stream_id,
+            request_id=UUID(document.request_id),
         )
 
     @app.post(

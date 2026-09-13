@@ -7,9 +7,9 @@ It neither reads storage nor establishes an account snapshot or send authority.
 from __future__ import annotations
 
 import re
-from typing import cast
+from typing import Protocol, cast
 
-from .events import ACCOUNT_ACTIVITY_CALLBACKS, TRANSFER_CALLBACKS, QueryCapture
+from .events import ACCOUNT_ACTIVITY_CALLBACKS, TRANSFER_CALLBACKS, BrokerEvent
 
 # One ordered native query plan is used by reception and evidence reconstruction.
 QUERY_TYPES = (
@@ -25,7 +25,20 @@ _QUERIES = {section: ("ReqQry" + suffix, "OnRspQry" + suffix) for section, suffi
 _ACCOUNT_ROWS = {"account", "positions", "orders", "trades"}
 
 
-def project_query(binding: dict[str, object], capture: QueryCapture | None) -> dict[str, object]:
+class QueryEvidence(Protocol):
+    @property
+    def events(self) -> tuple[BrokerEvent, ...]: ...
+
+    @property
+    def failure_code(self) -> str | None: ...
+
+    @property
+    def trader_api_version(self) -> str | None: ...
+
+    def to_dict(self) -> dict[str, object]: ...
+
+
+def project_query(binding: dict[str, object], capture: QueryEvidence | None) -> dict[str, object]:
     queries = dict(_QUERIES)
     scope = cast(dict[str, dict[str, str]], binding["query_scope"])
     if "settlement" in scope:

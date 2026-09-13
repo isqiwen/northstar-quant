@@ -16,7 +16,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, Connection, Engine, Uuid
@@ -36,7 +36,13 @@ from northstar_quant.data_management.broker import resolve_broker_contract, veri
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
 from northstar_quant.live.materials import StrategyMaterials
-from northstar_quant.live.order_control import CANCEL_ORDER, ReceiverOrders
+from northstar_quant.live.order_control import (
+    CANCEL_ORDER,
+    REFRESH_ACCOUNT,
+    CancelOrder,
+    ReceiverOrders,
+    RefreshAccount,
+)
 from northstar_quant.market_data.sessions import SessionSchedule
 from northstar_quant.messaging import Endpoint
 from northstar_quant.persistence.locks import FileLock
@@ -439,6 +445,7 @@ class LiveStreams:
             environment=environment,
         )
         kernel.register(CANCEL_ORDER, controls.cancel)
+        kernel.register(REFRESH_ACCOUNT, controls.refresh)
         kernel.start()
         with self._guard:
             self._order_controls[identifier] = controls
@@ -479,7 +486,13 @@ class LiveStreams:
                 last_check = time.monotonic()
                 stopping = self._poll(identifier, stopped)
                 if not stopping:
-                    controls.poll(lambda command: kernel.execute(CANCEL_ORDER, command))
+
+                    def execute_control(command: CancelOrder | RefreshAccount) -> dict[str, Any]:
+                        if isinstance(command, CancelOrder):
+                            return kernel.execute(CANCEL_ORDER, command)
+                        return kernel.execute(REFRESH_ACCOUNT, command)
+
+                    controls.poll(execute_control)
                 return stopping
 
             with write_transaction(self._engine) as connection:
@@ -535,6 +548,20 @@ class LiveStreams:
                 for stream_id, control in self._order_controls.items()
                 if identifier is None or stream_id == identifier
             )
+
+    def refresh_account(self, stream_id: UUID, *, request_id: UUID) -> dict[str, object]:
+        if self._check_ownership is None:
+            raise ValueError("account query requires an owned Live instance")
+        self._check_ownership()
+        with self._guard:
+            control = self._order_controls.get(stream_id)
+        if control is None:
+            return {
+                "status": "REJECTED",
+                "reason": "RECEIVER_NOT_ATTACHED",
+                "stream_id": str(stream_id),
+            }
+        return control.request_refresh(request_id)
 
     def cancel_order(
         self, stream_id: UUID, order_id: str, *, request_id: UUID
@@ -936,6 +963,7 @@ class LiveStreams:
         )
 
     def get(self, identifier: UUID) -> dict[str, object]:
+        from northstar_quant.broker.query_window import latest_query
         from northstar_quant.broker.stream_queries import startup_query
 
         with self._engine.connect() as connection:
@@ -992,6 +1020,7 @@ class LiveStreams:
             "state": state,
             "account_progress": account_progress,
             "startup_query": startup_query(self._engine, identifier),
+            "latest_query": latest_query(self._engine, identifier),
             "market_age_seconds": age,
             "created_at": str(row["created_at"]),
             "updated_at": str(row["updated_at"]),

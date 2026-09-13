@@ -279,6 +279,19 @@ export function Stream() {
                       onDone={refresh}
                     />
                     <Evidence value={q.data.account_progress} />
+                    <Action
+                      title="刷新接收账户"
+                      path={`/api/streams/${id}/refresh-account`}
+                      disabled={!safe || q.data.connection !== "RECEIVING"}
+                      fields={[]}
+                      onDone={refresh}
+                    />
+                    {q.data.latest_query && (
+                      <Card title="接收连接的最新查询">
+                        <p>查询期间继续接收柜台回报。这是固定查询窗口，尚未完成账户核对，也不授予交易权限。</p>
+                        <Evidence value={q.data.latest_query} />
+                      </Card>
+                    )}
                     {q.data.startup_query && (
                       <Card title="接收进程的启动查询">
                         <p>

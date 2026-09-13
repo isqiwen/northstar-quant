@@ -83,3 +83,58 @@ def test_receiver_incomplete_and_failed_query_cannot_inherit_prior_success(
     client.streams.control(identifier, "STOP", request_id=uuid4())
     assert startup_query(live_engine, identifier) == failed
     assert calls["count"] == 1
+
+
+def test_receiver_refresh_preserves_session_and_fixed_window(
+    live_engine, live_client, tmp_path, monkeypatch
+):
+    from northstar_quant.broker.query_window import latest_query
+
+    library, source, config, calls = prepare(live_engine, tmp_path, monkeypatch)
+    client = live_client(live_engine, library).for_operator("owner")
+    identifier, query_id = uuid4(), uuid4()
+    start(client.streams, source, config, identifier)
+    assert calls["ready"].wait(3)
+    events = _capture().events
+    for event in events:
+        calls["accept"](event)
+    assert latest_query(live_engine, identifier) is None
+    sequence = len(events)
+
+    def marker(callback, data):
+        nonlocal sequence
+        sequence += 1
+        calls["accept"](
+            BrokerEvent(sequence, "TD", callback, None, None, events[-1].received_at, 0, data)
+        )
+
+    marker("AccountQueryStarted", {"query_id": str(query_id)})
+    assert latest_query(live_engine, identifier)["status"] == "INCOMPLETE"
+    for event in events:
+        if event.callback.startswith("OnRspQry") or (
+            event.callback == "RequestSent"
+            and str((event.data or {}).get("method", "")).startswith("ReqQry")
+        ):
+            sequence += 1
+            data = event.data
+            if event.callback == "OnRspQryTradingAccount":
+                data = {**data, "Balance": "456789"}
+            calls["accept"](
+                replace(event, sequence=sequence, request_id=event.request_id + 1000, data=data)
+            )
+    marker(
+        "AccountQueryFinished", {"query_id": str(query_id), "status": "COMPLETE", "reason": None}
+    )
+    fixed = latest_query(live_engine, identifier)
+    assert fixed["status"] == "COMPLETE", fixed
+    assert fixed["query_id"] == str(query_id)
+    assert fixed["completeness"]["sections"]["account"]["rows"][0]["Balance"] == "456789"
+    assert fixed["reconciliation"]["status"] == "UNRECONCILED"
+    assert fixed["execution"]["order_sending"] is False
+    marker("OnFrontDisconnected", {"Reason": 4097})
+    assert latest_query(live_engine, identifier) == fixed
+    marker("AccountQueryStarted", {"query_id": str(uuid4())})
+    assert latest_query(live_engine, identifier)["status"] == "FAILED"
+    assert calls["count"] == 1
+    client.streams.control(identifier, "STOP", request_id=uuid4())
+    assert latest_query(live_engine, identifier)["status"] == "FAILED"

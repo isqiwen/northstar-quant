@@ -29,6 +29,12 @@ class InstanceCatalog(_message.Message):
     production_available: bool
     def __init__(self, instances: _Optional[_Iterable[_Union[InstanceRecord, _Mapping]]] = ..., production_available: _Optional[bool] = ...) -> None: ...
 
+class AccountQueryRequest(_message.Message):
+    __slots__ = ("request_id",)
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    def __init__(self, request_id: _Optional[str] = ...) -> None: ...
+
 class AccountCatchupRequest(_message.Message):
     __slots__ = ("baseline_id", "request_id", "through_sequence")
     BASELINE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -841,7 +847,7 @@ class ReceiverQuery(_message.Message):
     def __init__(self, status: _Optional[str] = ..., reason: _Optional[str] = ..., through_sequence: _Optional[int] = ..., source_hash: _Optional[str] = ..., completeness: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class StreamDetail(_message.Message):
-    __slots__ = ("account_progress", "archives", "binding", "connection", "cursor", "paused", "received", "steps", "stream_id", "startup_query", "evidence_fields")
+    __slots__ = ("account_progress", "archives", "binding", "connection", "cursor", "paused", "received", "steps", "stream_id", "startup_query", "latest_query", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -859,6 +865,7 @@ class StreamDetail(_message.Message):
     STEPS_FIELD_NUMBER: _ClassVar[int]
     STREAM_ID_FIELD_NUMBER: _ClassVar[int]
     STARTUP_QUERY_FIELD_NUMBER: _ClassVar[int]
+    LATEST_QUERY_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     account_progress: StreamAccountProgress
     archives: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
@@ -870,8 +877,9 @@ class StreamDetail(_message.Message):
     steps: _containers.RepeatedCompositeFieldContainer[StreamStep]
     stream_id: str
     startup_query: ReceiverQuery
+    latest_query: ReceiverQuery
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, account_progress: _Optional[_Union[StreamAccountProgress, _Mapping]] = ..., archives: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., binding: _Optional[_Union[StreamBinding, _Mapping]] = ..., connection: _Optional[str] = ..., cursor: _Optional[int] = ..., paused: _Optional[bool] = ..., received: _Optional[int] = ..., steps: _Optional[_Iterable[_Union[StreamStep, _Mapping]]] = ..., stream_id: _Optional[str] = ..., startup_query: _Optional[_Union[ReceiverQuery, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, account_progress: _Optional[_Union[StreamAccountProgress, _Mapping]] = ..., archives: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., binding: _Optional[_Union[StreamBinding, _Mapping]] = ..., connection: _Optional[str] = ..., cursor: _Optional[int] = ..., paused: _Optional[bool] = ..., received: _Optional[int] = ..., steps: _Optional[_Iterable[_Union[StreamStep, _Mapping]]] = ..., stream_id: _Optional[str] = ..., startup_query: _Optional[_Union[ReceiverQuery, _Mapping]] = ..., latest_query: _Optional[_Union[ReceiverQuery, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class StreamEvent(_message.Message):
     __slots__ = ("committed_at", "event")

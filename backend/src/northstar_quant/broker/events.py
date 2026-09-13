@@ -82,6 +82,8 @@ CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
         "instrument",
     ),
     "RequestSent": ("section", "method", "return_code"),
+    "AccountQueryStarted": ("query_id",),
+    "AccountQueryFinished": ("query_id", "status", "reason"),
     "OnFrontConnected": (),
     "OnFrontDisconnected": ("Reason",),
     "OnHeartBeatWarning": ("TimeLapse",),

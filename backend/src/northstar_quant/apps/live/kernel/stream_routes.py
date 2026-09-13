@@ -95,6 +95,18 @@ def routes(owner: LiveOwner) -> APIRouter:
             lambda identifier: owner.streams.control(stream_id, body.action, request_id=identifier),
         )
 
+    @router.post("/streams/{stream_id}/refresh-account")
+    def refresh_account(request: Request, stream_id: UUID) -> dict[str, Any]:
+        if request.headers.get("x-northstar-operator") != "owner":
+            raise HTTPException(403, "Only the owner may refresh the receiving account")
+        owner.check_ownership()
+        return execute_command(
+            owner,
+            request,
+            {},
+            lambda identifier: owner.streams.refresh_account(stream_id, request_id=identifier),
+        )
+
     @router.post("/streams/{stream_id}/account-catchup")
     def catchup_account(request: Request, stream_id: UUID, body: AccountCatchup) -> dict[str, Any]:
         return execute_command(
