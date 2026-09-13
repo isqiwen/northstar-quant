@@ -26,6 +26,7 @@ const fieldOrder = [
   "high",
   "low",
   "close",
+  "settle",
   "vol",
   "oi",
   "amount_cny",
@@ -45,6 +46,7 @@ export function DataPanel({
   onPage: (offset: number) => void;
 }) {
   const [selected, setSelected] = useState("");
+  const settlement = result.dataset === "settlement";
   const [columns, setColumns] = useState(() =>
     result.fields
       .map((f) => String(f.key))
@@ -100,20 +102,36 @@ export function DataPanel({
       ) : (
         <>
           <Card
-            title={`行情图 · 当前第 ${result.offset + 1}–${result.offset + result.rows.length} 条`}
+            title={`${settlement ? "结算价" : "行情图"} · 当前第 ${result.offset + 1}–${result.offset + result.rows.length} 条`}
           >
-            {result.rows.some((r) =>
-              ["open", "high", "low", "close"].every((k) => r[k] != null),
-            ) ? (
+            {settlement && result.rows.some((r) => r.settle != null) ? (
+              <PriceChart
+                rows={result.rows}
+                onSelect={choosePoint}
+                settlement
+              />
+            ) : !settlement &&
+              result.rows.some((r) =>
+                ["open", "high", "low", "close"].every((k) => r[k] != null),
+              ) ? (
               <PriceChart rows={result.rows} onSelect={choosePoint} />
             ) : (
-              <Empty description="源端未提供完整 OHLC，请查看精确明细" />
+              <Empty
+                description={
+                  settlement
+                    ? "源端结算价为空，请查看明细"
+                    : "源端未提供完整 OHLC，请查看精确明细"
+                }
+              />
             )}
             <p className="muted">
-              横轴按供应商记录排列，不填充休市价格。缩放只作用于当前页；点击蜡烛查看精确记录。缺失成交量/持仓量保留为空，图表数值仅用于显示。
+              {settlement
+                ? "供应商历史结算价不代表账户已经结算。缺值不连线；费用与保证金保持供应商原始口径，未知为空。点击数据点查看精确记录。"
+                : "横轴按供应商记录排列，不填充休市价格。点击蜡烛查看精确记录；缺失成交量/持仓量保留为空。"}
+              缩放只作用于当前页，图表数值仅用于显示。
             </p>
           </Card>
-          <Card title="行情明细">
+          <Card title={settlement ? "结算参数明细" : "行情明细"}>
             <Select
               aria-label="显示字段"
               mode="multiple"

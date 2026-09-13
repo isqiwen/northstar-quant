@@ -7,6 +7,58 @@ from pathlib import Path
 from support.processes import InstalledApplication
 
 
+def seed_settlement(app: InstalledApplication) -> None:
+    """Publish exact/null fee columns and a revision through the installed worker."""
+    code = """
+import json
+from sqlalchemy import text
+from northstar_quant.apps.storage import open_database
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.tushare import acquisition,jobs,planning
+from northstar_quant.data_management.tushare.catalog import BY_KEY
+engine=open_database()
+library=DataLibrary(engine,SourceFiles.from_environment())
+with engine.begin() as c:
+    c.execute(text("UPDATE data_sync_jobs SET next_at=now()+interval '365 days' "
+                   "WHERE status IN ('PENDING','WAITING')"))
+    planning.enqueue(c,'settlement','RB2610.SHF',
+        {'ts_code':'RB2610.SHF','start_date':'20260901','end_date':'20260904'},
+        '2026-09-01','2026-09-04')
+    c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+fields=BY_KEY['settlement'].fields
+rows=[]
+for day,price in ((1,'3100.125'),(3,None),(4,'3102.375')):
+    row=dict.fromkeys(fields)
+    row.update(ts_code='RB2610.SHF',trade_date=f'202609{day:02}',exchange='SHFE',
+               settle=price,trading_fee_rate='0.050')
+    rows.append(row)
+for revised in (False, True):
+    if revised:
+        rows[0]['trading_fee_rate']='0.060'
+        with engine.begin() as c:
+            c.execute(text("UPDATE data_sync_jobs SET status='PENDING',next_at=now() "
+                           "WHERE request_id=:id"), {'id':result['request_id']})
+            c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+    content=json.dumps({'code':0,'data':{'fields':fields,
+        'items':[[row[name] for name in fields] for row in rows]}}).encode()
+    acquisition.fetch=lambda *args:content
+    result=jobs.process_next(library)
+    assert result['status']=='VALIDATED',result
+"""
+    result = subprocess.run(
+        [str(Path(app.executable).parent / "python"), "-c", code],
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=60,
+        env=app.environment,
+        cwd=app.directory,
+    )
+    if result.returncode:
+        raise RuntimeError("Synthetic settlement setup failed: " + result.stderr)
+
+
 def seed_market(app: InstalledApplication, *, compact: bool = False) -> dict:
     code = """
 import json

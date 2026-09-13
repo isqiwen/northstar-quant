@@ -21,7 +21,7 @@ from sqlalchemy import create_engine, text
 from support.authority_browser import check_authority
 from support.broker_account_browser import check_broker_account
 from support.closing_order_browser import check_closing_order
-from support.market import seed_market
+from support.market import seed_market, seed_settlement
 from support.opening_order_browser import check_opening_order
 from support.order_browser import check_order_cancel
 from support.processes import InstalledApplication
@@ -218,11 +218,54 @@ def main() -> None:
                         )
                         assert processor.poll() is None
                 market = seed_market(app)
+                seed_settlement(app)
                 with app.web("data-api") as data_url:
                     visit(data_url)
                     expect(page.get_by_role("heading", name="期货数据工作台")).to_be_visible()
                     expect(page.get_by_text("已发现合约", exact=True)).to_be_visible()
                     screenshot("overview")
+                    visit(
+                        data_url + "/browse?dataset=settlement&scope=RB2610.SHF"
+                        "&start=2026-09-01&end=2026-09-04"
+                    )
+                    page.get_by_role("button", name="查询数据", exact=True).click()
+                    expect(page.get_by_text("3 条记录", exact=True)).to_be_visible()
+                    expect(
+                        page.get_by_role("img", name="固定数据结算价曲线")
+                    ).to_be_visible()
+                    expect(page.get_by_text("结算参数明细", exact=True)).to_be_visible()
+                    expect(
+                        page.get_by_role("cell", name="3100.125", exact=True)
+                    ).to_be_visible()
+                    expect(
+                        page.get_by_role("cell", name="0.06", exact=True)
+                    ).to_be_visible()
+                    screenshot("settlement")
+                    visit(
+                        data_url + "/versions?dataset=settlement&scope=RB2610.SHF"
+                        "&start=2026-09-01&end=2026-09-04"
+                    )
+                    page.get_by_role("button", name="查询数据", exact=True).click()
+                    page.locator(".ant-table-tbody input[type=checkbox]").nth(0).check()
+                    page.locator(".ant-table-tbody input[type=checkbox]").nth(1).check()
+                    page.get_by_role("button", name="比较所选版本", exact=True).click()
+                    expect(
+                        page.get_by_role("dialog").get_by_role(
+                            "cell", name="trading_fee_rate", exact=True
+                        )
+                    ).to_be_visible()
+                    expect(
+                        page.get_by_role("dialog").get_by_role(
+                            "cell", name="0.05", exact=True
+                        )
+                    ).to_be_visible()
+                    expect(
+                        page.get_by_role("dialog").get_by_role(
+                            "cell", name="0.06", exact=True
+                        )
+                    ).to_be_visible()
+                    screenshot("settlement-revision")
+                    page.get_by_role("dialog").locator(".ant-modal-close").click()
                     visit(
                         data_url
                         + "/browse?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"

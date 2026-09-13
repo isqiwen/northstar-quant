@@ -21,9 +21,11 @@ type Row = Record<string, unknown>;
 export function PriceChart({
   rows,
   onSelect,
+  settlement = false,
 }: {
   rows: Row[];
   onSelect: (key: string) => void;
+  settlement?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -41,66 +43,84 @@ export function PriceChart({
         renderMode: "richText",
       },
       axisPointer: { link: [{ xAxisIndex: "all" }] },
-      grid: [
-        { left: 65, right: 28, top: 20, height: "48%" },
-        { left: 65, right: 28, top: "63%", height: "20%" },
-      ],
-      xAxis: [0, 1].map((i) => ({
+      grid: settlement
+        ? [{ left: 65, right: 28, top: 35, bottom: 65 }]
+        : [
+            { left: 65, right: 28, top: 20, height: "48%" },
+            { left: 65, right: 28, top: "63%", height: "20%" },
+          ],
+      xAxis: (settlement ? [0] : [0, 1]).map((i) => ({
         type: "category",
         data: labels,
         gridIndex: i,
-        axisLabel: { show: i === 1 },
+        axisLabel: { show: settlement || i === 1 },
       })),
-      yAxis: [
-        { scale: true, gridIndex: 0 },
-        { scale: true, gridIndex: 1, name: "成交量" },
-        {
-          scale: true,
-          gridIndex: 1,
-          name: "持仓量",
-          position: "right",
-          splitLine: { show: false },
-        },
-      ],
+      yAxis: settlement
+        ? [{ scale: true, name: "结算价" }]
+        : [
+            { scale: true, gridIndex: 0 },
+            { scale: true, gridIndex: 1, name: "成交量" },
+            {
+              scale: true,
+              gridIndex: 1,
+              name: "持仓量",
+              position: "right",
+              splitLine: { show: false },
+            },
+          ],
       dataZoom: [
-        { type: "inside", xAxisIndex: [0, 1] },
-        { type: "slider", xAxisIndex: [0, 1], bottom: 4, height: 20 },
-      ],
-      series: [
+        { type: "inside", xAxisIndex: settlement ? [0] : [0, 1] },
         {
-          name: "OHLC",
-          type: "candlestick",
-          data: rows.map((r) => [
-            num(r, "open"),
-            num(r, "close"),
-            num(r, "low"),
-            num(r, "high"),
-          ]),
-          itemStyle: {
-            color: "#cf4c56",
-            color0: "#16866c",
-            borderColor: "#cf4c56",
-            borderColor0: "#16866c",
-          },
-        },
-        {
-          name: "成交量",
-          type: "bar",
-          xAxisIndex: 1,
-          yAxisIndex: 1,
-          data: rows.map((r) => num(r, "vol")),
-          itemStyle: { color: "#8fa8de" },
-        },
-        {
-          name: "持仓量",
-          type: "line",
-          xAxisIndex: 1,
-          yAxisIndex: 2,
-          data: rows.map((r) => num(r, "oi")),
-          showSymbol: false,
-          lineStyle: { color: "#c08d36" },
+          type: "slider",
+          xAxisIndex: settlement ? [0] : [0, 1],
+          bottom: 4,
+          height: 20,
         },
       ],
+      series: settlement
+        ? [
+            {
+              name: "结算价",
+              type: "line",
+              connectNulls: false,
+              data: rows.map((r) => num(r, "settle")),
+            },
+          ]
+        : [
+            {
+              name: "OHLC",
+              type: "candlestick",
+              data: rows.map((r) => [
+                num(r, "open"),
+                num(r, "close"),
+                num(r, "low"),
+                num(r, "high"),
+              ]),
+              itemStyle: {
+                color: "#cf4c56",
+                color0: "#16866c",
+                borderColor: "#cf4c56",
+                borderColor0: "#16866c",
+              },
+            },
+            {
+              name: "成交量",
+              type: "bar",
+              xAxisIndex: 1,
+              yAxisIndex: 1,
+              data: rows.map((r) => num(r, "vol")),
+              itemStyle: { color: "#8fa8de" },
+            },
+            {
+              name: "持仓量",
+              type: "line",
+              xAxisIndex: 1,
+              yAxisIndex: 2,
+              data: rows.map((r) => num(r, "oi")),
+              showSymbol: false,
+              lineStyle: { color: "#c08d36" },
+            },
+          ],
     });
     chart.on("click", (p) => {
       if (p.dataIndex !== undefined) onSelect(String(rows[p.dataIndex]?._key));
@@ -111,13 +131,15 @@ export function PriceChart({
       resize.disconnect();
       chart.dispose();
     };
-  }, [rows, onSelect]);
+  }, [rows, onSelect, settlement]);
   return (
     <div
       ref={ref}
       style={{ height: 390 }}
       role="img"
-      aria-label="固定数据 K 线、成交量与持仓量"
+      aria-label={
+        settlement ? "固定数据结算价曲线" : "固定数据 K 线、成交量与持仓量"
+      }
     />
   );
 }

@@ -195,6 +195,47 @@ def test_settlement_fields_survive_download_and_fixed_publication(
         with automatic._engine.connect() as connection:
             assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 1
         assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == first_raw
+        from northstar_quant.data_management.exploration.revisions import compare
+        from northstar_quant.data_management.exploration.rows import read
+
+        view = read(
+            automatic._engine,
+            "settlement",
+            "RB2610.SHF",
+            "2026-09-01",
+            "2026-09-01",
+            [receipt["receipt_id"]],
+        )
+        assert view["rows"][0]["settle"] == "3100.125"
+        assert view["rows"][0]["trading_fee_rate"] == "0.05"
+        assert view["rows"][0]["offset_today_fee"] is None
+        raw = raw.replace(b'"5e-2"', b'"0.060"')
+        with automatic._engine.begin() as connection:
+            connection.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+        ready(automatic)
+        revised = jobs.process_next(automatic)
+        assert revised["status"] == "VALIDATED"
+        with automatic._engine.connect() as connection:
+            after_id = connection.scalar(
+                text("SELECT receipt_id FROM data_sync_receipts WHERE receipt_id<>:id"),
+                {"id": receipt["receipt_id"]},
+            )
+        difference = compare(automatic._engine, before_id=receipt["receipt_id"], after_id=after_id)
+        assert difference["counts"]["changed"] == 1
+        assert [
+            (item["field"], item["before"], item["after"]) for item in difference["changes"]
+        ] == [("trading_fee_rate", "0.05", "0.06")]
+        assert (
+            read(
+                automatic._engine,
+                "settlement",
+                "RB2610.SHF",
+                "2026-09-01",
+                "2026-09-01",
+                [receipt["receipt_id"]],
+            )["rows"]
+            == view["rows"]
+        )
 
 
 def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):

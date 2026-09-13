@@ -9,12 +9,23 @@ from sqlalchemy import Engine, text
 from ..tushare.catalog import BY_KEY, EXCHANGES
 from ..tushare.store import serial
 
-PRICE_DATASETS = ("1min", "5min", "15min", "30min", "60min", "daily", "week", "month", "adjusted")
+BROWSABLE_DATASETS = (
+    "1min",
+    "5min",
+    "15min",
+    "30min",
+    "60min",
+    "daily",
+    "week",
+    "month",
+    "adjusted",
+    "settlement",
+)
 
 
 def interval(dataset: str, scope: str, start: str, end: str) -> tuple[date, date]:
-    if dataset not in PRICE_DATASETS or not 1 <= len(scope) <= 40:
-        raise ValueError("请选择已支持的行情周期和合约")
+    if dataset not in BROWSABLE_DATASETS or not 1 <= len(scope) <= 40:
+        raise ValueError("请选择已支持的数据类型和合约")
     left, right = date.fromisoformat(start), date.fromisoformat(end)
     if not 0 <= (right - left).days <= 365:
         raise ValueError("单次浏览范围为 1–366 个自然日")
@@ -44,7 +55,11 @@ def overview(engine: Engine) -> dict[str, Any]:
         ]
     return {
         "datasets": [
-            {**d.public(), **serial(counts.get(d.key, {})), "browsable": d.key in PRICE_DATASETS}
+            {
+                **d.public(),
+                **serial(counts.get(d.key, {})),
+                "browsable": d.key in BROWSABLE_DATASETS,
+            }
             for d in BY_KEY.values()
         ],
         "exchanges": list(EXCHANGES),
