@@ -759,7 +759,7 @@ def main() -> None:
                             "steps": [],
                             "archives": [],
                             "state": {},
-                            "account_progress": {"status": "UNBOUND"},
+                            "account_progress": {"status": "UNBOUND", "through_sequence": 0},
                             "startup_query": {
                                 "status": "INCOMPLETE",
                                 "reason": "STARTUP_QUERY_NOT_FINISHED",
