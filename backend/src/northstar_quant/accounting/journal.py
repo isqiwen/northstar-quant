@@ -195,13 +195,33 @@ def verify_source(
     source_hash: str,
     facts: tuple[AccountFact, ...],
 ) -> None:
+    """Check one batch against its owner; replay/verify_all checks the full chain.
+
+    Recovery calls this for every source after replay. Re-reading the complete
+    journal for every batch would make that source audit quadratic in history.
+    """
     expected = [{"kind": type(fact).__name__, "fact": fact.to_dict()} for fact in facts]
-    for entry in _read(connection, account_id):
-        if entry["source_id"] == source_id:
-            if entry["source_hash"] != source_hash or entry["facts"] != expected:
-                raise AccountJournalError("account facts differ from their verified source")
-            return
-    raise AccountJournalError("accepted account source is missing from its monetary journal")
+    row = (
+        connection.execute(
+            select(_entries).where(
+                _entries.c.account_id == account_id, _entries.c.source_id == source_id
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is None:
+        raise AccountJournalError("accepted account source is missing from its monetary journal")
+    entry = row["document"]
+    if (
+        entry["account_id"] != account_id
+        or entry["source_id"] != source_id
+        or entry["ordinal"] != row["ordinal"]
+        or _hash(entry) != row["content_hash"]
+        or entry["source_hash"] != source_hash
+        or entry["facts"] != expected
+    ):
+        raise AccountJournalError("account facts differ from their verified source")
 
 
 def verify_all(connection: Connection) -> dict[str, Account]:

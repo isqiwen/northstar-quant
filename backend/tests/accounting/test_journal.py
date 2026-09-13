@@ -233,9 +233,7 @@ def test_mixed_broker_batch_posts_supported_facts_without_claiming_complete_cove
 
     baseline = position_baseline(postgres_engine)
     ledger = BrokerLedger(postgres_engine)
-    source = ledger_query(
-        postgres_engine, trades=(trade(), trade("unsupported", **unsupported))
-    )
+    source = ledger_query(postgres_engine, trades=(trade(), trade("unsupported", **unsupported)))
     command = uuid4()
     entry = ledger.ingest(baseline, source, request_id=command)
     assert entry["status"] == "UNKNOWN"
@@ -253,3 +251,40 @@ def test_mixed_broker_batch_posts_supported_facts_without_claiming_complete_cove
             _ = account.cash
     assert ledger.context(source)["accounting_projection"]["status"] == "UNAVAILABLE"
     assert ledger.verify_all()["position_entries_count"] == 1
+
+
+def test_source_verification_rejects_rehashed_money_different_from_owner(tmp_path):
+    import hashlib
+    import json
+
+    from northstar_quant.accounting.journal import verify_source
+
+    engine = open_store(tmp_path / "account.sqlite")
+    initialize(engine)
+    fact = fills()[0]
+    with engine.begin() as connection:
+        post(
+            connection,
+            "account",
+            opening_cash=Decimal(10000),
+            markets=(A,),
+            facts=(fact,),
+            source_id="broker-fill",
+            source_hash="a" * 64,
+        )
+        verify_source(connection, "account", "broker-fill", "a" * 64, (fact,))
+        document = json.loads(
+            connection.exec_driver_sql("SELECT document FROM account_journal").scalar_one()
+        )
+        document["facts"][0]["fact"]["price"] = "120"
+        encoded = json.dumps(document, sort_keys=True, separators=(",", ":"))
+        connection.exec_driver_sql("DROP TRIGGER account_journal_UPDATE")
+        connection.exec_driver_sql(
+            "UPDATE account_journal SET document=?, content_hash=?",
+            (encoded, hashlib.sha256(encoded.encode()).hexdigest()),
+        )
+        with pytest.raises(ValueError, match="verified source"):
+            verify_source(connection, "account", "broker-fill", "a" * 64, (fact,))
+        with pytest.raises(ValueError, match="checkpoint"):
+            replay(connection, "account")
+    engine.dispose()

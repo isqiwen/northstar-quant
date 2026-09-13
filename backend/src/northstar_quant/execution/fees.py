@@ -54,12 +54,27 @@ def post_fee(connection: Connection, account_id: str, fact: FeeFact) -> None:
     )
 
 
-def verify_fee(connection: Connection, account_id: str, fact: FeeFact) -> None:
-    source_id, source_hash = _source(fact)
-    journal.verify_source(connection, account_id, source_id, source_hash, (fact,))
-    account = journal.replay(connection, account_id, source_id=source_id, source_hash=source_hash)
-    if not any(item.fact == fact for item in account.applied_fees):
-        raise ValueError("execution fee has no matching accepted account charge")
+class FeeAudit:
+    """One recovery/read transaction; reconstruct each covered account once.
+
+    This index is discarded after verification, never used to admit orders or
+    carried across account writes. Full replay validates every batch checkpoint.
+    """
+
+    def __init__(self, connection: Connection) -> None:
+        self.connection = connection
+        self._verified: dict[str, dict[str, FeeFact]] = {}
+
+    def verify(self, account_id: str, fact: FeeFact) -> None:
+        source_id, source_hash = _source(fact)
+        journal.verify_source(self.connection, account_id, source_id, source_hash, (fact,))
+        if account_id not in self._verified:
+            account = journal.replay(self.connection, account_id)
+            self._verified[account_id] = {
+                item.fact.fee_id: item.fact for item in account.applied_fees
+            }
+        if self._verified[account_id].get(fact.fee_id) != fact:
+            raise ValueError("execution fee has no matching accepted account charge")
 
 
 def verify_fee_sources(connection: Connection, fees: set[tuple[str, str]]) -> None:

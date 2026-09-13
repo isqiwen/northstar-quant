@@ -34,7 +34,7 @@ from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.journal import initialize as initialize_account_journal
 from northstar_quant.persistence.sql import write_transaction
 
-from .fees import post_fee, verify_fee, verify_fee_sources
+from .fees import FeeAudit, post_fee, verify_fee_sources
 from .orders import Offset, PendingOrder, reservation
 
 _metadata = MetaData()
@@ -596,7 +596,7 @@ class OrderJournal:
             if previous is not None:
                 if previous["document"] != fact.to_dict() or previous["account_id"] != account_id:
                     raise ValueError("fee identity is bound to different input")
-                verify_fee(connection, account_id, fact)
+                FeeAudit(connection).verify(account_id, fact)
                 return tuple(_view(_get(connection, identity)) for identity in sorted(groups))
             prior_document = connection.scalar(
                 select(_fees.c.document).where(_fees.c.fee_id == fact.supersedes_fee_id)
@@ -765,6 +765,7 @@ class OrderJournal:
                 connection,
                 set(connection.execute(select(_fees.c.account_id, _fees.c.fee_id)).tuples()),
             )
+            fee_audit = FeeAudit(connection)
             for fee in connection.execute(select(_fees)).mappings().yield_per(100):
                 fee_fact = FeeFact.from_dict(fee["document"])
                 if (
@@ -772,7 +773,7 @@ class OrderJournal:
                     or fee["supersedes_fee_id"] != fee_fact.supersedes_fee_id
                 ):
                     raise ValueError("execution fee identity is damaged")
-                verify_fee(connection, fee["account_id"], fee_fact)
+                fee_audit.verify(fee["account_id"], fee_fact)
                 for identity in _fee_orders(connection, fee_fact):
                     event = (
                         connection.execute(
