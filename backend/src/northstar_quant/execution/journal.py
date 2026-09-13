@@ -335,12 +335,15 @@ class OrderJournal:
             now = datetime.now(UTC)
             if not order.submitted_at <= now < order.expires_at:
                 raise ValueError("order admission is outside its fixed authorization window")
-            # One net-target working order per contract, matching ExecutionEngine.
+            # One working order per contract, matching ExecutionEngine. A terminal
+            # order's unknown fees retain their own reservation, but are not a
+            # working order. They block OPEN below; confirmed reduce-only closing
+            # still requires the caller's account/position admission.
             active = connection.scalar(
                 select(_orders.c.order_id)
                 .where(
                     _orders.c.contract_id == str(order.contract_id),
-                    (_orders.c.status.not_in(_TERMINAL) | (_orders.c.pending_fees != {})),
+                    _orders.c.status.not_in(_TERMINAL),
                 )
                 .limit(1)
             )

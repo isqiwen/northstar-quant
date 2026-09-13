@@ -141,6 +141,8 @@ export function Action<P extends CommandPath>({
             setResult(result);
             if ("status" in result && result.status === "REJECTED") {
               message.warning("内核已拒绝此操作，请查看原因");
+            } else if ("status" in result && result.status === "UNKNOWN") {
+              message.warning("操作已完成，结果仍有未知项，请查看记录");
             } else {
               message.success("内核已确认操作");
             }

@@ -129,7 +129,7 @@ describe("fixed Protobuf commands", () => {
     async (kind) => {
       const result =
         kind === "unknown"
-          ? response("unknown")
+          ? response("unknown", 503)
           : new Response("gateway", {
               status: kind === "unavailable" ? 503 : 200,
             });
@@ -151,6 +151,29 @@ describe("fixed Protobuf commands", () => {
       expect(api.pendingCommand()?.status).toBe("UNKNOWN");
     },
   );
+  it("shows a completed unknown budget without locking further commands", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(response("session"))
+        .mockResolvedValueOnce(response("unknown")),
+    );
+    const api = await import("../../shared/api");
+    const result = await api.mutate(
+      "/api/streams/s/opening-budgets",
+      {
+        request_id: "fixed",
+        sequence: 5,
+        query_id: "query",
+        entry_id: "entry",
+        limit_price: "3110",
+      },
+      "runtime",
+    );
+    expect(result).toMatchObject({ status: "UNKNOWN", budget_id: "s" });
+    expect(api.pendingCommand()).toBeNull();
+  });
   it("rejects denied commands without replay", async () => {
     const fetch = vi
       .fn()

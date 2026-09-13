@@ -223,11 +223,13 @@ export async function mutate<T = unknown>(
   const value = (await decodeResponse("POST", path, response).catch(
     () => null,
   )) as RecordValue | null;
-  if (response.ok && value !== null && value?.status !== "UNKNOWN") {
+  // A successful response may contain an UNKNOWN business observation.
+  // The owning API reports an unconfirmed command as HTTP 503 instead.
+  if (response.ok && value !== null) {
     acknowledge();
     return value as T;
   }
-  if (response.status >= 500 || value === null || value?.status === "UNKNOWN") {
+  if (response.status >= 500 || value === null) {
     retain({ ...command, status: "UNKNOWN" });
   } else {
     acknowledge();

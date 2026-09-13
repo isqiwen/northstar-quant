@@ -11,6 +11,7 @@ from northstar_quant.accounting import journal as money
 from northstar_quant.accounting.fees import FeeFact
 from northstar_quant.execution import journal as execution
 from northstar_quant.execution.journal import OrderJournal
+from northstar_quant.execution.orders import Offset, OrderBudget, Side
 from northstar_quant.persistence.sql import write_transaction
 from tests.accounting.test_portfolio_account import A
 from tests.execution.test_journal import fill, post, request, setup_journal
@@ -243,4 +244,46 @@ def test_fee_cannot_release_reservations_without_corresponding_account_fills(tmp
     assert [journal.get(order.order_id) for order in orders] == before
     with pytest.raises(ValueError, match="confirmed fees"):
         balance(engine)
+    engine.dispose()
+
+
+def test_terminal_pending_fees_keep_reservation_but_allow_checked_closing(tmp_path):
+    engine, journal, orders, fills = prepare(tmp_path)
+    opening = orders[0]
+    before = journal.get(opening.order_id)
+    closing = replace(
+        opening,
+        order_id=str(uuid4()),
+        side=Side.SELL,
+        offset=Offset.CLOSE_TODAY,
+        budget=OrderBudget(Decimal("3"), Decimal(0), Decimal(0), Decimal(0)),
+    )
+    checked, dispatched = [], []
+
+    def admit(connection):
+        account = money.replay(connection, "account")
+        assert account.position(opening.contract_id).long_today == closing.quantity_lots
+        assert account.pending_fee_fill_ids
+        checked.append(closing.order_id)
+
+    saved = journal.submit(closing, uuid4(), admit=admit, dispatch=dispatched.append)
+    assert checked == [closing.order_id] and dispatched == [closing]
+    assert saved["status"] == "UNKNOWN"  # A send attempt is never a confirmed close.
+    assert saved["reservation"]["reserved_margin"] == "0"
+    assert saved["reservation"]["reserved_gross"] == "0"
+    assert journal.get(opening.order_id) == before
+    with pytest.raises(ValueError, match="unresolved"):
+        journal.submit(
+            replace(closing, order_id=str(uuid4())),
+            uuid4(),
+            admit=lambda _: pytest.fail("unknown close still holds inventory"),
+            dispatch=lambda _: pytest.fail("must not duplicate closing"),
+        )
+    with pytest.raises(ValueError, match="unresolved"):
+        journal.submit(
+            request(),
+            uuid4(),
+            admit=lambda _: pytest.fail("fees still block new risk"),
+            dispatch=lambda _: pytest.fail("no new opening"),
+        )
     engine.dispose()

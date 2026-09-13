@@ -408,6 +408,10 @@ def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_un
         payload.update(sequence=3, request_id=str(uuid4()))
         unknown = client.post(url, json=payload, headers=headers)
         assert unknown.status_code == 200 and unknown.json()["status"] == "UNKNOWN"
+        command = client.get(f"/api/live/commands/{payload['request_id']}").json()
+        assert command["status"] == "COMPLETED"
+        assert command["result"]["status"] == "UNKNOWN"
+        assert client.post(url, json=payload, headers=headers).json() == unknown.json()
         assert client.get(f"/broker/opening-budgets/{payload['request_id']}").status_code == 404
 
 
