@@ -149,7 +149,8 @@ def test_published_objects_readable_but_raw_sources_remain_private(tmp_path):
 
 
 @pytest.mark.parametrize("host", ["storage.local", "core.local"])
-def test_writer_initializes_empty_external_share_once(nfs, monkeypatch, host):
+@pytest.mark.parametrize("existing", [None, ".DS_Store", "bars.parquet", "metadata-symlink"])
+def test_writer_initializes_empty_external_share_once(nfs, monkeypatch, host, existing):
     nfs.MARKET.mkdir()
     nfs.STATE.mkdir()
     monkeypatch.setattr(
@@ -162,11 +163,23 @@ def test_writer_initializes_empty_external_share_once(nfs, monkeypatch, host):
     monkeypatch.setattr(nfs, "run", lambda *a: None)
     monkeypatch.setattr(nfs.os, "geteuid", lambda: 0)
     request = {"host": host, "server": "storage.local", "writer": host}
+    if existing == "metadata-symlink":
+        (nfs.MARKET / ".DS_Store").symlink_to(nfs.STATE / "missing")
+    elif existing:
+        (nfs.MARKET / existing).write_bytes(b"retained original bytes")
+    if existing in {"bars.parquet", "metadata-symlink"}:
+        with pytest.raises(ValueError, match="共享包含已有文件"):
+            nfs.prepare(request)
+        assert not (nfs.MARKET / ".northstar-storage-id").exists()
+        assert not (nfs.STATE / "client.json").exists()
+        return
     nfs.prepare(request)
     first = nfs.identity()
     nfs.prepare(request)
     assert nfs.identity() == first
     assert packages == ["checked", "checked"]
+    if existing:
+        assert (nfs.MARKET / existing).read_bytes() == b"retained original bytes"
 
 
 def test_reader_cannot_initialize_missing_share_identity(nfs, monkeypatch):

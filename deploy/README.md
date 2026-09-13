@@ -120,7 +120,7 @@ Python 容器当前以 root 运行；Next.js 以 node 运行且不挂载业务�
 PostgreSQL、SQLite、Live 状态和凭据在各自主机本地持久存储，Live 不挂载 Data Hub/Research 的文件目录。
 
 存储编号由程序自动管理，无需在 `.env` 填写 UUID。
-NFS 服务端为全新空市场目录初始化身份；已有市场保留身份。首次 `deploy database` 初始化其余空目录。
+首次 `deploy database` 或 `deploy data-hub` 在 Data Hub 主机通过已挂载的共享初始化市场身份，并准备本地目录；不登录或配置 NFS 服务端。共享中的普通 `.DS_Store` 文件会保留且不妨碍首次初始化；其他已有内容缺少身份时仍拒绝接管。已有市场必须保留原身份。
 Data Hub 使用同一份绑定；Research 首次部署读取市场标记，初始化本机产物/备份目录并保存自己的绑定，
 读取行情时还会与 Data Hub 的固定发布清单核对。
 

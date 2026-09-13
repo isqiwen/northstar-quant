@@ -255,8 +255,8 @@ def main() -> int:
                 check=True,
             )
             elevated = (
-                "import subprocess,sys; subprocess.run(['sudo','-n','--',"
-                "'python3','-c'," + repr(program) + ",sys.argv[1]],check=True)"
+                "import subprocess,sys; sys.exit(subprocess.call(['sudo','-n','--',"
+                "'python3','-c'," + repr(program) + ",sys.argv[1]]))"
             )
             subprocess.run(
                 ssh(config, elevated, json.dumps(nfs | {"host": config["host"]})),

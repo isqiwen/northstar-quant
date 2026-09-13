@@ -134,8 +134,15 @@ def prepare_client(request: dict) -> None:
     marker = MARKET / ".northstar-storage-id"
     saved = STATE / "client.json"
     if not marker.exists():
-        if mode != "rw" or saved.exists() or any(MARKET.iterdir()):
+        if mode != "rw" or saved.exists():
             raise ValueError("共享缺少存储身份；首次请先部署 Data Hub，已有数据须恢复原身份")
+        # Finder metadata is not a market dataset; retain it without adopting
+        # any other pre-existing file, directory or symbolic link.
+        if any(
+            entry.name != ".DS_Store" or entry.is_symlink() or not entry.is_file()
+            for entry in MARKET.iterdir()
+        ):
+            raise ValueError("共享包含已有文件但缺少存储身份；请恢复原身份或使用专用空目录")
         with marker.open("x") as stream:
             os.fchmod(stream.fileno(), 0o644)
             stream.write(str(uuid4()) + "\n")
