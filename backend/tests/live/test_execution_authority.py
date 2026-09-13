@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
@@ -377,3 +378,91 @@ def test_refresh_in_progress_cannot_use_old_account_permission(live_engine, cons
     assert checked == sent == []
     with pytest.raises(LookupError):
         journal.get(order.order_id)
+
+
+def test_operator_pause_allows_only_position_checked_reduction(live_engine, consent_context):
+    from northstar_quant.execution.orders import AdmissionRejected, Offset
+
+    client, stream_id, _, authority, _ = consent_context
+    identifier = grant(consent_context)
+    client.streams.control(stream_id, "PAUSE", request_id=uuid4())
+    opening = order_for(consent_context)
+    order = replace(
+        opening,
+        offset=Offset.CLOSE_TODAY,
+        budget=replace(opening.budget, margin=Decimal(0), gross=Decimal(0)),
+    )
+    journal = OrderJournal(live_engine, authority.runtime_id)
+    checked, sent = [], []
+
+    def unavailable_position(connection):
+        checked.append(connection)
+        raise AdmissionRejected("position does not cover requested close")
+
+    with pytest.raises(AdmissionRejected, match="position does not cover"):
+        journal.submit(
+            order,
+            identifier,
+            admit=lambda connection: authority.admit(
+                connection,
+                identifier,
+                stream_id,
+                order,
+                check_current_account=unavailable_position,
+            ),
+            dispatch=sent.append,
+        )
+    assert len(checked) == 1 and sent == []
+    with pytest.raises(LookupError):
+        journal.get(order.order_id)
+    # The synthetic account gate supplies confirmed inventory only for this
+    # transaction test. Real CTP closing must prove it from the bound ledger.
+    result = journal.submit(
+        order,
+        identifier,
+        admit=lambda connection: authority.admit(
+            connection,
+            identifier,
+            stream_id,
+            order,
+            check_current_account=checked.append,
+        ),
+        dispatch=sent.append,
+    )
+    assert len(checked) == 2 and len(sent) == 1
+    assert result["reservation"]["reserved_close_lots"] == 3
+    assert result["status"] == "UNKNOWN"
+
+
+def test_fault_pause_cannot_be_bypassed_by_close_flag(live_engine, consent_context):
+    from northstar_quant.execution.orders import AdmissionRejected, Offset
+    from northstar_quant.persistence.sql import write_transaction
+
+    _, stream_id, _, authority, _ = consent_context
+    identifier = grant(consent_context)
+    opening = order_for(consent_context)
+    order = replace(
+        opening,
+        offset=Offset.CLOSE_TODAY,
+        budget=replace(opening.budget, margin=Decimal(0), gross=Decimal(0)),
+    )
+    with write_transaction(live_engine) as connection:
+        from northstar_quant.broker.stream_records import text
+
+        connection.execute(
+            text("UPDATE broker_streams SET paused=1, reason='MARKET_STALE' WHERE stream_id=:id"),
+            {"id": stream_id},
+        )
+    with pytest.raises(AdmissionRejected, match="stopped or paused"):
+        OrderJournal(live_engine, authority.runtime_id).submit(
+            order,
+            identifier,
+            admit=lambda connection: authority.admit(
+                connection,
+                identifier,
+                stream_id,
+                order,
+                check_current_account=lambda _: pytest.fail("fault bypassed"),
+            ),
+            dispatch=lambda _: pytest.fail("fault dispatched"),
+        )

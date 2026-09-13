@@ -1,10 +1,11 @@
 """Read local execution facts; neither observation nor a page grants sending rights."""
 
+from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from northstar_quant.live.owner import LiveOwner
 
@@ -20,6 +21,14 @@ class OpeningRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     budget_id: UUID
     authorization_id: UUID
+
+
+class ClosingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    opening_order_id: UUID
+    query_id: UUID
+    authorization_id: UUID
+    limit_price: Decimal = Field(gt=0, allow_inf_nan=False)
 
 
 def routes(owner: LiveOwner) -> APIRouter:
@@ -62,6 +71,25 @@ def routes(owner: LiveOwner) -> APIRouter:
             body.model_dump(mode="json"),
             lambda identifier: owner.streams.submit_opening(
                 stream_id, body.budget_id, body.authorization_id, request_id=identifier
+            ),
+        )
+
+    @router.post("/streams/{stream_id}/closing-orders")
+    def closing(request: Request, stream_id: UUID, body: ClosingRequest) -> dict[str, Any]:
+        if request.headers.get("x-northstar-operator") != "owner":
+            raise HTTPException(403, "Only the owner may submit a closing")
+        owner.check_ownership()
+        return execute_command(
+            owner,
+            request,
+            body.model_dump(mode="json"),
+            lambda identifier: owner.streams.submit_closing(
+                stream_id,
+                body.opening_order_id,
+                body.query_id,
+                body.authorization_id,
+                body.limit_price,
+                request_id=identifier,
             ),
         )
 

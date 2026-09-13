@@ -324,6 +324,14 @@ message OpeningOrderRequest {
   optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
 }
 
+message ClosingOrderRequest {
+  optional string opening_order_id = 1 [(northstar.web.required_field) = true];
+  optional string query_id = 2 [(northstar.web.required_field) = true];
+  optional string authorization_id = 3 [(northstar.web.required_field) = true];
+  optional string limit_price = 4 [(northstar.web.required_field) = true];
+  optional string request_id = 5 [(northstar.web.required_field) = true];
+}
+
 message CancelOrderRequest {
   optional string stream_id = 1 [(northstar.web.required_field) = true];
   optional string request_id = 2 [(northstar.web.required_field) = true];
@@ -600,6 +608,11 @@ service BrowserApi {
     option (northstar.web.http_path) = "/api/authorizations/{identifier}/revoke";
   }
 
+  rpc PostApiStreamsStreamIdClosingOrders (ClosingOrderRequest) returns (CommandRecord) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/closing-orders";
+    option (northstar.web.runtime_required) = true;
+  }
   rpc PostApiStreamsStreamIdOpeningOrders (OpeningOrderRequest) returns (CommandRecord) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/streams/{stream_id}/opening-orders";

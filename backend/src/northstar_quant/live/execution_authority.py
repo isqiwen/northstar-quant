@@ -15,7 +15,7 @@ from sqlalchemy import Connection, Engine
 
 from northstar_quant.broker.stream_queries import startup_query
 from northstar_quant.broker.stream_records import read_stream_source, text
-from northstar_quant.execution.orders import AdmissionRejected, OrderBudget, PendingOrder
+from northstar_quant.execution.orders import AdmissionRejected, Offset, OrderBudget, PendingOrder
 from northstar_quant.persistence.sql import write_transaction
 
 
@@ -283,7 +283,7 @@ class ExecutionAuthority:
         stream = (
             connection.execute(
                 text(
-                    "SELECT status, paused, received, cursor FROM broker_streams "
+                    "SELECT status, paused, reason, received, cursor FROM broker_streams "
                     "WHERE stream_id=:id"
                 ),
                 {"id": stream_id},
@@ -291,7 +291,13 @@ class ExecutionAuthority:
             .mappings()
             .one()
         )
-        if stream["status"] != "RECEIVING" or stream["paused"]:
+        # Operator pause stops new exposure, not explicitly checked reductions.
+        # A fault pause still requires recovery; a close flag is not permission
+        # to skip account/position admission or any consent/transport gate.
+        reducing = order.offset is not Offset.OPEN
+        if stream["status"] != "RECEIVING" or (
+            stream["paused"] and not (reducing and stream["reason"] == "OPERATOR_PAUSE")
+        ):
             raise AdmissionRejected("execution receiver is stopped or paused")
         if stream["cursor"] != stream["received"]:
             raise AdmissionRejected(

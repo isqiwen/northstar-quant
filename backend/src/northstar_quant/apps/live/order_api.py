@@ -1,9 +1,10 @@
 """Owned Protobuf presentation of local execution facts via the kernel client."""
 
+from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from pydantic import JsonValue
 from starlette.concurrency import run_in_threadpool
 
@@ -68,6 +69,14 @@ class OpeningOrderRequest(ApiModel):
     request_id: UUIDText
 
 
+class ClosingOrderRequest(ApiModel):
+    opening_order_id: UUIDText
+    query_id: UUIDText
+    authorization_id: UUIDText
+    limit_price: str
+    request_id: UUIDText
+
+
 def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> None:
     @app.get("/api/orders", response_model=LocalOrderPage, response_model_exclude_unset=True)
     async def orders(
@@ -126,5 +135,34 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             stream_id,
             UUID(str(document.budget_id)),
             UUID(str(document.authorization_id)),
+            request_id=UUID(str(document.request_id)),
+        )
+
+    @app.post(
+        "/api/streams/{stream_id}/closing-orders",
+        response_model=CommandRecord,
+        response_model_exclude_unset=True,
+    )
+    async def closing(
+        request: Request,
+        stream_id: UUID,
+        document: ClosingOrderRequest,
+        runtime: Annotated[UUID, Depends(_runtime_header)],
+    ) -> dict[str, Any]:
+        access.protect(request)
+        live = instances.for_request(request).for_runtime(runtime)
+        try:
+            price = Decimal(document.limit_price)
+            if not price.is_finite() or price <= 0:
+                raise ValueError("invalid closing price")
+        except (ArithmeticError, ValueError) as error:
+            raise HTTPException(422, "平仓限价必须为正的精确数字。") from error
+        return await run_in_threadpool(
+            live.streams.submit_closing,
+            stream_id,
+            UUID(str(document.opening_order_id)),
+            UUID(str(document.query_id)),
+            UUID(str(document.authorization_id)),
+            price,
             request_id=UUID(str(document.request_id)),
         )

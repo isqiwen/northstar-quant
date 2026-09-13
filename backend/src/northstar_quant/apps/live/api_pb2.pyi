@@ -668,6 +668,20 @@ class OpeningOrderRequest(_message.Message):
     request_id: str
     def __init__(self, budget_id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
 
+class ClosingOrderRequest(_message.Message):
+    __slots__ = ("opening_order_id", "query_id", "authorization_id", "limit_price", "request_id")
+    OPENING_ORDER_ID_FIELD_NUMBER: _ClassVar[int]
+    QUERY_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_PRICE_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    opening_order_id: str
+    query_id: str
+    authorization_id: str
+    limit_price: str
+    request_id: str
+    def __init__(self, opening_order_id: _Optional[str] = ..., query_id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., limit_price: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
+
 class CancelOrderRequest(_message.Message):
     __slots__ = ("stream_id", "request_id")
     STREAM_ID_FIELD_NUMBER: _ClassVar[int]

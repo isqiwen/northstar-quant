@@ -132,6 +132,14 @@ def _saved(connection: Connection, fill_id: str) -> dict[str, Any] | None:
     return value
 
 
+def confirmed_fill(connection: Connection, fill_id: str) -> FillFact:
+    """Return the immutable OMS-associated execution, never a queried guess."""
+    saved = _saved(connection, fill_id)
+    if saved is None:
+        raise LookupError("CTP execution has no confirmed local order association")
+    return FillFact.from_dict(saved["fact"])
+
+
 def apply_stream(engine: Engine, stream_id: UUID, sequence: int) -> str | None:
     with engine.connect() as connection:
         matched = _match(connection, stream_id, sequence)

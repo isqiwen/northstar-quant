@@ -336,6 +336,13 @@ def verify_admissions(engine: Engine, library: DataLibrary) -> int:
             proof = binding["admission"]
             if proof is None:
                 continue  # Low-level execution fixtures have no Live admission.
+            if proof.get("scope") == "CONFIRMED_SANDBOX_TODAY_CLOSE":
+                from northstar_quant.live.closing_execution import verify_closing
+
+                with engine.connect() as connection:
+                    verify_closing(connection, binding)
+                count += 1
+                continue
             budget = budgets.get(UUID(proof["budget_id"]))
             entry = BrokerLedger(engine).get(UUID(proof["entry_id"]))
             with engine.connect() as connection:

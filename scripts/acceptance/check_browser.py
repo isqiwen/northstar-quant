@@ -20,6 +20,7 @@ from playwright.sync_api import expect, sync_playwright
 from sqlalchemy import create_engine, text
 from support.authority_browser import check_authority
 from support.broker_account_browser import check_broker_account
+from support.closing_order_browser import check_closing_order
 from support.market import seed_market
 from support.opening_order_browser import check_opening_order
 from support.order_browser import check_order_cancel
@@ -967,6 +968,7 @@ def main() -> None:
                         expect(page.get_by_text("操作结果未知", exact=True)).not_to_be_visible()
                         screenshot("receiver-opening-budget")
                         check_opening_order(page, url, observed, stream, screenshot)
+                        check_closing_order(page, url, observed, stream, screenshot)
                         visit(url + "/streams/browser-synthetic")
                         page.unroute(pattern)
                         page.unroute("**/api/streams/browser-synthetic/refresh-account")

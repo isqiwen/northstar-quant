@@ -34,6 +34,7 @@ from northstar_quant.broker.settings import configured_profile, load_credentials
 from northstar_quant.broker.stream_records import append_stream_event, read_stream_archive
 from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
 from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.live.closing_execution import CLOSE_ORDER, CloseOrder, execute_closing
 from northstar_quant.live.market import advance_market, idle_reason
 from northstar_quant.live.materials import StrategyMaterials
 from northstar_quant.live.opening_execution import OPEN_ORDER, OpenOrder, execute_opening
@@ -444,6 +445,7 @@ class LiveStreams:
             receive,
             environment=environment,
         )
+        kernel.register(CLOSE_ORDER, lambda command: execute_closing(controls, command))
         kernel.register(CANCEL_ORDER, controls.cancel)
         kernel.register(REFRESH_ACCOUNT, controls.refresh)
         kernel.register(
@@ -491,10 +493,12 @@ class LiveStreams:
                 if not stopping:
 
                     def execute_control(
-                        command: CancelOrder | RefreshAccount | OpenOrder,
+                        command: CancelOrder | RefreshAccount | OpenOrder | CloseOrder,
                     ) -> dict[str, Any]:
                         if isinstance(command, CancelOrder):
                             return kernel.execute(CANCEL_ORDER, command)
+                        if isinstance(command, CloseOrder):
+                            return kernel.execute(CLOSE_ORDER, command)
                         if isinstance(command, OpenOrder):
                             return kernel.execute(OPEN_ORDER, command)
                         return kernel.execute(REFRESH_ACCOUNT, command)
@@ -598,6 +602,35 @@ class LiveStreams:
         return {
             "request_id": str(request_id),
             **control.request_opening(budget_id, authorization_id, request_id),
+        }
+
+    def submit_closing(
+        self,
+        stream_id: UUID,
+        opening_order_id: UUID,
+        query_id: UUID,
+        authorization_id: UUID,
+        limit_price: Decimal,
+        *,
+        request_id: UUID,
+    ) -> dict[str, Any]:
+        if self._check_ownership is None:
+            raise ValueError("closing requires an owned Live instance")
+        self._check_ownership()
+        with self._guard:
+            control = self._order_controls.get(stream_id)
+        if control is None:
+            return dict(
+                status="REJECTED",
+                reason="RECEIVER_NOT_ATTACHED",
+                order_id=str(request_id),
+                request_id=str(request_id),
+            )
+        return {
+            "request_id": str(request_id),
+            **control.request_closing(
+                opening_order_id, query_id, authorization_id, limit_price, request_id
+            ),
         }
 
     def cancel_order(

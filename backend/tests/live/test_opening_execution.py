@@ -67,6 +67,7 @@ def opening_context(live_engine, live_client, tmp_path, monkeypatch):
     assert calls["ready"].wait(3)
     for module in (
         "live.opening_execution",
+        "live.closing_execution",
         "live.opening_budgets",
         "live.execution_authority",
         "live.order_control",
@@ -325,12 +326,7 @@ def test_pause_after_commit_retains_unknown_attempt_without_native_send(
     assert client.streams.get(stream)["status"] == "RECEIVING"
 
 
-def test_admitted_order_confirmed_fill_posts_to_bound_account_once(
-    live_engine, opening_context, monkeypatch
-):
-    from northstar_quant.accounting.journal import snapshot
-    from northstar_quant.broker.execution_fills import verify_all
-    from northstar_quant.execution.journal import OrderJournal
+def fill_initial_order(live_engine, opening_context, monkeypatch):
     from tests.accounting.test_ledger import trade
 
     class CommitClock(ReceiverClock):
@@ -381,6 +377,19 @@ def test_admitted_order_confirmed_fill_posts_to_bound_account_once(
         trade("open1", Price="3110", Volume=1, TradeTime="09:03:01", OrderSysID="sys1"),
     )
     calls["accept"](fill)
+    return identifier, wire, fill
+
+
+def test_admitted_order_confirmed_fill_posts_to_bound_account_once(
+    live_engine, opening_context, monkeypatch
+):
+    from northstar_quant.accounting.journal import snapshot
+    from northstar_quant.broker.execution_fills import verify_all
+    from northstar_quant.execution.journal import OrderJournal
+
+    client, stream, budget, consent, calls = opening_context
+    identifier, wire, fill = fill_initial_order(live_engine, opening_context, monkeypatch)
+    sequence = fill.sequence - 2
     journal = OrderJournal(live_engine, UUID(client.status()["runtime_id"]))
     result = journal.get(str(identifier))
     assert result["status"] == "FILLED" and result["filled_lots"] == 1

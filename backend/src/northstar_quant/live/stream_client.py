@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -62,6 +63,27 @@ class StreamsClient:
         return self._live.mutate(
             f"/streams/{identifier}/opening-orders",
             {"budget_id": str(budget_id), "authorization_id": str(authorization_id)},
+            request_id,
+        )
+
+    def submit_closing(
+        self,
+        identifier: UUID,
+        opening_order_id: UUID,
+        query_id: UUID,
+        authorization_id: UUID,
+        limit_price: Decimal,
+        *,
+        request_id: UUID,
+    ) -> dict[str, Any]:
+        return self._live.mutate(
+            f"/streams/{identifier}/closing-orders",
+            dict(
+                opening_order_id=str(opening_order_id),
+                query_id=str(query_id),
+                authorization_id=str(authorization_id),
+                limit_price=str(limit_price),
+            ),
             request_id,
         )
 

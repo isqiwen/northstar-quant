@@ -19006,6 +19006,453 @@ export const northstar = $root.northstar = (() => {
             return OpeningOrderRequest;
         })();
 
+        live.ClosingOrderRequest = (function() {
+
+            /**
+             * Properties of a ClosingOrderRequest.
+             * @typedef {Object} northstar.live.ClosingOrderRequest.$Properties
+             * @property {string|null} [opening_order_id] ClosingOrderRequest opening_order_id
+             * @property {string|null} [query_id] ClosingOrderRequest query_id
+             * @property {string|null} [authorization_id] ClosingOrderRequest authorization_id
+             * @property {string|null} [limit_price] ClosingOrderRequest limit_price
+             * @property {string|null} [request_id] ClosingOrderRequest request_id
+             * @property {"opening_order_id"} [_opening_order_id] ClosingOrderRequest _opening_order_id
+             * @property {"query_id"} [_query_id] ClosingOrderRequest _query_id
+             * @property {"authorization_id"} [_authorization_id] ClosingOrderRequest _authorization_id
+             * @property {"limit_price"} [_limit_price] ClosingOrderRequest _limit_price
+             * @property {"request_id"} [_request_id] ClosingOrderRequest _request_id
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ClosingOrderRequest.
+             * @memberof northstar.live
+             * @interface IClosingOrderRequest
+             * @augments northstar.live.ClosingOrderRequest.$Properties
+             * @deprecated Use northstar.live.ClosingOrderRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ClosingOrderRequest.
+             * @typedef {{
+             *   opening_order_id?: string|null;
+             *   query_id?: string|null;
+             *   authorization_id?: string|null;
+             *   limit_price?: string|null;
+             *   request_id?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _opening_order_id?: undefined; opening_order_id?: null }|{ _opening_order_id?: "opening_order_id"; opening_order_id: string })
+             * ) & (
+             *   ({ _query_id?: undefined; query_id?: null }|{ _query_id?: "query_id"; query_id: string })
+             * ) & (
+             *   ({ _authorization_id?: undefined; authorization_id?: null }|{ _authorization_id?: "authorization_id"; authorization_id: string })
+             * ) & (
+             *   ({ _limit_price?: undefined; limit_price?: null }|{ _limit_price?: "limit_price"; limit_price: string })
+             * ) & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * )} northstar.live.ClosingOrderRequest.$Shape
+             */
+
+            /**
+             * Constructs a new ClosingOrderRequest.
+             * @memberof northstar.live
+             * @classdesc Represents a ClosingOrderRequest.
+             * @constructor
+             * @param {northstar.live.ClosingOrderRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ClosingOrderRequest = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ClosingOrderRequest opening_order_id.
+             * @member {string|null|undefined} opening_order_id
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            ClosingOrderRequest.prototype.opening_order_id = null;
+
+            /**
+             * ClosingOrderRequest query_id.
+             * @member {string|null|undefined} query_id
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            ClosingOrderRequest.prototype.query_id = null;
+
+            /**
+             * ClosingOrderRequest authorization_id.
+             * @member {string|null|undefined} authorization_id
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            ClosingOrderRequest.prototype.authorization_id = null;
+
+            /**
+             * ClosingOrderRequest limit_price.
+             * @member {string|null|undefined} limit_price
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            ClosingOrderRequest.prototype.limit_price = null;
+
+            /**
+             * ClosingOrderRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            ClosingOrderRequest.prototype.request_id = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ClosingOrderRequest _opening_order_id.
+             * @member {"opening_order_id"|undefined} _opening_order_id
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            $Object.defineProperty(ClosingOrderRequest.prototype, "_opening_order_id", {
+                get: $util.oneOfGetter($oneOfFields = ["opening_order_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ClosingOrderRequest _query_id.
+             * @member {"query_id"|undefined} _query_id
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            $Object.defineProperty(ClosingOrderRequest.prototype, "_query_id", {
+                get: $util.oneOfGetter($oneOfFields = ["query_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ClosingOrderRequest _authorization_id.
+             * @member {"authorization_id"|undefined} _authorization_id
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            $Object.defineProperty(ClosingOrderRequest.prototype, "_authorization_id", {
+                get: $util.oneOfGetter($oneOfFields = ["authorization_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ClosingOrderRequest _limit_price.
+             * @member {"limit_price"|undefined} _limit_price
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            $Object.defineProperty(ClosingOrderRequest.prototype, "_limit_price", {
+                get: $util.oneOfGetter($oneOfFields = ["limit_price"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ClosingOrderRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             */
+            $Object.defineProperty(ClosingOrderRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ClosingOrderRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.ClosingOrderRequest
+             * @static
+             * @param {northstar.live.ClosingOrderRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.ClosingOrderRequest} ClosingOrderRequest instance
+             * @type {{
+             *   (properties: northstar.live.ClosingOrderRequest.$Shape): northstar.live.ClosingOrderRequest & northstar.live.ClosingOrderRequest.$Shape;
+             *   (properties?: northstar.live.ClosingOrderRequest.$Properties): northstar.live.ClosingOrderRequest;
+             * }}
+             */
+            ClosingOrderRequest.create = function(properties) {
+                return new ClosingOrderRequest(properties);
+            };
+
+            /**
+             * Encodes the specified ClosingOrderRequest message. Does not implicitly {@link northstar.live.ClosingOrderRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.ClosingOrderRequest
+             * @static
+             * @param {northstar.live.ClosingOrderRequest.$Properties} message ClosingOrderRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ClosingOrderRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.opening_order_id != null && $Object.hasOwnProperty.call(message, "opening_order_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.opening_order_id);
+                if (message.query_id != null && $Object.hasOwnProperty.call(message, "query_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.query_id);
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.authorization_id);
+                if (message.limit_price != null && $Object.hasOwnProperty.call(message, "limit_price"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.limit_price);
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.request_id);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ClosingOrderRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.ClosingOrderRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.ClosingOrderRequest & northstar.live.ClosingOrderRequest.$Shape} ClosingOrderRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ClosingOrderRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.ClosingOrderRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.opening_order_id = reader.stringVerify();
+                            message._opening_order_id = "opening_order_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.query_id = reader.stringVerify();
+                            message._query_id = "query_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.authorization_id = reader.stringVerify();
+                            message._authorization_id = "authorization_id";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.limit_price = reader.stringVerify();
+                            message._limit_price = "limit_price";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ClosingOrderRequest message.
+             * @function verify
+             * @memberof northstar.live.ClosingOrderRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ClosingOrderRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.opening_order_id != null && $Object.hasOwnProperty.call(message, "opening_order_id")) {
+                    properties._opening_order_id = 1;
+                    if (!$util.isString(message.opening_order_id))
+                        return "opening_order_id: string expected";
+                }
+                if (message.query_id != null && $Object.hasOwnProperty.call(message, "query_id")) {
+                    properties._query_id = 1;
+                    if (!$util.isString(message.query_id))
+                        return "query_id: string expected";
+                }
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id")) {
+                    properties._authorization_id = 1;
+                    if (!$util.isString(message.authorization_id))
+                        return "authorization_id: string expected";
+                }
+                if (message.limit_price != null && $Object.hasOwnProperty.call(message, "limit_price")) {
+                    properties._limit_price = 1;
+                    if (!$util.isString(message.limit_price))
+                        return "limit_price: string expected";
+                }
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ClosingOrderRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.ClosingOrderRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.ClosingOrderRequest} ClosingOrderRequest
+             */
+            ClosingOrderRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.ClosingOrderRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.ClosingOrderRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.ClosingOrderRequest();
+                if (object.opening_order_id != null)
+                    message.opening_order_id = $String(object.opening_order_id);
+                if (object.query_id != null)
+                    message.query_id = $String(object.query_id);
+                if (object.authorization_id != null)
+                    message.authorization_id = $String(object.authorization_id);
+                if (object.limit_price != null)
+                    message.limit_price = $String(object.limit_price);
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ClosingOrderRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.ClosingOrderRequest
+             * @static
+             * @param {northstar.live.ClosingOrderRequest} message ClosingOrderRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ClosingOrderRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.opening_order_id != null && $Object.hasOwnProperty.call(message, "opening_order_id")) {
+                    object.opening_order_id = message.opening_order_id;
+                    if (options.oneofs)
+                        object._opening_order_id = "opening_order_id";
+                }
+                if (message.query_id != null && $Object.hasOwnProperty.call(message, "query_id")) {
+                    object.query_id = message.query_id;
+                    if (options.oneofs)
+                        object._query_id = "query_id";
+                }
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id")) {
+                    object.authorization_id = message.authorization_id;
+                    if (options.oneofs)
+                        object._authorization_id = "authorization_id";
+                }
+                if (message.limit_price != null && $Object.hasOwnProperty.call(message, "limit_price")) {
+                    object.limit_price = message.limit_price;
+                    if (options.oneofs)
+                        object._limit_price = "limit_price";
+                }
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ClosingOrderRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.live.ClosingOrderRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ClosingOrderRequest.prototype.toJSON = function() {
+                return ClosingOrderRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ClosingOrderRequest
+             * @function getTypeUrl
+             * @memberof northstar.live.ClosingOrderRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ClosingOrderRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.ClosingOrderRequest";
+            };
+
+            return ClosingOrderRequest;
+        })();
+
         live.CancelOrderRequest = (function() {
 
             /**

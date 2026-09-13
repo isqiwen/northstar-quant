@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Alert, Button, Card, Space } from "antd";
 import { query } from "./api/client";
 import { Action } from "./runtime";
+import { ClosingOrder } from "./closing-order";
 import { useData } from "../../shared/data";
 import {
   Evidence,
@@ -61,7 +62,7 @@ export function Orders() {
         type="info"
         showIcon
         title="请求不等于确认成交"
-        description="发送返回、撤单请求、断线和授权到期都不会释放未决预算。UNKNOWN 需要核对，不能盲目重发。成交已完成但费用尚未确认时，仍保留手续费预占，账户现金不可用于新增风险。可向当前接收核心请求撤单；新增报单尚未开放。"
+        description="发送返回、撤单请求、断线和授权到期都不会释放未决预算。UNKNOWN 需要核对，不能盲目重发。成交已完成但费用尚未确认时，仍保留手续费预占，账户现金不可用于新增风险。开仓与平仓均进入当前接收核心，发送前重新核对固定输入、账户和执行授权。"
       />
       <Records
         title="本地订单"
@@ -175,6 +176,15 @@ export function OrderDetail() {
             disabled={!!streams.error || receivers.length === 0}
             onDone={() => q.refresh()}
           />
+          {record.status === "FILLED" &&
+            record.quantity_lots === 1 &&
+            record.order.offset === "OPEN" &&
+            typeof record.order.observation_id === "string" && (
+              <ClosingOrder
+                orderId={id}
+                budgetId={record.order.observation_id}
+              />
+            )}
           <Card title="剩余预占">
             <Fields
               value={{

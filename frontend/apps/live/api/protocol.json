@@ -1564,6 +1564,47 @@
       "array": false,
       "evidence": false
     },
+    "northstar.live.ClosingOrderRequest": {
+      "fields": {
+        "opening_order_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "query_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "authorization_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "limit_price": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.live.CancelOrderRequest": {
       "fields": {
         "stream_id": {
@@ -3187,6 +3228,13 @@
       "input": "northstar.live.RevokeConsent",
       "output": "northstar.live.ExecutionConsent",
       "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/streams/{stream_id}/closing-orders",
+      "input": "northstar.live.ClosingOrderRequest",
+      "output": "northstar.live.CommandRecord",
+      "runtime": true
     },
     {
       "method": "POST",

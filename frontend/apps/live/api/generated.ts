@@ -254,6 +254,13 @@ export type OpeningOrderRequest = {
   authorization_id: string;
   request_id: string;
 };
+export type ClosingOrderRequest = {
+  opening_order_id: string;
+  query_id: string;
+  authorization_id: string;
+  limit_price: string;
+  request_id: string;
+};
 export type CancelOrderRequest = {
   stream_id: string;
   request_id: string;
