@@ -35,7 +35,7 @@ from northstar_quant.accounting.journal import initialize as initialize_account_
 from northstar_quant.persistence.sql import write_transaction
 
 from .fees import FeeAudit, post_fee, verify_fee_sources
-from .orders import Offset, PendingOrder, reservation
+from .orders import AdmissionRejected, Offset, PendingOrder, reservation
 
 _metadata = MetaData()
 _orders = Table(
@@ -74,6 +74,24 @@ _fees = Table(
 )
 _TERMINAL = {"FILLED", "CANCELED", "REJECTED"}
 _REPORTS = {"UNKNOWN", "ACCEPTED", "PARTIALLY_FILLED", *_TERMINAL}
+
+
+def require_no_execution_exposure(connection: Connection) -> None:
+    """Initial-flat admission cannot ignore another contract's local order or fill."""
+    if (
+        connection.scalar(
+            select(_orders.c.order_id)
+            .where(
+                (_orders.c.status.not_in(_TERMINAL))
+                | (_orders.c.filled_lots != 0)
+                | (_orders.c.conflicted != 0)
+                | (func.json(_orders.c.pending_fees) != "{}")
+            )
+            .limit(1)
+        )
+        is not None
+    ):
+        raise AdmissionRejected("initial opening requires no outstanding orders or prior fills")
 
 
 def initialize_journal(connection: Connection) -> None:
@@ -334,7 +352,7 @@ class OrderJournal:
                 return _view(prior)
             now = datetime.now(UTC)
             if not order.submitted_at <= now < order.expires_at:
-                raise ValueError("order admission is outside its fixed authorization window")
+                raise AdmissionRejected("order admission is outside its fixed authorization window")
             # One working order per contract, matching ExecutionEngine. A terminal
             # order's unknown fees retain their own reservation, but are not a
             # working order. They block OPEN below; confirmed reduce-only closing
@@ -348,7 +366,7 @@ class OrderJournal:
                 .limit(1)
             )
             if active is not None:
-                raise ValueError("contract already has an unresolved execution order")
+                raise AdmissionRejected("contract already has an unresolved execution order")
             if order.offset is Offset.OPEN:
                 unresolved = connection.scalar(
                     select(_orders.c.order_id)
@@ -360,7 +378,9 @@ class OrderJournal:
                     .limit(1)
                 )
                 if unresolved is not None:
-                    raise ValueError("account has unresolved execution facts; new risk is blocked")
+                    raise AdmissionRejected(
+                        "account has unresolved execution facts; new risk is blocked"
+                    )
             admit(connection)
             connection.execute(
                 _orders.insert().values(

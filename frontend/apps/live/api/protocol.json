@@ -1537,6 +1537,33 @@
       "array": false,
       "evidence": true
     },
+    "northstar.live.OpeningOrderRequest": {
+      "fields": {
+        "budget_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "authorization_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.live.CancelOrderRequest": {
       "fields": {
         "stream_id": {
@@ -3160,6 +3187,13 @@
       "input": "northstar.live.RevokeConsent",
       "output": "northstar.live.ExecutionConsent",
       "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/streams/{stream_id}/opening-orders",
+      "input": "northstar.live.OpeningOrderRequest",
+      "output": "northstar.live.CommandRecord",
+      "runtime": true
     },
     {
       "method": "POST",

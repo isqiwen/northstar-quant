@@ -3,7 +3,7 @@
 Copied SDK callbacks are the bounded stream's authoritative source in the instance database,
 not vendor wire bytes or a published research Snapshot. Each callback commits
 before its projection. A stopped/interrupted stream is never restarted; a new
-connection requires a new explicit command. There is no execution interface.
+connection requires a new explicit command. Execution commands use this owned core.
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ from northstar_quant.data_management.broker import resolve_broker_contract, veri
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
 from northstar_quant.live.materials import StrategyMaterials
+from northstar_quant.live.opening_execution import OPEN_ORDER, OpenOrder, execute_opening
 from northstar_quant.live.order_control import (
     CANCEL_ORDER,
     REFRESH_ACCOUNT,
@@ -320,12 +321,11 @@ class LiveStreams:
                 "terms": terms,
                 "configuration": configuration,
                 "code_revision": code_revision(),
-                "mode": "SHADOW_ONLY",
+                "mode": "EXPLICIT_SANDBOX",
                 "source_kind": "COPIED_CTP_CALLBACKS",
                 "scope": "SHFE_DECLARED_SESSIONS"
                 if schedule is not None
                 else "SHFE_DAY_OBSERVED_MINUTES",
-                "order_sending": False,
             }
             # Session locks are released explicitly before returning this pooled
             # connection. One receiver per database; bounded queries share the
@@ -446,6 +446,9 @@ class LiveStreams:
         )
         kernel.register(CANCEL_ORDER, controls.cancel)
         kernel.register(REFRESH_ACCOUNT, controls.refresh)
+        kernel.register(
+            OPEN_ORDER, lambda command: execute_opening(controls, self._library, command)
+        )
         kernel.start()
         with self._guard:
             self._order_controls[identifier] = controls
@@ -487,9 +490,13 @@ class LiveStreams:
                 stopping = self._poll(identifier, stopped)
                 if not stopping:
 
-                    def execute_control(command: CancelOrder | RefreshAccount) -> dict[str, Any]:
+                    def execute_control(
+                        command: CancelOrder | RefreshAccount | OpenOrder,
+                    ) -> dict[str, Any]:
                         if isinstance(command, CancelOrder):
                             return kernel.execute(CANCEL_ORDER, command)
+                        if isinstance(command, OpenOrder):
+                            return kernel.execute(OPEN_ORDER, command)
                         return kernel.execute(REFRESH_ACCOUNT, command)
 
                     controls.poll(execute_control)
@@ -537,7 +544,7 @@ class LiveStreams:
             finally:
                 self._unlock(owner, locks)
 
-    def cancellation_available(self, identifier: UUID | None = None) -> bool:
+    def execution_available(self, identifier: UUID | None = None) -> bool:
         with self._guard:
             return any(
                 control.ready
@@ -572,6 +579,26 @@ class LiveStreams:
                 "stream_id": str(stream_id),
             }
         return control.request_refresh(request_id)
+
+    def submit_opening(
+        self, stream_id: UUID, budget_id: UUID, authorization_id: UUID, *, request_id: UUID
+    ) -> dict[str, Any]:
+        if self._check_ownership is None:
+            raise ValueError("opening requires an owned Live instance")
+        self._check_ownership()
+        with self._guard:
+            control = self._order_controls.get(stream_id)
+        if control is None:
+            return {
+                "status": "REJECTED",
+                "reason": "RECEIVER_NOT_ATTACHED",
+                "order_id": str(request_id),
+                "request_id": str(request_id),
+            }
+        return {
+            "request_id": str(request_id),
+            **control.request_opening(budget_id, authorization_id, request_id),
+        }
 
     def cancel_order(
         self, stream_id: UUID, order_id: str, *, request_id: UUID
@@ -1034,8 +1061,8 @@ class LiveStreams:
             "market_age_seconds": age,
             "created_at": str(row["created_at"]),
             "updated_at": str(row["updated_at"]),
-            "order_sending": False,
-            "cancel_sending": self.cancellation_available(identifier),
+            "order_sending": self.execution_available(identifier),
+            "cancel_sending": self.execution_available(identifier),
             "archives": self._library.stream_attempts(identifier),
             "steps": [
                 {

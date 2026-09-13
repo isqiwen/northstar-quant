@@ -62,6 +62,12 @@ class CancelOrderRequest(ApiModel):
     request_id: UUIDText
 
 
+class OpeningOrderRequest(ApiModel):
+    budget_id: UUIDText
+    authorization_id: UUIDText
+    request_id: UUIDText
+
+
 def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> None:
     @app.get("/api/orders", response_model=LocalOrderPage, response_model_exclude_unset=True)
     async def orders(
@@ -100,4 +106,25 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             f"/execution/orders/{order_id}/cancel",
             {"stream_id": str(document.stream_id)},
             UUID(str(document.request_id)),
+        )
+
+    @app.post(
+        "/api/streams/{stream_id}/opening-orders",
+        response_model=CommandRecord,
+        response_model_exclude_unset=True,
+    )
+    async def opening(
+        request: Request,
+        stream_id: UUID,
+        document: OpeningOrderRequest,
+        runtime: Annotated[UUID, Depends(_runtime_header)],
+    ) -> dict[str, Any]:
+        access.protect(request)
+        live = instances.for_request(request).for_runtime(runtime)
+        return await run_in_threadpool(
+            live.streams.submit_opening,
+            stream_id,
+            UUID(str(document.budget_id)),
+            UUID(str(document.authorization_id)),
+            request_id=UUID(str(document.request_id)),
         )

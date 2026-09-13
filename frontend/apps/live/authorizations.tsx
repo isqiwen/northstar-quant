@@ -79,7 +79,7 @@ export function Authorizations() {
         type="info"
         showIcon
         title="限额同意与下单就绪分开检查"
-        description="保存限额不会直接下单。执行前还必须核对当前账户、行情、风险和未决订单；当前管理端尚未开放柜台报撤单。撤销授权也不代表既有订单已经撤销。"
+        description="保存限额不会直接下单。执行前还必须核对当前账户、行情、风险和未决订单；固定开仓预算页面可提交受限 SimNow 开仓，订单页面可请求撤单。撤销授权也不代表既有订单已经撤销。"
       />
       <Card title="本次授权范围">
         <Fields

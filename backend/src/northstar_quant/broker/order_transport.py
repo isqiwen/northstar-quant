@@ -217,7 +217,7 @@ class CtpExecution:
         instrument: dict[str, Any],
         limit_price: Decimal,
         *,
-        admit: Callable[[Connection], None],
+        admit: Callable[[Connection], dict[str, Any] | None],
         send: Callable[[str, dict[str, Any], int, datetime], int],
         check_owner: Callable[[], None],
     ) -> dict[str, Any]:
@@ -248,7 +248,7 @@ class CtpExecution:
                 raise ValueError("existing execution order has no matching CTP identity")
 
         def prepare(connection: Connection) -> None:
-            admit(connection)
+            admission = admit(connection)
             scope = _scope(self.session)
             previous = connection.exec_driver_sql(
                 "SELECT max(order_ref) FROM ctp_order_bindings WHERE scope=?", (scope,)
@@ -259,6 +259,7 @@ class CtpExecution:
             )
             document = dict(
                 session=self.session.to_dict(),
+                admission=admission,
                 instrument=instrument,
                 request=order.to_dict(),
                 fields=fields,

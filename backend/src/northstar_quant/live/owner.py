@@ -63,8 +63,8 @@ class LiveOwner:
             "status": "AVAILABLE",
             "release": code_revision(),
             "protocol": PROTOCOL_VERSION,
-            "order_sending": False,
-            "cancel_sending": self.streams.cancellation_available(),
+            "order_sending": self.streams.execution_available(),
+            "cancel_sending": self.streams.execution_available(),
         }
 
     def read(self, value: dict[str, Any]) -> dict[str, Any]:

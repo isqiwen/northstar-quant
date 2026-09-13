@@ -249,6 +249,11 @@ export type QueryRecord = {
   status: string;
   [key: string]: unknown;
 };
+export type OpeningOrderRequest = {
+  budget_id: string;
+  authorization_id: string;
+  request_id: string;
+};
 export type CancelOrderRequest = {
   stream_id: string;
   request_id: string;

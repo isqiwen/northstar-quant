@@ -12,6 +12,10 @@ from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.positions import Position
 
 
+class AdmissionRejected(ValueError):
+    """Current conditions disallow a new order; no send has been committed."""
+
+
 class Side(StrEnum):
     BUY = "BUY"
     SELL = "SELL"

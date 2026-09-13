@@ -318,6 +318,12 @@ message QueryRecord {
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 
+message OpeningOrderRequest {
+  optional string budget_id = 1 [json_name = "budget_id", (northstar.web.required_field) = true];
+  optional string authorization_id = 2 [json_name = "authorization_id", (northstar.web.required_field) = true];
+  optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
+}
+
 message CancelOrderRequest {
   optional string stream_id = 1 [(northstar.web.required_field) = true];
   optional string request_id = 2 [(northstar.web.required_field) = true];
@@ -594,6 +600,11 @@ service BrowserApi {
     option (northstar.web.http_path) = "/api/authorizations/{identifier}/revoke";
   }
 
+  rpc PostApiStreamsStreamIdOpeningOrders (OpeningOrderRequest) returns (CommandRecord) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/opening-orders";
+    option (northstar.web.runtime_required) = true;
+  }
   rpc PostApiOrdersOrderIdCancel (CancelOrderRequest) returns (CommandRecord) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/orders/{order_id}/cancel";

@@ -15,7 +15,7 @@ from sqlalchemy import Connection, Engine
 
 from northstar_quant.broker.stream_queries import startup_query
 from northstar_quant.broker.stream_records import read_stream_source, text
-from northstar_quant.execution.orders import OrderBudget, PendingOrder
+from northstar_quant.execution.orders import AdmissionRejected, OrderBudget, PendingOrder
 from northstar_quant.persistence.sql import write_transaction
 
 
@@ -273,10 +273,10 @@ class ExecutionAuthority:
         self.check_ownership()
         document = _get(connection, identifier)
         if self._view(connection, document)["status"] != "CONSENTED":
-            raise ValueError("execution consent is not current")
-        if document["stream_id"] != str(stream_id) or document["source"] != _source(
-            connection, stream_id
-        ):
+            raise AdmissionRejected("execution consent is not current")
+        if document["stream_id"] != str(stream_id):
+            raise AdmissionRejected("execution consent belongs to another receiver")
+        if document["source"] != _source(connection, stream_id):
             raise ValueError("execution consent source binding differs")
         if document["source"]["contract_id"] != str(order.contract_id):
             raise ValueError("execution consent does not cover this contract")
@@ -292,17 +292,19 @@ class ExecutionAuthority:
             .one()
         )
         if stream["status"] != "RECEIVING" or stream["paused"]:
-            raise ValueError("execution receiver is stopped or paused")
+            raise AdmissionRejected("execution receiver is stopped or paused")
         if stream["cursor"] != stream["received"]:
-            raise ValueError("execution requires processing every retained receiver callback")
+            raise AdmissionRejected(
+                "execution requires processing every retained receiver callback"
+            )
         from northstar_quant.broker.query_window import receiver_query
 
         refresh = receiver_query(connection, stream_id)
         if refresh is not None and refresh["status"] != "COMPLETE":
-            raise ValueError("execution requires completing the receiver account refresh")
+            raise AdmissionRejected("execution requires completing the receiver account refresh")
         query = startup_query(connection, stream_id)
         if query["status"] != "COMPLETE":
-            raise ValueError("execution requires this receiver's complete startup query")
+            raise AdmissionRejected("execution requires this receiver's complete startup query")
         if (
             connection.execute(
                 text(
@@ -319,9 +321,11 @@ class ExecutionAuthority:
             ).first()
             is not None
         ):
-            raise ValueError("execution startup query belongs to an interrupted receiver session")
+            raise AdmissionRejected(
+                "execution startup query belongs to an interrupted receiver session"
+            )
         if order.expires_at > datetime.fromisoformat(document["request"]["expires_at"]):
-            raise ValueError("order outlives execution consent")
+            raise AdmissionRejected("order outlives execution consent")
         limits = ExecutionLimits.from_dict(document["request"]["limits"])
         used = connection.exec_driver_sql(
             "SELECT COALESCE(SUM(json_extract(request, '$.quantity_lots')), 0) "
@@ -332,7 +336,7 @@ class ExecutionAuthority:
             order.quantity_lots > limits.max_order_lots
             or used + order.quantity_lots > limits.max_total_lots
         ):
-            raise ValueError("execution consent lot budget exceeded")
+            raise AdmissionRejected("execution consent lot budget exceeded")
         with localcontext() as context:
             context.prec = 192
             if any(
@@ -340,7 +344,7 @@ class ExecutionAuthority:
                 > getattr(limits.max_order_budget, field)
                 for field in ("fee", "margin", "gross", "loss")
             ):
-                raise ValueError("execution consent money budget exceeded")
+                raise AdmissionRejected("execution consent money budget exceeded")
         check_current_account(connection)  # Consent is not an account/risk certificate.
 
     def verify_all(self) -> int:

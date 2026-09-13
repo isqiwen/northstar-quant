@@ -24,6 +24,7 @@ from northstar_quant.broker.order_transport import CtpExecution, CtpSession
 from northstar_quant.broker.stream_records import read_stream_source, text
 from northstar_quant.execution.journal import CancellationPending
 from northstar_quant.live.commands import Commands
+from northstar_quant.live.opening_execution import OpenOrder
 from northstar_quant.messaging import Endpoint
 
 
@@ -59,9 +60,9 @@ class ReceiverOrders:
         self.session: CtpSession | None = None
         self.ready = False
         self.closed = False
-        self.pending: Queue[tuple[CancelOrder | RefreshAccount, Future[dict[str, Any]]]] = Queue(
-            maxsize=1
-        )
+        self.pending: Queue[
+            tuple[CancelOrder | RefreshAccount | OpenOrder, Future[dict[str, Any]]]
+        ] = Queue(maxsize=1)
 
     def bind(self, channel: OrderChannel) -> None:
         self._core()
@@ -132,15 +133,26 @@ class ReceiverOrders:
             CancelOrder(order_id, request_id, datetime.now(UTC) + timedelta(seconds=3))
         )
 
+    def request_opening(
+        self, budget_id: UUID, authorization_id: UUID, request_id: UUID
+    ) -> dict[str, Any]:
+        return self._request(
+            OpenOrder(
+                budget_id, authorization_id, request_id, datetime.now(UTC) + timedelta(seconds=3)
+            )
+        )
+
     def request_refresh(self, request_id: UUID) -> dict[str, Any]:
         return self._request(RefreshAccount(request_id, datetime.now(UTC) + timedelta(seconds=3)))
 
-    def _request(self, command: CancelOrder | RefreshAccount) -> dict[str, Any]:
+    def _request(self, command: CancelOrder | RefreshAccount | OpenOrder) -> dict[str, Any]:
         identity = (
             {"order_id": command.order_id}
             if isinstance(command, CancelOrder)
             else {"stream_id": str(self.stream_id), "query_id": str(command.request_id)}
         )
+        if isinstance(command, OpenOrder):
+            identity = {"stream_id": str(self.stream_id), "order_id": str(command.request_id)}
         if self.closed:
             return {"status": "REJECTED", "reason": "RECEIVER_STOPPED", **identity}
         result: Future[dict[str, Any]] = Future()
@@ -205,7 +217,9 @@ class ReceiverOrders:
             "reason": "AWAITING_RECEIVER_QUERY" if queued else "RECEIVER_BUSY",
         }
 
-    def poll(self, execute: Callable[[CancelOrder | RefreshAccount], dict[str, Any]]) -> None:
+    def poll(
+        self, execute: Callable[[CancelOrder | RefreshAccount | OpenOrder], dict[str, Any]]
+    ) -> None:
         self._core()
         try:
             command, result = self.pending.get_nowait()

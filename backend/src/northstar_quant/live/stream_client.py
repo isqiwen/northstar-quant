@@ -56,6 +56,15 @@ class StreamsClient:
     def account_query(self, identifier: UUID, query_id: UUID) -> dict[str, Any]:
         return self._live.read(f"/streams/{identifier}/account-queries/{query_id}")
 
+    def submit_opening(
+        self, identifier: UUID, budget_id: UUID, authorization_id: UUID, *, request_id: UUID
+    ) -> dict[str, Any]:
+        return self._live.mutate(
+            f"/streams/{identifier}/opening-orders",
+            {"budget_id": str(budget_id), "authorization_id": str(authorization_id)},
+            request_id,
+        )
+
     def refresh_account(self, identifier: UUID, *, request_id: UUID) -> dict[str, Any]:
         return self._live.mutate(f"/streams/{identifier}/refresh-account", {}, request_id)
 

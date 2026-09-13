@@ -21,6 +21,7 @@ from sqlalchemy import create_engine, text
 from support.authority_browser import check_authority
 from support.broker_account_browser import check_broker_account
 from support.market import seed_market
+from support.opening_order_browser import check_opening_order
 from support.order_browser import check_order_cancel
 from support.processes import InstalledApplication
 from support.session_schedule_browser import check_session_schedule
@@ -965,6 +966,8 @@ def main() -> None:
                         expect(page.get_by_text("数据不可用", exact=True)).not_to_be_visible()
                         expect(page.get_by_text("操作结果未知", exact=True)).not_to_be_visible()
                         screenshot("receiver-opening-budget")
+                        check_opening_order(page, url, observed, stream, screenshot)
+                        visit(url + "/streams/browser-synthetic")
                         page.unroute(pattern)
                         page.unroute("**/api/streams/browser-synthetic/refresh-account")
                         page.get_by_role("button", name="暂停影子计算", exact=True).click()
