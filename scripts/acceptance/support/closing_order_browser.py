@@ -2,8 +2,9 @@
 
 from uuid import uuid4
 
-from northstar_quant.web.protobuf import decode, methods, pack
 from playwright.sync_api import expect
+
+from northstar_quant.web.protobuf import decode, methods, pack
 
 
 def check_closing_order(page, base_url, runtime_id, template, screenshot):

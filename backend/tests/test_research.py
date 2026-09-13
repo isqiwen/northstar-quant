@@ -44,11 +44,27 @@ def dataset(prices: tuple[str, ...]) -> ResearchDataset:
     )
 
 
-def test_repeated_decisions_use_fills_and_costs_to_close_both_directions() -> None:
+@pytest.mark.parametrize("interval", [60, 300, 900, 1800, 3600])
+def test_repeated_decisions_use_fills_and_costs_to_close_both_directions(interval) -> None:
     data = dataset(("100", "110", "112", "112", "108", "106", "106"))
+    data = replace(
+        data,
+        interval_seconds=interval,
+        bars=tuple(
+            replace(
+                bar,
+                event_time=AT + timedelta(seconds=index * interval),
+                completed_at=AT + timedelta(seconds=(index + 1) * interval),
+                available_at=AT + timedelta(seconds=(index + 1) * interval),
+            )
+            for index, bar in enumerate(data.bars)
+        ),
+    )
     config = ResearchConfig(
         risk=RiskConfig(max_lots=2),
-        strategy=StrategyConfig.create(supplied={"threshold": str(Decimal("0.03"))}),
+        strategy=StrategyConfig.create(
+            supplied={"threshold": "0.03", "order_lifetime_seconds": interval * 3}
+        ),
     )
     result = run_research(data, config).to_dict()
     assert result["summary"] == {

@@ -94,7 +94,12 @@ def evaluate(binding: Binding, inputs: Inputs) -> Result:
 
     if (
         inputs.at.utcoffset() != timedelta(0)
-        or inputs.interval_seconds != required.interval_seconds
+        or type(inputs.interval_seconds) is not int
+        or inputs.interval_seconds <= 0
+        or (
+            required.interval_seconds is not None
+            and inputs.interval_seconds != required.interval_seconds
+        )
         or inputs.price_basis != required.price_basis
     ):
         return result(Status.INVALID_INPUT, "INPUT_SEMANTICS_MISMATCH")

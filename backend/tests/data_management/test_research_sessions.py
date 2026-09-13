@@ -91,12 +91,12 @@ def _publish(engine, datasets, *, settlements=(), terms=()):
         )
 
 
-def _shift(library, path, *, offset, trading_day=None, kind="DAY", symbol="RB2605"):
+def _shift(library, path, *, offset, trading_day=None, kind="DAY", symbol="RB2605", minutes=1):
     spec = _spec()
     original = _csv(path).read_text()
     for minute in reversed(range(4)):
         before = spec.session_open + timedelta(minutes=minute)
-        after = before + offset
+        after = spec.session_open + offset + timedelta(minutes=minute * minutes)
         original = original.replace(
             before.isoformat().replace("+00:00", "Z"), after.isoformat().replace("+00:00", "Z")
         )
@@ -107,7 +107,8 @@ def _shift(library, path, *, offset, trading_day=None, kind="DAY", symbol="RB260
         replace(
             spec,
             session_open=spec.session_open + offset,
-            session_close=spec.session_close + offset,
+            session_close=spec.session_open + offset + timedelta(minutes=3 * minutes),
+            interval=f"{minutes}m",
             trading_day=trading_day or (spec.trading_day + offset),
             session_kind=kind,
             symbol=symbol,
@@ -317,10 +318,12 @@ def test_a_later_session_cannot_move_the_declared_trading_day_backwards(
         library.load_dataset(identifier)
 
 
+@pytest.mark.parametrize("minutes", [1, 15])
 def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_restart(
     postgres_engine,
     clean_database,
     tmp_path,
+    minutes,
 ):
     from decimal import Decimal
 
@@ -336,8 +339,8 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
     from northstar_quant.strategies.configuration import StrategyConfig
 
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
-    first = _receive(library, _csv(tmp_path / "first.csv"), _spec())
-    following = _shift(library, tmp_path / "next.csv", offset=timedelta(days=1))
+    first = _shift(library, tmp_path / "first.csv", offset=timedelta(0), minutes=minutes)
+    following = _shift(library, tmp_path / "next.csv", offset=timedelta(days=1), minutes=minutes)
     fact = SettlementFact(
         "synthetic-settlement-20260107",
         first.market.contract_id,
@@ -400,7 +403,11 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
     )
     assert revised.content_hash != fixed.content_hash
     assert offline.load_dataset(identifier) == fixed
-    config = ResearchConfig(strategy=StrategyConfig.create(supplied={"threshold": "0.001"}))
+    config = ResearchConfig(
+        strategy=StrategyConfig.create(
+            supplied={"threshold": "0.001", "order_lifetime_seconds": minutes * 180}
+        )
+    )
     uncovered = load_dataset(
         postgres_engine,
         _publish(postgres_engine, [first, following], settlements=(fact,), terms=(first_terms,)),
@@ -493,6 +500,20 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
     # The actual Research state owner is local SQLite, independent of Data Hub/PostgreSQL.
     engine = create_engine(f"sqlite:///{tmp_path / 'research.db'}")
     initialize(engine)
+    from northstar_quant.research.runs import RunStore
+    from northstar_quant.research.tasks.execution import execute
+    from northstar_quant.research.tasks.store import TaskStore
+
+    task_id = uuid4()
+    tasks = TaskStore(engine)
+    tasks.submit(
+        task_id, identifier, fixed.content_hash, config, len(fixed.bars), fixed.details.to_dict()
+    )
+    assert tasks.claim()["task_id"] == str(task_id)
+    execute(tasks, offline, str(task_id))
+    task = tasks.get(str(task_id))
+    assert task["status"] == "SUCCEEDED", task["reason"]
+    assert RunStore(engine).get(task["run_id"])["result"] == batch
     saved = ConfigurationStore(engine).save_configuration("cross-day engineering", config)
     session_id = uuid4()
     PaperStore(engine, offline).create(identifier, saved["configuration_id"], request_id=session_id)

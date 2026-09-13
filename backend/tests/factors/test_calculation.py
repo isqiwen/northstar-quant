@@ -121,3 +121,19 @@ def test_exact_values_and_shared_results_never_use_name_only_cache(
         ),
     )
     assert evaluate(binding, malformed).status == Status.INVALID_INPUT
+
+
+def test_period_specific_factor_still_rejects_another_input_clock(monkeypatch):
+    from northstar_quant.factors.definition import Requirements
+
+    binding = Binding.create("trend.return")
+    factor = resolve(binding.factor_id)
+    monkeypatch.setattr(factor, "requirements", lambda _: Requirements(2, interval_seconds=60))
+    data = inputs(("100", "110"))
+    assert evaluate(binding, data).status == Status.READY
+    assert evaluate(binding, replace(data, interval_seconds=900)).status == Status.INVALID_INPUT
+    for invalid in (0, -60, True):
+        assert (
+            evaluate(binding, replace(data, interval_seconds=invalid)).status
+            == Status.INVALID_INPUT
+        )
