@@ -43,6 +43,19 @@ def consent_context(live_engine, live_client, tmp_path, monkeypatch, request):
                 received_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             )
         )
+    if getattr(request, "param", None) == "refresh":
+        calls["accept"](
+            BrokerEvent(
+                event.sequence + 1,
+                "TD",
+                "AccountQueryStarted",
+                None,
+                None,
+                datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+                0,
+                {"query_id": str(uuid4())},
+            )
+        )
     runtime = UUID(client.status()["runtime_id"])
     body = dict(
         stream_id=str(stream_id),
@@ -344,3 +357,23 @@ def test_browser_protobuf_consent_and_revocation_use_owned_runtime(
             assert revoked.status_code == 200, revoked.text
             assert revoked.json()["status"] == "REVOKED"
         assert browser.get(f"/api/authorizations/{identifier}").json()["status"] == "REVOKED"
+
+
+@pytest.mark.parametrize("consent_context", ["refresh"], indirect=True)
+def test_refresh_in_progress_cannot_use_old_account_permission(live_engine, consent_context):
+    _, stream_id, _, authority, _ = consent_context
+    identifier, order = grant(consent_context), order_for(consent_context)
+    journal = OrderJournal(live_engine, authority.runtime_id)
+    checked, sent = [], []
+    with pytest.raises(ValueError, match="completing the receiver account refresh"):
+        journal.submit(
+            order,
+            identifier,
+            admit=lambda c: authority.admit(
+                c, identifier, stream_id, order, check_current_account=checked.append
+            ),
+            dispatch=sent.append,
+        )
+    assert checked == sent == []
+    with pytest.raises(LookupError):
+        journal.get(order.order_id)

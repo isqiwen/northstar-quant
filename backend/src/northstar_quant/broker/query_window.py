@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import nullcontext
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Engine
+from sqlalchemy import Connection, Engine
 
+from .account_reports import stream_account_observation
 from .events import MAX_CAPTURE_BYTES, MAX_EVENTS, BrokerEvent, canonical_bytes
 from .query_projection import project_query
 from .stream_queries import startup_query
@@ -27,8 +30,8 @@ class _Window:
         return self.source
 
 
-def latest_query(engine: Engine, identifier: UUID) -> dict[str, Any] | None:
-    with engine.connect() as connection:
+def latest_query(engine: Engine | Connection, identifier: UUID) -> dict[str, Any] | None:
+    with engine.connect() if isinstance(engine, Engine) else nullcontext(engine) as connection:
         source = read_stream_source(connection, identifier)
         marker = connection.execute(
             text(
@@ -82,6 +85,8 @@ def latest_query(engine: Engine, identifier: UUID) -> dict[str, Any] | None:
         query_id: str | None = None
         finished: BrokerEvent | None = None
         through = marker - 1
+        started_at: str | None = None
+        last_at: str | None = None
         failure: str | None = "QUERY_SESSION_INVALID" if invalid else None
         for row in rows:
             event = BrokerEvent.from_dict(row["event"])
@@ -111,6 +116,13 @@ def latest_query(engine: Engine, identifier: UUID) -> dict[str, Any] | None:
                 events.append(event)
                 continue
             through = event.sequence
+            if last_at is not None and datetime.fromisoformat(
+                event.received_at
+            ) < datetime.fromisoformat(last_at):
+                failure = "QUERY_RECEIPT_TIME_REGRESSED"
+            last_at = event.received_at
+            if started_at is None:
+                started_at = last_at
             digest.update(
                 canonical_bytes(
                     [event.sequence, row["event_hash"], row["committed_at"].isoformat()]
@@ -125,6 +137,8 @@ def latest_query(engine: Engine, identifier: UUID) -> dict[str, Any] | None:
                 failure = "QUERY_SESSION_INTERRUPTED"
             if event.callback == "AccountQueryFinished" and data.get("query_id") == query_id:
                 finished = event
+                if event.channel != "TD" or event.error_id:
+                    failure = "QUERY_COMPLETION_INVALID"
                 if data.get("status") != "COMPLETE":
                     failure = str(data.get("reason") or "QUERY_FAILED")
                 break
@@ -138,6 +152,8 @@ def latest_query(engine: Engine, identifier: UUID) -> dict[str, Any] | None:
         "query_id": query_id,
         "from_sequence": marker,
         "through_sequence": through,
+        "started_at": started_at,
+        "finished_at": None if finished is None else finished.received_at,
         "source_hash": digest.hexdigest(),
         "session_source_hash": startup["source_hash"],
         "session_through_sequence": context_end,
@@ -145,7 +161,7 @@ def latest_query(engine: Engine, identifier: UUID) -> dict[str, Any] | None:
     projected = project_query(
         {**binding, "query_scope": {}}, _Window(tuple(events), reference, failure)
     )
-    return {
+    result = {
         **reference,
         "status": projected["status"] if finished is not None or failure else "INCOMPLETE",
         "reason": failure or ("FIXED_RECEIVER_QUERY" if finished else "QUERY_NOT_FINISHED"),
@@ -153,3 +169,7 @@ def latest_query(engine: Engine, identifier: UUID) -> dict[str, Any] | None:
         "reconciliation": projected["reconciliation"],
         "execution": {"order_sending": False},
     }
+    result["account_observation"] = stream_account_observation(
+        binding, result, [event.to_dict() for event in events if event.sequence >= marker]
+    )
+    return result

@@ -273,45 +273,83 @@ def account_baseline(batch: dict[str, Any]) -> tuple[dict[str, str], dict[str, A
 
 
 def account_observation(batch: dict[str, Any]) -> dict[str, Any]:
-    section = batch["completeness"]["sections"]["account"]
     capture = batch["capture"]
+    return {
+        "source_batch_id": batch["batch_id"],
+        **_observe_account(
+            profile=batch["profile"],
+            account_id=batch["account_id"],
+            status=batch["status"],
+            completeness=batch["completeness"],
+            events=[] if capture is None else capture["events"],
+            started_at=None if capture is None else capture["started_at"],
+            finished_at=None if capture is None else capture["finished_at"],
+        ),
+    }
+
+
+def stream_account_observation(
+    binding: dict[str, Any], query: dict[str, Any], events: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Interpret a verified window without inventing a separate query batch/login."""
+    return {
+        "source_stream_id": query["stream_id"],
+        "query_id": query["query_id"],
+        "source_hash": query["source_hash"],
+        **_observe_account(
+            profile=binding["profile"],
+            account_id=binding["account_id"],
+            status=query["status"],
+            completeness=query["completeness"],
+            events=events,
+            started_at=query["started_at"],
+            finished_at=query["finished_at"],
+        ),
+    }
+
+
+def _observe_account(
+    *,
+    profile: dict[str, Any],
+    account_id: str,
+    status: str,
+    completeness: dict[str, Any],
+    events: list[dict[str, Any]],
+    started_at: str | None,
+    finished_at: str | None,
+) -> dict[str, Any]:
+    section = completeness["sections"]["account"]
     problems = []
-    if batch["status"] != "COMPLETE":
+    if status != "COMPLETE":
         problems.append("QUERY_NOT_COMPLETE")
-    if batch["completeness"]["identity"] != "CONFIRMED":
+    if completeness["identity"] != "CONFIRMED":
         problems.append("TD_ACCOUNT_IDENTITY_NOT_CONFIRMED")
     rows = section["rows"]
     row = rows[0] if section["status"] == "COMPLETE" and rows and len(rows) == 1 else None
     if row is None:
         problems.append("ONE_COMPLETE_CNY_ACCOUNT_REQUIRED")
     elif (
-        row.get("BrokerID") != batch["profile"]["broker_id"]
-        or row.get("AccountID") != batch["account_id"]
+        row.get("BrokerID") != profile["broker_id"]
+        or row.get("AccountID") != account_id
         or row.get("CurrencyID") != "CNY"
         or row.get("BizType") != "1"
-        or row.get("TradingDay") != batch["completeness"]["trading_day"]
+        or row.get("TradingDay") != completeness["trading_day"]
         or type(row.get("SettlementID")) is not int
     ):
         problems.append("ACCOUNT_SCOPE_NOT_CONFIRMED")
-    callbacks = (
-        []
-        if capture is None
-        else [
-            {"sequence": event["sequence"], "received_at": event["received_at"]}
-            for event in capture["events"]
-            if event["channel"] == "TD"
-            and event["callback"] == "OnRspQryTradingAccount"
-            and event["request_id"] == section["request_id"]
-            and event["data"] is not None
-            and event["error_id"] == 0
-        ]
-    )
+    callbacks = [
+        {"sequence": event["sequence"], "received_at": event["received_at"]}
+        for event in events
+        if event["channel"] == "TD"
+        and event["callback"] == "OnRspQryTradingAccount"
+        and event["request_id"] == section["request_id"]
+        and event["data"] is not None
+        and event["error_id"] == 0
+    ]
     if len(callbacks) != 1:
         problems.append("ACCOUNT_RECEIPT_NOT_UNIQUE")
     scope_confirmed = not problems
-    if capture is not None and any(
-        event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in capture["events"]
-    ):
+    if any(event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in events):
         problems.append("ACCOUNT_ACTIVITY_DURING_QUERY")
     amounts = (
         {} if row is None else {name: row[name] for name in ACCOUNT_AMOUNT_FIELDS if name in row}
@@ -322,9 +360,8 @@ def account_observation(batch: dict[str, Any]) -> dict[str, Any]:
         code for code in cast(list[str], checked["problems"]) if not code.endswith("_PREVIOUS")
     )
     return {
-        "source_batch_id": batch["batch_id"],
-        "query_started_at": None if capture is None else capture["started_at"],
-        "query_finished_at": None if capture is None else capture["finished_at"],
+        "query_started_at": started_at,
+        "query_finished_at": finished_at,
         "account_receipts": callbacks,
         "scope": None
         if row is None
@@ -342,8 +379,9 @@ def account_observation(batch: dict[str, Any]) -> dict[str, Any]:
         "amounts": amounts,
         "scope_confirmed": scope_confirmed,
         "problems": sorted(set(problems)),
-        "account_activity_during_query": capture is not None
-        and any(event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in capture["events"]),
+        "account_activity_during_query": any(
+            event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in events
+        ),
     }
 
 

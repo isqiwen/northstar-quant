@@ -85,8 +85,9 @@ def test_receiver_incomplete_and_failed_query_cannot_inherit_prior_success(
     assert calls["count"] == 1
 
 
+@pytest.mark.parametrize("regressed", [False, True])
 def test_receiver_refresh_preserves_session_and_fixed_window(
-    live_engine, live_client, tmp_path, monkeypatch
+    live_engine, live_client, tmp_path, monkeypatch, regressed
 ):
     from northstar_quant.broker.query_window import latest_query
 
@@ -120,14 +121,31 @@ def test_receiver_refresh_preserves_session_and_fixed_window(
             if event.callback == "OnRspQryTradingAccount":
                 data = {**data, "Balance": "456789"}
             calls["accept"](
-                replace(event, sequence=sequence, request_id=event.request_id + 1000, data=data)
+                replace(
+                    event,
+                    sequence=sequence,
+                    request_id=event.request_id + 1000,
+                    data=data,
+                    received_at=event.received_at if regressed else events[-1].received_at,
+                )
             )
     marker(
         "AccountQueryFinished", {"query_id": str(query_id), "status": "COMPLETE", "reason": None}
     )
     fixed = latest_query(live_engine, identifier)
+    if regressed:
+        assert fixed["status"] == "FAILED"
+        assert "QUERY_RECEIPT_TIME_REGRESSED" in fixed["completeness"]["reasons"]
+        client.streams.control(identifier, "STOP", request_id=uuid4())
+        return
     assert fixed["status"] == "COMPLETE", fixed
     assert fixed["query_id"] == str(query_id)
+    observation = fixed["account_observation"]
+    assert observation["source_stream_id"] == str(identifier)
+    assert "source_batch_id" not in observation
+    assert observation["amounts"]["Balance"] == "456789"
+    assert observation["account_receipts"][0]["sequence"] >= fixed["from_sequence"]
+
     assert fixed["completeness"]["sections"]["account"]["rows"][0]["Balance"] == "456789"
     assert fixed["reconciliation"]["status"] == "UNRECONCILED"
     assert fixed["execution"]["order_sending"] is False
@@ -138,3 +156,11 @@ def test_receiver_refresh_preserves_session_and_fixed_window(
     assert calls["count"] == 1
     client.streams.control(identifier, "STOP", request_id=uuid4())
     assert latest_query(live_engine, identifier)["status"] == "FAILED"
+    with live_engine.begin() as connection:
+        connection.exec_driver_sql("DROP TRIGGER immutable_broker_stream_events_UPDATE")
+        connection.exec_driver_sql(
+            "UPDATE broker_stream_events SET event_hash=? WHERE stream_id=? AND sequence=?",
+            ("0" * 64, identifier.hex, sequence),
+        )
+    with pytest.raises(ValueError, match="source is missing or damaged"):
+        latest_query(live_engine, identifier)

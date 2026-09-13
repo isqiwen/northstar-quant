@@ -104,6 +104,7 @@ export function Stream() {
   const q = useData(query(`/api/streams/${id}`), 3000);
   const budgets = useData(query(`/api/streams/${id}/opening-budgets`), 5000);
   const [sequence, setSequence] = useState<number>();
+  const [activeTab, setActiveTab] = useState("market");
   const step = useData(
     query(
       sequence === undefined
@@ -173,6 +174,8 @@ export function Stream() {
             ))}
           </div>
           <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
             items={[
               {
                 key: "market",
@@ -289,7 +292,13 @@ export function Stream() {
                     {q.data.latest_query && (
                       <Card title="接收连接的最新查询">
                         <p>查询期间继续接收柜台回报。这是固定查询窗口，尚未完成账户核对，也不授予交易权限。</p>
-                        <Evidence value={q.data.latest_query} />
+                        <Fields value={{
+                          查询状态: q.data.latest_query.status,
+                          来源前缀: q.data.latest_query.through_sequence,
+                          内容身份: q.data.latest_query.source_hash,
+                        }} />
+                        <Evidence value={q.data.latest_query.account_observation} title="柜台资金观察（尚未核对）" />
+                        <Evidence value={q.data.latest_query.completeness} title="查询内容与缺项" />
                       </Card>
                     )}
                     {q.data.startup_query && (

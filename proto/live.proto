@@ -401,6 +401,7 @@ message ReceiverQuery {
   optional int64 through_sequence = 3 [json_name = "through_sequence", (northstar.web.required_field) = true];
   optional string source_hash = 4 [json_name = "source_hash", (northstar.web.required_field) = true];
   optional google.protobuf.Struct completeness = 5 [json_name = "completeness", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct account_observation = 6 [json_name = "account_observation"];
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 

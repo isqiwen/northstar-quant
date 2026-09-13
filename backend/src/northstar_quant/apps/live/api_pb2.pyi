@@ -824,7 +824,7 @@ class StreamDecision(_message.Message):
     def __init__(self, sequence: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class ReceiverQuery(_message.Message):
-    __slots__ = ("status", "reason", "through_sequence", "source_hash", "completeness", "evidence_fields")
+    __slots__ = ("status", "reason", "through_sequence", "source_hash", "completeness", "account_observation", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -837,14 +837,16 @@ class ReceiverQuery(_message.Message):
     THROUGH_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
     SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
     COMPLETENESS_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNT_OBSERVATION_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     status: str
     reason: str
     through_sequence: int
     source_hash: str
     completeness: _struct_pb2.Struct
+    account_observation: _struct_pb2.Struct
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, status: _Optional[str] = ..., reason: _Optional[str] = ..., through_sequence: _Optional[int] = ..., source_hash: _Optional[str] = ..., completeness: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, status: _Optional[str] = ..., reason: _Optional[str] = ..., through_sequence: _Optional[int] = ..., source_hash: _Optional[str] = ..., completeness: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., account_observation: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class StreamDetail(_message.Message):
     __slots__ = ("account_progress", "archives", "binding", "connection", "cursor", "paused", "received", "steps", "stream_id", "startup_query", "latest_query", "evidence_fields")

@@ -23041,12 +23041,14 @@ export const northstar = $root.northstar = (() => {
              * @property {number|Long|null} [through_sequence] ReceiverQuery through_sequence
              * @property {string|null} [source_hash] ReceiverQuery source_hash
              * @property {google.protobuf.Struct.$Properties|null} [completeness] ReceiverQuery completeness
+             * @property {google.protobuf.Struct.$Properties|null} [account_observation] ReceiverQuery account_observation
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ReceiverQuery evidence_fields
              * @property {"status"} [_status] ReceiverQuery _status
              * @property {"reason"} [_reason] ReceiverQuery _reason
              * @property {"through_sequence"} [_through_sequence] ReceiverQuery _through_sequence
              * @property {"source_hash"} [_source_hash] ReceiverQuery _source_hash
              * @property {"completeness"} [_completeness] ReceiverQuery _completeness
+             * @property {"account_observation"} [_account_observation] ReceiverQuery _account_observation
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -23066,6 +23068,7 @@ export const northstar = $root.northstar = (() => {
              *   through_sequence?: number|Long|null;
              *   source_hash?: string|null;
              *   completeness?: google.protobuf.Struct.$Shape|null;
+             *   account_observation?: google.protobuf.Struct.$Shape|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
@@ -23078,6 +23081,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _source_hash?: undefined; source_hash?: null }|{ _source_hash?: "source_hash"; source_hash: string })
              * ) & (
              *   ({ _completeness?: undefined; completeness?: null }|{ _completeness?: "completeness"; completeness: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _account_observation?: undefined; account_observation?: null }|{ _account_observation?: "account_observation"; account_observation: google.protobuf.Struct.$Shape })
              * )} northstar.live.ReceiverQuery.$Shape
              */
 
@@ -23136,6 +23141,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             ReceiverQuery.prototype.completeness = null;
+
+            /**
+             * ReceiverQuery account_observation.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} account_observation
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            ReceiverQuery.prototype.account_observation = null;
 
             /**
              * ReceiverQuery evidence_fields.
@@ -23204,6 +23217,17 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * ReceiverQuery _account_observation.
+             * @member {"account_observation"|undefined} _account_observation
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            $Object.defineProperty(ReceiverQuery.prototype, "_account_observation", {
+                get: $util.oneOfGetter($oneOfFields = ["account_observation"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new ReceiverQuery instance using the specified properties.
              * @function create
              * @memberof northstar.live.ReceiverQuery
@@ -23245,6 +23269,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 4, wireType 2 =*/34).string(message.source_hash);
                 if (message.completeness != null && $Object.hasOwnProperty.call(message, "completeness"))
                     $root.google.protobuf.Struct.encode(message.completeness, writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
+                if (message.account_observation != null && $Object.hasOwnProperty.call(message, "account_observation"))
+                    $root.google.protobuf.Struct.encode(message.account_observation, writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -23327,6 +23353,13 @@ export const northstar = $root.northstar = (() => {
                                 break;
                             message.completeness = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.completeness);
                             message._completeness = "completeness";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.account_observation = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.account_observation);
+                            message._account_observation = "account_observation";
                             continue;
                         }
                     case 1000: {
@@ -23426,6 +23459,14 @@ export const northstar = $root.northstar = (() => {
                             return "completeness." + error;
                     }
                 }
+                if (message.account_observation != null && $Object.hasOwnProperty.call(message, "account_observation")) {
+                    properties._account_observation = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.account_observation, _depth + 1);
+                        if (error)
+                            return "account_observation." + error;
+                    }
+                }
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
                     if (!$util.isObject(message.evidence_fields))
                         return "evidence_fields: object expected";
@@ -23476,6 +23517,11 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isObject(object.completeness))
                         throw $TypeError(".northstar.live.ReceiverQuery.completeness: object expected");
                     message.completeness = $root.google.protobuf.Struct.fromObject(object.completeness, _depth + 1);
+                }
+                if (object.account_observation != null) {
+                    if (!$util.isObject(object.account_observation))
+                        throw $TypeError(".northstar.live.ReceiverQuery.account_observation: object expected");
+                    message.account_observation = $root.google.protobuf.Struct.fromObject(object.account_observation, _depth + 1);
                 }
                 if (object.evidence_fields) {
                     if (!$util.isObject(object.evidence_fields))
@@ -23540,6 +23586,11 @@ export const northstar = $root.northstar = (() => {
                     object.completeness = $root.google.protobuf.Struct.toObject(message.completeness, options, _depth + 1);
                     if (options.oneofs)
                         object._completeness = "completeness";
+                }
+                if (message.account_observation != null && $Object.hasOwnProperty.call(message, "account_observation")) {
+                    object.account_observation = $root.google.protobuf.Struct.toObject(message.account_observation, options, _depth + 1);
+                    if (options.oneofs)
+                        object._account_observation = "account_observation";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {

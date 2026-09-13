@@ -1902,6 +1902,13 @@
           "required": true,
           "nullable": false
         },
+        "account_observation": {
+          "id": 6,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false
+        },
         "evidence_fields": {
           "id": 1000,
           "presence": false,
