@@ -955,7 +955,9 @@ def main() -> None:
                         choose("已保存策略步骤", "5")
                         page.get_by_label("限价", exact=True).fill("3110")
                         page.get_by_role("button", name="计算固定开仓预算", exact=True).click()
-                        expect(page.get_by_text("操作已完成，结果仍有未知项，请查看记录", exact=True)).to_be_visible()
+                        expect(
+                            page.get_by_text("操作已完成，结果仍有未知项，请查看记录", exact=True)
+                        ).to_be_visible()
                         assert len(budget_requests) == 1
                         assert budget_requests[0]["query_id"] == fixed_query["query_id"]
                         assert budget_requests[0]["entry_id"] == entry_id
