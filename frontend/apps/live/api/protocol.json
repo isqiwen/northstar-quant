@@ -1838,6 +1838,55 @@
       "array": false,
       "evidence": true
     },
+    "northstar.live.ReceiverQuery": {
+      "fields": {
+        "status": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "reason": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "through_sequence": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "source_hash": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "completeness": {
+          "id": 5,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
     "northstar.live.StreamDetail": {
       "fields": {
         "account_progress": {
@@ -1903,6 +1952,13 @@
           "presence": true,
           "type": "string",
           "required": true,
+          "nullable": false
+        },
+        "startup_query": {
+          "id": 10,
+          "presence": true,
+          "type": "northstar.live.ReceiverQuery",
+          "required": false,
           "nullable": false
         },
         "evidence_fields": {

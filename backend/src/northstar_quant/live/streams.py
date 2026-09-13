@@ -936,6 +936,8 @@ class LiveStreams:
         )
 
     def get(self, identifier: UUID) -> dict[str, object]:
+        from northstar_quant.broker.stream_queries import startup_query
+
         with self._engine.connect() as connection:
             row = self._row(connection, identifier)
             steps = (
@@ -989,6 +991,7 @@ class LiveStreams:
             "byte_count": row["byte_count"],
             "state": state,
             "account_progress": account_progress,
+            "startup_query": startup_query(self._engine, identifier),
             "market_age_seconds": age,
             "created_at": str(row["created_at"]),
             "updated_at": str(row["updated_at"]),

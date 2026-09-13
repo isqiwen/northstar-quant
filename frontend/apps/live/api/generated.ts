@@ -300,6 +300,14 @@ export type StreamDecision = {
   sequence: number;
   [key: string]: unknown;
 };
+export type ReceiverQuery = {
+  status: string;
+  reason: string;
+  through_sequence: number;
+  source_hash: string;
+  completeness: Record<string, JsonValue>;
+  [key: string]: unknown;
+};
 export type StreamDetail = {
   account_progress: StreamAccountProgress;
   archives: (Record<string, JsonValue>)[];
@@ -310,6 +318,7 @@ export type StreamDetail = {
   received: number;
   steps: (StreamStep)[];
   stream_id: string;
+  startup_query?: ReceiverQuery;
   [key: string]: unknown;
 };
 export type StreamEvent = {

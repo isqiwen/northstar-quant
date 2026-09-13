@@ -279,6 +279,24 @@ export function Stream() {
                       onDone={refresh}
                     />
                     <Evidence value={q.data.account_progress} />
+                    {q.data.startup_query && (
+                      <Card title="接收进程的启动查询">
+                        <p>
+                          本次连接启动时收到的固定账户查询，保留原始来源前缀。它不是当前余额，也不授予交易权限。
+                        </p>
+                        <Fields
+                          value={{
+                            查询状态: q.data.startup_query.status,
+                            来源前缀: q.data.startup_query.through_sequence,
+                            内容身份: q.data.startup_query.source_hash,
+                          }}
+                        />
+                        <Evidence
+                          value={q.data.startup_query.completeness}
+                          title="查询内容与缺项"
+                        />
+                      </Card>
+                    )}
                     <Evidence value={ledger.data} title="账本与核对" />
                   </>
                 ),

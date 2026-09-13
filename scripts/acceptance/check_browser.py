@@ -760,6 +760,13 @@ def main() -> None:
                             "archives": [],
                             "state": {},
                             "account_progress": {"status": "UNBOUND"},
+                            "startup_query": {
+                                "status": "INCOMPLETE",
+                                "reason": "STARTUP_QUERY_NOT_FINISHED",
+                                "through_sequence": 2,
+                                "source_hash": "a" * 64,
+                                "completeness": {"identity": "UNKNOWN"},
+                            },
                             "binding": {"request": {"query_batch_id": str(uuid4())}},
                         }
                         page.route(
@@ -792,6 +799,12 @@ def main() -> None:
 
                         page.route("**/api/streams/browser-synthetic/control", lost)
                         visit(url + "/streams/browser-synthetic")
+                        page.get_by_role("tab", name="账户事实", exact=True).click()
+                        expect(page.get_by_text("接收进程的启动查询", exact=True)).to_be_visible()
+                        expect(page.get_by_text("INCOMPLETE", exact=True)).to_be_visible()
+                        expect(page.get_by_text("a" * 64, exact=True)).to_be_visible()
+                        expect(page.get_by_text("它不是当前余额", exact=False)).to_be_visible()
+                        screenshot("receiver-startup-query")
                         page.get_by_role("button", name="暂停影子计算", exact=True).click()
                         expect(page.get_by_text("操作结果未知", exact=True)).to_be_visible()
                         assert len(commands) == 1 and commands[0]["runtime"] == observed

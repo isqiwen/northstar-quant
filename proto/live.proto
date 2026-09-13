@@ -388,6 +388,16 @@ message StreamDecision {
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 
+message ReceiverQuery {
+  option (northstar.web.evidence) = true;
+  optional string status = 1 [json_name = "status", (northstar.web.required_field) = true];
+  optional string reason = 2 [json_name = "reason", (northstar.web.required_field) = true];
+  optional int64 through_sequence = 3 [json_name = "through_sequence", (northstar.web.required_field) = true];
+  optional string source_hash = 4 [json_name = "source_hash", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct completeness = 5 [json_name = "completeness", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
 message StreamDetail {
   option (northstar.web.evidence) = true;
   optional StreamAccountProgress account_progress = 1 [json_name = "account_progress", (northstar.web.required_field) = true];
@@ -399,6 +409,7 @@ message StreamDetail {
   optional int64 received = 7 [json_name = "received", (northstar.web.required_field) = true];
   repeated StreamStep steps = 8 [json_name = "steps", (northstar.web.required_field) = true];
   optional string stream_id = 9 [json_name = "stream_id", (northstar.web.required_field) = true];
+  optional ReceiverQuery startup_query = 10 [json_name = "startup_query"];
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 

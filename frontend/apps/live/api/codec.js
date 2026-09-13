@@ -22662,6 +22662,556 @@ export const northstar = $root.northstar = (() => {
             return StreamDecision;
         })();
 
+        live.ReceiverQuery = (function() {
+
+            /**
+             * Properties of a ReceiverQuery.
+             * @typedef {Object} northstar.live.ReceiverQuery.$Properties
+             * @property {string|null} [status] ReceiverQuery status
+             * @property {string|null} [reason] ReceiverQuery reason
+             * @property {number|Long|null} [through_sequence] ReceiverQuery through_sequence
+             * @property {string|null} [source_hash] ReceiverQuery source_hash
+             * @property {google.protobuf.Struct.$Properties|null} [completeness] ReceiverQuery completeness
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ReceiverQuery evidence_fields
+             * @property {"status"} [_status] ReceiverQuery _status
+             * @property {"reason"} [_reason] ReceiverQuery _reason
+             * @property {"through_sequence"} [_through_sequence] ReceiverQuery _through_sequence
+             * @property {"source_hash"} [_source_hash] ReceiverQuery _source_hash
+             * @property {"completeness"} [_completeness] ReceiverQuery _completeness
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ReceiverQuery.
+             * @memberof northstar.live
+             * @interface IReceiverQuery
+             * @augments northstar.live.ReceiverQuery.$Properties
+             * @deprecated Use northstar.live.ReceiverQuery.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ReceiverQuery.
+             * @typedef {{
+             *   status?: string|null;
+             *   reason?: string|null;
+             *   through_sequence?: number|Long|null;
+             *   source_hash?: string|null;
+             *   completeness?: google.protobuf.Struct.$Shape|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _reason?: undefined; reason?: null }|{ _reason?: "reason"; reason: string })
+             * ) & (
+             *   ({ _through_sequence?: undefined; through_sequence?: null }|{ _through_sequence?: "through_sequence"; through_sequence: number|Long })
+             * ) & (
+             *   ({ _source_hash?: undefined; source_hash?: null }|{ _source_hash?: "source_hash"; source_hash: string })
+             * ) & (
+             *   ({ _completeness?: undefined; completeness?: null }|{ _completeness?: "completeness"; completeness: google.protobuf.Struct.$Shape })
+             * )} northstar.live.ReceiverQuery.$Shape
+             */
+
+            /**
+             * Constructs a new ReceiverQuery.
+             * @memberof northstar.live
+             * @classdesc Represents a ReceiverQuery.
+             * @constructor
+             * @param {northstar.live.ReceiverQuery.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ReceiverQuery = function (properties) {
+                this.evidence_fields = {};
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ReceiverQuery status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            ReceiverQuery.prototype.status = null;
+
+            /**
+             * ReceiverQuery reason.
+             * @member {string|null|undefined} reason
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            ReceiverQuery.prototype.reason = null;
+
+            /**
+             * ReceiverQuery through_sequence.
+             * @member {number|Long|null|undefined} through_sequence
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            ReceiverQuery.prototype.through_sequence = null;
+
+            /**
+             * ReceiverQuery source_hash.
+             * @member {string|null|undefined} source_hash
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            ReceiverQuery.prototype.source_hash = null;
+
+            /**
+             * ReceiverQuery completeness.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} completeness
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            ReceiverQuery.prototype.completeness = null;
+
+            /**
+             * ReceiverQuery evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            ReceiverQuery.prototype.evidence_fields = $util.emptyObject;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ReceiverQuery _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            $Object.defineProperty(ReceiverQuery.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ReceiverQuery _reason.
+             * @member {"reason"|undefined} _reason
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            $Object.defineProperty(ReceiverQuery.prototype, "_reason", {
+                get: $util.oneOfGetter($oneOfFields = ["reason"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ReceiverQuery _through_sequence.
+             * @member {"through_sequence"|undefined} _through_sequence
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            $Object.defineProperty(ReceiverQuery.prototype, "_through_sequence", {
+                get: $util.oneOfGetter($oneOfFields = ["through_sequence"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ReceiverQuery _source_hash.
+             * @member {"source_hash"|undefined} _source_hash
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            $Object.defineProperty(ReceiverQuery.prototype, "_source_hash", {
+                get: $util.oneOfGetter($oneOfFields = ["source_hash"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ReceiverQuery _completeness.
+             * @member {"completeness"|undefined} _completeness
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             */
+            $Object.defineProperty(ReceiverQuery.prototype, "_completeness", {
+                get: $util.oneOfGetter($oneOfFields = ["completeness"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ReceiverQuery instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.ReceiverQuery
+             * @static
+             * @param {northstar.live.ReceiverQuery.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.ReceiverQuery} ReceiverQuery instance
+             * @type {{
+             *   (properties: northstar.live.ReceiverQuery.$Shape): northstar.live.ReceiverQuery & northstar.live.ReceiverQuery.$Shape;
+             *   (properties?: northstar.live.ReceiverQuery.$Properties): northstar.live.ReceiverQuery;
+             * }}
+             */
+            ReceiverQuery.create = function(properties) {
+                return new ReceiverQuery(properties);
+            };
+
+            /**
+             * Encodes the specified ReceiverQuery message. Does not implicitly {@link northstar.live.ReceiverQuery.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.ReceiverQuery
+             * @static
+             * @param {northstar.live.ReceiverQuery.$Properties} message ReceiverQuery message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ReceiverQuery.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.status);
+                if (message.reason != null && $Object.hasOwnProperty.call(message, "reason"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.reason);
+                if (message.through_sequence != null && $Object.hasOwnProperty.call(message, "through_sequence"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.through_sequence);
+                if (message.source_hash != null && $Object.hasOwnProperty.call(message, "source_hash"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.source_hash);
+                if (message.completeness != null && $Object.hasOwnProperty.call(message, "completeness"))
+                    $root.google.protobuf.Struct.encode(message.completeness, writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ReceiverQuery message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.ReceiverQuery
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.ReceiverQuery & northstar.live.ReceiverQuery.$Shape} ReceiverQuery
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ReceiverQuery.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.ReceiverQuery();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.reason = reader.stringVerify();
+                            message._reason = "reason";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.through_sequence = reader.int64();
+                            message._through_sequence = "through_sequence";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_hash = reader.stringVerify();
+                            message._source_hash = "source_hash";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.completeness = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.completeness);
+                            message._completeness = "completeness";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ReceiverQuery message.
+             * @function verify
+             * @memberof northstar.live.ReceiverQuery
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ReceiverQuery.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.reason != null && $Object.hasOwnProperty.call(message, "reason")) {
+                    properties._reason = 1;
+                    if (!$util.isString(message.reason))
+                        return "reason: string expected";
+                }
+                if (message.through_sequence != null && $Object.hasOwnProperty.call(message, "through_sequence")) {
+                    properties._through_sequence = 1;
+                    if (!$util.isInteger(message.through_sequence) && !(message.through_sequence && $util.isInteger(message.through_sequence.low) && $util.isInteger(message.through_sequence.high)))
+                        return "through_sequence: integer|Long expected";
+                }
+                if (message.source_hash != null && $Object.hasOwnProperty.call(message, "source_hash")) {
+                    properties._source_hash = 1;
+                    if (!$util.isString(message.source_hash))
+                        return "source_hash: string expected";
+                }
+                if (message.completeness != null && $Object.hasOwnProperty.call(message, "completeness")) {
+                    properties._completeness = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.completeness, _depth + 1);
+                        if (error)
+                            return "completeness." + error;
+                    }
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ReceiverQuery message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.ReceiverQuery
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.ReceiverQuery} ReceiverQuery
+             */
+            ReceiverQuery.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.ReceiverQuery)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.ReceiverQuery: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.ReceiverQuery();
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.reason != null)
+                    message.reason = $String(object.reason);
+                if (object.through_sequence != null)
+                    if ($util.Long)
+                        message.through_sequence = $util.Long.fromValue(object.through_sequence, false);
+                    else if (typeof object.through_sequence === "string")
+                        message.through_sequence = $parseInt(object.through_sequence, 10);
+                    else if (typeof object.through_sequence === "number")
+                        message.through_sequence = object.through_sequence;
+                    else if (typeof object.through_sequence === "object")
+                        message.through_sequence = new $util.LongBits(object.through_sequence.low >>> 0, object.through_sequence.high >>> 0).toNumber();
+                if (object.source_hash != null)
+                    message.source_hash = $String(object.source_hash);
+                if (object.completeness != null) {
+                    if (!$util.isObject(object.completeness))
+                        throw $TypeError(".northstar.live.ReceiverQuery.completeness: object expected");
+                    message.completeness = $root.google.protobuf.Struct.fromObject(object.completeness, _depth + 1);
+                }
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.ReceiverQuery.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.ReceiverQuery.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ReceiverQuery message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.ReceiverQuery
+             * @static
+             * @param {northstar.live.ReceiverQuery} message ReceiverQuery
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ReceiverQuery.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.reason != null && $Object.hasOwnProperty.call(message, "reason")) {
+                    object.reason = message.reason;
+                    if (options.oneofs)
+                        object._reason = "reason";
+                }
+                if (message.through_sequence != null && $Object.hasOwnProperty.call(message, "through_sequence")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.through_sequence = typeof message.through_sequence === "number" ? $BigInt(message.through_sequence) : $util.Long.fromBits(message.through_sequence.low >>> 0, message.through_sequence.high >>> 0, false).toBigInt();
+                    else if (typeof message.through_sequence === "number")
+                        object.through_sequence = options.longs === $String ? $String(message.through_sequence) : message.through_sequence;
+                    else
+                        object.through_sequence = options.longs === $String ? $util.Long.prototype.toString.call(message.through_sequence) : options.longs === $Number ? new $util.LongBits(message.through_sequence.low >>> 0, message.through_sequence.high >>> 0).toNumber() : message.through_sequence;
+                    if (options.oneofs)
+                        object._through_sequence = "through_sequence";
+                }
+                if (message.source_hash != null && $Object.hasOwnProperty.call(message, "source_hash")) {
+                    object.source_hash = message.source_hash;
+                    if (options.oneofs)
+                        object._source_hash = "source_hash";
+                }
+                if (message.completeness != null && $Object.hasOwnProperty.call(message, "completeness")) {
+                    object.completeness = $root.google.protobuf.Struct.toObject(message.completeness, options, _depth + 1);
+                    if (options.oneofs)
+                        object._completeness = "completeness";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ReceiverQuery to JSON.
+             * @function toJSON
+             * @memberof northstar.live.ReceiverQuery
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ReceiverQuery.prototype.toJSON = function() {
+                return ReceiverQuery.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ReceiverQuery
+             * @function getTypeUrl
+             * @memberof northstar.live.ReceiverQuery
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ReceiverQuery.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.ReceiverQuery";
+            };
+
+            return ReceiverQuery;
+        })();
+
         live.StreamDetail = (function() {
 
             /**
@@ -22676,6 +23226,7 @@ export const northstar = $root.northstar = (() => {
              * @property {number|Long|null} [received] StreamDetail received
              * @property {Array.<northstar.live.StreamStep.$Properties>|null} [steps] StreamDetail steps
              * @property {string|null} [stream_id] StreamDetail stream_id
+             * @property {northstar.live.ReceiverQuery.$Properties|null} [startup_query] StreamDetail startup_query
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] StreamDetail evidence_fields
              * @property {"account_progress"} [_account_progress] StreamDetail _account_progress
              * @property {"binding"} [_binding] StreamDetail _binding
@@ -22684,6 +23235,7 @@ export const northstar = $root.northstar = (() => {
              * @property {"paused"} [_paused] StreamDetail _paused
              * @property {"received"} [_received] StreamDetail _received
              * @property {"stream_id"} [_stream_id] StreamDetail _stream_id
+             * @property {"startup_query"} [_startup_query] StreamDetail _startup_query
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -22707,6 +23259,7 @@ export const northstar = $root.northstar = (() => {
              *   received?: number|Long|null;
              *   steps?: Array.<northstar.live.StreamStep.$Shape>|null;
              *   stream_id?: string|null;
+             *   startup_query?: northstar.live.ReceiverQuery.$Shape|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
@@ -22723,6 +23276,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _received?: undefined; received?: null }|{ _received?: "received"; received: number|Long })
              * ) & (
              *   ({ _stream_id?: undefined; stream_id?: null }|{ _stream_id?: "stream_id"; stream_id: string })
+             * ) & (
+             *   ({ _startup_query?: undefined; startup_query?: null }|{ _startup_query?: "startup_query"; startup_query: northstar.live.ReceiverQuery.$Shape })
              * )} northstar.live.StreamDetail.$Shape
              */
 
@@ -22817,6 +23372,14 @@ export const northstar = $root.northstar = (() => {
             StreamDetail.prototype.stream_id = null;
 
             /**
+             * StreamDetail startup_query.
+             * @member {northstar.live.ReceiverQuery.$Properties|null|undefined} startup_query
+             * @memberof northstar.live.StreamDetail
+             * @instance
+             */
+            StreamDetail.prototype.startup_query = null;
+
+            /**
              * StreamDetail evidence_fields.
              * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
              * @memberof northstar.live.StreamDetail
@@ -22905,6 +23468,17 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * StreamDetail _startup_query.
+             * @member {"startup_query"|undefined} _startup_query
+             * @memberof northstar.live.StreamDetail
+             * @instance
+             */
+            $Object.defineProperty(StreamDetail.prototype, "_startup_query", {
+                get: $util.oneOfGetter($oneOfFields = ["startup_query"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new StreamDetail instance using the specified properties.
              * @function create
              * @memberof northstar.live.StreamDetail
@@ -22956,6 +23530,8 @@ export const northstar = $root.northstar = (() => {
                         $root.northstar.live.StreamStep.encode(message.steps[i], writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
                 if (message.stream_id != null && $Object.hasOwnProperty.call(message, "stream_id"))
                     writer.uint32(/* id 9, wireType 2 =*/74).string(message.stream_id);
+                if (message.startup_query != null && $Object.hasOwnProperty.call(message, "startup_query"))
+                    $root.northstar.live.ReceiverQuery.encode(message.startup_query, writer.uint32(/* id 10, wireType 2 =*/82).fork(), _depth + 1).ldelim();
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -23068,6 +23644,13 @@ export const northstar = $root.northstar = (() => {
                                 break;
                             message.stream_id = reader.stringVerify();
                             message._stream_id = "stream_id";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            message.startup_query = $root.northstar.live.ReceiverQuery.decode(reader, reader.uint32(), $undefined, _depth + 1, message.startup_query);
+                            message._startup_query = "startup_query";
                             continue;
                         }
                     case 1000: {
@@ -23198,6 +23781,14 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.stream_id))
                         return "stream_id: string expected";
                 }
+                if (message.startup_query != null && $Object.hasOwnProperty.call(message, "startup_query")) {
+                    properties._startup_query = 1;
+                    {
+                        let error = $root.northstar.live.ReceiverQuery.verify(message.startup_query, _depth + 1);
+                        if (error)
+                            return "startup_query." + error;
+                    }
+                }
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
                     if (!$util.isObject(message.evidence_fields))
                         return "evidence_fields: object expected";
@@ -23283,6 +23874,11 @@ export const northstar = $root.northstar = (() => {
                 }
                 if (object.stream_id != null)
                     message.stream_id = $String(object.stream_id);
+                if (object.startup_query != null) {
+                    if (!$util.isObject(object.startup_query))
+                        throw $TypeError(".northstar.live.StreamDetail.startup_query: object expected");
+                    message.startup_query = $root.northstar.live.ReceiverQuery.fromObject(object.startup_query, _depth + 1);
+                }
                 if (object.evidence_fields) {
                     if (!$util.isObject(object.evidence_fields))
                         throw $TypeError(".northstar.live.StreamDetail.evidence_fields: object expected");
@@ -23375,6 +23971,11 @@ export const northstar = $root.northstar = (() => {
                     object.stream_id = message.stream_id;
                     if (options.oneofs)
                         object._stream_id = "stream_id";
+                }
+                if (message.startup_query != null && $Object.hasOwnProperty.call(message, "startup_query")) {
+                    object.startup_query = $root.northstar.live.ReceiverQuery.toObject(message.startup_query, options, _depth + 1);
+                    if (options.oneofs)
+                        object._startup_query = "startup_query";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
