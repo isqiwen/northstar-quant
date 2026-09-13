@@ -275,3 +275,10 @@ The user has superseded the previous hold on pushing before full completion:
 publish current work and synchronize Issues/Project. Apply the automatic PR
 workflow above. Push, merge, complete refactoring and external acceptance are
 separate claims and each needs its own evidence.
+
+### Workspace identity persistence
+
+Redeployment, upgrades, start, stop and restart must preserve each application's registered username and password hash. API restarts may revoke browser sessions,
+but must never reopen registration by deleting the account. First-access setup
+only applies when no account has been created. Explicit full uninstall remains
+a separate destructive operation.

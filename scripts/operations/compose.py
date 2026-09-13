@@ -59,21 +59,9 @@ def lifecycle(
     )
 
 
-def reset_workspace(
-    compose: list[str],
-    app: str,
-    *,
-    credentials: Path = Path("/opt/northstar/credentials"),
-    runner: Callable[..., str] = run,
+def manage(
+    app: str, action: str, *, follow: bool = False, instance: str | None = None
 ) -> None:
-    """Deploy revokes the old browser identity after stopping its only writer."""
-    api = {"data-hub": "data-api", "research": "research-api", "live": "live-api"}[app]
-    runner(*compose, "stop", api)
-    account = credentials / app / "workspace" / ("northstar_" + app.replace("-", "_") + ".json")
-    account.unlink(missing_ok=True)
-
-
-def manage(app: str, action: str, *, follow: bool = False, instance: str | None = None) -> None:
     from contextlib import nullcontext
 
     from publication_network import publication_hosts
@@ -103,14 +91,27 @@ def manage(app: str, action: str, *, follow: bool = False, instance: str | None 
                     run(*command, "ps", "--all", *services)
                 elif action == "logs":
                     run(
-                        *command, "logs", "--tail=100", *(["--follow"] if follow else []), *services
+                        *command,
+                        "logs",
+                        "--tail=100",
+                        *(["--follow"] if follow else []),
+                        *services,
                     )
                 elif action == "stop":
                     run(*command, "stop", *services)
                 else:
                     if action == "restart":
                         run(*command, "stop", *services)
-                    run(*command, "up", "--no-build", "--pull", "never", "-d", "--wait", *services)
+                    run(
+                        *command,
+                        "up",
+                        "--no-build",
+                        "--pull",
+                        "never",
+                        "-d",
+                        "--wait",
+                        *services,
+                    )
                 return
             _manage(app, action, follow=follow, overrides=files)
         return
@@ -170,8 +171,6 @@ def _manage(app: str, action: str, *, follow: bool, overrides: list[str]) -> Non
         from northstar_quant import code_revision
 
         os.environ["NORTHSTAR_GIT_REVISION"] = code_revision()
-        if app != "database":
-            reset_workspace(compose, app)
         if app == "database":
             run(*compose, "build", "initialize")
             run(*compose, "up", "-d", "--wait", "--wait-timeout", "180", "postgres")
@@ -211,7 +210,9 @@ def _manage(app: str, action: str, *, follow: bool, overrides: list[str]) -> Non
             )
     elif action in ("start", "restart", "stop"):
         if action != "stop" and app in ("data-hub", "research"):
-            run(*compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check")
+            run(
+                *compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check"
+            )
         lifecycle(compose, app, action)
     elif action == "status":
         run(*compose, "ps", "--all")

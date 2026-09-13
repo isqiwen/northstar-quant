@@ -682,33 +682,26 @@ def test_purge_refuses_configured_nfs_server_before_ssh(deployment):
     assert not Path(env["RECORD"]).exists()
 
 
-def test_deploy_reset_removes_only_workspace_identity_after_api_stops(tmp_path):
+@pytest.mark.parametrize("app", ["data-hub", "research", "live"])
+def test_deploy_preserves_workspace_credentials(app, monkeypatch):
     import runpy
 
     module = runpy.run_path(str(ROOT / "scripts/operations/compose.py"))
-    account = tmp_path / "live/workspace/northstar_live.json"
-    account.parent.mkdir(parents=True)
-    account.write_text("identity")
-    broker = tmp_path / "live/broker.toml"
-    broker.write_text("private broker config")
+    manage = module["_manage"]
     calls = []
 
-    def stop(*args):
-        assert account.exists()
+    def run(*args, **kwargs):
         calls.append(args)
-        return ""
+        if "config" in args:
+            service = "live-web" if app == "live" else app
+            return json.dumps({"services": {service: {"ports": [{"published": 18080}]}}})
+        return "{}"
 
-    module["reset_workspace"](["docker", "compose"], "live", credentials=tmp_path, runner=stop)
-    assert calls == [("docker", "compose", "stop", "live-api")]
-    assert not account.exists()
-    assert broker.read_text() == "private broker config"
-    account.write_text("identity")
+    def refuse_delete(*args, **kwargs):
+        pytest.fail("Deployment must not remove persisted credentials")
 
-    def failure(*args):
-        raise RuntimeError("stop failed")
-
-    with pytest.raises(RuntimeError):
-        module["reset_workspace"]([], "live", credentials=tmp_path, runner=failure)
-    assert account.read_text() == "identity"
-    module["lifecycle"]([], "live", "restart", runner=lambda *args: "")
-    assert account.read_text() == "identity"
+    monkeypatch.setattr(Path, "unlink", refuse_delete)
+    monkeypatch.setitem(manage.__globals__, "run", run)
+    monkeypatch.setattr(os, "environ", os.environ.copy())
+    manage(app, "deploy", follow=False, overrides=[])
+    assert any("up" in call for call in calls)
