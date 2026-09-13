@@ -12635,6 +12635,8 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [total_fees] BrokerAccountProjection total_fees
              * @property {Array.<string>|null} [pending_fee_fill_ids] BrokerAccountProjection pending_fee_fill_ids
              * @property {number|Long|null} [fill_count] BrokerAccountProjection fill_count
+             * @property {string|null} [net_identified_cash_flow] BrokerAccountProjection net_identified_cash_flow
+             * @property {number|Long|null} [cash_flow_count] BrokerAccountProjection cash_flow_count
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] BrokerAccountProjection evidence_fields
              * @property {Array.<string>|null} [null_fields] BrokerAccountProjection null_fields
              * @property {"status"} [_status] BrokerAccountProjection _status
@@ -12643,6 +12645,8 @@ export const northstar = $root.northstar = (() => {
              * @property {"cash"} [_cash] BrokerAccountProjection _cash
              * @property {"total_fees"} [_total_fees] BrokerAccountProjection _total_fees
              * @property {"fill_count"} [_fill_count] BrokerAccountProjection _fill_count
+             * @property {"net_identified_cash_flow"} [_net_identified_cash_flow] BrokerAccountProjection _net_identified_cash_flow
+             * @property {"cash_flow_count"} [_cash_flow_count] BrokerAccountProjection _cash_flow_count
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -12664,6 +12668,8 @@ export const northstar = $root.northstar = (() => {
              *   total_fees?: string|null;
              *   pending_fee_fill_ids?: Array.<string>|null;
              *   fill_count?: number|Long|null;
+             *   net_identified_cash_flow?: string|null;
+             *   cash_flow_count?: number|Long|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
@@ -12679,6 +12685,10 @@ export const northstar = $root.northstar = (() => {
              *   ({ _total_fees?: undefined; total_fees?: null }|{ _total_fees?: "total_fees"; total_fees: string })
              * ) & (
              *   ({ _fill_count?: undefined; fill_count?: null }|{ _fill_count?: "fill_count"; fill_count: number|Long })
+             * ) & (
+             *   ({ _net_identified_cash_flow?: undefined; net_identified_cash_flow?: null }|{ _net_identified_cash_flow?: "net_identified_cash_flow"; net_identified_cash_flow: string })
+             * ) & (
+             *   ({ _cash_flow_count?: undefined; cash_flow_count?: null }|{ _cash_flow_count?: "cash_flow_count"; cash_flow_count: number|Long })
              * )} northstar.live.BrokerAccountProjection.$Shape
              */
 
@@ -12755,6 +12765,22 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             BrokerAccountProjection.prototype.fill_count = null;
+
+            /**
+             * BrokerAccountProjection net_identified_cash_flow.
+             * @member {string|null|undefined} net_identified_cash_flow
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.net_identified_cash_flow = null;
+
+            /**
+             * BrokerAccountProjection cash_flow_count.
+             * @member {number|Long|null|undefined} cash_flow_count
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.cash_flow_count = null;
 
             /**
              * BrokerAccountProjection evidence_fields.
@@ -12842,6 +12868,28 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * BrokerAccountProjection _net_identified_cash_flow.
+             * @member {"net_identified_cash_flow"|undefined} _net_identified_cash_flow
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_net_identified_cash_flow", {
+                get: $util.oneOfGetter($oneOfFields = ["net_identified_cash_flow"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _cash_flow_count.
+             * @member {"cash_flow_count"|undefined} _cash_flow_count
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_cash_flow_count", {
+                get: $util.oneOfGetter($oneOfFields = ["cash_flow_count"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new BrokerAccountProjection instance using the specified properties.
              * @function create
              * @memberof northstar.live.BrokerAccountProjection
@@ -12888,6 +12936,10 @@ export const northstar = $root.northstar = (() => {
                         writer.uint32(/* id 6, wireType 2 =*/50).string(message.pending_fee_fill_ids[i]);
                 if (message.fill_count != null && $Object.hasOwnProperty.call(message, "fill_count"))
                     writer.uint32(/* id 7, wireType 0 =*/56).int64(message.fill_count);
+                if (message.net_identified_cash_flow != null && $Object.hasOwnProperty.call(message, "net_identified_cash_flow"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.net_identified_cash_flow);
+                if (message.cash_flow_count != null && $Object.hasOwnProperty.call(message, "cash_flow_count"))
+                    writer.uint32(/* id 9, wireType 0 =*/72).int64(message.cash_flow_count);
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -12988,6 +13040,20 @@ export const northstar = $root.northstar = (() => {
                                 break;
                             message.fill_count = reader.int64();
                             message._fill_count = "fill_count";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.net_identified_cash_flow = reader.stringVerify();
+                            message._net_identified_cash_flow = "net_identified_cash_flow";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 0)
+                                break;
+                            message.cash_flow_count = reader.int64();
+                            message._cash_flow_count = "cash_flow_count";
                             continue;
                         }
                     case 1000: {
@@ -13104,6 +13170,16 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isInteger(message.fill_count) && !(message.fill_count && $util.isInteger(message.fill_count.low) && $util.isInteger(message.fill_count.high)))
                         return "fill_count: integer|Long expected";
                 }
+                if (message.net_identified_cash_flow != null && $Object.hasOwnProperty.call(message, "net_identified_cash_flow")) {
+                    properties._net_identified_cash_flow = 1;
+                    if (!$util.isString(message.net_identified_cash_flow))
+                        return "net_identified_cash_flow: string expected";
+                }
+                if (message.cash_flow_count != null && $Object.hasOwnProperty.call(message, "cash_flow_count")) {
+                    properties._cash_flow_count = 1;
+                    if (!$util.isInteger(message.cash_flow_count) && !(message.cash_flow_count && $util.isInteger(message.cash_flow_count.low) && $util.isInteger(message.cash_flow_count.high)))
+                        return "cash_flow_count: integer|Long expected";
+                }
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
                     if (!$util.isObject(message.evidence_fields))
                         return "evidence_fields: object expected";
@@ -13168,6 +13244,17 @@ export const northstar = $root.northstar = (() => {
                         message.fill_count = object.fill_count;
                     else if (typeof object.fill_count === "object")
                         message.fill_count = new $util.LongBits(object.fill_count.low >>> 0, object.fill_count.high >>> 0).toNumber();
+                if (object.net_identified_cash_flow != null)
+                    message.net_identified_cash_flow = $String(object.net_identified_cash_flow);
+                if (object.cash_flow_count != null)
+                    if ($util.Long)
+                        message.cash_flow_count = $util.Long.fromValue(object.cash_flow_count, false);
+                    else if (typeof object.cash_flow_count === "string")
+                        message.cash_flow_count = $parseInt(object.cash_flow_count, 10);
+                    else if (typeof object.cash_flow_count === "number")
+                        message.cash_flow_count = object.cash_flow_count;
+                    else if (typeof object.cash_flow_count === "object")
+                        message.cash_flow_count = new $util.LongBits(object.cash_flow_count.low >>> 0, object.cash_flow_count.high >>> 0).toNumber();
                 if (object.evidence_fields) {
                     if (!$util.isObject(object.evidence_fields))
                         throw $TypeError(".northstar.live.BrokerAccountProjection.evidence_fields: object expected");
@@ -13252,6 +13339,21 @@ export const northstar = $root.northstar = (() => {
                         object.fill_count = options.longs === $String ? $util.Long.prototype.toString.call(message.fill_count) : options.longs === $Number ? new $util.LongBits(message.fill_count.low >>> 0, message.fill_count.high >>> 0).toNumber() : message.fill_count;
                     if (options.oneofs)
                         object._fill_count = "fill_count";
+                }
+                if (message.net_identified_cash_flow != null && $Object.hasOwnProperty.call(message, "net_identified_cash_flow")) {
+                    object.net_identified_cash_flow = message.net_identified_cash_flow;
+                    if (options.oneofs)
+                        object._net_identified_cash_flow = "net_identified_cash_flow";
+                }
+                if (message.cash_flow_count != null && $Object.hasOwnProperty.call(message, "cash_flow_count")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.cash_flow_count = typeof message.cash_flow_count === "number" ? $BigInt(message.cash_flow_count) : $util.Long.fromBits(message.cash_flow_count.low >>> 0, message.cash_flow_count.high >>> 0, false).toBigInt();
+                    else if (typeof message.cash_flow_count === "number")
+                        object.cash_flow_count = options.longs === $String ? $String(message.cash_flow_count) : message.cash_flow_count;
+                    else
+                        object.cash_flow_count = options.longs === $String ? $util.Long.prototype.toString.call(message.cash_flow_count) : options.longs === $Number ? new $util.LongBits(message.cash_flow_count.low >>> 0, message.cash_flow_count.high >>> 0).toNumber() : message.cash_flow_count;
+                    if (options.oneofs)
+                        object._cash_flow_count = "cash_flow_count";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {

@@ -9,6 +9,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
+from northstar_quant.accounting.cashflow_projection import derive_cash_flows
 from northstar_quant.accounting.positions import PositionChange, project_intraday_positions
 from northstar_quant.broker.account_reports import (
     decode_trade,
@@ -64,6 +65,8 @@ def derive_position_entry(
     prefix: dict[str, Any] | None,
     after_sequence: int,
     resolve_contract: Callable[[], BrokerContract],
+    *,
+    opening_at: datetime,
 ) -> dict[str, Any]:
     source_batch_id = UUID(batch["batch_id"])
     stream_id = None if prefix is None else UUID(prefix["stream_id"])
@@ -204,6 +207,7 @@ def derive_position_entry(
             problems.append(problem)
             position_unknown = True
     return {
+        **derive_cash_flows(history, batch, prefix, after_sequence, opening_at, trading_day),
         "added_fills": added,
         "fill_count": len(known),
         "new_fill_count": len(added),

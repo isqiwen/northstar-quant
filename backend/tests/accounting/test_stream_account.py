@@ -450,3 +450,82 @@ def test_incomplete_login_cannot_establish_account_readiness_or_recover_as_known
         assert BrokerLedger(live_engine).get(UUID(progress["entry_id"])) == entry
     finally:
         streams.close()
+
+
+def test_identified_transfer_and_reversal_keep_one_effect_through_sqlite_restart(
+    live_engine, tmp_path, monkeypatch
+):
+    import time
+    from zoneinfo import ZoneInfo
+
+    day = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d")
+    library, source, configuration, calls = prepare(
+        live_engine, tmp_path, monkeypatch, trading_day=day
+    )
+    ledger = BrokerLedger(live_engine)
+    streams, stream_id = LiveStreams(live_engine, library), uuid4()
+    try:
+        Clock.at = datetime.now(UTC)
+        start(streams, source, configuration, stream_id)
+        assert calls["ready"].wait(3)
+        accept(
+            calls,
+            1,
+            "OnRspUserLogin",
+            {"BrokerID": "9999", "UserID": "123456", "TradingDay": day},
+            is_last=True,
+        )
+        # Native transfer timestamps have second precision; the movement must be
+        # demonstrably later than the fixed opening observation, not included in it.
+        time.sleep(1.05)
+        at = datetime.now(ZoneInfo("Asia/Shanghai"))
+        transfer = {
+            "BrokerID": "9999",
+            "AccountID": "123456",
+            "TradingDay": day,
+            "TradeDate": at.strftime("%Y%m%d"),
+            "TradeTime": at.strftime("%H:%M:%S"),
+            "CurrencyID": "CNY",
+            "FutureSerial": 41,
+            "TradeAmount": "500.25",
+            "CustFee": "0",
+            "BrokerFee": "0",
+            "TransferStatus": "0",
+            "ErrorID": 0,
+        }
+        accept(calls, 2, "OnRtnFromBankToFutureByBank", transfer)
+        first = ledger.get(UUID(ledger.stream_progress(stream_id)["entry_id"]))
+        assert len(first["added_cash_flows"]) == 1, first
+        assert first["added_cash_flows"][0]["amount"] == "500.25"
+        assert first["new_cash_flow_problems"] == []
+        valued = ledger.context(source)["accounting_projection"]
+        assert valued["net_identified_cash_flow"] == "500.25"
+        assert valued["cash_flow_count"] == 1 and valued["cash"] is None
+        accept(calls, 3, "OnRtnFromBankToFutureByBank", transfer)
+        duplicate = ledger.get(UUID(ledger.stream_progress(stream_id)["entry_id"]))
+        assert duplicate["cash_flow_duplicate_count"] == 1
+        assert duplicate["added_cash_flows"] == []
+        repeal = {
+            **transfer,
+            "FutureSerial": 42,
+            "FutureRepealSerial": 41,
+            "TransferStatus": "1",
+            "BrokerRepealFlag": "2",
+            "BankRepealFlag": "2",
+        }
+        accept(calls, 4, "OnRtnRepealFromBankToFutureByBank", repeal)
+        current = ledger.get(UUID(ledger.stream_progress(stream_id)["entry_id"]))
+        assert current["added_cash_flows"][0]["amount"] == "-500.25", current
+        assert (
+            current["added_cash_flows"][0]["reverses_id"]
+            == first["added_cash_flows"][0]["cash_flow_id"]
+        )
+        recovered = BrokerLedger(live_engine)
+        assert recovered.verify_all()["position_entries_count"] == 3
+        assert recovered.get(UUID(current["entry_id"])) == current
+        valued = recovered.context(source)["accounting_projection"]
+        assert valued["net_identified_cash_flow"] == "0"
+        assert valued["cash_flow_count"] == 2 and valued["cash"] is None
+        assert current["execution"]["order_sending"] is False
+    finally:
+        streams.close()

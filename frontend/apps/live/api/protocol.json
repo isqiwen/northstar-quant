@@ -1064,6 +1064,20 @@
           "required": false,
           "nullable": false
         },
+        "net_identified_cash_flow": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
+        "cash_flow_count": {
+          "id": 9,
+          "presence": true,
+          "type": "int64",
+          "required": false,
+          "nullable": false
+        },
         "evidence_fields": {
           "id": 1000,
           "presence": false,

@@ -172,6 +172,8 @@ export type BrokerAccountProjection = {
   total_fees?: string | null;
   pending_fee_fill_ids?: (string)[];
   fill_count?: number;
+  net_identified_cash_flow?: string;
+  cash_flow_count?: number;
   [key: string]: unknown;
 };
 export type LedgerContext = {

@@ -220,6 +220,8 @@ message BrokerAccountProjection {
   optional string total_fees = 5 [json_name = "total_fees", (northstar.web.nullable) = true];
   repeated string pending_fee_fill_ids = 6 [json_name = "pending_fee_fill_ids"];
   optional int64 fill_count = 7 [json_name = "fill_count"];
+  optional string net_identified_cash_flow = 8 [json_name = "net_identified_cash_flow"];
+  optional int64 cash_flow_count = 9 [json_name = "cash_flow_count"];
   map<string, google.protobuf.Value> evidence_fields = 1000;
   repeated string null_fields = 2046;
 }

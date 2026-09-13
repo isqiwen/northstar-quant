@@ -189,6 +189,8 @@ export function BrokerDetail() {
                         总费用: accounting.total_fees ?? "未知",
                         可交易余额: "未核定",
                         已确认成交笔数: accounting.fill_count ?? "未知",
+                        已识别净资金流: accounting.net_identified_cash_flow ?? "未知",
+                        已识别资金流水笔数: accounting.cash_flow_count ?? "未知",
                         待确认费用成交笔数:
                           accounting.status === "INCOMPLETE"
                             ? (accounting.pending_fee_fill_ids?.length ?? 0)

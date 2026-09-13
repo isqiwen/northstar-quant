@@ -1,10 +1,11 @@
 """Value accepted broker executions through the shared account, never synthetic fills.
 
 The caller verifies the baseline, source prefix and catalog identities. This
-projection adds no durable account authority and does not establish cash flows,
-settlement or the unknown fees missing from CTP trade callbacks.
+projection adds no durable account authority. Identified cash movements do not
+establish complete transfer coverage, settlement or unknown CTP execution fees.
 """
 
+from dataclasses import replace
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -14,6 +15,7 @@ from northstar_quant.execution.orders import Offset, Side
 from northstar_quant.market_data import Instrument
 
 from .amounts import decimal_text
+from .cashflows import CashFlowFact
 from .fifo import Account
 from .fills import FillFact
 
@@ -49,6 +51,11 @@ def project_account(
                     available_at=datetime.fromisoformat(entry["recorded_at"]),
                 )
             )
+        for row in entry["added_cash_flows"]:
+            fact = CashFlowFact.from_dict(row)
+            account.transfer(
+                replace(fact, available_at=datetime.fromisoformat(entry["recorded_at"]))
+            )
     pending = account.pending_fee_fill_ids
     return {
         "status": "INCOMPLETE",
@@ -61,6 +68,9 @@ def project_account(
         "total_fees": None if pending else "0",
         "pending_fee_fill_ids": list(pending),
         "fill_count": len(account.applied_fills),
+        "net_identified_cash_flow": decimal_text(account.net_cash_flow),
+        "cash_flow_count": account.checkpoint()["cash_flow_count"],
+        "cash_flow_problems": history[-1]["cash_flow_problems"],
         "positions": account.checkpoint()["positions"],
         "reconciliation": "UNRECONCILED",
         "limitations": ["NO_CONFIRMED_FEE_CASHFLOW_OR_SETTLEMENT_COVERAGE"],

@@ -271,6 +271,7 @@ class BrokerLedger:
                 prefix,
                 0 if prefix is None else prefix["after_sequence"],
                 resolve_retained_contract,
+                opening_at=_time(baseline["recorded_at"]),
             )
             if any(entry.get(key) != value for key, value in expected.items()):
                 raise ValueError("position ledger projection differs from retained source facts")
@@ -544,7 +545,13 @@ class BrokerLedger:
                 return resolve_broker_contract(connection, instruments["rows"][0])
 
             projection = derive_position_entry(
-                history, batch, baseline["trading_day"], prefix, after_sequence, resolve_contract
+                history,
+                batch,
+                baseline["trading_day"],
+                prefix,
+                after_sequence,
+                resolve_contract,
+                opening_at=_time(baseline["recorded_at"]),
             )
             now = _now()
             document = {
@@ -698,6 +705,24 @@ class BrokerLedger:
                     self._engine, identifier, instrument
                 ).market
         try:
+            if not markets:
+                # A funded flat account still has the receiver's verified market
+                # binding; it need not manufacture a fill before valuing transfers.
+                entry = history[-1]
+                prefix = self._entry_stream(entry)
+                if prefix is not None:
+                    contract = verify_broker_contract(
+                        self._engine,
+                        UUID(prefix["binding"]["contract_id"]),
+                        prefix["binding"]["terms"],
+                    )
+                else:
+                    cash_source: dict[str, Any] = self._records.get(UUID(entry["source_batch_id"]))
+                    rows = cash_source["completeness"]["sections"]["instrument"]["rows"]
+                    if len(rows) != 1:
+                        return unavailable
+                    contract = resolve_broker_contract(self._engine, rows[0])
+                markets[contract.contract_id] = contract.market
             return project_account(baseline, history, tuple(markets.values()))
         except ValueError:
             # Keep the accepted external fills; unsupported valuation is not a

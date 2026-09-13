@@ -16,6 +16,7 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
+from northstar_quant.accounting.cashflows import CashFlowFact
 from northstar_quant.accounting.fees import AppliedFee, FeeFact
 from northstar_quant.accounting.fills import AppliedFill, FillFact
 from northstar_quant.accounting.positions import Position, PositionChange
@@ -97,6 +98,9 @@ class Account:
         self._settlements: dict[str, AppliedSettlement] = {}
         self._last_fact_at: datetime | None = None
         self.settlement_pnl = Decimal(0)
+        self.net_cash_flow = Decimal(0)
+        self._cash_flows: dict[str, CashFlowFact] = {}
+        self._cash_reversals: set[str] = set()
 
     @property
     def cash(self) -> Decimal:
@@ -249,7 +253,7 @@ class Account:
                 != position.long_today + position.long_yesterday
                 or sum(lot.quantity for lot in lots if lot.direction == -1)
                 != position.short_today + position.short_yesterday
-                or cash != self.initial_cash + realized_pnl - total_fees
+                or cash != self.initial_cash + self.net_cash_flow + realized_pnl - total_fees
             ):
                 raise RuntimeError("account ledger conservation failed")
             if fact.fee is None:
@@ -307,7 +311,7 @@ class Account:
             )
             cash = self._cash + variation
             realized = self.realized_pnl + variation
-            if cash != self.initial_cash + realized - self.total_fees:
+            if cash != self.initial_cash + self.net_cash_flow + realized - self.total_fees:
                 raise RuntimeError("settlement ledger conservation failed")
             position = Position(
                 long_yesterday=inventory.position.long_today + inventory.position.long_yesterday,
@@ -352,7 +356,7 @@ class Account:
             context.rounding = ROUND_HALF_EVEN
             cash = self._cash - delta
             total_fees = self.total_fees + delta
-            if cash != self.initial_cash + self.realized_pnl - total_fees:
+            if cash != self.initial_cash + self.net_cash_flow + self.realized_pnl - total_fees:
                 raise RuntimeError("fee ledger conservation failed")
             self._pending_fees.difference_update(fact.fill_ids)
             applied = AppliedFee(fact, None if self._pending_fees else cash, total_fees)
@@ -362,6 +366,40 @@ class Account:
             if fact.supersedes_fee_id is not None:
                 self._fee_successors[fact.supersedes_fee_id] = fact.fee_id
             return applied
+
+    def transfer(self, fact: CashFlowFact) -> CashFlowFact:
+        """Apply identified money even while fees are unknown; never treat it as P&L."""
+        if not isinstance(fact, CashFlowFact) or fact.currency != self.markets[0].currency:
+            raise ValueError("cash flow belongs to another account currency")
+        previous = self._cash_flows.get(fact.cash_flow_id)
+        if previous is not None:
+            if previous != fact:
+                raise ValueError("cash flow identity was reused with different facts")
+            return previous
+        if self._last_fact_at is not None and fact.available_at < self._last_fact_at:
+            raise ValueError("account facts must follow accepted event order")
+        if fact.reverses_id is not None:
+            original = self._cash_flows.get(fact.reverses_id)
+            if (
+                original is None
+                or original.reverses_id is not None
+                or fact.reverses_id in self._cash_reversals
+                or fact.transferred_at < original.transferred_at
+                or fact.amount.copy_negate() != original.amount
+            ):
+                raise ValueError("cash reversal requires one exact unreversed original transfer")
+        with localcontext() as context:
+            context.prec = 192
+            context.rounding = ROUND_HALF_EVEN
+            cash = self._cash + fact.amount
+            net = self.net_cash_flow + fact.amount
+        self._cash = cash
+        self.net_cash_flow = net
+        self._cash_flows[fact.cash_flow_id] = fact
+        if fact.reverses_id is not None:
+            self._cash_reversals.add(fact.reverses_id)
+        self._last_fact_at = fact.available_at
+        return fact
 
     @contextmanager
     def transaction(self) -> Iterator[None]:
@@ -378,10 +416,12 @@ class Account:
             self._last_fact_at,
             self.settlement_pnl,
             self._pending_fees.copy(),
+            self.net_cash_flow,
         )
         count = len(self._fills)
         settlement_count = len(self._settlements)
         fee_count = len(self._fees)
+        cash_flow_count = len(self._cash_flows)
         try:
             yield
         except BaseException:
@@ -393,6 +433,7 @@ class Account:
                 self._last_fact_at,
                 self.settlement_pnl,
                 self._pending_fees,
+                self.net_cash_flow,
             ) = projection
             while len(self._fills) > count:
                 self._fills.popitem()
@@ -402,6 +443,10 @@ class Account:
                 _, fee = self._fees.popitem()
                 if fee.fact.supersedes_fee_id is not None:
                     del self._fee_successors[fee.fact.supersedes_fee_id]
+            while len(self._cash_flows) > cash_flow_count:
+                _, cash_flow = self._cash_flows.popitem()
+                if cash_flow.reverses_id is not None:
+                    self._cash_reversals.remove(cash_flow.reverses_id)
             raise
 
     def checkpoint(self) -> dict[str, object]:
@@ -409,6 +454,8 @@ class Account:
         return {
             "currency": self.markets[0].currency,
             "initial_cash": decimal_text(self.initial_cash),
+            "net_cash_flow": decimal_text(self.net_cash_flow),
+            "cash_flow_count": len(self._cash_flows),
             "cash": None if self._pending_fees else decimal_text(self._cash),
             "cash_before_pending_fees": decimal_text(self._cash),
             "pending_fee_fill_ids": list(self.pending_fee_fill_ids),
