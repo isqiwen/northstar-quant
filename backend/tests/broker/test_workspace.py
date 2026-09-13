@@ -191,6 +191,19 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
         assert page.status_code == 200
         assert client.get("/broker").status_code == 404
         assert len(client.get("/api/broker/queries").json()) == 1
+        dated = {**payload, "request_id": str(uuid4()), "settlement_day": "2026-09-03"}
+        statement = client.post("/api/broker/queries", json=dated)
+        assert statement.status_code == 200
+        assert statement.json()["query_scope"]["settlement"]["trading_day"] == "2026-09-03"
+        assert statement.json()["settlement_statement"]["status"] == "INCOMPLETE"
+        assert client.post("/api/broker/queries", json=dated).json() == statement.json()
+        assert (
+            client.post(
+                "/api/broker/queries", json={**dated, "settlement_day": "2026-09-02"}
+            ).status_code
+            == 422
+        )
+        assert calls == 2
 
 
 def test_browser_baseline_commands_are_private_local_and_preserve_original_queries(

@@ -5,8 +5,8 @@ Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管�
 
 ## 配置
 
-在 `deploy/hosts.toml` 填写 Live 主机的 `host`、`user` 和 SSH `port`。
-`user` 仅用于首次登录和提权，初始化后由脚本创建的 `northstar` 用户管理部署。
+在 `deploy/hosts.toml` 仅填写 Live 主机的 `host`。
+首次登录沿用本机 SSH 配置和默认账户；部署准备 `northstar` 账户后由它管理应用。
 目标主机默认 SSH 登录和部署依赖须可用，deploy 自动准备 northstar 账号，见[部署前置要求](../README.md#部署与访问)。
 
 应用配置统一放在 [deploy/live/.env](.env)：
@@ -32,8 +32,6 @@ Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管�
 在仓库根目录执行：
 
 ```sh
-# 首次初始化主机
-
 # 部署已提交代码，首次自动上传本地 deploy/live/.env
 ./scripts/northstarctl.py deploy live
 
@@ -130,3 +128,10 @@ SQLite 使用 WAL、FULL 同步和短写事务；实例进程锁不随时间过�
 会话固定具体候选，后续接收不会改写旧绑定。接收材料不授权下单。
 
 工作台首次访问创建唯一用户。普通重启保留账号；每次 deploy 清除账号，重新访问创建。
+
+## 结算原文
+
+工作台“柜台连接与查询”可选填结算日期（YYYY-MM-DD）；留空只查询现有账户和合约信息。
+指定日期时同时保存柜台返回的结算原文，查询详情展示正文、内容身份和检查问题。
+CLI 的 `broker query` 同样支持 `--settlement-day YYYY-MM-DD`。
+原文尚不自动修改费用或日结算账本，也不发送结算确认；未返回或不完整时明确显示不可用。

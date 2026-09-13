@@ -99,6 +99,7 @@ export type CommandField<P extends CommandPath> = {
   kind?: "integer" | "check" | "select";
   options?: { label: string; value: string | number }[];
   initial?: unknown;
+  optional?: boolean;
 };
 export function Action<P extends CommandPath>({
   title,
@@ -157,7 +158,7 @@ export function Action<P extends CommandPath>({
                 f.initial ?? (f.kind === "check" ? false : undefined)
               }
               valuePropName={f.kind === "check" ? "checked" : "value"}
-              rules={f.kind === "check" ? [] : [{ required: true }]}
+              rules={f.kind === "check" || f.optional ? [] : [{ required: true }]}
             >
               {f.kind === "select" ? (
                 <Select

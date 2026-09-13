@@ -599,8 +599,36 @@ class PositionEntryRequest(_message.Message):
     source_batch_id: str
     def __init__(self, baseline_id: _Optional[str] = ..., request_id: _Optional[str] = ..., source_batch_id: _Optional[str] = ...) -> None: ...
 
+class SettlementStatement(_message.Message):
+    __slots__ = ("status", "trading_day", "content", "content_sha256", "encoding", "problems", "ledger_posted", "confirmation_sent", "settlement_id", "fragment_count", "byte_count", "null_fields")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    ENCODING_FIELD_NUMBER: _ClassVar[int]
+    PROBLEMS_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_POSTED_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMATION_SENT_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    FRAGMENT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    BYTE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    trading_day: str
+    content: str
+    content_sha256: str
+    encoding: str
+    problems: _containers.RepeatedScalarFieldContainer[str]
+    ledger_posted: bool
+    confirmation_sent: bool
+    settlement_id: int
+    fragment_count: int
+    byte_count: int
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: _Optional[str] = ..., trading_day: _Optional[str] = ..., content: _Optional[str] = ..., content_sha256: _Optional[str] = ..., encoding: _Optional[str] = ..., problems: _Optional[_Iterable[str]] = ..., ledger_posted: _Optional[bool] = ..., confirmation_sent: _Optional[bool] = ..., settlement_id: _Optional[int] = ..., fragment_count: _Optional[int] = ..., byte_count: _Optional[int] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class QueryRecord(_message.Message):
-    __slots__ = ("batch_id", "instrument", "status", "evidence_fields")
+    __slots__ = ("settlement_statement", "batch_id", "instrument", "status", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -608,23 +636,27 @@ class QueryRecord(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    SETTLEMENT_STATEMENT_FIELD_NUMBER: _ClassVar[int]
     BATCH_ID_FIELD_NUMBER: _ClassVar[int]
     INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    settlement_statement: SettlementStatement
     batch_id: str
     instrument: str
     status: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, batch_id: _Optional[str] = ..., instrument: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, settlement_statement: _Optional[_Union[SettlementStatement, _Mapping]] = ..., batch_id: _Optional[str] = ..., instrument: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class QueryRequest(_message.Message):
-    __slots__ = ("instrument", "request_id")
+    __slots__ = ("settlement_day", "instrument", "request_id")
+    SETTLEMENT_DAY_FIELD_NUMBER: _ClassVar[int]
     INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    settlement_day: str
     instrument: str
     request_id: str
-    def __init__(self, instrument: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, settlement_day: _Optional[str] = ..., instrument: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
 
 class Readiness(_message.Message):
     __slots__ = ("status",)

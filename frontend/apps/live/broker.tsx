@@ -41,7 +41,10 @@ export function Broker() {
       <Action
         title="发起只读柜台查询"
         path="/api/broker/queries"
-        fields={[{ name: "instrument", label: "合约代码" }]}
+        fields={[
+          { name: "instrument", label: "合约代码" },
+          { name: "settlement_day", label: "结算原文日期（可选 YYYY-MM-DD，不确认结算）", optional: true },
+        ]}
         onDone={(r) => navigate(`/broker/${r.batch_id || r.query_batch_id}`)}
       />
       <Records
@@ -95,6 +98,22 @@ export function BrokerDetail() {
           <Fields
             value={{ 查询: id, 状态: q.data.status, 合约: q.data.instrument }}
           />
+        </Card>
+      )}
+      {q.data?.settlement_statement && (
+        <Card title="柜台结算原文">
+          <Fields value={{
+            交易日: q.data.settlement_statement.trading_day,
+            状态: q.data.settlement_statement.status,
+            内容身份: q.data.settlement_statement.content_sha256 ?? "—",
+          }} />
+          <p>保留柜台原文，尚未解释为费用或日结算事实；没有发送结算确认。</p>
+          {q.data.settlement_statement.content !== null && (
+            <pre style={{ whiteSpace: "pre-wrap", maxHeight: 480, overflow: "auto" }}>
+              {q.data.settlement_statement.content}
+            </pre>
+          )}
+          <Evidence value={q.data.settlement_statement.problems} title="原文检查问题" />
         </Card>
       )}
       <Tabs

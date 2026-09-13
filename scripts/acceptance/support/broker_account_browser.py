@@ -28,7 +28,23 @@ def check_broker_account(page, base_url, visit, screenshot):
         "reverses_id": flow["cash_flow_id"],
     }
     values = {
-        "": {"batch_id": identifier, "instrument": "SYNTHETIC", "status": "COMPLETE"},
+        "": {
+            "batch_id": identifier,
+            "instrument": "SYNTHETIC",
+            "status": "COMPLETE",
+            "settlement_statement": {
+                "status": "RECEIVED",
+                "trading_day": "2026-09-03",
+                "content": (
+                    "合成结算原文\n手续费：12.340000000000000001\n<script>no execution</script>"
+                ),
+                "content_sha256": "a" * 64,
+                "encoding": "GBK",
+                "problems": [],
+                "ledger_posted": False,
+                "confirmation_sent": False,
+            },
+        },
         "/baseline-context": {"baseline": None},
         "/ledger-context": {
             "entries": [{"entry_id": entry, "added_cash_flows": [flow, reversal]}],
@@ -61,6 +77,14 @@ def check_broker_account(page, base_url, visit, screenshot):
     page.route(pattern, reply)
     try:
         visit(base_url + f"/broker/{identifier}")
+        expect(page.get_by_text("柜台结算原文", exact=True)).to_be_visible()
+        expect(page.locator("pre").filter(has_text="合成结算原文").first).to_contain_text(
+            "手续费：12.340000000000000001"
+        )
+        expect(page.locator("pre").filter(has_text="合成结算原文").first).to_contain_text(
+            "<script>no execution</script>"
+        )
+        screenshot("broker-settlement-document")
         page.get_by_role("tab", name="持仓与委托核对", exact=True).click()
         expect(page.get_by_text("已确认成交的账户计价", exact=True)).to_be_visible()
         expect(page.get_by_text("100.010000000000000001", exact=True)).to_be_visible()

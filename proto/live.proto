@@ -288,8 +288,24 @@ message PositionEntryRequest {
   optional string source_batch_id = 3 [json_name = "source_batch_id", (northstar.web.required_field) = true];
 }
 
+message SettlementStatement {
+  optional string status = 1 [(northstar.web.required_field) = true];
+  optional string trading_day = 2 [(northstar.web.required_field) = true];
+  optional string content = 3 [(northstar.web.nullable) = true];
+  optional string content_sha256 = 4 [(northstar.web.nullable) = true];
+  optional string encoding = 5 [(northstar.web.required_field) = true];
+  repeated string problems = 6 [(northstar.web.required_field) = true];
+  optional bool ledger_posted = 7 [(northstar.web.required_field) = true];
+  optional bool confirmation_sent = 8 [(northstar.web.required_field) = true];
+  optional int64 settlement_id = 9;
+  optional int64 fragment_count = 10;
+  optional int64 byte_count = 11;
+  repeated string null_fields = 1001;
+}
+
 message QueryRecord {
   option (northstar.web.evidence) = true;
+  optional SettlementStatement settlement_statement = 4;
   optional string batch_id = 1 [json_name = "batch_id", (northstar.web.required_field) = true];
   optional string instrument = 2 [json_name = "instrument", (northstar.web.required_field) = true];
   optional string status = 3 [json_name = "status", (northstar.web.required_field) = true];
@@ -297,6 +313,7 @@ message QueryRecord {
 }
 
 message QueryRequest {
+  optional string settlement_day = 4 [json_name = "settlement_day", (northstar.web.nullable) = true];
   optional string instrument = 1 [json_name = "instrument", (northstar.web.required_field) = true];
   optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
 }

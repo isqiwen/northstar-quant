@@ -120,6 +120,7 @@ def query_account(
     *,
     on_event: Callable[[BrokerEvent], None] | None = None,
     timeout_seconds: float = 45,
+    settlement_day: str | None = None,
 ) -> QueryCapture:
     """Capture seven account/terms queries and a bounded market observation.
 
@@ -136,6 +137,9 @@ def query_account(
     if profile != get_profile(profile.name):
         raise ValueError("only the explicitly approved SimNow endpoints may be queried")
     validate_instrument(instrument)
+    from .statements import validate_day
+
+    settlement_day = validate_day(settlement_day)
     started = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     events: list[BrokerEvent] = []
     versions: dict[str, str | None] = {"trader": None, "market": None}
@@ -167,7 +171,15 @@ def query_account(
     with tempfile.TemporaryDirectory(prefix="northstar-ctp-") as directory:
         child = context.Process(
             target=capture,
-            args=(sender, profile, credentials, instrument, directory, timeout_seconds),
+            args=(
+                sender,
+                profile,
+                credentials,
+                instrument,
+                directory,
+                timeout_seconds,
+                settlement_day,
+            ),
             name="northstar-ctp-readonly",
             daemon=True,
         )

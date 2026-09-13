@@ -96,6 +96,10 @@ CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
         "SessionID",
         "MaxOrderRef",
     ),
+    "OnRspQrySettlementInfo": tuple(
+        "TradingDay SettlementID BrokerID InvestorID SequenceNo ContentBase64 "
+        "AccountID CurrencyID".split()
+    ),
     "OnRspQryTradingAccount": tuple(
         "BrokerID AccountID CurrencyID TradingDay SettlementID PreBalance PreMargin Deposit "
         "Withdraw FrozenMargin FrozenCash FrozenCommission CurrMargin CashIn Commission "
@@ -186,7 +190,16 @@ class BrokerEvent:
                 value = self.data[name]
                 if value is None or type(value) is bool:
                     safe[name] = value
-                elif isinstance(value, str) and len(value) <= 256 and "\x00" not in value:
+                elif (
+                    isinstance(value, str)
+                    and len(value)
+                    <= (
+                        668
+                        if self.callback == "OnRspQrySettlementInfo" and name == "ContentBase64"
+                        else 256
+                    )
+                    and "\x00" not in value
+                ):
                     safe[name] = value
                 elif type(value) is int and -(2**63) <= value < 2**63:
                     safe[name] = value

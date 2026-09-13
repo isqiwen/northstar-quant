@@ -7,6 +7,8 @@ Never block a CTP callback on a database transaction or a process pipe.
 
 from __future__ import annotations
 
+import base64
+import ctypes
 import importlib
 import json
 import math
@@ -38,6 +40,20 @@ def _copy_fields(callback: str, native: object | None) -> dict[str, object] | No
         return None
     copied: dict[str, object] = {}
     for name in CALLBACK_FIELDS[callback]:
+        if callback == "OnRspQrySettlementInfo" and name == "ContentBase64":
+            # CTP may split GBK characters across 500-byte fragments. Keep the
+            # original bytes and decode only after complete ordered assembly.
+            value = (
+                ctypes.Structure.__getattribute__(native, "Content")
+                if isinstance(native, ctypes.Structure)
+                else getattr(native, "Content", None)
+            )
+            if isinstance(value, str):
+                value = value.encode("gbk", errors="strict")
+            if not isinstance(value, bytes) or len(value) > 500:
+                raise ValueError("invalid settlement fragment")
+            copied[name] = base64.b64encode(value).decode("ascii")
+            continue
         value = getattr(native, name, None)
         if isinstance(value, float):
             # CTP's unassigned double sentinel is close to DBL_MAX. Preserve
@@ -264,6 +280,7 @@ def _native_class(base: Any, receiver: _Receiver, channel: str) -> Any:
     if channel == "TD":
         for suffix in (
             "Authenticate",
+            "QrySettlementInfo",
             "OrderInsert",
             "OrderAction",
             *("Qry" + query for _, query in QUERY_TYPES),
@@ -329,7 +346,12 @@ def _subscribe_reports(trader: Any) -> None:
 
 
 def _account_queries(
-    structures: Any, *, broker_id: str, investor_id: str, instrument: str
+    structures: Any,
+    *,
+    broker_id: str,
+    investor_id: str,
+    instrument: str,
+    settlement_day: str | None = None,
 ) -> list[tuple[str, str, Any]]:
     queries = []
     for section, suffix in QUERY_TYPES:
@@ -345,6 +367,20 @@ def _account_queries(
         if section == "margin":
             fields["HedgeFlag"] = "1"
         queries.append((section, suffix, getattr(structures, "Qry" + suffix + "Field")(**fields)))
+    if settlement_day is not None:
+        queries.append(
+            (
+                "settlement",
+                "SettlementInfo",
+                structures.QrySettlementInfoField(
+                    BrokerID=broker_id,
+                    InvestorID=investor_id,
+                    AccountID=investor_id,
+                    CurrencyID="CNY",
+                    TradingDay=settlement_day.replace("-", ""),
+                ),
+            )
+        )
     return queries
 
 
@@ -448,8 +484,17 @@ def capture(
     instrument: str,
     directory: str,
     timeout: float,
+    settlement_day: str | None = None,
 ) -> None:
-    _capture(connection, profile, credentials, instrument, directory, timeout)
+    _capture(
+        connection,
+        profile,
+        credentials,
+        instrument,
+        directory,
+        timeout,
+        settlement_day=settlement_day,
+    )
 
 
 def stream(
@@ -484,6 +529,7 @@ def _capture(
     timeout: float,
     *,
     streaming: bool = False,
+    settlement_day: str | None = None,
     stop_signal: Any = None,
     order_queues: tuple[Any, Any] | None = None,
 ) -> None:
@@ -519,6 +565,7 @@ def _capture(
             broker_id=credentials.broker_id,
             investor_id=credentials.user_id,
             instrument=instrument,
+            settlement_day=settlement_day,
         )
         trader = _native_class(sdk.TraderApiPy, receiver, "TD")()
         market = _native_class(sdk.MdApiPy, receiver, "MD")()

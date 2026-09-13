@@ -26,6 +26,10 @@ _ACCOUNT_ROWS = {"account", "positions", "orders", "trades"}
 
 
 def project_query(binding: dict[str, object], capture: QueryCapture | None) -> dict[str, object]:
+    queries = dict(_QUERIES)
+    scope = cast(dict[str, dict[str, str]], binding["query_scope"])
+    if "settlement" in scope:
+        queries["settlement"] = ("ReqQrySettlementInfo", "OnRspQrySettlementInfo")
     sections: dict[str, dict[str, object]] = {
         name: {
             "status": "NOT_OBSERVED",
@@ -35,7 +39,7 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
             "last_received_at": None,
             "error_ids": [],
         }
-        for name in _QUERIES
+        for name in queries
     }
     sections["instrument"]["identity"] = "UNKNOWN"
     reasons: set[str] = set()
@@ -117,13 +121,13 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
                 if data["return_code"] != 0:
                     reasons.add("SDK_REJECTED_REQUEST")
                     fatal = True
-                if event.channel == "TD" and section in _QUERIES:
+                if event.channel == "TD" and section in queries:
                     if identity != "CONFIRMED":
                         reasons.add("QUERY_SENT_BEFORE_CONFIRMED_LOGIN")
                     item = sections[str(section)]
                     if item["status"] != "NOT_OBSERVED":
                         reasons.add("QUERY_SECTION_REQUESTED_MORE_THAN_ONCE")
-                    if method != _QUERIES[str(section)][0]:
+                    if method != queries[str(section)][0]:
                         reasons.add("QUERY_METHOD_SCOPE_MISMATCH")
                     item.update(
                         status="WAITING" if data["return_code"] == 0 else "ERROR",
@@ -201,7 +205,7 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
                     identity = "MISMATCH"
                     fatal = True
             section = next(
-                (name for name, (_, callback) in _QUERIES.items() if callback == event.callback),
+                (name for name, (_, callback) in queries.items() if callback == event.callback),
                 None,
             )
             if section is not None:
@@ -245,7 +249,7 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
                         if section == "account" and data.get("CurrencyID") != "CNY":
                             reasons.add("ACCOUNT_CURRENCY_MISMATCH")
                             fatal = True
-                    elif data.get("InstrumentID") != instrument:
+                    elif section != "settlement" and data.get("InstrumentID") != instrument:
                         reasons.add("INSTRUMENT_QUERY_IDENTITY_MISMATCH")
                         fatal = True
                     if section in {"margin", "commission"}:
@@ -334,6 +338,20 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
             unknown.add("MARKET_LOGIN_IDENTITY_UNKNOWN")
     else:
         reasons.add("QUERY_NOT_FINISHED_OR_CALLER_INTERRUPTED")
+    statement: dict[str, object] | None = None
+    if "settlement" in sections:
+        from .statements import assemble
+
+        statement = assemble(
+            {**sections["settlement"], "status": "INCOMPLETE"}
+            if fatal or identity != "CONFIRMED" or reasons
+            else sections["settlement"],
+            day=scope["settlement"]["trading_day"],
+            broker_id=str(cast(dict[str, object], binding["profile"])["broker_id"]),
+            account_id=str(binding["account_id"]),
+        )
+        if statement["status"] != "RECEIVED":
+            unknown.add("SETTLEMENT_DOCUMENT_NOT_AVAILABLE")
     status = (
         "PENDING"
         if capture is None
@@ -344,6 +362,7 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
         else "COMPLETE"
     )
     return {
+        **({"settlement_statement": statement} if statement is not None else {}),
         "status": status,
         "capture": None if capture is None else capture.to_dict(),
         "completeness": {

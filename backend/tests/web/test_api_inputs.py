@@ -89,3 +89,25 @@ def test_cash_flow_protocol_preserves_exact_amount_and_explicit_reversal():
     value = {"entry_id": "entry", "added_cash_flows": [original, reversal]}
     encoded = pack(api_pb2.PositionEntry.DESCRIPTOR, value).SerializeToString()
     assert decode(api_pb2.PositionEntry.DESCRIPTOR, encoded) == value
+
+
+def test_settlement_document_wire_preserves_text_and_unknown_content():
+    from northstar_quant.web.protobuf import pack
+
+    document = dict(
+        status="RECEIVED",
+        trading_day="2026-09-03",
+        content="手续费：12.340000000000000001\n",
+        content_sha256="a" * 64,
+        encoding="GBK",
+        problems=[],
+        ledger_posted=False,
+        confirmation_sent=False,
+    )
+    value = dict(
+        batch_id=str(uuid4()), instrument="rb2610", status="COMPLETE", settlement_statement=document
+    )
+    for content in (document["content"], None):
+        document["content"] = content
+        encoded = pack(api_pb2.QueryRecord.DESCRIPTOR, value).SerializeToString()
+        assert decode(api_pb2.QueryRecord.DESCRIPTOR, encoded)["settlement_statement"] == document

@@ -16995,15 +16995,811 @@ export const northstar = $root.northstar = (() => {
             return PositionEntryRequest;
         })();
 
+        live.SettlementStatement = (function() {
+
+            /**
+             * Properties of a SettlementStatement.
+             * @typedef {Object} northstar.live.SettlementStatement.$Properties
+             * @property {string|null} [status] SettlementStatement status
+             * @property {string|null} [trading_day] SettlementStatement trading_day
+             * @property {string|null} [content] SettlementStatement content
+             * @property {string|null} [content_sha256] SettlementStatement content_sha256
+             * @property {string|null} [encoding] SettlementStatement encoding
+             * @property {Array.<string>|null} [problems] SettlementStatement problems
+             * @property {boolean|null} [ledger_posted] SettlementStatement ledger_posted
+             * @property {boolean|null} [confirmation_sent] SettlementStatement confirmation_sent
+             * @property {number|Long|null} [settlement_id] SettlementStatement settlement_id
+             * @property {number|Long|null} [fragment_count] SettlementStatement fragment_count
+             * @property {number|Long|null} [byte_count] SettlementStatement byte_count
+             * @property {Array.<string>|null} [null_fields] SettlementStatement null_fields
+             * @property {"status"} [_status] SettlementStatement _status
+             * @property {"trading_day"} [_trading_day] SettlementStatement _trading_day
+             * @property {"content"} [_content] SettlementStatement _content
+             * @property {"content_sha256"} [_content_sha256] SettlementStatement _content_sha256
+             * @property {"encoding"} [_encoding] SettlementStatement _encoding
+             * @property {"ledger_posted"} [_ledger_posted] SettlementStatement _ledger_posted
+             * @property {"confirmation_sent"} [_confirmation_sent] SettlementStatement _confirmation_sent
+             * @property {"settlement_id"} [_settlement_id] SettlementStatement _settlement_id
+             * @property {"fragment_count"} [_fragment_count] SettlementStatement _fragment_count
+             * @property {"byte_count"} [_byte_count] SettlementStatement _byte_count
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SettlementStatement.
+             * @memberof northstar.live
+             * @interface ISettlementStatement
+             * @augments northstar.live.SettlementStatement.$Properties
+             * @deprecated Use northstar.live.SettlementStatement.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SettlementStatement.
+             * @typedef {{
+             *   status?: string|null;
+             *   trading_day?: string|null;
+             *   content?: string|null;
+             *   content_sha256?: string|null;
+             *   encoding?: string|null;
+             *   problems?: Array.<string>|null;
+             *   ledger_posted?: boolean|null;
+             *   confirmation_sent?: boolean|null;
+             *   settlement_id?: number|Long|null;
+             *   fragment_count?: number|Long|null;
+             *   byte_count?: number|Long|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _trading_day?: undefined; trading_day?: null }|{ _trading_day?: "trading_day"; trading_day: string })
+             * ) & (
+             *   ({ _content?: undefined; content?: null }|{ _content?: "content"; content: string })
+             * ) & (
+             *   ({ _content_sha256?: undefined; content_sha256?: null }|{ _content_sha256?: "content_sha256"; content_sha256: string })
+             * ) & (
+             *   ({ _encoding?: undefined; encoding?: null }|{ _encoding?: "encoding"; encoding: string })
+             * ) & (
+             *   ({ _ledger_posted?: undefined; ledger_posted?: null }|{ _ledger_posted?: "ledger_posted"; ledger_posted: boolean })
+             * ) & (
+             *   ({ _confirmation_sent?: undefined; confirmation_sent?: null }|{ _confirmation_sent?: "confirmation_sent"; confirmation_sent: boolean })
+             * ) & (
+             *   ({ _settlement_id?: undefined; settlement_id?: null }|{ _settlement_id?: "settlement_id"; settlement_id: number|Long })
+             * ) & (
+             *   ({ _fragment_count?: undefined; fragment_count?: null }|{ _fragment_count?: "fragment_count"; fragment_count: number|Long })
+             * ) & (
+             *   ({ _byte_count?: undefined; byte_count?: null }|{ _byte_count?: "byte_count"; byte_count: number|Long })
+             * )} northstar.live.SettlementStatement.$Shape
+             */
+
+            /**
+             * Constructs a new SettlementStatement.
+             * @memberof northstar.live
+             * @classdesc Represents a SettlementStatement.
+             * @constructor
+             * @param {northstar.live.SettlementStatement.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SettlementStatement = function (properties) {
+                this.problems = [];
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SettlementStatement status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.status = null;
+
+            /**
+             * SettlementStatement trading_day.
+             * @member {string|null|undefined} trading_day
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.trading_day = null;
+
+            /**
+             * SettlementStatement content.
+             * @member {string|null|undefined} content
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.content = null;
+
+            /**
+             * SettlementStatement content_sha256.
+             * @member {string|null|undefined} content_sha256
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.content_sha256 = null;
+
+            /**
+             * SettlementStatement encoding.
+             * @member {string|null|undefined} encoding
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.encoding = null;
+
+            /**
+             * SettlementStatement problems.
+             * @member {Array.<string>} problems
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.problems = $util.emptyArray;
+
+            /**
+             * SettlementStatement ledger_posted.
+             * @member {boolean|null|undefined} ledger_posted
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.ledger_posted = null;
+
+            /**
+             * SettlementStatement confirmation_sent.
+             * @member {boolean|null|undefined} confirmation_sent
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.confirmation_sent = null;
+
+            /**
+             * SettlementStatement settlement_id.
+             * @member {number|Long|null|undefined} settlement_id
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.settlement_id = null;
+
+            /**
+             * SettlementStatement fragment_count.
+             * @member {number|Long|null|undefined} fragment_count
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.fragment_count = null;
+
+            /**
+             * SettlementStatement byte_count.
+             * @member {number|Long|null|undefined} byte_count
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.byte_count = null;
+
+            /**
+             * SettlementStatement null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            SettlementStatement.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SettlementStatement _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementStatement _trading_day.
+             * @member {"trading_day"|undefined} _trading_day
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementStatement _content.
+             * @member {"content"|undefined} _content
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_content", {
+                get: $util.oneOfGetter($oneOfFields = ["content"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementStatement _content_sha256.
+             * @member {"content_sha256"|undefined} _content_sha256
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_content_sha256", {
+                get: $util.oneOfGetter($oneOfFields = ["content_sha256"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementStatement _encoding.
+             * @member {"encoding"|undefined} _encoding
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_encoding", {
+                get: $util.oneOfGetter($oneOfFields = ["encoding"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementStatement _ledger_posted.
+             * @member {"ledger_posted"|undefined} _ledger_posted
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_ledger_posted", {
+                get: $util.oneOfGetter($oneOfFields = ["ledger_posted"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementStatement _confirmation_sent.
+             * @member {"confirmation_sent"|undefined} _confirmation_sent
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_confirmation_sent", {
+                get: $util.oneOfGetter($oneOfFields = ["confirmation_sent"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementStatement _settlement_id.
+             * @member {"settlement_id"|undefined} _settlement_id
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_settlement_id", {
+                get: $util.oneOfGetter($oneOfFields = ["settlement_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementStatement _fragment_count.
+             * @member {"fragment_count"|undefined} _fragment_count
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_fragment_count", {
+                get: $util.oneOfGetter($oneOfFields = ["fragment_count"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementStatement _byte_count.
+             * @member {"byte_count"|undefined} _byte_count
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             */
+            $Object.defineProperty(SettlementStatement.prototype, "_byte_count", {
+                get: $util.oneOfGetter($oneOfFields = ["byte_count"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SettlementStatement instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.SettlementStatement
+             * @static
+             * @param {northstar.live.SettlementStatement.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.SettlementStatement} SettlementStatement instance
+             * @type {{
+             *   (properties: northstar.live.SettlementStatement.$Shape): northstar.live.SettlementStatement & northstar.live.SettlementStatement.$Shape;
+             *   (properties?: northstar.live.SettlementStatement.$Properties): northstar.live.SettlementStatement;
+             * }}
+             */
+            SettlementStatement.create = function(properties) {
+                return new SettlementStatement(properties);
+            };
+
+            /**
+             * Encodes the specified SettlementStatement message. Does not implicitly {@link northstar.live.SettlementStatement.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.SettlementStatement
+             * @static
+             * @param {northstar.live.SettlementStatement.$Properties} message SettlementStatement message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SettlementStatement.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.status);
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.trading_day);
+                if (message.content != null && $Object.hasOwnProperty.call(message, "content"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.content);
+                if (message.content_sha256 != null && $Object.hasOwnProperty.call(message, "content_sha256"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.content_sha256);
+                if (message.encoding != null && $Object.hasOwnProperty.call(message, "encoding"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.encoding);
+                if (message.problems != null && message.problems.length)
+                    for (let i = 0; i < message.problems.length; ++i)
+                        writer.uint32(/* id 6, wireType 2 =*/50).string(message.problems[i]);
+                if (message.ledger_posted != null && $Object.hasOwnProperty.call(message, "ledger_posted"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).bool(message.ledger_posted);
+                if (message.confirmation_sent != null && $Object.hasOwnProperty.call(message, "confirmation_sent"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).bool(message.confirmation_sent);
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id"))
+                    writer.uint32(/* id 9, wireType 0 =*/72).int64(message.settlement_id);
+                if (message.fragment_count != null && $Object.hasOwnProperty.call(message, "fragment_count"))
+                    writer.uint32(/* id 10, wireType 0 =*/80).int64(message.fragment_count);
+                if (message.byte_count != null && $Object.hasOwnProperty.call(message, "byte_count"))
+                    writer.uint32(/* id 11, wireType 0 =*/88).int64(message.byte_count);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 1001, wireType 2 =*/8010).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SettlementStatement message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.SettlementStatement
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.SettlementStatement & northstar.live.SettlementStatement.$Shape} SettlementStatement
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SettlementStatement.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.SettlementStatement();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.trading_day = reader.stringVerify();
+                            message._trading_day = "trading_day";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.content = reader.stringVerify();
+                            message._content = "content";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.content_sha256 = reader.stringVerify();
+                            message._content_sha256 = "content_sha256";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.encoding = reader.stringVerify();
+                            message._encoding = "encoding";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.problems && message.problems.length))
+                                message.problems = [];
+                            message.problems.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 0)
+                                break;
+                            message.ledger_posted = reader.bool();
+                            message._ledger_posted = "ledger_posted";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 0)
+                                break;
+                            message.confirmation_sent = reader.bool();
+                            message._confirmation_sent = "confirmation_sent";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 0)
+                                break;
+                            message.settlement_id = reader.int64();
+                            message._settlement_id = "settlement_id";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 0)
+                                break;
+                            message.fragment_count = reader.int64();
+                            message._fragment_count = "fragment_count";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 0)
+                                break;
+                            message.byte_count = reader.int64();
+                            message._byte_count = "byte_count";
+                            continue;
+                        }
+                    case 1001: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SettlementStatement message.
+             * @function verify
+             * @memberof northstar.live.SettlementStatement
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SettlementStatement.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    properties._trading_day = 1;
+                    if (!$util.isString(message.trading_day))
+                        return "trading_day: string expected";
+                }
+                if (message.content != null && $Object.hasOwnProperty.call(message, "content")) {
+                    properties._content = 1;
+                    if (!$util.isString(message.content))
+                        return "content: string expected";
+                }
+                if (message.content_sha256 != null && $Object.hasOwnProperty.call(message, "content_sha256")) {
+                    properties._content_sha256 = 1;
+                    if (!$util.isString(message.content_sha256))
+                        return "content_sha256: string expected";
+                }
+                if (message.encoding != null && $Object.hasOwnProperty.call(message, "encoding")) {
+                    properties._encoding = 1;
+                    if (!$util.isString(message.encoding))
+                        return "encoding: string expected";
+                }
+                if (message.problems != null && $Object.hasOwnProperty.call(message, "problems")) {
+                    if (!$Array.isArray(message.problems))
+                        return "problems: array expected";
+                    for (let i = 0; i < message.problems.length; ++i)
+                        if (!$util.isString(message.problems[i]))
+                            return "problems: string[] expected";
+                }
+                if (message.ledger_posted != null && $Object.hasOwnProperty.call(message, "ledger_posted")) {
+                    properties._ledger_posted = 1;
+                    if (typeof message.ledger_posted !== "boolean")
+                        return "ledger_posted: boolean expected";
+                }
+                if (message.confirmation_sent != null && $Object.hasOwnProperty.call(message, "confirmation_sent")) {
+                    properties._confirmation_sent = 1;
+                    if (typeof message.confirmation_sent !== "boolean")
+                        return "confirmation_sent: boolean expected";
+                }
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id")) {
+                    properties._settlement_id = 1;
+                    if (!$util.isInteger(message.settlement_id) && !(message.settlement_id && $util.isInteger(message.settlement_id.low) && $util.isInteger(message.settlement_id.high)))
+                        return "settlement_id: integer|Long expected";
+                }
+                if (message.fragment_count != null && $Object.hasOwnProperty.call(message, "fragment_count")) {
+                    properties._fragment_count = 1;
+                    if (!$util.isInteger(message.fragment_count) && !(message.fragment_count && $util.isInteger(message.fragment_count.low) && $util.isInteger(message.fragment_count.high)))
+                        return "fragment_count: integer|Long expected";
+                }
+                if (message.byte_count != null && $Object.hasOwnProperty.call(message, "byte_count")) {
+                    properties._byte_count = 1;
+                    if (!$util.isInteger(message.byte_count) && !(message.byte_count && $util.isInteger(message.byte_count.low) && $util.isInteger(message.byte_count.high)))
+                        return "byte_count: integer|Long expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SettlementStatement message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.SettlementStatement
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.SettlementStatement} SettlementStatement
+             */
+            SettlementStatement.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.SettlementStatement)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.SettlementStatement: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.SettlementStatement();
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.trading_day != null)
+                    message.trading_day = $String(object.trading_day);
+                if (object.content != null)
+                    message.content = $String(object.content);
+                if (object.content_sha256 != null)
+                    message.content_sha256 = $String(object.content_sha256);
+                if (object.encoding != null)
+                    message.encoding = $String(object.encoding);
+                if (object.problems) {
+                    if (!$Array.isArray(object.problems))
+                        throw $TypeError(".northstar.live.SettlementStatement.problems: array expected");
+                    message.problems = $Array(object.problems.length);
+                    for (let i = 0; i < object.problems.length; ++i)
+                        message.problems[i] = $String(object.problems[i]);
+                }
+                if (object.ledger_posted != null)
+                    message.ledger_posted = $Boolean(object.ledger_posted);
+                if (object.confirmation_sent != null)
+                    message.confirmation_sent = $Boolean(object.confirmation_sent);
+                if (object.settlement_id != null)
+                    if ($util.Long)
+                        message.settlement_id = $util.Long.fromValue(object.settlement_id, false);
+                    else if (typeof object.settlement_id === "string")
+                        message.settlement_id = $parseInt(object.settlement_id, 10);
+                    else if (typeof object.settlement_id === "number")
+                        message.settlement_id = object.settlement_id;
+                    else if (typeof object.settlement_id === "object")
+                        message.settlement_id = new $util.LongBits(object.settlement_id.low >>> 0, object.settlement_id.high >>> 0).toNumber();
+                if (object.fragment_count != null)
+                    if ($util.Long)
+                        message.fragment_count = $util.Long.fromValue(object.fragment_count, false);
+                    else if (typeof object.fragment_count === "string")
+                        message.fragment_count = $parseInt(object.fragment_count, 10);
+                    else if (typeof object.fragment_count === "number")
+                        message.fragment_count = object.fragment_count;
+                    else if (typeof object.fragment_count === "object")
+                        message.fragment_count = new $util.LongBits(object.fragment_count.low >>> 0, object.fragment_count.high >>> 0).toNumber();
+                if (object.byte_count != null)
+                    if ($util.Long)
+                        message.byte_count = $util.Long.fromValue(object.byte_count, false);
+                    else if (typeof object.byte_count === "string")
+                        message.byte_count = $parseInt(object.byte_count, 10);
+                    else if (typeof object.byte_count === "number")
+                        message.byte_count = object.byte_count;
+                    else if (typeof object.byte_count === "object")
+                        message.byte_count = new $util.LongBits(object.byte_count.low >>> 0, object.byte_count.high >>> 0).toNumber();
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.live.SettlementStatement.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SettlementStatement message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.SettlementStatement
+             * @static
+             * @param {northstar.live.SettlementStatement} message SettlementStatement
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SettlementStatement.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.problems = [];
+                    object.null_fields = [];
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    object.trading_day = message.trading_day;
+                    if (options.oneofs)
+                        object._trading_day = "trading_day";
+                }
+                if (message.content != null && $Object.hasOwnProperty.call(message, "content")) {
+                    object.content = message.content;
+                    if (options.oneofs)
+                        object._content = "content";
+                }
+                if (message.content_sha256 != null && $Object.hasOwnProperty.call(message, "content_sha256")) {
+                    object.content_sha256 = message.content_sha256;
+                    if (options.oneofs)
+                        object._content_sha256 = "content_sha256";
+                }
+                if (message.encoding != null && $Object.hasOwnProperty.call(message, "encoding")) {
+                    object.encoding = message.encoding;
+                    if (options.oneofs)
+                        object._encoding = "encoding";
+                }
+                if (message.problems && message.problems.length) {
+                    object.problems = $Array(message.problems.length);
+                    for (let j = 0; j < message.problems.length; ++j)
+                        object.problems[j] = message.problems[j];
+                }
+                if (message.ledger_posted != null && $Object.hasOwnProperty.call(message, "ledger_posted")) {
+                    object.ledger_posted = message.ledger_posted;
+                    if (options.oneofs)
+                        object._ledger_posted = "ledger_posted";
+                }
+                if (message.confirmation_sent != null && $Object.hasOwnProperty.call(message, "confirmation_sent")) {
+                    object.confirmation_sent = message.confirmation_sent;
+                    if (options.oneofs)
+                        object._confirmation_sent = "confirmation_sent";
+                }
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.settlement_id = typeof message.settlement_id === "number" ? $BigInt(message.settlement_id) : $util.Long.fromBits(message.settlement_id.low >>> 0, message.settlement_id.high >>> 0, false).toBigInt();
+                    else if (typeof message.settlement_id === "number")
+                        object.settlement_id = options.longs === $String ? $String(message.settlement_id) : message.settlement_id;
+                    else
+                        object.settlement_id = options.longs === $String ? $util.Long.prototype.toString.call(message.settlement_id) : options.longs === $Number ? new $util.LongBits(message.settlement_id.low >>> 0, message.settlement_id.high >>> 0).toNumber() : message.settlement_id;
+                    if (options.oneofs)
+                        object._settlement_id = "settlement_id";
+                }
+                if (message.fragment_count != null && $Object.hasOwnProperty.call(message, "fragment_count")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.fragment_count = typeof message.fragment_count === "number" ? $BigInt(message.fragment_count) : $util.Long.fromBits(message.fragment_count.low >>> 0, message.fragment_count.high >>> 0, false).toBigInt();
+                    else if (typeof message.fragment_count === "number")
+                        object.fragment_count = options.longs === $String ? $String(message.fragment_count) : message.fragment_count;
+                    else
+                        object.fragment_count = options.longs === $String ? $util.Long.prototype.toString.call(message.fragment_count) : options.longs === $Number ? new $util.LongBits(message.fragment_count.low >>> 0, message.fragment_count.high >>> 0).toNumber() : message.fragment_count;
+                    if (options.oneofs)
+                        object._fragment_count = "fragment_count";
+                }
+                if (message.byte_count != null && $Object.hasOwnProperty.call(message, "byte_count")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.byte_count = typeof message.byte_count === "number" ? $BigInt(message.byte_count) : $util.Long.fromBits(message.byte_count.low >>> 0, message.byte_count.high >>> 0, false).toBigInt();
+                    else if (typeof message.byte_count === "number")
+                        object.byte_count = options.longs === $String ? $String(message.byte_count) : message.byte_count;
+                    else
+                        object.byte_count = options.longs === $String ? $util.Long.prototype.toString.call(message.byte_count) : options.longs === $Number ? new $util.LongBits(message.byte_count.low >>> 0, message.byte_count.high >>> 0).toNumber() : message.byte_count;
+                    if (options.oneofs)
+                        object._byte_count = "byte_count";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SettlementStatement to JSON.
+             * @function toJSON
+             * @memberof northstar.live.SettlementStatement
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SettlementStatement.prototype.toJSON = function() {
+                return SettlementStatement.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SettlementStatement
+             * @function getTypeUrl
+             * @memberof northstar.live.SettlementStatement
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SettlementStatement.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.SettlementStatement";
+            };
+
+            return SettlementStatement;
+        })();
+
         live.QueryRecord = (function() {
 
             /**
              * Properties of a QueryRecord.
              * @typedef {Object} northstar.live.QueryRecord.$Properties
+             * @property {northstar.live.SettlementStatement.$Properties|null} [settlement_statement] QueryRecord settlement_statement
              * @property {string|null} [batch_id] QueryRecord batch_id
              * @property {string|null} [instrument] QueryRecord instrument
              * @property {string|null} [status] QueryRecord status
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] QueryRecord evidence_fields
+             * @property {"settlement_statement"} [_settlement_statement] QueryRecord _settlement_statement
              * @property {"batch_id"} [_batch_id] QueryRecord _batch_id
              * @property {"instrument"} [_instrument] QueryRecord _instrument
              * @property {"status"} [_status] QueryRecord _status
@@ -17021,12 +17817,15 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a QueryRecord.
              * @typedef {{
+             *   settlement_statement?: northstar.live.SettlementStatement.$Shape|null;
              *   batch_id?: string|null;
              *   instrument?: string|null;
              *   status?: string|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _settlement_statement?: undefined; settlement_statement?: null }|{ _settlement_statement?: "settlement_statement"; settlement_statement: northstar.live.SettlementStatement.$Shape })
+             * ) & (
              *   ({ _batch_id?: undefined; batch_id?: null }|{ _batch_id?: "batch_id"; batch_id: string })
              * ) & (
              *   ({ _instrument?: undefined; instrument?: null }|{ _instrument?: "instrument"; instrument: string })
@@ -17050,6 +17849,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * QueryRecord settlement_statement.
+             * @member {northstar.live.SettlementStatement.$Properties|null|undefined} settlement_statement
+             * @memberof northstar.live.QueryRecord
+             * @instance
+             */
+            QueryRecord.prototype.settlement_statement = null;
 
             /**
              * QueryRecord batch_id.
@@ -17085,6 +17892,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * QueryRecord _settlement_statement.
+             * @member {"settlement_statement"|undefined} _settlement_statement
+             * @memberof northstar.live.QueryRecord
+             * @instance
+             */
+            $Object.defineProperty(QueryRecord.prototype, "_settlement_statement", {
+                get: $util.oneOfGetter($oneOfFields = ["settlement_statement"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * QueryRecord _batch_id.
@@ -17157,6 +17975,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 2, wireType 2 =*/18).string(message.instrument);
                 if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
                     writer.uint32(/* id 3, wireType 2 =*/26).string(message.status);
+                if (message.settlement_statement != null && $Object.hasOwnProperty.call(message, "settlement_statement"))
+                    $root.northstar.live.SettlementStatement.encode(message.settlement_statement, writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -17206,6 +18026,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.settlement_statement = $root.northstar.live.SettlementStatement.decode(reader, reader.uint32(), $undefined, _depth + 1, message.settlement_statement);
+                            message._settlement_statement = "settlement_statement";
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 2)
                                 break;
@@ -17296,6 +18123,14 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.settlement_statement != null && $Object.hasOwnProperty.call(message, "settlement_statement")) {
+                    properties._settlement_statement = 1;
+                    {
+                        let error = $root.northstar.live.SettlementStatement.verify(message.settlement_statement, _depth + 1);
+                        if (error)
+                            return "settlement_statement." + error;
+                    }
+                }
                 if (message.batch_id != null && $Object.hasOwnProperty.call(message, "batch_id")) {
                     properties._batch_id = 1;
                     if (!$util.isString(message.batch_id))
@@ -17342,6 +18177,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.live.QueryRecord();
+                if (object.settlement_statement != null) {
+                    if (!$util.isObject(object.settlement_statement))
+                        throw $TypeError(".northstar.live.QueryRecord.settlement_statement: object expected");
+                    message.settlement_statement = $root.northstar.live.SettlementStatement.fromObject(object.settlement_statement, _depth + 1);
+                }
                 if (object.batch_id != null)
                     message.batch_id = $String(object.batch_id);
                 if (object.instrument != null)
@@ -17397,6 +18237,11 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._status = "status";
                 }
+                if (message.settlement_statement != null && $Object.hasOwnProperty.call(message, "settlement_statement")) {
+                    object.settlement_statement = $root.northstar.live.SettlementStatement.toObject(message.settlement_statement, options, _depth + 1);
+                    if (options.oneofs)
+                        object._settlement_statement = "settlement_statement";
+                }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
                     object.evidence_fields = {};
@@ -17442,8 +18287,10 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a QueryRequest.
              * @typedef {Object} northstar.live.QueryRequest.$Properties
+             * @property {string|null} [settlement_day] QueryRequest settlement_day
              * @property {string|null} [instrument] QueryRequest instrument
              * @property {string|null} [request_id] QueryRequest request_id
+             * @property {"settlement_day"} [_settlement_day] QueryRequest _settlement_day
              * @property {"instrument"} [_instrument] QueryRequest _instrument
              * @property {"request_id"} [_request_id] QueryRequest _request_id
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
@@ -17460,10 +18307,13 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a QueryRequest.
              * @typedef {{
+             *   settlement_day?: string|null;
              *   instrument?: string|null;
              *   request_id?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _settlement_day?: undefined; settlement_day?: null }|{ _settlement_day?: "settlement_day"; settlement_day: string })
+             * ) & (
              *   ({ _instrument?: undefined; instrument?: null }|{ _instrument?: "instrument"; instrument: string })
              * ) & (
              *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
@@ -17486,6 +18336,14 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
+             * QueryRequest settlement_day.
+             * @member {string|null|undefined} settlement_day
+             * @memberof northstar.live.QueryRequest
+             * @instance
+             */
+            QueryRequest.prototype.settlement_day = null;
+
+            /**
              * QueryRequest instrument.
              * @member {string|null|undefined} instrument
              * @memberof northstar.live.QueryRequest
@@ -17503,6 +18361,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * QueryRequest _settlement_day.
+             * @member {"settlement_day"|undefined} _settlement_day
+             * @memberof northstar.live.QueryRequest
+             * @instance
+             */
+            $Object.defineProperty(QueryRequest.prototype, "_settlement_day", {
+                get: $util.oneOfGetter($oneOfFields = ["settlement_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * QueryRequest _instrument.
@@ -17562,6 +18431,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 1, wireType 2 =*/10).string(message.instrument);
                 if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
                     writer.uint32(/* id 3, wireType 2 =*/26).string(message.request_id);
+                if (message.settlement_day != null && $Object.hasOwnProperty.call(message, "settlement_day"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.settlement_day);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -17606,6 +18477,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.settlement_day = reader.stringVerify();
+                            message._settlement_day = "settlement_day";
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 2)
                                 break;
@@ -17653,6 +18531,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.settlement_day != null && $Object.hasOwnProperty.call(message, "settlement_day")) {
+                    properties._settlement_day = 1;
+                    if (!$util.isString(message.settlement_day))
+                        return "settlement_day: string expected";
+                }
                 if (message.instrument != null && $Object.hasOwnProperty.call(message, "instrument")) {
                     properties._instrument = 1;
                     if (!$util.isString(message.instrument))
@@ -17684,6 +18567,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.live.QueryRequest();
+                if (object.settlement_day != null)
+                    message.settlement_day = $String(object.settlement_day);
                 if (object.instrument != null)
                     message.instrument = $String(object.instrument);
                 if (object.request_id != null)
@@ -17717,6 +18602,11 @@ export const northstar = $root.northstar = (() => {
                     object.request_id = message.request_id;
                     if (options.oneofs)
                         object._request_id = "request_id";
+                }
+                if (message.settlement_day != null && $Object.hasOwnProperty.call(message, "settlement_day")) {
+                    object.settlement_day = message.settlement_day;
+                    if (options.oneofs)
+                        object._settlement_day = "settlement_day";
                 }
                 return object;
             };

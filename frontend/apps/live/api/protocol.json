@@ -1377,8 +1377,107 @@
       "array": false,
       "evidence": false
     },
+    "northstar.live.SettlementStatement": {
+      "fields": {
+        "status": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trading_day": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "content": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "content_sha256": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "encoding": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "problems": {
+          "id": 6,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "ledger_posted": {
+          "id": 7,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "confirmation_sent": {
+          "id": 8,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "settlement_id": {
+          "id": 9,
+          "presence": true,
+          "type": "int64",
+          "required": false,
+          "nullable": false
+        },
+        "fragment_count": {
+          "id": 10,
+          "presence": true,
+          "type": "int64",
+          "required": false,
+          "nullable": false
+        },
+        "byte_count": {
+          "id": 11,
+          "presence": true,
+          "type": "int64",
+          "required": false,
+          "nullable": false
+        },
+        "null_fields": {
+          "id": 1001,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.live.QueryRecord": {
       "fields": {
+        "settlement_statement": {
+          "id": 4,
+          "presence": true,
+          "type": "northstar.live.SettlementStatement",
+          "required": false,
+          "nullable": false
+        },
         "batch_id": {
           "id": 1,
           "presence": true,
@@ -1414,6 +1513,13 @@
     },
     "northstar.live.QueryRequest": {
       "fields": {
+        "settlement_day": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
         "instrument": {
           "id": 1,
           "presence": true,

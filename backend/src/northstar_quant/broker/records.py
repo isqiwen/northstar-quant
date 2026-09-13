@@ -128,7 +128,13 @@ class BrokerRecords:
         self._engine = engine
 
     def begin(
-        self, profile: dict[str, object], account_id: str, instrument: str, *, request_id: UUID
+        self,
+        profile: dict[str, object],
+        account_id: str,
+        instrument: str,
+        *,
+        request_id: UUID,
+        settlement_day: str | None = None,
     ) -> dict[str, object]:
         """Bind one request before connection; repeating it cannot create another query."""
 
@@ -142,6 +148,9 @@ class BrokerRecords:
         _account_id(account_id)
         instrument = validate_instrument(instrument)
         profile = dict(profile)
+        from .statements import validate_day
+
+        settlement_day = validate_day(settlement_day)
         query_scope = {
             "account": {"currency": "CNY"},
             "positions": {"instruments": "ALL"},
@@ -152,6 +161,8 @@ class BrokerRecords:
             "commission": {"instrument": instrument},
             "depth": {"instrument": instrument, "delivery": "BOUNDED_OPTIONAL_SNAPSHOT"},
         }
+        if settlement_day is not None:
+            query_scope["settlement"] = {"trading_day": settlement_day, "currency": "CNY"}
         request = {
             "profile": profile,
             "account_id": account_id,

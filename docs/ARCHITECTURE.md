@@ -828,3 +828,22 @@ Live 在原有 SQLite 回报入账事务内保存流水身份、原始来源和�
 回报链接；不增加人工修改账本入口。2026-09-13 再核对 NautilusTrader 官方
 Execution reconciliation 指南：借鉴保留来源和先核对再恢复的边界，不采用其合成
 缺失成交来修齐经济事实的路径，也不以异步缓存替代发送前持久记录。
+
+### 柜台结算原文接收
+
+2026-09-13 核对当前锁定的 ctpwrapper 6.7.13 sdist（PyPI SHA256
+`94be58b8360e26f6c3b57f5a991a6c5bdac0f7707234e41ceb69c42c006e778e`）中
+`QrySettlementInfoField`、`SettlementInfoField` 和 Base 的 GBK 解码行为。
+沿用 NautilusTrader Event Sourcing 的来源保留边界，不添加运行依赖或照搬账务解释。
+
+现有只读查询可明确指定 `settlement_day`，在同一固定请求中增加
+`ReqQrySettlementInfo`；不默认查询，不扩展持续接收范围，不调用结算确认。
+原始正文按 CTP 500 字节分段保存为 Base64，先校验成功请求与唯一结束、账户、币种、
+日期、结算编号及连续序号，再拼接解码并计算原始字节 SHA256。中文跨段不会被逐段
+解码损坏；缺段、冲突、错误编码或未返回保留原始回报并明确不可用。
+
+同一 SQLite 原始查询存储负责持久化与冷恢复，不建立第二个结算数据库。
+Live 独立页面通过所属 Protobuf 展示原文及内容身份；文本转义展示，不解释为 HTML。
+结算文档可能含个人信息，只通过既有工作台身份认证访问，不写入应用日志。
+收到原文不代表已核实其版式、成交覆盖或费用含义；仍须确认真实来源样本后才能
+生成 FeeFact/SettlementFact。累计 Commission 仍不能直接修改共享账户。

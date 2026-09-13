@@ -36,6 +36,7 @@ def execute(arguments: argparse.Namespace, client: LiveClient) -> int:
         broker_result = broker.query(
             arguments.instrument,
             request_id=arguments.request_id,
+            settlement_day=arguments.settlement_day,
         )
         print(json.dumps(broker_result, ensure_ascii=False))
         return 0 if broker_result["status"] == "COMPLETE" else 2
@@ -125,6 +126,9 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     parser.add_argument("batch_id", type=UUID)
     parser = commands.add_parser("query", help="显式发起有时限的 SimNow 只读查询")
     parser.set_defaults(scope="broker", operation="broker-query")
+    parser.add_argument(
+        "--settlement-day", help="同时查询指定日期结算原文（YYYY-MM-DD），不确认结算"
+    )
     parser.add_argument("--instrument", required=True, help="one concrete futures instrument")
     parser.add_argument(
         "--request-id", type=UUID, required=True, help="reuse to read an uncertain response"

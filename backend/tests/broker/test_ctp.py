@@ -62,6 +62,7 @@ class _Trader:
             "ReqQryInstrument",
             "ReqQryInstrumentMarginRate",
             "ReqQryInstrumentCommissionRate",
+            "ReqQrySettlementInfo",
         }
         if method not in permitted:
             raise AssertionError("unexpected SDK operation")
@@ -85,6 +86,18 @@ class _Trader:
                 Password="NEVER-PERSIST-PASSWORD",
                 AuthCode="NEVER-PERSIST-AUTH",
             )
+            if method == "ReqQrySettlementInfo":
+                assert native.TradingDay == "20260903"
+                content = "费用：12.34元\n".encode("gbk")
+                for number, fragment in enumerate((content[:1], content[1:]), 1):
+                    values.update(
+                        TradingDay=native.TradingDay,
+                        SettlementID=1,
+                        SequenceNo=number,
+                        Content=fragment,
+                    )
+                    callback(SimpleNamespace(**values), None, request, number == 2)
+                return 0
             if method == "ReqQryInvestorPosition":
                 callback(None, None, request, _MODE != "missing_last")
             else:
@@ -184,9 +197,12 @@ def _scripted_capture(
     instrument: str,
     directory: str,
     timeout: float,
+    settlement_day: str | None = None,
 ) -> None:
     _install_scripted(instrument)
-    _ctp_worker.capture(connection, profile, credentials, instrument, directory, timeout)
+    _ctp_worker.capture(
+        connection, profile, credentials, instrument, directory, timeout, settlement_day
+    )
 
 
 def _install_scripted(instrument: str, *, streaming: bool = False) -> None:
@@ -215,6 +231,7 @@ def _install_scripted(instrument: str, *, streaming: bool = False) -> None:
                 "QryInstrumentField",
                 "QryInstrumentMarginRateField",
                 "QryInstrumentCommissionRateField",
+                "QrySettlementInfoField",
             )
         }
     )
@@ -271,6 +288,7 @@ def _crashed_capture(
     instrument: str,
     _directory: str,
     _timeout: float,
+    _settlement_day: str | None = None,
 ) -> None:
     event = BrokerEvent(
         1,
@@ -625,3 +643,37 @@ def test_capture_retains_transfer_and_reversal_evidence_without_bank_secrets(
         assert event.data["AccountID"] == "123456"
         assert event.data["PlateSerial"] == 27
     assert "NEVER-PERSIST" not in json.dumps(result.to_dict())
+
+
+def test_requested_settlement_keeps_split_native_bytes_and_survives_reopen(
+    monkeypatch: pytest.MonkeyPatch,
+    live_engine: Engine,
+) -> None:
+    _available(monkeypatch, _scripted_capture)
+    profile = get_profile("simnow_dev")
+    records = BrokerRecords(live_engine)
+    identifier = uuid4()
+    records.begin(
+        profile.identity(), "123456", "rb2610", request_id=identifier, settlement_day="2026-09-03"
+    )
+    capture = ctp.query_account(
+        profile, _credentials(), "rb2610", timeout_seconds=1, settlement_day="2026-09-03"
+    )
+    assert capture.failure_code is None
+    result = records.finish(identifier, capture)
+    statement = result["settlement_statement"]
+    assert statement["status"] == "RECEIVED"
+    assert statement["content"] == "费用：12.34元\n"
+    assert statement["fragment_count"] == 2
+    assert statement["ledger_posted"] is False
+    assert statement["confirmation_sent"] is False
+    assert result["execution"] == {"order_sending": False, "cancel_sending": False}
+    assert BrokerRecords(live_engine).get(identifier) == result
+    with pytest.raises(ValueError, match="different input"):
+        records.begin(
+            profile.identity(),
+            "123456",
+            "rb2610",
+            request_id=identifier,
+            settlement_day="2026-09-02",
+        )

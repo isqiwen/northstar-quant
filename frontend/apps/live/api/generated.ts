@@ -224,13 +224,28 @@ export type PositionEntryRequest = {
   request_id: string;
   source_batch_id: string;
 };
+export type SettlementStatement = {
+  status: string;
+  trading_day: string;
+  content?: string | null;
+  content_sha256?: string | null;
+  encoding: string;
+  problems: (string)[];
+  ledger_posted: boolean;
+  confirmation_sent: boolean;
+  settlement_id?: number;
+  fragment_count?: number;
+  byte_count?: number;
+};
 export type QueryRecord = {
+  settlement_statement?: SettlementStatement;
   batch_id: string;
   instrument: string;
   status: string;
   [key: string]: unknown;
 };
 export type QueryRequest = {
+  settlement_day?: string | null;
   instrument: string;
   request_id: string;
 };
