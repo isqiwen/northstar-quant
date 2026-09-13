@@ -30,6 +30,8 @@ def fetch(
     transport: httpx2.BaseTransport | None = None,
 ) -> bytes:
     validate(token)
+    parameters = dict(parameters)
+    fields = parameters.pop("fields", "")
     started = time.monotonic()
     try:
         with httpx2.Client(
@@ -42,7 +44,7 @@ def fetch(
             with client.stream(
                 "POST",
                 ENDPOINT,
-                json={"api_name": api, "params": parameters, "token": token, "fields": ""},
+                json={"api_name": api, "params": parameters, "token": token, "fields": fields},
             ) as response:
                 if response.status_code != 200:
                     raise DownloadError(

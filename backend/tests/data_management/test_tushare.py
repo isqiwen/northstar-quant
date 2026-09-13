@@ -108,6 +108,70 @@ def ready(library):
         )
 
 
+@pytest.mark.parametrize("omit_close_today", [False, True])
+def test_settlement_fields_survive_download_and_fixed_publication(
+    automatic, monkeypatch, omit_close_today
+):
+    from northstar_quant.data_management.tushare.catalog import BY_KEY
+
+    parameters = {"ts_code": "RB2610.SHF", "start_date": "20260901", "end_date": "20260901"}
+    with automatic._engine.begin() as connection:
+        planning.enqueue(
+            connection, "settlement", "RB2610.SHF", parameters, "2026-09-01", "2026-09-01"
+        )
+        job = connection.execute(text("SELECT * FROM data_sync_jobs")).mappings().one()
+    assert "fields" not in parameters
+    selected = BY_KEY["settlement"].fields
+    assert job["parameters"]["fields"] == ",".join(selected)
+    values = {
+        "ts_code": "RB2610.SHF",
+        "trade_date": "20260901",
+        "exchange": "SHFE",
+        "settle": "3100.125",
+        "trading_fee_rate": "0.050",
+        "offset_today_fee": None,
+    }
+    returned = [
+        field for field in selected if not (omit_close_today and field == "offset_today_fee")
+    ]
+    raw = json.dumps(
+        {
+            "code": 0,
+            "data": {"fields": returned, "items": [[values.get(field) for field in returned]]},
+        }
+    ).encode()
+
+    def handle(request):
+        payload = json.loads(request.content)
+        assert payload["api_name"] == "fut_settle"
+        assert payload["fields"] == ",".join(selected)
+        assert payload["params"] == parameters
+        return httpx2.Response(200, content=raw)
+
+    fetch = acquisition.fetch
+    monkeypatch.setattr(
+        acquisition,
+        "fetch",
+        lambda *args: fetch(*args, transport=httpx2.MockTransport(handle)),
+    )
+    result = jobs.process_next(automatic)
+    with automatic._engine.connect() as connection:
+        attempt = connection.execute(text("SELECT * FROM data_sync_attempts")).mappings().one()
+        receipts = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().all()
+    assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == raw
+    assert job["parameters"]["fields"] == ",".join(selected)
+    if omit_close_today:
+        assert result["status"] != "VALIDATED"
+        assert receipts == []
+    else:
+        assert result["status"] == "VALIDATED"
+        receipt = receipts[0]
+        snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
+        assert snapshot["parameters"]["fields"] == ",".join(selected)
+        assert snapshot["rows"][0]["trading_fee_rate"] == "0.050"
+        assert snapshot["rows"][0]["offset_today_fee"] is None
+
+
 def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):
     library = automatic
     request_id = pending(library)

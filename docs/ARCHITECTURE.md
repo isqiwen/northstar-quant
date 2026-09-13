@@ -170,7 +170,7 @@ Data Hub 仅自动同步 Tushare 全部期货历史数据；没有手工上传�
 2026-09-12 对照 [Nautilus Data latest](https://nautilustrader.io/docs/latest/concepts/data/) 的标的与数据时间边界，将多时段组合从验收辅助代码落实到 `DataLibrary.assemble_research`：只接收已确认的固定清单，统一截止时间重新检查每段质量，保留原始观察身份及已有结算/条款，不以新版本替换旧输入。逻辑清单提交后再原子发布文件；中断重试复用同一清单，文件未完成时不出现在可运行数据列表中。此接口不推断 Tushare 标签或交易日历，也不将合成时段验收等同真实数据装配完成。
 
 
-当前 `tushare-response/4` 对行情接口强制 OHLCV 和完整时间标签，固定 `tushare-numbers/1` 数值规则及参数进入校验内容摘要；
+当前 `tushare-response/5` 对行情接口强制 OHLCV 和完整时间标签，固定 `tushare-numbers/1` 数值规则及参数进入校验内容摘要；
 部署不会追溯改写旧 receipt，已有数据按后续刷新/重试接受新规则，旧规则结果不冒充已重新核验。
 Parquet 物理布局服务于按数据类型、合约、周期和时间范围读取；内容哈希与清单负责身份，不依赖文件名猜语义。
 小文件合并生成新清单，被研究/候选/备份引用的旧对象先保护再清理，不原地覆盖。
@@ -1076,3 +1076,5 @@ CTP 的 OnRsp/OnErrRtn OrderInsert/OrderAction 错误由具体订单发送尝试
 PAUSE 是停止新增风险的操作，不能解除此前故障：已有暂停原因保留，
 故障只能沿原有恢复/重新核对路径处理。平仓准入及持久化后的发送前检查
 都拒绝 connection_error，不能靠重写显示原因或再次点击暂停获得发送权限。
+
+2026-09-13：对照 [Tushare fut_settle 官方字段说明](https://tushare.pro/document/2?doc_id=141)，结算参数同步显式请求默认字段以及非默认 `offset_today_fee`、`exchange`。字段选择随任务参数参与身份，分片、重试和不可变发布保留该选择；HTTP 发送时提取为顶层 `fields`。响应缺少要求的列时保留原文并阻止发布；列中的 null 仍表示未知。供应商原始费率不推断单位，也不作为账户实际手续费或有效柜台条款。没有新增供应商请求或运行依赖。

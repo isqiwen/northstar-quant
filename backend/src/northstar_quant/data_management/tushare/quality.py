@@ -11,7 +11,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/4"
+RULE = "tushare-response/5"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -92,6 +92,8 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     )
     if definition.frequency in ("week", "month"):
         required = (*required, "freq")
+    if definition.fields:
+        required = (*required, *definition.fields)
     missing = sorted(set(required) - set(data["fields"]))
     if missing:
         raise InvalidResponse("响应缺少必需字段：" + ", ".join(missing), fields=tuple(missing))

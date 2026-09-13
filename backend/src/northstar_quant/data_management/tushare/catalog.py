@@ -15,6 +15,7 @@ class Dataset:
     identity: tuple[str, ...]
     frequency: str = ""
     amount_multiplier: int = 1
+    fields: tuple[str, ...] = ()
 
     def public(self) -> dict[str, object]:
         return {"key": self.key, "label": self.label}
@@ -58,7 +59,26 @@ DATASETS = (
         for freq, label in (("week", "周线"), ("month", "月线"))
     ),
     Dataset(
-        "settlement", "每日结算参数", "fut_settle", "contract", 1600, ("ts_code", "trade_date")
+        "settlement",
+        "每日结算参数",
+        "fut_settle",
+        "contract",
+        1600,
+        ("ts_code", "trade_date"),
+        fields=(
+            "ts_code",
+            "trade_date",
+            "settle",
+            "trading_fee_rate",
+            "trading_fee",
+            "delivery_fee",
+            "b_hedging_margin_rate",
+            "s_hedging_margin_rate",
+            "long_margin_rate",
+            "short_margin_rate",
+            "offset_today_fee",
+            "exchange",
+        ),
     ),
     Dataset(
         "limits", "涨跌停与最低保证金", "ft_limit", "contract", 4000, ("ts_code", "trade_date")

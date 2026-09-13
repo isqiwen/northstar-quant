@@ -349,7 +349,8 @@ def execute_closing(receiver: ReceiverOrders, command: CloseOrder) -> dict[str, 
                 state = (
                     connection.execute(
                         text(
-                            "SELECT status, paused, reason, state FROM broker_streams WHERE stream_id=:id"
+                            "SELECT status, paused, reason, state FROM broker_streams "
+                            "WHERE stream_id=:id"
                         ),
                         {"id": receiver.stream_id},
                     )

@@ -23,6 +23,9 @@ def enqueue(
     start: str,
     end: str,
 ) -> None:
+    # Persist the field selection with the request, including split/retry identities.
+    if BY_KEY[dataset].fields:
+        parameters = {**parameters, "fields": ",".join(BY_KEY[dataset].fields)}
     payload = json.dumps([dataset, scope, parameters], sort_keys=True)
     connection.execute(
         text("""INSERT INTO data_sync_jobs
