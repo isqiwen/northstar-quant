@@ -36,8 +36,10 @@ def scripted_orders(
     duration,
     stop_signal,
     order_queues=None,
+    query_interval=0,
 ):
     _install_scripted(instrument, streaming=True)
+    _ctp_worker._QUERY_INTERVAL = query_interval
     _ctp_worker.importlib.import_module("ctpwrapper").TraderApiPy = OrderTrader
     structures = _ctp_worker.importlib.import_module("ctpwrapper.ApiStructure")
     structures.InputOrderField = structures.InputOrderActionField = SimpleNamespace
@@ -52,6 +54,10 @@ def scripted_orders(
         stop_signal=stop_signal,
         order_queues=order_queues,
     )
+
+
+def scripted_refresh_orders(*args, **kwargs):
+    scripted_orders(*args, **kwargs, query_interval=0.05)
 
 
 def fields(instrument="rb2610", request_id=100001):
@@ -184,7 +190,7 @@ def test_refresh_reuses_connection_and_cancellation_remains_available(monkeypatc
     from uuid import uuid4
 
     _available(monkeypatch, None)
-    monkeypatch.setattr(_ctp_worker, "stream", scripted_orders)
+    monkeypatch.setattr(_ctp_worker, "stream", scripted_refresh_orders)
     ports, events, sent = [], [], []
     query_id = uuid4()
 
@@ -224,6 +230,9 @@ def test_refresh_reuses_connection_and_cancellation_remains_available(monkeypatc
     ]
     assert requests == list(range(1000, 1007))
     finished = next(e for e in events if e.callback == "AccountQueryFinished")
+    cancellation = next(e for e in events if e.callback == "OnRspOrderAction")
+    started = next(e for e in events if e.callback == "AccountQueryStarted")
+    assert started.sequence < cancellation.sequence < finished.sequence
     assert finished.data == {"query_id": str(query_id), "status": "COMPLETE", "reason": None}
     assert [e.sequence for e in events] == list(range(1, len(events) + 1))
 
