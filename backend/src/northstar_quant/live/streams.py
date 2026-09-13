@@ -934,7 +934,9 @@ class LiveStreams:
             status = (
                 "STOP_REQUESTED" if action == "STOP" and row["status"] in _ACTIVE else row["status"]
             )
-            reason = "OPERATOR_" + action
+            # Repeating PAUSE cannot turn a fault into an operator-only reduction
+            # window. Recovery/RESUME owns clearing a resumable pause cause.
+            reason = row["reason"] if action == "PAUSE" and row["paused"] else "OPERATOR_" + action
             result = {
                 "stream_id": str(identifier),
                 "request_id": str(request_id),

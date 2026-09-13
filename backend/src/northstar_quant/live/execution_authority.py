@@ -283,7 +283,7 @@ class ExecutionAuthority:
         stream = (
             connection.execute(
                 text(
-                    "SELECT status, paused, reason, received, cursor FROM broker_streams "
+                    "SELECT status, paused, reason, state, received, cursor FROM broker_streams "
                     "WHERE stream_id=:id"
                 ),
                 {"id": stream_id},
@@ -295,6 +295,8 @@ class ExecutionAuthority:
         # A fault pause still requires recovery; a close flag is not permission
         # to skip account/position admission or any consent/transport gate.
         reducing = order.offset is not Offset.OPEN
+        if stream["state"].get("connection_error"):
+            raise AdmissionRejected("execution receiver requires connection or identity recovery")
         if stream["status"] != "RECEIVING" or (
             stream["paused"] and not (reducing and stream["reason"] == "OPERATOR_PAUSE")
         ):

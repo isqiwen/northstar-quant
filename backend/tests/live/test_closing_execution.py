@@ -16,7 +16,16 @@ from tests.live.test_opening_execution import opening_context as opening_context
 
 @pytest.mark.parametrize(
     "condition",
-    [None, "stale", "missing_position", "missing_trades", "revoked", "bad_price", "wrong_opening"],
+    [
+        None,
+        "stale",
+        "missing_position",
+        "missing_trades",
+        "revoked",
+        "bad_price",
+        "wrong_opening",
+        "fault_then_pause",
+    ],
 )
 def test_confirmed_opening_can_close_while_operator_paused(
     live_engine, opening_context, monkeypatch, condition
@@ -88,7 +97,23 @@ def test_confirmed_opening_can_close_while_operator_paused(
         },
     )
     assert client.streams.account_query(stream, query_id)["status"] == "COMPLETE"
+    if condition == "fault_then_pause":
+        sequence += 1
+        calls["accept"](
+            BrokerEvent(
+                sequence,
+                "TD",
+                "OnRspOrderInsert",
+                199999,
+                True,
+                Clock.at.isoformat().replace("+00:00", "Z"),
+                31,
+                {**wire["fields"], "RequestID": 199999},
+            )
+        )
     client.streams.control(stream, "PAUSE", request_id=uuid4())
+    if condition == "fault_then_pause":
+        assert client.streams.get(stream)["reason"] == "ORDER_REJECTION_UNMATCHED"
     consent = uuid4()
     client.mutate(
         "/execution/authorizations",

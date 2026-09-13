@@ -349,13 +349,15 @@ def execute_closing(receiver: ReceiverOrders, command: CloseOrder) -> dict[str, 
                 state = (
                     connection.execute(
                         text(
-                            "SELECT status, paused, reason FROM broker_streams WHERE stream_id=:id"
+                            "SELECT status, paused, reason, state FROM broker_streams WHERE stream_id=:id"
                         ),
                         {"id": receiver.stream_id},
                     )
                     .mappings()
                     .one()
                 )
+                if state["state"].get("connection_error"):
+                    raise AdmissionRejected("RECEIVER_FAULTED_BEFORE_DISPATCH")
                 if state["status"] != "RECEIVING" or (
                     state["paused"] and state["reason"] != "OPERATOR_PAUSE"
                 ):
