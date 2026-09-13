@@ -20,6 +20,8 @@ from northstar_quant.data_management.tushare.catalog import BY_KEY
 engine=open_database()
 library=DataLibrary(engine,SourceFiles.from_environment())
 with engine.begin() as c:
+    c.execute(text("INSERT INTO data_sync_calendar VALUES ('SHFE','2026-09-04',true) "
+                   "ON CONFLICT DO NOTHING"))
     c.execute(text("UPDATE data_sync_jobs SET next_at=now()+interval '365 days' "
                    "WHERE status IN ('PENDING','WAITING')"))
     planning.enqueue(c,'settlement','RB2610.SHF',

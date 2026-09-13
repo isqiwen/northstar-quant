@@ -258,9 +258,9 @@ export function Explorer({
                 onChange={(v) => change({ scope: v })}
               />
             </Form.Item>
-            <Form.Item label="周期">
+            <Form.Item label="数据类型">
               <Select
-                aria-label="周期"
+                aria-label="数据类型"
                 value={filter.dataset}
                 options={(catalog.data?.datasets || [])
                   .filter((r) => r.browsable)
