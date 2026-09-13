@@ -229,6 +229,14 @@ def test_refresh_reuses_connection_and_cancellation_remains_available(monkeypatc
         and 1000 <= e.request_id < 100000
     ]
     assert requests == list(range(1000, 1007))
+    last_query = next(
+        e for e in events if e.callback == "RequestSent" and e.request_id == 1006
+    )
+    assert last_query.data["method"] == "ReqQryTradingAccount"
+    account = next(
+        e for e in events if e.callback == "OnRspQryTradingAccount" and e.request_id == 1006
+    )
+    assert account.is_last and account.error_id == 0
     finished = next(e for e in events if e.callback == "AccountQueryFinished")
     cancellation = next(e for e in events if e.callback == "OnRspOrderAction")
     started = next(e for e in events if e.callback == "AccountQueryStarted")

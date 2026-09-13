@@ -14,6 +14,7 @@ from sqlalchemy.exc import DBAPIError
 
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
+from northstar_quant.accounting.observations import ACCOUNT_AMOUNT_FIELDS
 from northstar_quant.broker.events import BrokerEvent, QueryCapture
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
@@ -46,6 +47,10 @@ def budget_query(engine: Engine, changes: dict[str, dict[str, Any]] | None = Non
     capture = _capture()
     additions: dict[str, dict[str, Any]] = {
         "OnRspQryTradingAccount": {
+            **dict.fromkeys(ACCOUNT_AMOUNT_FIELDS, "0"),
+            "PreBalance": "100000",
+            "WithdrawQuota": "100000",
+            "SettlementID": 1,
             "BizType": "1",
             "Balance": "100000",
             "Available": "100000",
@@ -128,6 +133,20 @@ def budget_case(
         __name__,
     ):
         monkeypatch.setattr(f"{module}.datetime", AccountClock)
+
+    def scoped_capture(**kwargs):
+        capture = _capture(**kwargs)
+        return replace(
+            capture,
+            events=tuple(
+                replace(event, data={**event.data, "BizType": "1", "SettlementID": 1})
+                if event.callback == "OnRspQryTradingAccount"
+                else event
+                for event in capture.events
+            ),
+        )
+
+    monkeypatch.setattr("tests.accounting.test_baselines._capture", scoped_capture)
     library, first, configuration, calls = prepare(engine, root, monkeypatch)
     baseline = UUID(BrokerBaselines(engine).context(first)["baseline"]["baseline_id"])
     ledger = BrokerLedger(engine)
@@ -429,4 +448,27 @@ def test_late_query_completion_does_not_refresh_an_earlier_account_observation(
     assert "MARKET_OBSERVATION_NOT_CURRENT" not in saved["execution_blockers"]
     assert "ACCOUNT_QUERY_NOT_CURRENT_AT_RISK" in saved["execution_blockers"]
     assert datetime.fromisoformat(saved["inputs"]["query_window"]["finished_at"]) == Clock.at
+    assert saved["execution"]["order_sending"] is False
+
+
+@pytest.mark.parametrize("settlement_id, expected", [(1, "UNCHANGED"), (2, "UNKNOWN")])
+def test_budget_comparison_requires_same_settlement_scope_without_granting_permission(
+    live_engine: Engine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    settlement_id: int,
+    expected: str,
+) -> None:
+    library, stream, query_id, entry_id, sequence = budget_case(
+        live_engine,
+        tmp_path,
+        monkeypatch,
+        changes={"OnRspQryTradingAccount": {"SettlementID": settlement_id}},
+    )
+    saved = BrokerOpeningBudgets(live_engine, library).create(
+        stream, sequence, query_id, entry_id, limit_price=Decimal("3110"), request_id=uuid4()
+    )
+    assert saved["account_check"]["status"] == expected, saved["account_check"]
+    assert saved["account_check"]["scope"] == "OBSERVATIONS_ONLY_NOT_ACCOUNT_RECONCILIATION"
+    assert "PRECHECK_ONLY_NO_EXECUTION_AUTHORIZATION" in saved["execution_blockers"]
     assert saved["execution"]["order_sending"] is False

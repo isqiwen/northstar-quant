@@ -17,7 +17,10 @@ class QueryRefresh:
     def __init__(
         self, receiver: Any, trader: Any, queries: list[tuple[str, str, Any]], *, interval: float
     ) -> None:
-        self.receiver, self.trader, self.queries = receiver, trader, queries
+        self.receiver, self.trader = receiver, trader
+        # Static contract/rate queries must not age the actionable cash observation.
+        # This remains a non-atomic window: any account activity still invalidates it.
+        self.queries = sorted(queries, key=lambda query: query[0] == "account")
         self.interval = interval
         self.next_request = 1000
         self.seen: set[UUID] = set()
