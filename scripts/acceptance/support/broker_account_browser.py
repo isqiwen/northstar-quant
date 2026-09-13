@@ -40,6 +40,8 @@ def check_broker_account(page, base_url, visit, screenshot):
                 "cash": None,
                 "total_fees": None,
                 "fill_count": 2,
+                "net_identified_cash_flow": "0",
+                "cash_flow_count": 2,
                 "pending_fee_fill_ids": ["synthetic-a", "synthetic-b"],
             },
         },
@@ -63,7 +65,9 @@ def check_broker_account(page, base_url, visit, screenshot):
         expect(page.get_by_text("已确认成交的账户计价", exact=True)).to_be_visible()
         expect(page.get_by_text("100.010000000000000001", exact=True)).to_be_visible()
         expect(page.get_by_text("未核定", exact=True)).to_be_visible()
-        expect(page.get_by_text("未知", exact=True)).to_be_visible()
+        expect(
+            page.get_by_text("总费用", exact=True).locator("..").get_by_text("未知", exact=True)
+        ).to_be_visible()
         screenshot("broker-account-unknown-cash")
         page.get_by_role("tab", name="资金与费用", exact=True).click()
         expect(page.get_by_text("已识别资金流水（不代表完整资金核对）", exact=True)).to_be_visible()
