@@ -405,6 +405,7 @@ def main() -> None:
                     page.get_by_role("button", name="固定参数并计算", exact=True).click()
                     page.wait_for_url(re.compile("/factor-runs/"))
                     factor_path = urlsplit(page.url).path
+                    expect(page.get_by_text("SUCCEEDED", exact=True)).to_be_visible(timeout=60000)
                     expect(page.get_by_text("WARMING_UP", exact=True).first).to_be_visible()
                     analysis = (
                         page.locator(".ant-card")
