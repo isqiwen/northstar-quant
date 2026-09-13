@@ -185,3 +185,36 @@ def test_reception_uncertainty_does_not_discard_later_identified_monetary_facts(
         with pytest.raises(ValueError, match="confirmed fees"):
             _ = account.cash
     assert ledger.verify_all()["position_entries_count"] == (2 if failed_before_fill else 1)
+
+
+def test_recovery_rejects_money_with_valid_chain_but_no_retained_broker_source(
+    postgres_engine, clean_database
+):
+    from datetime import datetime
+    from uuid import uuid4
+
+    from northstar_quant.accounting.ledger import BrokerLedger
+    from tests.accounting.test_ledger import ledger_query, position_baseline, trade
+
+    baseline = position_baseline(postgres_engine)
+    ledger = BrokerLedger(postgres_engine)
+    entry = ledger.ingest(
+        baseline, ledger_query(postgres_engine, trades=(trade(),)), request_id=uuid4()
+    )
+    assert ledger.verify_all()["position_entries_count"] == 1
+    with postgres_engine.begin() as connection:
+        account = replay(connection, str(baseline))
+        at = datetime.fromisoformat(entry["recorded_at"]) + timedelta(seconds=1)
+        # A well-formed journal batch is not a retained bank/broker receipt.
+        post(
+            connection,
+            str(baseline),
+            opening_cash=account.initial_cash,
+            markets=account.markets,
+            facts=(CashFlowFact("unowned", Decimal(100), "CNY", at, at, "missing-proof"),),
+            source_id=str(uuid4()),
+            source_hash="a" * 64,
+        )
+        assert replay(connection, str(baseline)).net_cash_flow == Decimal(100)
+    with pytest.raises(ValueError, match="unowned broker source"):
+        ledger.verify_all()

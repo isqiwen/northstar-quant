@@ -826,12 +826,13 @@ class BrokerLedger:
 
     def verify_all(self) -> dict[str, int]:
         from northstar_quant.accounting.broker_account import entry_facts
-        from northstar_quant.accounting.journal import verify_all, verify_source
+        from northstar_quant.accounting.journal import source_ids, verify_all, verify_source
 
         counts = {"position_entries_count": 0, "position_checks_count": 0}
         with self._engine.connect() as connection:
             baseline_ids = list(connection.scalars(select(_entries.c.baseline_id).distinct()))
             accounts = verify_all(connection)
+            expected_sources: set[tuple[str, str]] = set()
             if not set(accounts) <= {str(value) for value in baseline_ids}:
                 raise AccountJournalError("monetary journal has no retained account source")
             for baseline_id in baseline_ids:
@@ -847,6 +848,7 @@ class BrokerLedger:
                 counts["position_entries_count"] += len(history)
                 for entry in history:
                     if entry["monetary_status"] == "POSTED":
+                        expected_sources.add((str(baseline_id), entry["entry_id"]))
                         verify_source(
                             connection,
                             str(baseline_id),
@@ -854,6 +856,14 @@ class BrokerLedger:
                             _hash(entry),
                             entry_facts(entry, trading_day=baseline["trading_day"]),
                         )
+            # The execution owner separately verifies every fee posting against
+            # its retained FeeFact. All other current Live monetary batches must
+            # come from the verified broker ledger, in both directions. A valid
+            # hash chain alone cannot establish the origin of added money.
+            actual_sources = source_ids(connection, prefix="")
+            fee_sources = source_ids(connection, prefix="execution-fee:")
+            if actual_sources - fee_sources != expected_sources:
+                raise AccountJournalError("monetary journal has an unowned broker source")
             for check_id in connection.scalars(select(_checks.c.check_id)).yield_per(100):
                 self.get_check(check_id)
                 counts["position_checks_count"] += 1
