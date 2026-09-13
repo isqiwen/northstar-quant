@@ -55,6 +55,8 @@ def check_broker_account(page, base_url, visit, screenshot):
                 "realized_pnl_before_fees": "100.010000000000000001",
                 "cash": None,
                 "total_fees": None,
+                "journal_ordinal": 3,
+                "journal_hash": "b" * 64,
                 "fill_count": 2,
                 "net_identified_cash_flow": "0",
                 "cash_flow_count": 2,
@@ -78,33 +80,59 @@ def check_broker_account(page, base_url, visit, screenshot):
     try:
         visit(base_url + f"/broker/{identifier}")
         expect(page.get_by_text("柜台结算原文", exact=True)).to_be_visible()
-        expect(page.locator("pre").filter(has_text="合成结算原文").first).to_contain_text(
-            "手续费：12.340000000000000001"
-        )
-        expect(page.locator("pre").filter(has_text="合成结算原文").first).to_contain_text(
-            "<script>no execution</script>"
-        )
+        expect(
+            page.locator("pre").filter(has_text="合成结算原文").first
+        ).to_contain_text("手续费：12.340000000000000001")
+        expect(
+            page.locator("pre").filter(has_text="合成结算原文").first
+        ).to_contain_text("<script>no execution</script>")
         screenshot("broker-settlement-document")
         page.get_by_role("tab", name="持仓与委托核对", exact=True).click()
         expect(page.get_by_text("已确认成交的账户计价", exact=True)).to_be_visible()
         expect(page.get_by_text("100.010000000000000001", exact=True)).to_be_visible()
         expect(page.get_by_text("未核定", exact=True)).to_be_visible()
         expect(
-            page.get_by_text("总费用", exact=True).locator("..").get_by_text("未知", exact=True)
+            page.get_by_text("总费用", exact=True)
+            .locator("..")
+            .get_by_text("未知", exact=True)
         ).to_be_visible()
         screenshot("broker-account-unknown-cash")
         page.get_by_role("tab", name="资金与费用", exact=True).click()
-        expect(page.get_by_text("已识别资金流水（不代表完整资金核对）", exact=True)).to_be_visible()
+        expect(
+            page.get_by_text("已识别资金流水（不代表完整资金核对）", exact=True)
+        ).to_be_visible()
         expect(page.get_by_text(flow["amount"], exact=True)).to_be_visible()
         expect(page.get_by_text(reversal["amount"], exact=True)).to_be_visible()
         expect(page.get_by_role("link", name="回报 2", exact=True)).to_have_attribute(
             "href", f"/streams/{identifier}"
         )
-        expect(page.get_by_role("row").filter(has_text="synthetic-reversal")).to_contain_text(
-            "synthetic-deposit"
-        )
+        expect(
+            page.get_by_role("row").filter(has_text="synthetic-reversal")
+        ).to_contain_text("synthetic-deposit")
         screenshot("broker-cash-flow-reversal")
         page.get_by_role("tab", name="持仓与委托核对", exact=True).click()
+        projection = values["/ledger-context"]["accounting_projection"]
+        projection.update(
+            total_fees="1.500000000000000001",
+            pending_fee_fill_ids=[],
+            journal_ordinal=4,
+            journal_hash="c" * 64,
+        )
+        page.get_by_role("button", name="刷新核对", exact=True).click()
+        expect(page.get_by_text("1.500000000000000001", exact=True)).to_be_visible()
+        expect(
+            page.get_by_text("账本版本", exact=True)
+            .locator("..")
+            .get_by_text("4", exact=True)
+        ).to_be_visible()
+        expect(
+            page.get_by_text("待确认费用成交笔数", exact=True)
+            .locator("..")
+            .get_by_text("0", exact=True)
+        ).to_be_visible()
+        expect(page.get_by_text("未核定", exact=True)).to_be_visible()
+        expect(page.get_by_text("数据不可用", exact=True)).not_to_be_visible()
+        screenshot("broker-account-confirmed-fees")
         values["/ledger-context"]["accounting_projection"] = {
             "status": "UNAVAILABLE",
             "through_entry_id": entry,
@@ -112,6 +140,8 @@ def check_broker_account(page, base_url, visit, screenshot):
         }
         page.get_by_role("button", name="刷新核对", exact=True).click()
         expect(page.get_by_text("暂不可计价", exact=True)).to_be_visible()
-        expect(page.get_by_text("100.010000000000000001", exact=True)).not_to_be_visible()
+        expect(
+            page.get_by_text("100.010000000000000001", exact=True)
+        ).not_to_be_visible()
     finally:
         page.unroute(pattern)
