@@ -717,11 +717,10 @@ class BrokerLedger:
                         prefix["binding"]["terms"],
                     )
                 else:
-                    cash_source: dict[str, Any] = self._records.get(UUID(entry["source_batch_id"]))
-                    rows = cash_source["completeness"]["sections"]["instrument"]["rows"]
-                    if len(rows) != 1:
-                        return unavailable
-                    contract = resolve_broker_contract(self._engine, rows[0])
+                    # A query without fills has no retained canonical mapping.
+                    # Reading a projection must never register one or take a
+                    # second SQLite writer inside the owning funds transaction.
+                    return unavailable
                 markets[contract.contract_id] = contract.market
             return project_account(baseline, history, tuple(markets.values()))
         except ValueError:

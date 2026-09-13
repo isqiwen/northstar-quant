@@ -511,3 +511,23 @@ def test_rehashed_position_document_must_rebuild_from_source(
         ValueError, match="projection differs|unsupported account authority|precedes"
     ):
         BrokerLedger(postgres_engine).verify_all()
+
+
+def test_flat_query_valuation_never_registers_contract_inside_funds_transaction(live_engine):
+    from northstar_quant.accounting.funds import BrokerFunds
+    from northstar_quant.data_management.catalog.models import FuturesContract
+    from tests.accounting.test_funds import money_query
+
+    baseline = position_baseline(live_engine)
+    ledger = BrokerLedger(live_engine)
+    source = ledger_query(live_engine)
+    ledger.ingest(baseline, source, request_id=uuid4())
+    with Session(live_engine) as session:
+        assert session.query(FuturesContract).count() == 0
+    result = BrokerFunds(live_engine).observe(
+        baseline, money_query(live_engine), request_id=uuid4()
+    )
+    assert result["position_reference"] is not None
+    assert ledger.context(source)["accounting_projection"]["status"] == "UNAVAILABLE"
+    with Session(live_engine) as session:
+        assert session.query(FuturesContract).count() == 0
