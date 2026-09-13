@@ -168,8 +168,33 @@ def test_settlement_fields_survive_download_and_fixed_publication(
         receipt = receipts[0]
         snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
         assert snapshot["parameters"]["fields"] == ",".join(selected)
-        assert snapshot["rows"][0]["trading_fee_rate"] == "0.050"
+        assert snapshot["rows"][0]["trading_fee_rate"] == "0.05"
         assert snapshot["rows"][0]["offset_today_fee"] is None
+        import io
+        from decimal import Decimal
+
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        table = pq.read_table(
+            io.BytesIO(automatic._files.read(receipt["parquet_hash"], receipt["parquet_bytes"]))
+        )
+        assert table.schema.field("trading_fee_rate").type == pa.decimal128(38, 12)
+        assert table["trading_fee_rate"].to_pylist() == [Decimal("0.05")]
+        assert table["offset_today_fee"].to_pylist() == [None]
+        assert snapshot["quality"]["normalization"]["settlement_rate_basis"] == (
+            "SUPPLIER_REPORTED_NO_UNIT_CONVERSION"
+        )
+        # Numeric spelling changes preserve economic identity, but keep both raw responses.
+        first_raw = raw
+        raw = raw.replace(b'"0.050"', b'"5e-2"')
+        with automatic._engine.begin() as connection:
+            connection.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+        ready(automatic)
+        assert jobs.process_next(automatic)["status"] == "VALIDATED"
+        with automatic._engine.connect() as connection:
+            assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 1
+        assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == first_raw
 
 
 def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):

@@ -11,7 +11,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/5"
+RULE = "tushare-response/6"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -234,6 +234,12 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
             quantity = number(row[field])
             if not quantity.is_finite() or quantity < 0:
                 raise InvalidResponse("成交量、持仓量或金额无效", fields=(field,))
+    if job["dataset"] == "settlement":
+        for field in sorted(normalization.fields("settlement")):
+            if row.get(field) is not None:
+                value = number(row[field])
+                if value < 0 or (field == "settle" and value == 0):
+                    raise InvalidResponse("结算价或费率无效", fields=(field,))
     if job["dataset"] == "calendar" and (
         type(row.get("is_open")) is not int or row["is_open"] not in (0, 1)
     ):

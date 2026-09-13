@@ -45,6 +45,37 @@ def encoded(row):
 
 
 @pytest.mark.parametrize(
+    "field,value",
+    [
+        ("settle", "0"),
+        ("settle", "NaN"),
+        ("settle", "-1"),
+        ("trading_fee_rate", "Infinity"),
+        ("trading_fee_rate", "-0.01"),
+        ("offset_today_fee", True),
+        ("offset_today_fee", "unknown"),
+        ("long_margin_rate", "1e-13"),
+        ("short_margin_rate", "1e30"),
+    ],
+)
+def test_invalid_settlement_numbers_cannot_pass_response_quality(field, value):
+    from northstar_quant.data_management.tushare.catalog import BY_KEY
+
+    row = dict.fromkeys(BY_KEY["settlement"].fields)
+    row.update(ts_code="RB2610.SHF", trade_date="20260901", settle="3100.125")
+    row[field] = value
+    job = {
+        "dataset": "settlement",
+        "parameters": {"ts_code": "RB2610.SHF"},
+        "start_at": "2026-09-01",
+        "end_at": "2026-09-01",
+    }
+    with pytest.raises(InvalidResponse) as caught:
+        normalize(encoded(row), job)
+    assert field in caught.value.report["issues"][0]["fields"]
+
+
+@pytest.mark.parametrize(
     "dataset",
     ["1min", "5min", "15min", "30min", "60min", "daily", "week", "month", "adjusted", "index"],
 )

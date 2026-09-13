@@ -9,7 +9,7 @@ from typing import Any
 
 from .catalog import BY_KEY
 
-RULE = "tushare-numbers/1"
+RULE = "tushare-numbers/2"
 PRECISION = 38
 SCALE = 12
 BAR_APIS = {"ft_mins", "fut_daily", "fut_weekly_monthly", "fut_daily_adj", "fut_index_daily"}
@@ -32,9 +32,12 @@ _FIELDS = frozenset(
         "amount_cny",
     }
 )
+_SETTLEMENT_FIELDS = frozenset(BY_KEY["settlement"].fields) - {"ts_code", "trade_date", "exchange"}
 
 
 def fields(dataset: str) -> frozenset[str]:
+    if dataset == "settlement":
+        return _SETTLEMENT_FIELDS
     return _FIELDS if BY_KEY[dataset].api in BAR_APIS else frozenset()
 
 
@@ -88,6 +91,11 @@ def evidence(dataset: str) -> dict[str, Any]:
         "decimal_scale": SCALE,
         "amount_cny_multiplier": BY_KEY[dataset].amount_multiplier,
         "quantity_basis": "SUPPLIER_REPORTED_NOT_SIDE_ADJUSTED",
+        **(
+            {"settlement_rate_basis": "SUPPLIER_REPORTED_NO_UNIT_CONVERSION"}
+            if dataset == "settlement"
+            else {}
+        ),
     }
 
 
