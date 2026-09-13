@@ -186,7 +186,10 @@ def test_read_only_observer_reports_failure_recovery_restart_and_output_retry(tm
         assert "private credentials" not in json.dumps(events)
         assert auth.read_token not in json.dumps(events)
 
+        failed_events = []
+
         def broken(event):
+            failed_events.append(event)
             raise OSError("collector pipe unavailable")
 
         state["wrong_runtime"] = False
@@ -196,20 +199,33 @@ def test_read_only_observer_reports_failure_recovery_restart_and_output_retry(tm
         monitor.emit = events.append
         monitor.poll(client, now=67)
         assert events[-1]["kind"] == "RECOVERED"
+        assert events[-1] == failed_events[0]
     finally:
         client.close()
 
 
-def test_cli_process_observes_without_web_or_database(tmp_path):
+@pytest.mark.parametrize("webhook", [False, True])
+def test_cli_process_observes_without_web_or_database(tmp_path, webhook):
     """Real process/HTTP/stdout boundary; scripted facts, not a broker acceptance."""
     auth_paths = initialize_auth(tmp_path / "auth")
     runtime = str(uuid4())
     state = {"fault": False}
     paths = []
+    deliveries = []
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass
+
+        def do_POST(self):
+            assert self.path == "/alerts"
+            assert self.headers["authorization"] == "Bearer receiver-secret"
+            event = json.loads(self.rfile.read(int(self.headers["content-length"])))
+            assert self.headers["idempotency-key"] == event["event_id"]
+            deliveries.append(event)
+            # Simulate an acknowledgement lost after the receiver saved the event.
+            self.send_response(503 if len(deliveries) == 1 else 204)
+            self.end_headers()
 
         def do_GET(self):
             paths.append(self.path)
@@ -244,6 +260,10 @@ def test_cli_process_observes_without_web_or_database(tmp_path):
         "NORTHSTAR_LIVE_INSTANCE": "sim",
         "NORTHSTAR_BROKER_PROFILE": "simnow_trading",
         "NORTHSTAR_ENVIRONMENT": "SANDBOX",
+        "NORTHSTAR_LIVE_ALERT_URL": f"http://127.0.0.1:{server.server_port}/alerts"
+        if webhook
+        else "",
+        "NORTHSTAR_LIVE_ALERT_TOKEN": "receiver-secret",
     }
     process = subprocess.Popen(
         [sys.executable, "-m", "northstar_quant.cli", "serve", "live-monitor"],
@@ -270,6 +290,19 @@ def test_cli_process_observes_without_web_or_database(tmp_path):
         assert process.poll() is None
         process.terminate()
         assert process.wait(timeout=5) == 0
+        if webhook:
+            assert deliveries[0] == deliveries[1]
+            assert [value["kind"] for value in deliveries] == [
+                "INITIAL",
+                "INITIAL",
+                "FAULT",
+                "RECOVERED",
+            ]
+            assert process.stderr is not None
+            error = process.stderr.read()
+            assert "delivery unavailable" in error
+            assert "receiver-secret" not in error
+            assert "receiver-secret" not in json.dumps(deliveries)
     finally:
         if process.poll() is None:
             process.kill()

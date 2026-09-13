@@ -18,6 +18,7 @@ from time import monotonic
 from typing import Any
 from uuid import uuid4
 
+from .alerts import DeliveryUnavailable, Webhook
 from .auth import LiveAuth
 from .client import LiveClient, RuntimeUnavailable
 from .instances import Instance
@@ -108,10 +109,14 @@ class HealthMonitor:
         self.monitor_id = str(uuid4())
         self.previous: dict[str, Any] | None = None
         self.emitted_at: float | None = None
+        self.pending: tuple[dict[str, Any], dict[str, Any]] | None = None
 
     def poll(self, client: LiveClient, *, now: float | None = None) -> None:
-        current = observe(client)
         at = monotonic() if now is None else now
+        if self.pending is not None:
+            self._deliver(at)
+            return
+        current = observe(client)
         changed = current != self.previous
         if not changed and self.emitted_at is not None and 0 <= at - self.emitted_at < 60:
             return
@@ -127,7 +132,7 @@ class HealthMonitor:
             if current["status"] == "HEALTHY"
             else "FAULT"
         )
-        self.emit(
+        self.pending = (
             {
                 "schema": "northstar.live.health/1",
                 "event_id": str(uuid4()),
@@ -137,10 +142,18 @@ class HealthMonitor:
                 "kind": kind,
                 **current,
                 "scope": "KERNEL_STORAGE_ORDERS_AND_INPUTS_NOT_EXECUTION_READINESS",
-            }
+            },
+            current,
         )
+        self._deliver(at)
+
+    def _deliver(self, at: float) -> None:
+        assert self.pending is not None
+        event, current = self.pending
+        self.emit(event)
         # Failed output must not acknowledge an observation that nobody received.
         self.previous, self.emitted_at = current, at
+        self.pending = None
 
 
 def run() -> None:
@@ -155,13 +168,31 @@ def run() -> None:
         LiveAuth(auth.read_token),
         expected_instance_id=instance.identifier,
     )
-    monitor = HealthMonitor(
-        instance,
-        lambda event: print(json.dumps(event, sort_keys=True), file=sys.stdout, flush=True),
-    )
+    url = os.environ.get("NORTHSTAR_LIVE_ALERT_URL", "").strip()
+    webhook = Webhook(url, os.environ.get("NORTHSTAR_LIVE_ALERT_TOKEN", "")) if url else None
+
+    def emit(event: dict[str, Any]) -> None:
+        if webhook is not None:
+            webhook(event)
+        print(json.dumps(event, sort_keys=True), file=sys.stdout, flush=True)
+
+    monitor = HealthMonitor(instance, emit)
+    delivery_failed = False
     try:
         while not stopped.is_set():
-            monitor.poll(client)
+            try:
+                monitor.poll(client)
+                delivery_failed = False
+            except DeliveryUnavailable:
+                if not delivery_failed:
+                    print(
+                        "Live health delivery unavailable; retrying the same event",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                delivery_failed = True
             stopped.wait(5)
     finally:
         client.close()
+        if webhook is not None:
+            webhook.close()

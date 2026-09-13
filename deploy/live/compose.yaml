@@ -109,6 +109,8 @@ services:
       NORTHSTAR_LIVE_INSTANCE: sim
       NORTHSTAR_LIVE_URL: http://live:18081
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/monitor-auth/read.toml
+      NORTHSTAR_LIVE_ALERT_URL: ${NORTHSTAR_LIVE_ALERT_URL:-}
+      NORTHSTAR_LIVE_ALERT_TOKEN: ${NORTHSTAR_LIVE_ALERT_TOKEN:-}
     volumes:
       - type: bind
         source: /opt/northstar/credentials/live/monitor
@@ -116,7 +118,7 @@ services:
         read_only: true
         bind:
           create_host_path: false
-    networks: [management]
+    networks: [management, egress]
     depends_on:
       initialize:
         condition: service_completed_successfully
