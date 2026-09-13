@@ -759,18 +759,32 @@ class BrokerLedger:
                     # second SQLite writer inside the owning funds transaction.
                     return unavailable
                 markets[contract.contract_id] = contract.market
-            from northstar_quant.accounting.journal import replay
+            from northstar_quant.accounting.journal import snapshot
 
             with self._engine.connect() as connection:
-                account = replay(
-                    connection,
-                    baseline["baseline_id"],
-                    source_id=history[-1]["entry_id"],
-                    source_hash=_hash(history[-1]),
+                view = snapshot(connection, baseline["baseline_id"])
+            expected_sources = tuple(
+                (entry["entry_id"], _hash(entry))
+                for entry in history
+                if entry["monetary_status"] in {"POSTED", "PARTIAL"}
+            )
+            if (
+                tuple(
+                    source for source in view.sources if not source[0].startswith("execution-fee:")
                 )
+                != expected_sources
+            ):
+                # A writer may have committed a newer broker prefix while this
+                # read verified history. Never combine its account with old lots.
+                return {**unavailable, "reason": "ACCOUNT_SOURCE_PREFIX_CHANGED"}
+            account = view.account
             if any(account.market(identity) != market for identity, market in markets.items()):
                 raise AccountJournalError("account economics differ from verified broker contracts")
-            return project_account(baseline, history, account)
+            return {
+                **project_account(baseline, history, account),
+                "journal_ordinal": view.ordinal,
+                "journal_hash": view.content_hash,
+            }
         except AccountJournalError:
             raise
         except (ValueError, LookupError):

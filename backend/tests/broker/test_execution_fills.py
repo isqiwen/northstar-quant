@@ -185,6 +185,16 @@ def test_matched_execution_account_prefix_and_pending_fee_restore_together(
     from northstar_quant.accounting.journal import replay
 
     account_id = BrokerLedger(live_engine).stream_progress(stream_id)["baseline_id"]
+    from uuid import UUID
+
+    with live_engine.connect() as connection:
+        query_id = UUID(
+            connection.exec_driver_sql(
+                "SELECT query_batch_id FROM broker_streams WHERE stream_id=?", (stream_id.hex,)
+            ).scalar_one()
+        )
+    before_projection = BrokerLedger(live_engine).context(query_id)["accounting_projection"]
+    assert len(before_projection["pending_fee_fill_ids"]) == 1
     if confirm_fee:
         at = datetime.now(UTC)
         with live_engine.connect() as connection:
@@ -201,6 +211,12 @@ def test_matched_execution_account_prefix_and_pending_fee_restore_together(
         adapter.journal.confirm_fee(fee, account_id=account_id)
     with live_engine.connect() as connection:
         account_before = replay(connection, account_id).checkpoint()
+    projection = BrokerLedger(live_engine).context(query_id)["accounting_projection"]
+    assert projection["total_fees"] == ("1.5" if confirm_fee else None)
+    assert len(projection["pending_fee_fill_ids"]) == (0 if confirm_fee else 1)
+    assert projection["cash"] is None and not projection["execution"]["order_sending"]
+    assert projection["journal_ordinal"] == before_projection["journal_ordinal"] + int(confirm_fee)
+    assert projection["positions"] == before_projection["positions"]
     expected = adapter.journal.get(order.order_id)
     destination = tmp_path / "fills-backup"
     evidence = backup(live_engine, SourceFiles(tmp_path / "archive"), destination)
@@ -215,7 +231,41 @@ def test_matched_execution_account_prefix_and_pending_fee_restore_together(
         assert reopened.get(order.order_id)["fee_pending_lots"] == (0 if confirm_fee else 1)
         with target.connect() as connection:
             assert replay(connection, account_id).checkpoint() == account_before
+        assert BrokerLedger(target).context(query_id)["accounting_projection"] == projection
         assert apply_pending(target, stream_id, 5) == 0
         assert reopened.verify_all() == 1
     finally:
         target.dispose()
+
+
+def test_account_context_never_combines_new_money_with_an_older_broker_prefix(
+    live_engine, receiving, monkeypatch
+):
+    from uuid import UUID
+
+    adapter, order, stream_id, accept, report, _ = receiving
+    accept(report(3))
+    accept(execution(4))
+    with live_engine.connect() as connection:
+        query_id = UUID(
+            connection.exec_driver_sql(
+                "SELECT query_batch_id FROM broker_streams WHERE stream_id=?", (stream_id.hex,)
+            ).scalar_one()
+        )
+    ledger = BrokerLedger(live_engine)
+    original = ledger._account_projection
+
+    def concurrent_commit(baseline, history):
+        accept(execution(5, trade_id="t2"))
+        return original(baseline, history)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(ledger, "_account_projection", concurrent_commit)
+        stale = ledger.context(query_id)["accounting_projection"]
+    assert stale["status"] == "UNAVAILABLE"
+    assert stale["reason"] == "ACCOUNT_SOURCE_PREFIX_CHANGED"
+    assert stale["cash"] is None and not stale["execution"]["order_sending"]
+    current = ledger.context(query_id)["accounting_projection"]
+    assert current["fill_count"] == 2
+    assert len(current["pending_fee_fill_ids"]) == 2
+    assert adapter.journal.get(order.order_id)["filled_lots"] == 2

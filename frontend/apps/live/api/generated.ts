@@ -174,6 +174,8 @@ export type BrokerAccountProjection = {
   fill_count?: number;
   net_identified_cash_flow?: string;
   cash_flow_count?: number;
+  journal_ordinal?: number;
+  journal_hash?: string;
   [key: string]: unknown;
 };
 export type LedgerContext = {

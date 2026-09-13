@@ -12637,6 +12637,8 @@ export const northstar = $root.northstar = (() => {
              * @property {number|Long|null} [fill_count] BrokerAccountProjection fill_count
              * @property {string|null} [net_identified_cash_flow] BrokerAccountProjection net_identified_cash_flow
              * @property {number|Long|null} [cash_flow_count] BrokerAccountProjection cash_flow_count
+             * @property {number|Long|null} [journal_ordinal] BrokerAccountProjection journal_ordinal
+             * @property {string|null} [journal_hash] BrokerAccountProjection journal_hash
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] BrokerAccountProjection evidence_fields
              * @property {Array.<string>|null} [null_fields] BrokerAccountProjection null_fields
              * @property {"status"} [_status] BrokerAccountProjection _status
@@ -12647,6 +12649,8 @@ export const northstar = $root.northstar = (() => {
              * @property {"fill_count"} [_fill_count] BrokerAccountProjection _fill_count
              * @property {"net_identified_cash_flow"} [_net_identified_cash_flow] BrokerAccountProjection _net_identified_cash_flow
              * @property {"cash_flow_count"} [_cash_flow_count] BrokerAccountProjection _cash_flow_count
+             * @property {"journal_ordinal"} [_journal_ordinal] BrokerAccountProjection _journal_ordinal
+             * @property {"journal_hash"} [_journal_hash] BrokerAccountProjection _journal_hash
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -12670,6 +12674,8 @@ export const northstar = $root.northstar = (() => {
              *   fill_count?: number|Long|null;
              *   net_identified_cash_flow?: string|null;
              *   cash_flow_count?: number|Long|null;
+             *   journal_ordinal?: number|Long|null;
+             *   journal_hash?: string|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
@@ -12689,6 +12695,10 @@ export const northstar = $root.northstar = (() => {
              *   ({ _net_identified_cash_flow?: undefined; net_identified_cash_flow?: null }|{ _net_identified_cash_flow?: "net_identified_cash_flow"; net_identified_cash_flow: string })
              * ) & (
              *   ({ _cash_flow_count?: undefined; cash_flow_count?: null }|{ _cash_flow_count?: "cash_flow_count"; cash_flow_count: number|Long })
+             * ) & (
+             *   ({ _journal_ordinal?: undefined; journal_ordinal?: null }|{ _journal_ordinal?: "journal_ordinal"; journal_ordinal: number|Long })
+             * ) & (
+             *   ({ _journal_hash?: undefined; journal_hash?: null }|{ _journal_hash?: "journal_hash"; journal_hash: string })
              * )} northstar.live.BrokerAccountProjection.$Shape
              */
 
@@ -12781,6 +12791,22 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             BrokerAccountProjection.prototype.cash_flow_count = null;
+
+            /**
+             * BrokerAccountProjection journal_ordinal.
+             * @member {number|Long|null|undefined} journal_ordinal
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.journal_ordinal = null;
+
+            /**
+             * BrokerAccountProjection journal_hash.
+             * @member {string|null|undefined} journal_hash
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.journal_hash = null;
 
             /**
              * BrokerAccountProjection evidence_fields.
@@ -12890,6 +12916,28 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * BrokerAccountProjection _journal_ordinal.
+             * @member {"journal_ordinal"|undefined} _journal_ordinal
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_journal_ordinal", {
+                get: $util.oneOfGetter($oneOfFields = ["journal_ordinal"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _journal_hash.
+             * @member {"journal_hash"|undefined} _journal_hash
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_journal_hash", {
+                get: $util.oneOfGetter($oneOfFields = ["journal_hash"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new BrokerAccountProjection instance using the specified properties.
              * @function create
              * @memberof northstar.live.BrokerAccountProjection
@@ -12940,6 +12988,10 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 8, wireType 2 =*/66).string(message.net_identified_cash_flow);
                 if (message.cash_flow_count != null && $Object.hasOwnProperty.call(message, "cash_flow_count"))
                     writer.uint32(/* id 9, wireType 0 =*/72).int64(message.cash_flow_count);
+                if (message.journal_ordinal != null && $Object.hasOwnProperty.call(message, "journal_ordinal"))
+                    writer.uint32(/* id 10, wireType 0 =*/80).int64(message.journal_ordinal);
+                if (message.journal_hash != null && $Object.hasOwnProperty.call(message, "journal_hash"))
+                    writer.uint32(/* id 11, wireType 2 =*/90).string(message.journal_hash);
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -13054,6 +13106,20 @@ export const northstar = $root.northstar = (() => {
                                 break;
                             message.cash_flow_count = reader.int64();
                             message._cash_flow_count = "cash_flow_count";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 0)
+                                break;
+                            message.journal_ordinal = reader.int64();
+                            message._journal_ordinal = "journal_ordinal";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.journal_hash = reader.stringVerify();
+                            message._journal_hash = "journal_hash";
                             continue;
                         }
                     case 1000: {
@@ -13180,6 +13246,16 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isInteger(message.cash_flow_count) && !(message.cash_flow_count && $util.isInteger(message.cash_flow_count.low) && $util.isInteger(message.cash_flow_count.high)))
                         return "cash_flow_count: integer|Long expected";
                 }
+                if (message.journal_ordinal != null && $Object.hasOwnProperty.call(message, "journal_ordinal")) {
+                    properties._journal_ordinal = 1;
+                    if (!$util.isInteger(message.journal_ordinal) && !(message.journal_ordinal && $util.isInteger(message.journal_ordinal.low) && $util.isInteger(message.journal_ordinal.high)))
+                        return "journal_ordinal: integer|Long expected";
+                }
+                if (message.journal_hash != null && $Object.hasOwnProperty.call(message, "journal_hash")) {
+                    properties._journal_hash = 1;
+                    if (!$util.isString(message.journal_hash))
+                        return "journal_hash: string expected";
+                }
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
                     if (!$util.isObject(message.evidence_fields))
                         return "evidence_fields: object expected";
@@ -13255,6 +13331,17 @@ export const northstar = $root.northstar = (() => {
                         message.cash_flow_count = object.cash_flow_count;
                     else if (typeof object.cash_flow_count === "object")
                         message.cash_flow_count = new $util.LongBits(object.cash_flow_count.low >>> 0, object.cash_flow_count.high >>> 0).toNumber();
+                if (object.journal_ordinal != null)
+                    if ($util.Long)
+                        message.journal_ordinal = $util.Long.fromValue(object.journal_ordinal, false);
+                    else if (typeof object.journal_ordinal === "string")
+                        message.journal_ordinal = $parseInt(object.journal_ordinal, 10);
+                    else if (typeof object.journal_ordinal === "number")
+                        message.journal_ordinal = object.journal_ordinal;
+                    else if (typeof object.journal_ordinal === "object")
+                        message.journal_ordinal = new $util.LongBits(object.journal_ordinal.low >>> 0, object.journal_ordinal.high >>> 0).toNumber();
+                if (object.journal_hash != null)
+                    message.journal_hash = $String(object.journal_hash);
                 if (object.evidence_fields) {
                     if (!$util.isObject(object.evidence_fields))
                         throw $TypeError(".northstar.live.BrokerAccountProjection.evidence_fields: object expected");
@@ -13354,6 +13441,21 @@ export const northstar = $root.northstar = (() => {
                         object.cash_flow_count = options.longs === $String ? $util.Long.prototype.toString.call(message.cash_flow_count) : options.longs === $Number ? new $util.LongBits(message.cash_flow_count.low >>> 0, message.cash_flow_count.high >>> 0).toNumber() : message.cash_flow_count;
                     if (options.oneofs)
                         object._cash_flow_count = "cash_flow_count";
+                }
+                if (message.journal_ordinal != null && $Object.hasOwnProperty.call(message, "journal_ordinal")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.journal_ordinal = typeof message.journal_ordinal === "number" ? $BigInt(message.journal_ordinal) : $util.Long.fromBits(message.journal_ordinal.low >>> 0, message.journal_ordinal.high >>> 0, false).toBigInt();
+                    else if (typeof message.journal_ordinal === "number")
+                        object.journal_ordinal = options.longs === $String ? $String(message.journal_ordinal) : message.journal_ordinal;
+                    else
+                        object.journal_ordinal = options.longs === $String ? $util.Long.prototype.toString.call(message.journal_ordinal) : options.longs === $Number ? new $util.LongBits(message.journal_ordinal.low >>> 0, message.journal_ordinal.high >>> 0).toNumber() : message.journal_ordinal;
+                    if (options.oneofs)
+                        object._journal_ordinal = "journal_ordinal";
+                }
+                if (message.journal_hash != null && $Object.hasOwnProperty.call(message, "journal_hash")) {
+                    object.journal_hash = message.journal_hash;
+                    if (options.oneofs)
+                        object._journal_hash = "journal_hash";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {

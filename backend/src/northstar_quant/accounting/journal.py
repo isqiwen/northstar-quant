@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -170,6 +170,28 @@ def _replay(entries: list[dict[str, Any]], extra_markets: tuple[Instrument, ...]
         if checkpoint != entry["checkpoint"]:
             raise AccountJournalError("account checkpoint differs from its accepted facts")
     return account
+
+
+@dataclass(frozen=True, slots=True)
+class AccountSnapshot:
+    """A reconstructed read with its exact journal cut and contributing sources."""
+
+    account: Account
+    ordinal: int
+    content_hash: str
+    sources: tuple[tuple[str, str], ...]
+
+
+def snapshot(connection: Connection, account_id: str) -> AccountSnapshot:
+    """Capture the current monetary projection for management reads, not admission."""
+    entries = _read(connection, account_id)
+    account = _replay(entries)
+    return AccountSnapshot(
+        account,
+        entries[-1]["ordinal"],
+        _hash(entries[-1]),
+        tuple((entry["source_id"], entry["source_hash"]) for entry in entries),
+    )
 
 
 def replay(

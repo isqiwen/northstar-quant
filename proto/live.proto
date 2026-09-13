@@ -222,6 +222,8 @@ message BrokerAccountProjection {
   optional int64 fill_count = 7 [json_name = "fill_count"];
   optional string net_identified_cash_flow = 8 [json_name = "net_identified_cash_flow"];
   optional int64 cash_flow_count = 9 [json_name = "cash_flow_count"];
+  optional int64 journal_ordinal = 10 [json_name = "journal_ordinal"];
+  optional string journal_hash = 11 [json_name = "journal_hash"];
   map<string, google.protobuf.Value> evidence_fields = 1000;
   repeated string null_fields = 2046;
 }

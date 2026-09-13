@@ -957,3 +957,14 @@ DataEngine 在接收与预热时核验合约，MarketWindow 拒绝混合合约�
 模拟成交使用同一身份校验。发布的 Parquet 与检查点保留该字段，数据适配器在业务边界
 提供明确身份，不由调用者根据价格或订阅名猜测。Tushare 官方各周期仍独立使用，
 不增加跨周期比较或重采样功能。不引入框架依赖或第二套行情模型。
+
+
+### 账户展示与账本版本（2026-09-13）
+
+参考 NautilusTrader [Portfolio / Python query boundary](https://nautilustrader.io/docs/latest/concepts/portfolio/#python-query-boundary)
+当日 latest 文档的独立账户读视图。Northstar 管理端从同一次账本读取重建账户，
+返回序号与内容哈希；当前柜台前缀之外的已确认费用及修订可进入该读视图。
+柜台持仓/资金事实来源必须与该账本版本一致，读取期间新增柜台前缀时返回不可用，
+不混合新旧状态。固定历史重放仍按原来源截止；视图不持久保存另一份账户，也不进入
+发送热路径。已确认费用可展示，但累计 Commission、查询成功或投影一致都不等于
+外部完整覆盖、可交易余额或执行授权。
