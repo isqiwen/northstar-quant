@@ -32,6 +32,7 @@ def decode_transfer(
     source_reference: str,
     opening_at: datetime,
 ) -> CashFlowFact:
+    day = date.fromisoformat(trading_day)
     row = event.get("data") or {}
     callback = event["callback"]
     if (
@@ -40,7 +41,7 @@ def decode_transfer(
         or event["error_id"]
         or row.get("BrokerID") != broker_id
         or row.get("AccountID") != account_id
-        or row.get("TradingDay") != trading_day.replace("-", "")
+        or row.get("TradingDay") != day.strftime("%Y%m%d")
         or row.get("CurrencyID") != "CNY"
         or type(row.get("ErrorID")) is not int
         or row["ErrorID"] != 0
@@ -63,7 +64,7 @@ def decode_transfer(
         .replace(tzinfo=ZoneInfo("Asia/Shanghai"))
         .astimezone(UTC)
     )
-    if transferred.astimezone(ZoneInfo("Asia/Shanghai")).date() > date.fromisoformat(trading_day):
+    if transferred.astimezone(ZoneInfo("Asia/Shanghai")).date() > day:
         raise ValueError("transfer date exceeds its confirmed trading day")
     if transferred <= opening_at:
         raise ValueError("transfer may already be included in the opening account observation")
@@ -72,13 +73,13 @@ def decode_transfer(
     if incoming == reversal:
         amount = amount.copy_negate()
     return CashFlowFact(
-        _identity(broker_id, account_id, trading_day, row.get("FutureSerial")),
+        _identity(broker_id, account_id, day.isoformat(), row.get("FutureSerial")),
         amount,
         "CNY",
         transferred,
         available,
         source_reference,
-        _identity(broker_id, account_id, trading_day, row.get("FutureRepealSerial"))
+        _identity(broker_id, account_id, day.isoformat(), row.get("FutureRepealSerial"))
         if reversal
         else None,
     )

@@ -111,7 +111,9 @@ def test_unconfirmed_native_transfer_never_becomes_a_cash_fact(changes):
         "opening_at": AT,
         "source_reference": "synthetic-native-receipt",
     }
-    assert decode_transfer(event, **args).amount == Decimal(500)
+    accepted = decode_transfer(event, **args)
+    assert accepted.amount == Decimal(500)
+    assert decode_transfer(event, **{**args, "trading_day": "2026-09-07"}) == accepted
     event["data"].update(changes)
     with pytest.raises(ValueError):
         decode_transfer(event, **args)
