@@ -133,7 +133,9 @@ def main() -> int:
         choices=("deploy", "start", "restart", "status", "logs", "stop", "purge-host"),
         help="部署（检查已准备的主机依赖）、启动、重启、状态、日志、停止（保留数据）、整机卸载（删除全部本地数据）",
     )
-    parser.add_argument("app", choices=APPLICATIONS, help="需要管理的应用")
+    parser.add_argument(
+        "app", choices=(*APPLICATIONS, "all"), help="必须明确指定应用或 all（所有已配置应用）"
+    )
     parser.add_argument(
         "--config",
         type=Path,
@@ -149,7 +151,7 @@ def main() -> int:
     parser.add_argument("--follow", action="store_true", help="持续查看日志（仅 logs）")
     parser.add_argument("--instance", help="仅管理指定 Live 实例的启停、状态和日志")
     parser.add_argument(
-        "--yes", action="store_true", help="确认 purge-host 删除目标主机全部 Northstar 本地数据"
+        "--yes", action="store_true", help="确认 purge-host 删除数据；all 还清空项目共享行情"
     )
     args = parser.parse_args()
     if args.yes and args.action != "purge-host":
@@ -162,9 +164,30 @@ def main() -> int:
         parser.error("--instance 仅用于 Live 实例启停、状态和日志")
     if args.env_file is not None and args.action != "deploy":
         parser.error("--env-file 仅用于 deploy；其他命令使用已部署的运行配置")
+    if args.app == "all" and args.env_file is not None:
+        parser.error("all 使用各应用自己的配置文件；--env-file 必须指定具体应用")
     if args.follow and args.action != "logs":
         parser.error("--follow 仅用于 logs")
     try:
+        if args.app == "all":
+            settings = tomllib.loads(args.config.read_text())
+            configs = {
+                app: configuration(args.config, app)
+                for app in APPLICATIONS
+                if ("data_hub" if app == "database" else app.replace("-", "_")) in settings
+            }
+            if not configs:
+                raise ValueError("没有已配置的应用")
+            print(
+                "all 包含：" + ", ".join(f"{a}@{c['host']}" for a, c in configs.items()), flush=True
+            )
+            if args.action == "purge-host":
+                return runpy.run_path(str(ROOT / "scripts/operations/purge_all.py"))["run"](
+                    args, configs, settings, ROOT, ssh
+                )
+            return runpy.run_path(str(ROOT / "scripts/operations/all_apps.py"))["run"](
+                args, configs, ROOT
+            )
         config = configuration(args.config, args.app)
         if args.action == "purge-host":
             settings = tomllib.loads(args.config.read_text())

@@ -321,7 +321,11 @@ CI 无论成功或失败均保留 `acceptance-<SHA>-<attempt>` 产物 14 天，�
 三个工作台的身份认证现状见 [API 边界](docs/API.md#工作台身份边界)。
 
 
-彻底卸载使用 `python3 scripts/northstarctl.py purge-host <应用> --yes`，会删除该应用所在主机的全部 Northstar 部署和本地数据（含同机数据库）；可先用 `--dry-run` 查看目标。
-NAS 共享只卸载、不删除远端数据。详见[完全卸载](deploy/README.md#完全卸载应用主机)。
+所有命令必须显式指定 `database`、`data-hub`、`research`、`live` 或 `all`；`all` 包含 hosts.toml 中已配置的应用（包括 Live）。
+`deploy/start/restart all` 按数据库→Data Hub→Research→Live执行；`stop all` 反向执行；`status/logs all` 汇总输出，`logs all --follow` 并行跟踪并标注应用。
+
+单机卸载使用 `python3 scripts/northstarctl.py purge-host <应用> --yes`，会删除该应用所在主机的全部 Northstar 部署和本地数据（含同机数据库）；可先用 `--dry-run` 查看目标。
+单机卸载时 NAS 共享只卸载、不删除远端数据。`purge-host all --yes` 则先停止全部目标，再清空项目共享行情、按主机去重卸载；NAS 服务和自身快照保留。
+`deploy all` 使用各应用配置，`--env-file` 和 `--instance` 仅用于具体应用。详见[完全卸载](deploy/README.md#完全卸载应用主机)。
 
 Data Hub 固定同步 2012-01-01 以来的数据，不下载更早行情；合约目录作为来源元数据保留，用于识别跨越该日期的合约。

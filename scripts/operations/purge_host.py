@@ -68,7 +68,7 @@ def firewall() -> None:
             run("iptables", "-w", "-X", chain)
 
 
-def purge() -> None:
+def preflight() -> set[str]:
     if os.geteuid() != 0:
         raise ValueError("整机卸载需要 sudo 权限")
     for path in (*ROOT.parents, ROOT):
@@ -87,21 +87,36 @@ def purge() -> None:
     market = ROOT / "files/market"
     if any(path != market for path in existing_mounts):
         raise ValueError("Northstar 下有其他挂载；请先由管理员卸载，不能递归删除挂载内容")
+    return selected
+
+
+def locks(stack: ExitStack) -> None:
+    for app in APPS:
+        directory = ROOT / "apps" / app
+        if directory.is_symlink() or directory.parent.is_symlink():
+            raise ValueError(f"部署目录不能是符号链接：{directory}")
+        if directory.is_dir():
+            lock_path = directory / ".deployment.lock"
+            if lock_path.is_symlink():
+                raise ValueError("部署锁不能是符号链接")
+            lock = stack.enter_context(lock_path.open("a"))
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def stop(selected: set[str]) -> None:
+    if selected:
+        run("docker", "stop", "--time", "60", *sorted(selected))
+        run("docker", "rm", *sorted(selected))
+
+
+def purge(*, locks_held: bool = False) -> None:
+    selected = preflight()
+    market = ROOT / "files/market"
     with ExitStack() as stack:
-        for app in APPS:
-            directory = ROOT / "apps" / app
-            if directory.is_symlink() or directory.parent.is_symlink():
-                raise ValueError(f"部署目录不能是符号链接：{directory}")
-            if directory.is_dir():
-                lock_path = directory / ".deployment.lock"
-                if lock_path.is_symlink():
-                    raise ValueError("部署锁不能是符号链接")
-                lock = stack.enter_context(lock_path.open("a"))
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if not locks_held:
+            locks(stack)
         # Stop before removing: Docker gives the kernel a bounded graceful shutdown.
-        if selected:
-            run("docker", "stop", "--time", "60", *sorted(selected))
-            run("docker", "rm", *sorted(selected))
+        stop(selected)
         # Remove Requires=mount before stopping it, otherwise systemd can stop
         # the shared Docker daemon and unrelated applications with it.
         dropin = UNITS / "docker.service.d/northstar-market.conf"

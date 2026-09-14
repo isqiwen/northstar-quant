@@ -277,3 +277,32 @@ python3 scripts/northstarctl.py purge-host live --yes
 northstar 部署账号（保留登录与再次部署能力）、SSH、Docker、主机依赖、公共基础镜像及无法单独归属的共享构建缓存保留；
 不执行全局 Docker prune，不停止 Docker 服务。专属资源被其他容器引用时不会强删。
 命令失败会明确报告未完成，已完成步骤不回滚；修复后可重试。该命令不会遍历其他应用主机。
+
+### 所有应用与整套清空
+
+所有命令必须显式带对象：`database`、`data-hub`、`research`、`live` 或 `all`。
+`all` 仅处理 hosts.toml 中配置的应用，包含已配置的 Live，不包含 NAS 服务。
+
+```sh
+python3 scripts/northstarctl.py deploy all
+python3 scripts/northstarctl.py start all
+python3 scripts/northstarctl.py restart all
+python3 scripts/northstarctl.py status all
+python3 scripts/northstarctl.py logs all --follow
+python3 scripts/northstarctl.py stop all
+python3 scripts/northstarctl.py purge-host all --dry-run
+# 清空所有应用主机和项目共享行情，不是单机卸载
+python3 scripts/northstarctl.py purge-host all --yes
+```
+
+部署、启动、重启按数据库→Data Hub→Research→Live顺序执行，失败即停止后续操作；
+停止反向执行，状态/停止/日志收集会继续处理其他应用并返回失败状态。
+`logs all --follow` 同时跟踪并标注应用，Ctrl+C 结束本次跟踪。
+`deploy all` 使用各应用独立 .env；自定义 `--env-file` 和 Live `--instance` 需指定具体应用。
+
+`purge-host all` 按主机去重，所有目标通过预检查并持有部署锁后才停止容器；
+全部停止成功后，通过 Data Hub 的 NFS 挂载清空项目活跃行情，最后删除各主机本地部署和数据。
+共享目录必须是配置的 `/quant` 导出，存储身份一致；错误挂载、嵌套挂载或非项目内容会拒绝删除。
+NAS 服务、其他共享、NAS 管理的 `@Recently-Snapshot` 和快照目标保留，不登录 NAS。
+执行中断不回滚已经完成的步骤；若共享挂载已丢失，需先恢复挂载后重新执行，不能改删同名本地目录。
+这与 `purge-host <应用>` 保留 NAS 行情的行为不同。两者都不撤销柜台委托或平仓。
