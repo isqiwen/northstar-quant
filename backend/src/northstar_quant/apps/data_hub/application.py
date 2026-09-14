@@ -31,7 +31,7 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     compaction_api.register(app, engine)
     exploration_api.register(app, engine)
     publication_api.register(app, library)
-    sync_api.register(app, app.state.workspace_access, engine)
+    sync_api.register(app, app.state.workspace_access, engine, library)
     research_api.register(app, app.state.workspace_access, library)
     source_api.register(app, app.state.workspace_access, library)
     processing_api.register(app, engine, library)

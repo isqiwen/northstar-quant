@@ -306,3 +306,11 @@ python3 scripts/northstarctl.py purge-host all --yes
 NAS 服务、其他共享、NAS 管理的 `@Recently-Snapshot` 和快照目标保留，不登录 NAS。
 执行中断不回滚已经完成的步骤；若共享挂载已丢失，需先恢复挂载后重新执行，不能改删同名本地目录。
 这与 `purge-host <应用>` 保留 NAS 行情的行为不同。两者都不撤销柜台委托或平仓。
+
+### NAS备份目标与容量
+
+目标目录及迁移顺序见 [架构中的共享存储与备份规划](../docs/ARCHITECTURE.md#共享存储与备份规划2026-09-14)。
+当前备份仍在本机，不能视为NAS备份已经完成。原始归档默认不再限制10 GiB；
+低于磁盘容量10%（至少2 GiB）预警，低于5%（至少1 GiB）拒绝新增写入，保留既有数据。
+`purge-host all --yes` 同时删除共享根下的项目 `backups/data-hub` 和 `backups/research`，
+不会保留用于恢复的项目备份。普通deploy、restart不会触发这种清理。

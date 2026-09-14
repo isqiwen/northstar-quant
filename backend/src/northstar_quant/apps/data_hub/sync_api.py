@@ -8,6 +8,7 @@ from pydantic import Field, JsonValue
 from sqlalchemy import Engine, text
 from starlette.concurrency import run_in_threadpool
 
+from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.tushare import (
     credentials,
     job_query,
@@ -74,10 +75,12 @@ class SyncEvidence(EvidenceRecord):
     request_id: str
 
 
-def register(app: FastAPI, access: WorkspaceAccess, engine: Engine) -> None:
+def register(app: FastAPI, access: WorkspaceAccess, engine: Engine, library: DataLibrary) -> None:
     @app.get("/api/sync", response_model=SyncStatus)
     def status() -> dict[str, Any]:
-        return settings.status(engine)
+        result = settings.status(engine)
+        result["settings"]["source_capacity"] = library.storage_capacity()
+        return result
 
     @app.post("/api/sync/settings", response_model=SyncStatus)
     async def configure(request: Request, document: SyncSettingsRequest) -> dict[str, Any]:

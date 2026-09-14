@@ -11,7 +11,7 @@ from pathlib import Path
 from uuid import UUID
 
 MARKET = Path("/opt/northstar/files/market")
-DATA = {"objects", "staging", "tushare"}
+DATA = {"objects", "staging", "tushare", "backups"}
 MARKER = ".northstar-storage-id"
 
 
@@ -39,6 +39,12 @@ def inspect_share(host, server: str) -> str | None:
             raise ValueError(f"共享目录包含非项目内容：{path.name}")
         if path.name == "@Recently-Snapshot" and (path.is_symlink() or not path.is_dir()):
             raise ValueError("NAS 快照目录类型异常")
+    backups = MARKET / "backups"
+    if backups.exists() and not backups.is_symlink():
+        if not backups.is_dir() or any(
+            item.name not in {"data-hub", "research"} for item in backups.iterdir()
+        ):
+            raise ValueError("备份目录包含非项目内容，拒绝删除")
     marker = MARKET / MARKER
     if marker.is_symlink():
         raise ValueError("存储身份不能是符号链接")

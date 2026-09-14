@@ -1,4 +1,5 @@
 "use client";
+import { StorageAlert } from "../storage-alert";
 import {
   Alert,
   Button,
@@ -33,6 +34,7 @@ export function DataOverview() {
         }
       />
       <Failure error={catalog.error || sync.error} />
+      <StorageAlert capacity={sync.data?.settings.source_capacity} />
       <Row gutter={[16, 16]}>
         {[
           [

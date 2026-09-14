@@ -46,6 +46,7 @@
 | 优先级 | Issue | 范围 |
 |---|---|---|
 | P1 | [#43 范围查询与引用保留](https://github.com/isqiwen/northstar-quant/issues/43) | 按实测优化读取与小文件合并，不破坏固定版本 |
+| P1 | [#60 NAS联合备份](https://github.com/isqiwen/northstar-quant/issues/60) | 分目录挂载、两应用一致备份、加密、定时保留与恢复；当前尚未接通NAS自动备份 |
 | P1 | [#54 Live异步备份与容量](https://github.com/isqiwen/northstar-quant/issues/54) | SQLite封存包独立传输，远端失败不阻塞内核；不增加Data Hub数据来源 |
 | P2 | [#28 组合与多策略预算](https://github.com/isqiwen/northstar-quant/issues/28) | 多合约、多策略仍共享单账户风险与发送所有者 |
 | P2 | [#29 真实合约换月](https://github.com/isqiwen/northstar-quant/issues/29) | 固定映射、平旧开新、成本及残余敞口 |

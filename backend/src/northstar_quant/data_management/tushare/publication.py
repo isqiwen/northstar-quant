@@ -12,7 +12,7 @@ from . import normalization
 
 def storage() -> SourceFiles:
     market = PublishedDatasets.from_environment()
-    return SourceFiles(market.root / "tushare", max_total_bytes=2**60, shared_read=True)
+    return SourceFiles(market.root / "tushare", shared_read=True)
 
 
 def publish(

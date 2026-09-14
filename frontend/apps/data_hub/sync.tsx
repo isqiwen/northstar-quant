@@ -1,4 +1,5 @@
 "use client";
+import { StorageAlert } from "./storage-alert";
 
 import {
   App,
@@ -92,6 +93,7 @@ export function TushareSync() {
         description="同步 2012 年以来全部期货历史数据，自动补缺与复核。页面关闭不影响后台同步。"
       />
       <Failure error={current.error} />
+      <StorageAlert capacity={config?.source_capacity} />
       {config?.error && (
         <Card>
           <Tag color="red">同步暂停</Tag>

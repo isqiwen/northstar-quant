@@ -12,7 +12,6 @@ import fcntl
 import hashlib
 import os
 import re
-import shutil
 import stat
 import tempfile
 from collections.abc import Iterable, Iterator
@@ -39,8 +38,8 @@ class SourceFiles:
         root: Path,
         *,
         max_file_bytes: int = 5 * 1024 * 1024,
-        max_total_bytes: int = 10 * 1024**3,
-        min_free_bytes: int = 256 * 1024**2,
+        max_total_bytes: int | None = None,
+        min_free_bytes: int | None = None,
         shared_read: bool = False,
     ) -> None:
         if not root.is_absolute():
@@ -48,10 +47,14 @@ class SourceFiles:
         if (
             type(max_file_bytes) is not int
             or not 1 <= max_file_bytes <= 5 * 1024 * 1024
-            or type(max_total_bytes) is not int
-            or max_total_bytes < max_file_bytes
-            or type(min_free_bytes) is not int
-            or min_free_bytes < 0
+            or (
+                max_total_bytes is not None
+                and (type(max_total_bytes) is not int or max_total_bytes < max_file_bytes)
+            )
+            or (
+                min_free_bytes is not None
+                and (type(min_free_bytes) is not int or min_free_bytes < 0)
+            )
         ):
             raise ValueError("invalid source file, archive or free-space limit")
         self.shared_read = shared_read
@@ -79,9 +82,15 @@ class SourceFiles:
             raise ValueError("source restore is incomplete; do not start the application")
         return cls(
             Path(value),
-            max_total_bytes=int(os.environ.get("NORTHSTAR_ARCHIVE_MAX_BYTES", str(10 * 1024**3))),
-            min_free_bytes=int(
-                os.environ.get("NORTHSTAR_ARCHIVE_MIN_FREE_BYTES", str(256 * 1024**2))
+            max_total_bytes=(
+                int(os.environ["NORTHSTAR_ARCHIVE_MAX_BYTES"])
+                if os.environ.get("NORTHSTAR_ARCHIVE_MAX_BYTES")
+                else None
+            ),
+            min_free_bytes=(
+                int(os.environ["NORTHSTAR_ARCHIVE_MIN_FREE_BYTES"])
+                if os.environ.get("NORTHSTAR_ARCHIVE_MIN_FREE_BYTES")
+                else None
             ),
         )
 
@@ -131,7 +140,9 @@ class SourceFiles:
     def store_many(self, contents: Iterable[bytes]) -> tuple[FileObject, ...]:
         """Retain a bounded stream under one writer lock and one capacity inventory."""
         with self._writer():
-            used_bytes = cast(int, self.health()["used_bytes"])
+            used_bytes = (
+                cast(int, self.health()["used_bytes"]) if self.max_total_bytes is not None else 0
+            )
             result = []
             for content in contents:
                 saved, added = self._store_locked(content, used_bytes)
@@ -148,11 +159,16 @@ class SourceFiles:
         if destination.exists() or destination.is_symlink():
             self.read(identity, len(content))
             return result, 0
-        if used_bytes is None:
-            used_bytes = cast(int, self.health()["used_bytes"])
-        if used_bytes + len(content) > self.max_total_bytes:
-            raise ValueError("managed source archive capacity exceeded; nothing accepted")
-        if shutil.disk_usage(self.root).free < self.min_free_bytes + len(content):
+        if self.max_total_bytes is not None:
+            if used_bytes is None:
+                used_bytes = cast(int, self.health()["used_bytes"])
+            if used_bytes + len(content) > self.max_total_bytes:
+                raise ValueError("managed source archive capacity exceeded; nothing accepted")
+        capacity = self.capacity()
+        if (
+            cast(int, capacity["free_bytes"]) < cast(int, capacity["min_free_bytes"]) + len(content)
+            or capacity["free_inodes"] == 0
+        ):
             raise ValueError("insufficient free disk space for durable source reception")
         self._directory(destination.parent)
         staging = self.root / "staging"
@@ -244,11 +260,19 @@ class SourceFiles:
             os.close(descriptor)
         free = usage.f_bavail * usage.f_frsize
         inodes = usage.f_favail if usage.f_files else None
+        total = usage.f_blocks * usage.f_frsize
+        reserve = (
+            self.min_free_bytes if self.min_free_bytes is not None else max(1024**3, total // 20)
+        )
+        warning = max(reserve * 2, total // 10)
         return {
-            "status": "LOW" if free <= self.min_free_bytes or inodes == 0 else "OK",
+            "status": "LOW"
+            if free <= reserve or inodes == 0
+            else ("WARNING" if free <= warning else "OK"),
+            "warning_free_bytes": warning,
             "free_bytes": free,
-            "total_bytes": usage.f_blocks * usage.f_frsize,
-            "min_free_bytes": self.min_free_bytes,
+            "total_bytes": total,
+            "min_free_bytes": reserve,
             "free_inodes": inodes,
         }
 
@@ -269,7 +293,6 @@ class SourceFiles:
             "incomplete_file_count": len(incomplete),
             "max_file_bytes": self.max_file_bytes,
             "max_total_bytes": self.max_total_bytes,
-            "min_free_bytes": self.min_free_bytes,
-            "free_bytes": shutil.disk_usage(self.root).free,
+            **self.capacity(),
             "deletion_enabled": False,
         }
