@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy import Engine, text
 
 from ..maintenance import library_write
-from . import credentials, scheduling
+from . import credentials, job_query, scheduling
 from .catalog import DATASETS
 from .store import serial, settings
 
@@ -49,18 +49,6 @@ def status(engine: Engine) -> dict[str, Any]:
         """)
             ).mappings()
         ]
-        recent = [
-            serial(row)
-            for row in connection.execute(
-                text("""
-            SELECT request_id,dataset,scope,start_at,end_at,status,attempts,next_at,error,
-                receipt_id,updated_at FROM data_sync_jobs
-            ORDER BY CASE status WHEN 'BLOCKED' THEN 0 WHEN 'RUNNING' THEN 1
-                WHEN 'WAITING' THEN 2 WHEN 'VALIDATED' THEN 3 ELSE 4 END,
-                updated_at DESC,request_id LIMIT 50
-        """)
-            ).mappings()
-        ]
         unplanned = connection.scalar(
             text(
                 "SELECT count(*) FROM data_sync_contracts WHERE planned_revision<>:r "
@@ -99,6 +87,6 @@ def status(engine: Engine) -> dict[str, Any]:
         "datasets": [item.public() for item in DATASETS],
         "progress": rows,
         "lanes": lanes,
-        "jobs": recent,
+        "jobs": job_query.search(engine, dataset="", status="", offset=0, limit=50)["items"],
         "unplanned_contracts": unplanned,
     }

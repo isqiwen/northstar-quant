@@ -13,10 +13,12 @@ import {
   Tag,
   Descriptions,
 } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { query, mutate } from "./api/client";
 import { useData, fetchQuery } from "../../shared/data";
 import { Evidence, Failure, Heading } from "../../shared/ui";
+
+import { SyncJobs, type JobFilter } from "./sync-jobs";
 
 import { QualityIssues } from "./quality-issues";
 
@@ -36,6 +38,16 @@ export function TushareSync() {
   const [form] = Form.useForm();
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<Row>();
+  const [filter, setFilter] = useState<JobFilter>({
+    dataset: "",
+    status: "",
+    page: 1,
+  });
+  const jobsSection = useRef<HTMLDivElement>(null);
+  function showJobs(dataset: string, status: string) {
+    setFilter({ dataset, status, page: 1 });
+    jobsSection.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("request");
     if (id)
@@ -54,9 +66,6 @@ export function TushareSync() {
     !!config?.catalog_ready &&
     !!config?.planned_at &&
     data?.unplanned_contracts === 0;
-  const names = Object.fromEntries(
-    (data?.datasets ?? []).map((r) => [String(r.key), String(r.label)]),
-  );
   async function enabled(value: boolean) {
     setBusy(true);
     try {
@@ -239,18 +248,32 @@ export function TushareSync() {
                   {groups
                     .filter((g) => g.dataset === row.key)
                     .map((g) => (
-                      <Tag
+                      <button
+                        type="button"
                         key={String(g.status)}
-                        color={
-                          g.status === "BLOCKED"
-                            ? "red"
-                            : g.status === "VALIDATED"
-                              ? "green"
-                              : "default"
+                        aria-label={`${row.label} ${labels[String(g.status)]} ${g.windows} 条，查看任务`}
+                        onClick={() =>
+                          showJobs(String(row.key), String(g.status))
                         }
+                        style={{
+                          border: 0,
+                          background: "transparent",
+                          padding: 0,
+                          cursor: "pointer",
+                        }}
                       >
-                        {labels[String(g.status)]}: {String(g.windows)}
-                      </Tag>
+                        <Tag
+                          color={
+                            g.status === "BLOCKED"
+                              ? "red"
+                              : g.status === "VALIDATED"
+                                ? "green"
+                                : "default"
+                          }
+                        >
+                          {labels[String(g.status)]}: {String(g.windows)}
+                        </Tag>
+                      </button>
                     ))}
                 </Space>
               ),
@@ -258,82 +281,14 @@ export function TushareSync() {
           ]}
         />
       </Card>
-      <Card title="异常任务与当前处理">
-        <p className="muted">
-          优先显示受阻、处理中及等待复核的任务；空结果不计入完成。
-        </p>
-        <Table
-          scroll={{ x: 1000 }}
-          rowKey="request_id"
-          dataSource={data?.jobs ?? []}
-          pagination={{ pageSize: 10 }}
-          columns={[
-            {
-              title: "数据",
-              render: (_, r) => names[String(r.dataset)] ?? String(r.dataset),
-            },
-            { title: "合约 / 范围", dataIndex: "scope" },
-            {
-              title: "区间",
-              render: (_, r) => `${r.start_at || "目录"} — ${r.end_at || ""}`,
-            },
-            {
-              title: "状态",
-              render: (_, r) => labels[String(r.status)] ?? String(r.status),
-            },
-            { title: "请求次数", dataIndex: "attempts" },
-            { title: "原因", dataIndex: "error" },
-            {
-              title: "下次重试",
-              render: (_, r) =>
-                r.status === "WAITING" && r.next_at
-                  ? new Date(String(r.next_at)).toLocaleString()
-                  : "—",
-            },
-            {
-              title: "查看",
-              render: (_, r) => (
-                <Space>
-                  <Button
-                    size="small"
-                    onClick={async () => {
-                      try {
-                        setDetail(
-                          await fetchQuery(
-                            query(`/api/sync/jobs/${r.request_id}`),
-                          ),
-                        );
-                      } catch (e) {
-                        message.error((e as Error).message);
-                      }
-                    }}
-                  >
-                    记录
-                  </Button>
-                  {!!r.receipt_id && (
-                    <Button
-                      size="small"
-                      onClick={async () => {
-                        try {
-                          setDetail(
-                            await fetchQuery(
-                              query(`/api/sync/receipts/${r.receipt_id}`),
-                            ),
-                          );
-                        } catch (e) {
-                          message.error((e as Error).message);
-                        }
-                      }}
-                    >
-                      固定数据
-                    </Button>
-                  )}
-                </Space>
-              ),
-            },
-          ]}
+      <div ref={jobsSection}>
+        <SyncJobs
+          datasets={data?.datasets ?? []}
+          filter={filter}
+          onFilter={setFilter}
+          onDetail={setDetail}
         />
-      </Card>
+      </div>
       <Modal
         title="同步记录与固定数据"
         open={!!detail}

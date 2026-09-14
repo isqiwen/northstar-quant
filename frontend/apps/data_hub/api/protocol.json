@@ -980,6 +980,75 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.SyncJobQuery": {
+      "fields": {
+        "dataset": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "limit": {
+          "id": 4,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.SyncJobPage": {
+      "fields": {
+        "total": {
+          "id": 1,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "limit": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "items": {
+          "id": 4,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.data_hub.SyncEvidence": {
       "fields": {
         "request_id": {
@@ -2249,6 +2318,13 @@
       "path": "/api/sync/token",
       "input": "northstar.data_hub.SyncTokenRequest",
       "output": "northstar.data_hub.SyncStatus",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/sync/jobs/query",
+      "input": "northstar.data_hub.SyncJobQuery",
+      "output": "northstar.data_hub.SyncJobPage",
       "runtime": false
     },
     {

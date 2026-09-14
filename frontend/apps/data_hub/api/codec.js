@@ -11047,6 +11047,873 @@ export const northstar = $root.northstar = (() => {
             return SyncStatus;
         })();
 
+        data_hub.SyncJobQuery = (function() {
+
+            /**
+             * Properties of a SyncJobQuery.
+             * @typedef {Object} northstar.data_hub.SyncJobQuery.$Properties
+             * @property {string|null} [dataset] SyncJobQuery dataset
+             * @property {string|null} [status] SyncJobQuery status
+             * @property {number|Long|null} [offset] SyncJobQuery offset
+             * @property {number|Long|null} [limit] SyncJobQuery limit
+             * @property {"dataset"} [_dataset] SyncJobQuery _dataset
+             * @property {"status"} [_status] SyncJobQuery _status
+             * @property {"offset"} [_offset] SyncJobQuery _offset
+             * @property {"limit"} [_limit] SyncJobQuery _limit
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SyncJobQuery.
+             * @memberof northstar.data_hub
+             * @interface ISyncJobQuery
+             * @augments northstar.data_hub.SyncJobQuery.$Properties
+             * @deprecated Use northstar.data_hub.SyncJobQuery.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SyncJobQuery.
+             * @typedef {{
+             *   dataset?: string|null;
+             *   status?: string|null;
+             *   offset?: number|Long|null;
+             *   limit?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
+             * )} northstar.data_hub.SyncJobQuery.$Shape
+             */
+
+            /**
+             * Constructs a new SyncJobQuery.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SyncJobQuery.
+             * @constructor
+             * @param {northstar.data_hub.SyncJobQuery.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SyncJobQuery = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SyncJobQuery dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @instance
+             */
+            SyncJobQuery.prototype.dataset = null;
+
+            /**
+             * SyncJobQuery status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @instance
+             */
+            SyncJobQuery.prototype.status = null;
+
+            /**
+             * SyncJobQuery offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @instance
+             */
+            SyncJobQuery.prototype.offset = null;
+
+            /**
+             * SyncJobQuery limit.
+             * @member {number|Long|null|undefined} limit
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @instance
+             */
+            SyncJobQuery.prototype.limit = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SyncJobQuery _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @instance
+             */
+            $Object.defineProperty(SyncJobQuery.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncJobQuery _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @instance
+             */
+            $Object.defineProperty(SyncJobQuery.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncJobQuery _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @instance
+             */
+            $Object.defineProperty(SyncJobQuery.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncJobQuery _limit.
+             * @member {"limit"|undefined} _limit
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @instance
+             */
+            $Object.defineProperty(SyncJobQuery.prototype, "_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SyncJobQuery instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @static
+             * @param {northstar.data_hub.SyncJobQuery.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SyncJobQuery} SyncJobQuery instance
+             * @type {{
+             *   (properties: northstar.data_hub.SyncJobQuery.$Shape): northstar.data_hub.SyncJobQuery & northstar.data_hub.SyncJobQuery.$Shape;
+             *   (properties?: northstar.data_hub.SyncJobQuery.$Properties): northstar.data_hub.SyncJobQuery;
+             * }}
+             */
+            SyncJobQuery.create = function(properties) {
+                return new SyncJobQuery(properties);
+            };
+
+            /**
+             * Encodes the specified SyncJobQuery message. Does not implicitly {@link northstar.data_hub.SyncJobQuery.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @static
+             * @param {northstar.data_hub.SyncJobQuery.$Properties} message SyncJobQuery message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SyncJobQuery.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.dataset);
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.status);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.offset);
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int64(message.limit);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SyncJobQuery message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SyncJobQuery & northstar.data_hub.SyncJobQuery.$Shape} SyncJobQuery
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SyncJobQuery.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SyncJobQuery();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 0)
+                                break;
+                            message.limit = reader.int64();
+                            message._limit = "limit";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SyncJobQuery message.
+             * @function verify
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SyncJobQuery.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    properties._limit = 1;
+                    if (!$util.isInteger(message.limit) && !(message.limit && $util.isInteger(message.limit.low) && $util.isInteger(message.limit.high)))
+                        return "limit: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SyncJobQuery message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SyncJobQuery} SyncJobQuery
+             */
+            SyncJobQuery.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SyncJobQuery)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SyncJobQuery: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SyncJobQuery();
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.limit != null)
+                    if ($util.Long)
+                        message.limit = $util.Long.fromValue(object.limit, false);
+                    else if (typeof object.limit === "string")
+                        message.limit = $parseInt(object.limit, 10);
+                    else if (typeof object.limit === "number")
+                        message.limit = object.limit;
+                    else if (typeof object.limit === "object")
+                        message.limit = new $util.LongBits(object.limit.low >>> 0, object.limit.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SyncJobQuery message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @static
+             * @param {northstar.data_hub.SyncJobQuery} message SyncJobQuery
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SyncJobQuery.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.limit = typeof message.limit === "number" ? $BigInt(message.limit) : $util.Long.fromBits(message.limit.low >>> 0, message.limit.high >>> 0, false).toBigInt();
+                    else if (typeof message.limit === "number")
+                        object.limit = options.longs === $String ? $String(message.limit) : message.limit;
+                    else
+                        object.limit = options.longs === $String ? $util.Long.prototype.toString.call(message.limit) : options.longs === $Number ? new $util.LongBits(message.limit.low >>> 0, message.limit.high >>> 0).toNumber() : message.limit;
+                    if (options.oneofs)
+                        object._limit = "limit";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SyncJobQuery to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SyncJobQuery.prototype.toJSON = function() {
+                return SyncJobQuery.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SyncJobQuery
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SyncJobQuery
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SyncJobQuery.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SyncJobQuery";
+            };
+
+            return SyncJobQuery;
+        })();
+
+        data_hub.SyncJobPage = (function() {
+
+            /**
+             * Properties of a SyncJobPage.
+             * @typedef {Object} northstar.data_hub.SyncJobPage.$Properties
+             * @property {number|Long|null} [total] SyncJobPage total
+             * @property {number|Long|null} [offset] SyncJobPage offset
+             * @property {number|Long|null} [limit] SyncJobPage limit
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [items] SyncJobPage items
+             * @property {"total"} [_total] SyncJobPage _total
+             * @property {"offset"} [_offset] SyncJobPage _offset
+             * @property {"limit"} [_limit] SyncJobPage _limit
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SyncJobPage.
+             * @memberof northstar.data_hub
+             * @interface ISyncJobPage
+             * @augments northstar.data_hub.SyncJobPage.$Properties
+             * @deprecated Use northstar.data_hub.SyncJobPage.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SyncJobPage.
+             * @typedef {{
+             *   total?: number|Long|null;
+             *   offset?: number|Long|null;
+             *   limit?: number|Long|null;
+             *   items?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
+             * )} northstar.data_hub.SyncJobPage.$Shape
+             */
+
+            /**
+             * Constructs a new SyncJobPage.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SyncJobPage.
+             * @constructor
+             * @param {northstar.data_hub.SyncJobPage.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SyncJobPage = function (properties) {
+                this.items = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SyncJobPage total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.data_hub.SyncJobPage
+             * @instance
+             */
+            SyncJobPage.prototype.total = null;
+
+            /**
+             * SyncJobPage offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.SyncJobPage
+             * @instance
+             */
+            SyncJobPage.prototype.offset = null;
+
+            /**
+             * SyncJobPage limit.
+             * @member {number|Long|null|undefined} limit
+             * @memberof northstar.data_hub.SyncJobPage
+             * @instance
+             */
+            SyncJobPage.prototype.limit = null;
+
+            /**
+             * SyncJobPage items.
+             * @member {Array.<google.protobuf.Struct.$Properties>} items
+             * @memberof northstar.data_hub.SyncJobPage
+             * @instance
+             */
+            SyncJobPage.prototype.items = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SyncJobPage _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.data_hub.SyncJobPage
+             * @instance
+             */
+            $Object.defineProperty(SyncJobPage.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncJobPage _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.SyncJobPage
+             * @instance
+             */
+            $Object.defineProperty(SyncJobPage.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncJobPage _limit.
+             * @member {"limit"|undefined} _limit
+             * @memberof northstar.data_hub.SyncJobPage
+             * @instance
+             */
+            $Object.defineProperty(SyncJobPage.prototype, "_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SyncJobPage instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SyncJobPage
+             * @static
+             * @param {northstar.data_hub.SyncJobPage.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SyncJobPage} SyncJobPage instance
+             * @type {{
+             *   (properties: northstar.data_hub.SyncJobPage.$Shape): northstar.data_hub.SyncJobPage & northstar.data_hub.SyncJobPage.$Shape;
+             *   (properties?: northstar.data_hub.SyncJobPage.$Properties): northstar.data_hub.SyncJobPage;
+             * }}
+             */
+            SyncJobPage.create = function(properties) {
+                return new SyncJobPage(properties);
+            };
+
+            /**
+             * Encodes the specified SyncJobPage message. Does not implicitly {@link northstar.data_hub.SyncJobPage.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SyncJobPage
+             * @static
+             * @param {northstar.data_hub.SyncJobPage.$Properties} message SyncJobPage message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SyncJobPage.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.total);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.offset);
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.limit);
+                if (message.items != null && message.items.length)
+                    for (let i = 0; i < message.items.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.items[i], writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SyncJobPage message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SyncJobPage
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SyncJobPage & northstar.data_hub.SyncJobPage.$Shape} SyncJobPage
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SyncJobPage.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SyncJobPage();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.limit = reader.int64();
+                            message._limit = "limit";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.items && message.items.length))
+                                message.items = [];
+                            message.items.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SyncJobPage message.
+             * @function verify
+             * @memberof northstar.data_hub.SyncJobPage
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SyncJobPage.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    properties._limit = 1;
+                    if (!$util.isInteger(message.limit) && !(message.limit && $util.isInteger(message.limit.low) && $util.isInteger(message.limit.high)))
+                        return "limit: integer|Long expected";
+                }
+                if (message.items != null && $Object.hasOwnProperty.call(message, "items")) {
+                    if (!$Array.isArray(message.items))
+                        return "items: array expected";
+                    for (let i = 0; i < message.items.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.items[i], _depth + 1);
+                        if (error)
+                            return "items." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SyncJobPage message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SyncJobPage
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SyncJobPage} SyncJobPage
+             */
+            SyncJobPage.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SyncJobPage)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SyncJobPage: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SyncJobPage();
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.limit != null)
+                    if ($util.Long)
+                        message.limit = $util.Long.fromValue(object.limit, false);
+                    else if (typeof object.limit === "string")
+                        message.limit = $parseInt(object.limit, 10);
+                    else if (typeof object.limit === "number")
+                        message.limit = object.limit;
+                    else if (typeof object.limit === "object")
+                        message.limit = new $util.LongBits(object.limit.low >>> 0, object.limit.high >>> 0).toNumber();
+                if (object.items) {
+                    if (!$Array.isArray(object.items))
+                        throw $TypeError(".northstar.data_hub.SyncJobPage.items: array expected");
+                    message.items = $Array(object.items.length);
+                    for (let i = 0; i < object.items.length; ++i) {
+                        if (!$util.isObject(object.items[i]))
+                            throw $TypeError(".northstar.data_hub.SyncJobPage.items: object expected");
+                        message.items[i] = $root.google.protobuf.Struct.fromObject(object.items[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SyncJobPage message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SyncJobPage
+             * @static
+             * @param {northstar.data_hub.SyncJobPage} message SyncJobPage
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SyncJobPage.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.items = [];
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.limit = typeof message.limit === "number" ? $BigInt(message.limit) : $util.Long.fromBits(message.limit.low >>> 0, message.limit.high >>> 0, false).toBigInt();
+                    else if (typeof message.limit === "number")
+                        object.limit = options.longs === $String ? $String(message.limit) : message.limit;
+                    else
+                        object.limit = options.longs === $String ? $util.Long.prototype.toString.call(message.limit) : options.longs === $Number ? new $util.LongBits(message.limit.low >>> 0, message.limit.high >>> 0).toNumber() : message.limit;
+                    if (options.oneofs)
+                        object._limit = "limit";
+                }
+                if (message.items && message.items.length) {
+                    object.items = $Array(message.items.length);
+                    for (let j = 0; j < message.items.length; ++j)
+                        object.items[j] = $root.google.protobuf.Struct.toObject(message.items[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SyncJobPage to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SyncJobPage
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SyncJobPage.prototype.toJSON = function() {
+                return SyncJobPage.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SyncJobPage
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SyncJobPage
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SyncJobPage.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SyncJobPage";
+            };
+
+            return SyncJobPage;
+        })();
+
         data_hub.SyncEvidence = (function() {
 
             /**

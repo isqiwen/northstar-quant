@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 
 from northstar_quant.data_management.tushare import (
     credentials,
+    job_query,
     publication,
     reprocessing,
     settings,
@@ -55,6 +56,20 @@ class SyncStatus(ApiModel):
     lanes: list[SyncLane]
 
 
+class SyncJobQuery(ApiModel):
+    dataset: str
+    status: str
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=100)
+
+
+class SyncJobPage(ApiModel):
+    total: int
+    offset: int
+    limit: int
+    items: list[dict[str, JsonValue]]
+
+
 class SyncEvidence(EvidenceRecord):
     request_id: str
 
@@ -84,6 +99,11 @@ def register(app: FastAPI, access: WorkspaceAccess, engine: Engine) -> None:
         access.protect(request)
         await run_in_threadpool(credentials.save, document.token)
         return await run_in_threadpool(settings.status, engine)
+
+    @app.post("/api/sync/jobs/query", response_model=SyncJobPage)
+    async def search_jobs(request: Request, document: SyncJobQuery) -> dict[str, Any]:
+        access.protect(request)
+        return await run_in_threadpool(job_query.search, engine, **document.model_dump())
 
     @app.get("/api/sync/jobs/{request_id}", response_model=SyncEvidence)
     def job(request_id: UUID) -> dict[str, Any]:

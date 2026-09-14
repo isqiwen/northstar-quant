@@ -188,6 +188,18 @@ message SyncStatus {
   repeated SyncLane lanes = 7;
   optional int64 unplanned_contracts = 6 [json_name = "unplanned_contracts", (northstar.web.required_field) = true];
 }
+message SyncJobQuery {
+  optional string dataset = 1 [(northstar.web.required_field) = true];
+  optional string status = 2 [(northstar.web.required_field) = true];
+  optional int64 offset = 3 [(northstar.web.required_field) = true];
+  optional int64 limit = 4 [(northstar.web.required_field) = true];
+}
+message SyncJobPage {
+  optional int64 total = 1 [(northstar.web.required_field) = true];
+  optional int64 offset = 2 [(northstar.web.required_field) = true];
+  optional int64 limit = 3 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct items = 4;
+}
 message SyncEvidence {
   option (northstar.web.evidence) = true;
   optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
@@ -382,6 +394,10 @@ service BrowserApi {
   rpc PostApiSyncToken (SyncTokenRequest) returns (SyncStatus) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/sync/token";
+  }
+  rpc QuerySyncJobs (SyncJobQuery) returns (SyncJobPage) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/jobs/query";
   }
   rpc GetApiSyncJobsRequestId (northstar.web.Empty) returns (SyncEvidence) {
     option (northstar.web.http_method) = "GET";

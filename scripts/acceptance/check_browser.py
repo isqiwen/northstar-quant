@@ -359,6 +359,24 @@ def main() -> None:
                             exact=True,
                         ).first
                     ).to_be_visible()
+                    page.get_by_role(
+                        "button", name=re.compile(r"需处理 .*条，查看任务")
+                    ).first.click()
+                    expect(
+                        page.locator(".ant-select-selection-item").filter(has_text="需处理")
+                    ).to_be_visible()
+                    expect(
+                        page.get_by_text(
+                            "Synthetic acceptance: provider permission denied", exact=True
+                        ).first
+                    ).to_be_visible()
+                    page.get_by_role("button", name="记录", exact=True).first.click()
+                    expect(page.get_by_role("dialog")).to_be_visible()
+                    page.get_by_role("dialog").locator(".ant-modal-close").click()
+                    page.get_by_role("button", name="清除筛选", exact=True).click()
+                    expect(
+                        page.locator(".ant-select-selection-item").filter(has_text="全部状态")
+                    ).to_be_visible()
                     screenshot("sync")
                     visit(data_url + f"/attempts/{imported['attempt_id']}")
                     expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible(timeout=30000)
