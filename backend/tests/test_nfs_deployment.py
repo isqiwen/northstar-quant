@@ -207,3 +207,22 @@ def test_missing_client_dependency_does_not_create_mount_configuration(nfs, monk
         nfs.prepare_client({"host": "core.local", "server": "nas.local", "writer": "core.local"})
     assert not nfs.UNITS.exists()
     assert not nfs.MARKET.exists()
+
+
+def test_snapshot_directory_is_preserved_without_following_its_links(nfs, monkeypatch):
+    nfs.MARKET.mkdir()
+    nfs.STATE.mkdir()
+    snapshot = nfs.MARKET / "@Recently-Snapshot"
+    snapshot.mkdir()
+    (snapshot / "external").symlink_to(nfs.STATE / "not-mounted")
+    monkeypatch.setattr(
+        nfs,
+        "mounted",
+        lambda: {"source": "storage.local:/quant", "fstype": "nfs4", "options": "rw,hard,vers=4"},
+    )
+    monkeypatch.setattr(nfs, "require_client", lambda: None)
+    monkeypatch.setattr(nfs, "run", lambda *a: None)
+    monkeypatch.setattr(nfs.os, "geteuid", lambda: 0)
+    nfs.prepare({"host": "hub.local", "server": "storage.local", "writer": "hub.local"})
+    assert (snapshot / "external").is_symlink()
+    assert nfs.identity()
