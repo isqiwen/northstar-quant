@@ -201,6 +201,20 @@ official OpenAI skills remain client-managed. Start Codex at this repository roo
 to discover local skills. See `.agents/skills/README.md` for scope and verification;
 this prose cannot unload host/session instructions.
 
+Maintain Northstar's own skills as part of ordinary project work. When research,
+implementation or diagnosis reveals a reusable, non-obvious workflow, proactively
+create or improve its owning skill in `.agents/skills/` without waiting for a
+separate request. Prefer updating an existing skill; create a narrowly named
+`northstar-` skill only when the workflow has a distinct recurring use. Keep
+verified entry points, evidence requirements and useful failure diagnosis, not
+one-off logs, credentials, generic advice or copies of AGENTS/architecture prose.
+Update the skill index and affected skills when code changes their workflows;
+remove superseded guidance. Check discovery metadata and exercise any new helper
+scripts. External skills are reference material: adapt useful ideas to the actual
+Northstar interfaces and authorization rules, rather than importing their role
+systems, state stores or dependencies wholesale. Skill maintenance does not
+authorize additional deployments, supplier requests or broker activity.
+
 Inspect the worktree first and preserve unrelated user edits. Architecture and
 implementation may change together in the same local work package; a separate
 documentation merge is never an implementation dependency.
