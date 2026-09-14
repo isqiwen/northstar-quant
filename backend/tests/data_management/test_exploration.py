@@ -457,3 +457,26 @@ def test_contract_discovery_groups_periods_and_selects_populated_native_range(pu
         discovery.open_instrument(engine, "RB2610.SHF", "daily")
     with pytest.raises(ValueError, match="尚无"):
         discovery.open_instrument(engine, "RB2611.SHF", "1min")
+
+
+def test_ordinary_reader_rejects_missing_or_modified_contract_package(published):
+    from northstar_quant.data_management.contract_data.reading import query
+    from northstar_quant.data_management.publications import PublishedDatasets
+
+    library, _ = published
+    values = dict(
+        dataset="1min", scope="RB2610.SHF", start="2026-09-01", end="2026-09-03", receipt_ids=[]
+    )
+    assert query(library._engine, **values)["total"] == 6
+    with library._engine.connect() as c:
+        path = c.scalar(
+            text("SELECT path FROM data_contract_publications ORDER BY created_at DESC LIMIT 1")
+        )
+    package = PublishedDatasets.from_environment().root / path
+    content = package.read_bytes()
+    package.write_bytes(b"x" * len(content))
+    with pytest.raises(ValueError, match="完整性检查失败"):
+        query(library._engine, **values)
+    package.unlink()
+    with pytest.raises(ValueError, match="发布包丢失"):
+        query(library._engine, **values)

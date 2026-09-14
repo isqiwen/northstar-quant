@@ -18,13 +18,24 @@ RECEIPTS = """WITH latest AS (
 
 
 def require_receipt(c: Connection, receipt_id: UUID) -> None:
-    if not c.scalar(
-        text("""SELECT EXISTS(SELECT 1 FROM data_contract_publications p
-        CROSS JOIN LATERAL jsonb_array_elements(p.manifest->'inputs') i
-        WHERE i->>'receipt_id'=:id)"""),
-        {"id": str(receipt_id)},
-    ):
+    package = (
+        c.execute(
+            text("""SELECT p.path,p.package_hash,p.package_bytes
+        FROM data_contract_publications p
+        WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(p.manifest->'inputs') i
+            WHERE i->>'receipt_id'=:id)
+        ORDER BY p.created_at DESC,p.publication_id LIMIT 1"""),
+            {"id": str(receipt_id)},
+        )
+        .mappings()
+        .first()
+    )
+    if package is None:
         raise ValueError("该响应尚未属于完整合约发布包；请在同步记录检查处理材料")
+    from ..publications import PublishedDatasets
+    from .packages import verify_package
+
+    verify_package(PublishedDatasets.from_environment().root, package)
 
 
 def list_collections(c: Connection) -> list[dict[str, Any]]:

@@ -27,6 +27,7 @@ from sqlalchemy import (
 from northstar_quant import code_revision
 from northstar_quant.persistence.sql import UTCDateTime
 
+from .contract_data.catalog import require_receipt
 from .exploration import catalog, rows
 from .files import SourceFiles
 from .maintenance import library_write
@@ -92,6 +93,9 @@ def submit(
 ) -> dict[str, Any]:
     if not 2 <= len(set(receipt_ids)) == len(receipt_ids) <= 32:
         raise ValueError("请选择 2–32 个固定版本进行合并")
+    with engine.connect() as c:
+        for receipt in receipt_ids:
+            require_receipt(c, receipt)
     versions = catalog.pinned(engine, dataset, scope, start, end, receipt_ids)
     if sum(v["parquet_bytes"] for v in versions) > 32 * 1024**2:
         raise ValueError("合并输入超过 32 MiB，请缩小范围")
@@ -269,6 +273,9 @@ def read(engine: Engine, identity: str, *, offset: int = 0, limit: int = 200) ->
         raise ValueError("compaction manifest identity mismatch")
     view = manifest["view"]
     binding = job["plan"]["binding"]
+    with engine.connect() as c:
+        for receipt in binding["receipt_ids"]:
+            require_receipt(c, UUID(receipt))
     current = catalog.pinned(
         engine, **{**binding, "receipt_ids": [UUID(v) for v in binding["receipt_ids"]]}
     )

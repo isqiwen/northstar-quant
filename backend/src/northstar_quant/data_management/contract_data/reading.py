@@ -11,10 +11,7 @@ from .catalog import RECEIPTS, require_receipt
 
 def query(engine: Engine, *, receipt_ids: list[UUID], **values: Any) -> dict[str, Any]:
     with engine.connect() as c:
-        if receipt_ids:
-            for identity in receipt_ids:
-                require_receipt(c, identity)
-        else:
+        if not receipt_ids:
             receipt_ids = list(
                 c.scalars(
                     text(
@@ -30,4 +27,6 @@ def query(engine: Engine, *, receipt_ids: list[UUID], **values: Any) -> dict[str
             )
             if not receipt_ids:
                 raise ValueError("所选范围没有完整合约发布；请查看合约下载与验收状态")
+        for identity in receipt_ids:
+            require_receipt(c, identity)
     return read(engine, receipt_ids=receipt_ids, **values)

@@ -6,6 +6,7 @@ import os
 import re
 import tempfile
 import zipfile
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -162,15 +163,40 @@ def _hash(path: Path) -> str:
     return digest.hexdigest()
 
 
+@lru_cache(maxsize=32)
+def _verified_hash(path: Path, signature: tuple[int, ...]) -> str:
+    # Derived verification cache: any inode/size/mtime/ctime change invalidates it.
+    # Restart reconstructs it from the immutable file, never from persisted claims.
+    return _hash(path)
+
+
+def verify_package(root: Path, item: Any) -> None:
+    path = root / item["path"]
+    if not path.resolve().is_relative_to(root.resolve()):
+        raise ValueError("合约包路径不属于发布目录")
+    cursor = path
+    while cursor != root.parent:
+        if cursor.is_symlink():
+            raise ValueError("合约包路径不能包含符号链接")
+        if cursor == cursor.parent:
+            raise ValueError("合约包路径不属于发布目录")
+        cursor = cursor.parent
+    if not path.is_file():
+        raise ValueError("固定合约发布包丢失")
+    value = path.stat()
+    signature = (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+    if (
+        value.st_size != item["package_bytes"]
+        or _verified_hash(path, signature) != item["package_hash"]
+    ):
+        raise ValueError("合约发布包完整性检查失败")
+
+
 def verify_packages(connection: Any, root: Path) -> None:
     for item in connection.execute(
         text("SELECT path,package_hash,package_bytes FROM data_contract_publications")
     ).mappings():
-        path = root / item["path"]
-        if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
-            raise ValueError("合约包路径不属于发布目录")
-        if path.stat().st_size != item["package_bytes"] or _hash(path) != item["package_hash"]:
-            raise ValueError("合约发布包完整性检查失败")
+        verify_package(root, item)
 
 
 def restore_packages(connection: Any, root: Path, source: SourceFiles) -> None:
