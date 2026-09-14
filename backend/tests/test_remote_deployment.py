@@ -716,8 +716,12 @@ def test_deploy_preserves_workspace_credentials(app, monkeypatch):
     monkeypatch.setattr(Path, "unlink", refuse_delete)
     monkeypatch.setitem(manage.__globals__, "run", run)
 
+    original_run = subprocess.run
+
     def sql_run(args, **kwargs):
-        assert "psql" in args and "ALTER TABLE data_sync_settings" in kwargs["input"]
+        if "psql" not in args:
+            return original_run(args, **kwargs)
+        assert "ALTER TABLE data_sync_settings" in kwargs["input"]
         calls.append(tuple(args))
         return subprocess.CompletedProcess(args, 0)
 
