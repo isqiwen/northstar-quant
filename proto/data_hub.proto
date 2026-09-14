@@ -156,6 +156,25 @@ message ProcessingQueueStatus {
 }
 
 
+message ContractReviewRequest {
+  optional string scope = 1 [(northstar.web.required_field) = true];
+}
+message ContractReview {
+  optional string scope = 1 [(northstar.web.required_field) = true];
+  optional string display_name = 2 [(northstar.web.required_field) = true];
+  optional string exchange = 3 [(northstar.web.required_field) = true];
+  optional string product = 4 [(northstar.web.required_field) = true];
+  optional string listing_date = 5 [(northstar.web.nullable) = true];
+  optional string delisting_date = 6 [(northstar.web.nullable) = true];
+  optional string required_end = 7 [(northstar.web.nullable) = true];
+  optional string status = 8 [(northstar.web.required_field) = true];
+  optional bool admitted = 9 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct requirements = 10;
+  repeated string reasons = 11;
+  optional string policy = 12 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
 message SyncSettingsRequest {
   optional int64 revision = 1 [(northstar.web.required_field) = true];
   optional bool enabled = 2 [(northstar.web.required_field) = true];
@@ -416,6 +435,10 @@ service BrowserApi {
   rpc GetApiPublicationsSnapshotId (northstar.web.Empty) returns (PublicationManifest) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/publications/{snapshot_id}";
+  }
+  rpc ReviewContract(ContractReviewRequest) returns (ContractReview) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/contracts/review";
   }
   rpc GetApiSync (northstar.web.Empty) returns (SyncStatus) {
     option (northstar.web.http_method) = "GET";

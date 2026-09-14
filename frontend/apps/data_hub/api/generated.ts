@@ -114,6 +114,23 @@ export type ProcessingQueueStatus = {
   oldest_pending_at?: string | null;
   oldest_pending_seconds?: number | null;
 };
+export type ContractReviewRequest = {
+  scope: string;
+};
+export type ContractReview = {
+  scope: string;
+  display_name: string;
+  exchange: string;
+  product: string;
+  listing_date?: string | null;
+  delisting_date?: string | null;
+  required_end?: string | null;
+  status: string;
+  admitted: boolean;
+  requirements?: (Record<string, JsonValue>)[];
+  reasons?: (string)[];
+  policy: string;
+};
 export type SyncSettingsRequest = {
   revision: number;
   enabled: boolean;

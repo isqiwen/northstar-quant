@@ -791,6 +791,119 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.ContractReviewRequest": {
+      "fields": {
+        "scope": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.ContractReview": {
+      "fields": {
+        "scope": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "display_name": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "exchange": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "product": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "listing_date": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "delisting_date": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "required_end": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "status": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "admitted": {
+          "id": 9,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "requirements": {
+          "id": 10,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "reasons": {
+          "id": 11,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "policy": {
+          "id": 12,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.data_hub.SyncSettingsRequest": {
       "fields": {
         "revision": {
@@ -2489,6 +2602,13 @@
       "path": "/api/publications/{snapshot_id}",
       "input": "northstar.web.Empty",
       "output": "northstar.data_hub.PublicationManifest",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/sync/contracts/review",
+      "input": "northstar.data_hub.ContractReviewRequest",
+      "output": "northstar.data_hub.ContractReview",
       "runtime": false
     },
     {

@@ -70,3 +70,18 @@ Exercise detail pagination for both native and compacted views. A parent that
 clears the current result during every page fetch unmounts the drawer and loses
 its open state; preserve the current fixed view until the next page arrives,
 while clearing it when the owning artifact identity changes.
+
+
+### Contract completeness review
+
+`POST /api/sync/contracts/review` reports a real contract's listing-to-expiry
+requirements (active contracts end at the completed trading-day boundary).
+Use the browser's “整体验收” action on downloaded contract data. Check a complete
+calendar through the candidate cutoff; an old maximum open day is insufficient.
+A response/window count, nonempty chart or successful HTTP request is not whole
+contract acceptance. The current report explicitly records unresolved minute
+session/label and native dataset applicability evidence; it cannot authorize
+source deletion. Test with `backend/tests/data_management/test_contract_review.py`
+against the disposable PostgreSQL database. Preserve old fixed receipts when
+changing response quality rules; rejection of new mixed-quality responses must
+not publish their remaining good rows.

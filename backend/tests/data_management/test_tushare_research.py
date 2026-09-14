@@ -179,26 +179,11 @@ def test_zero_volume_observation_cannot_become_executable_bar():
         )
 
 
-def test_partial_minute_receipt_cannot_start_research(automatic, monkeypatch):
+def test_mixed_minute_response_produces_no_research_input(automatic, monkeypatch):
     receipt = _published(automatic, monkeypatch, missing_price=True)
-    assert receipt
-    with pytest.raises(ValueError, match="exactly the declared session bars"):
-        submit(
-            automatic,
-            receipt_id=receipt,
-            request_id=uuid4(),
-            specification=_spec(),
-            label_convention="BAR_END",
-            interpretation_reference="synthetic admission",
-        )
-
-    shorter = replace(_spec(), session_close=datetime(2026, 9, 1, 1, 15, tzinfo=UTC))
-    result = submit(
-        automatic,
-        receipt_id=receipt,
-        request_id=uuid4(),
-        specification=shorter,
-        label_convention="BAR_END",
-        interpretation_reference="complete first interval",
-    )
-    assert result["status"] == "PENDING"
+    assert receipt is None
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_processing_attempts")) == 0
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 0
+    # Even the complete first interval cannot acquire a publication from a response
+    # whose other required rows were rejected. A later clean response is required.

@@ -1147,7 +1147,7 @@ def test_zero_volume_blocked_source_reprocesses_without_downloading(automatic, m
     assert snapshot["quality"]["zero_volume_rows"] == 1
 
 
-def test_partial_publication_never_claims_complete_coverage(automatic, monkeypatch):
+def test_mixed_response_retains_evidence_without_partial_publication(automatic, monkeypatch):
     pending(automatic, end="2026-09-02")
     data = json.loads(response())
     bad = list(data["data"]["items"][0])
@@ -1158,16 +1158,13 @@ def test_partial_publication_never_claims_complete_coverage(automatic, monkeypat
     monkeypatch.setattr(acquisition, "fetch", lambda *a: raw)
     result = jobs.process_next(automatic)
     assert result["status"] == "BLOCKED"
-    assert result["receipt_id"]
-    assert "已发布 1 条" in result["error"]
+    assert result["receipt_id"] is None
+    assert result["attempts_detail"][0]["quality"]["issues"][0]["row_number"] == 2
     with automatic._engine.connect() as c:
         assert c.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
-        receipt = c.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
-    snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
-    assert snapshot["row_count"] == 1
-    assert snapshot["quality"]["excluded_rows"] == 1
-    assert snapshot["quality"]["missing_trading_days"] == ["20260902"]
-    assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == raw
+        assert c.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 0
+        attempt = c.execute(text("SELECT * FROM data_sync_attempts")).mappings().one()
+    assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == raw
 
 
 def test_provider_rate_reply_cools_whole_api_without_blocking_daily(automatic, monkeypatch):

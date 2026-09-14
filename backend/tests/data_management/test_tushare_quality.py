@@ -317,7 +317,7 @@ def test_missing_daily_prices_are_not_excused_by_inconsistent_zero_volume(change
         normalize(encoded(row), job)
 
 
-def test_mixed_response_keeps_valid_rows_and_exclusion_identity():
+def test_mixed_response_rejects_all_rows_with_original_failure_positions():
     row, job = market_response("daily")
     job["end_at"] = "2026-09-02"
     bad = dict(row, trade_date="20260902", close=None)
@@ -325,13 +325,10 @@ def test_mixed_response_keeps_valid_rows_and_exclusion_identity():
         "code": 0,
         "data": {"fields": list(row), "items": [list(row.values()), list(bad.values())]},
     }
-    accepted, evidence = normalize(json.dumps(data).encode(), job)
-    assert len(accepted) == 1
-    assert accepted[0]["trade_date"] == "20260901"
-    assert evidence["excluded_rows"] == 1
-    assert evidence["issues"][0]["row_number"] == 2
-    _, clean = normalize(encoded(row), job)
-    assert evidence["content_hash"] != clean["content_hash"]
+    with pytest.raises(InvalidResponse) as failure:
+        normalize(json.dumps(data).encode(), job)
+    assert failure.value.report["issue_count"] == 1
+    assert failure.value.report["issues"][0]["row_number"] == 2
 
 
 def test_settlement_only_is_not_an_invented_close():

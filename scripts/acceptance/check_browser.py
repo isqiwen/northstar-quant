@@ -278,6 +278,14 @@ def main() -> None:
                         )
                     ).to_be_visible()
                     screenshot("available-data")
+                    available.get_by_role("button", name="整体验收", exact=True).first.click()
+                    review = page.get_by_role("dialog")
+                    expect(review.get_by_text("已下载不等于整合约完整", exact=True)).to_be_visible()
+                    expect(review.get_by_text("每日结算参数", exact=True)).to_be_visible()
+                    expect(review.get_by_text("整体验收待核验", exact=True)).to_be_visible()
+                    screenshot("contract-review")
+                    review.locator(".ant-drawer-close").click()
+
                     # An empty manual range leads back to actual published data.
                     page.get_by_role("button", name="日期范围", exact=True).click()
                     page.get_by_label("开始日期", exact=True).fill("2026-09-02")

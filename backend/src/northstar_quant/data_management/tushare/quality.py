@@ -11,7 +11,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/10"
+RULE = "tushare-response/11"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -105,8 +105,6 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     positions: dict[tuple[str, ...], int] = {}
     issues: list[dict[str, Any]] = []
     failures = 0
-    structural_failure = False
-    rejected_keys: set[tuple[str, ...]] = set()
     for position, values in enumerate(data["items"], 1):
         try:
             key, row = _row(dict(zip(data["fields"], values, strict=True)), job)
@@ -120,20 +118,10 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
             positions.setdefault(key, position)
         except InvalidResponse as error:
             failures += 1
-            raw_row = dict(zip(data["fields"], values, strict=True))
-            rejected_keys.add(tuple(str(raw_row[field]) for field in definition.identity))
-            structural_failure |= bool(
-                set(error.report["issues"][0]["fields"]) & set(definition.identity)
-            )
             if len(issues) < 100:
                 issue = {**error.report["issues"][0], "row_number": position}
                 issues.append(issue)
-    if failures and (
-        not rows
-        or definition.api not in _BAR_APIS
-        or structural_failure
-        or bool(rejected_keys & rows.keys())
-    ):
+    if failures:
         raise InvalidResponse(issues[0]["reason"], issues=issues, count=failures)
     if job["dataset"] == "calendar":
         from datetime import timedelta
@@ -151,7 +139,9 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     evidence["issues"] = issues
     evidence["issue_count"] = failures
     evidence["truncated"] = failures > 100
-    evidence["policy"] = "异常行不发布；原文行号从1开始，最多显示100项；部分发布不代表完整覆盖"
+    evidence["policy"] = (
+        "任一异常行拒绝整份响应；原文行号从1开始，最多显示100项；响应通过不代表合约完整"
+    )
     # Exclusion decisions participate in the immutable publication identity.
     evidence["content_hash"] = hashlib.sha256(
         json.dumps(

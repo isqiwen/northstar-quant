@@ -45,16 +45,12 @@ def verify(
         return
     expected = expected_days(engine, job)
     actual = {row["trade_date"] for row in rows}
-    if expected - actual and not quality.get("excluded_rows"):
+    if expected - actual:
         raise Empty(f"交易日内存在缺口（{len(expected - actual)} 日），等待补齐；不推进完整覆盖")
     if actual - expected:
         raise ValueError("返回日线位于日历休市日期")
     quality["missing_trading_days"] = sorted(expected - actual)
-    quality["coverage_basis"] = (
-        "PARTIAL_VALID_ROWS"
-        if quality.get("excluded_rows")
-        else "CONTRACT_LIFETIME_AND_TRADING_CALENDAR"
-    )
+    quality["coverage_basis"] = "CONTRACT_LIFETIME_AND_TRADING_CALENDAR"
     quality["expected_trading_days"] = len(expected)
 
 

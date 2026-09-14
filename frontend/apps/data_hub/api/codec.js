@@ -8849,6 +8849,1078 @@ export const northstar = $root.northstar = (() => {
             return ProcessingQueueStatus;
         })();
 
+        data_hub.ContractReviewRequest = (function() {
+
+            /**
+             * Properties of a ContractReviewRequest.
+             * @typedef {Object} northstar.data_hub.ContractReviewRequest.$Properties
+             * @property {string|null} [scope] ContractReviewRequest scope
+             * @property {"scope"} [_scope] ContractReviewRequest _scope
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ContractReviewRequest.
+             * @memberof northstar.data_hub
+             * @interface IContractReviewRequest
+             * @augments northstar.data_hub.ContractReviewRequest.$Properties
+             * @deprecated Use northstar.data_hub.ContractReviewRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ContractReviewRequest.
+             * @typedef {{
+             *   scope?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * )} northstar.data_hub.ContractReviewRequest.$Shape
+             */
+
+            /**
+             * Constructs a new ContractReviewRequest.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a ContractReviewRequest.
+             * @constructor
+             * @param {northstar.data_hub.ContractReviewRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ContractReviewRequest = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ContractReviewRequest scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @instance
+             */
+            ContractReviewRequest.prototype.scope = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ContractReviewRequest _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @instance
+             */
+            $Object.defineProperty(ContractReviewRequest.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ContractReviewRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @static
+             * @param {northstar.data_hub.ContractReviewRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ContractReviewRequest} ContractReviewRequest instance
+             * @type {{
+             *   (properties: northstar.data_hub.ContractReviewRequest.$Shape): northstar.data_hub.ContractReviewRequest & northstar.data_hub.ContractReviewRequest.$Shape;
+             *   (properties?: northstar.data_hub.ContractReviewRequest.$Properties): northstar.data_hub.ContractReviewRequest;
+             * }}
+             */
+            ContractReviewRequest.create = function(properties) {
+                return new ContractReviewRequest(properties);
+            };
+
+            /**
+             * Encodes the specified ContractReviewRequest message. Does not implicitly {@link northstar.data_hub.ContractReviewRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @static
+             * @param {northstar.data_hub.ContractReviewRequest.$Properties} message ContractReviewRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ContractReviewRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.scope);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ContractReviewRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ContractReviewRequest & northstar.data_hub.ContractReviewRequest.$Shape} ContractReviewRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ContractReviewRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ContractReviewRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ContractReviewRequest message.
+             * @function verify
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ContractReviewRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ContractReviewRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ContractReviewRequest} ContractReviewRequest
+             */
+            ContractReviewRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ContractReviewRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ContractReviewRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ContractReviewRequest();
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ContractReviewRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @static
+             * @param {northstar.data_hub.ContractReviewRequest} message ContractReviewRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ContractReviewRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ContractReviewRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ContractReviewRequest.prototype.toJSON = function() {
+                return ContractReviewRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ContractReviewRequest
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ContractReviewRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ContractReviewRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ContractReviewRequest";
+            };
+
+            return ContractReviewRequest;
+        })();
+
+        data_hub.ContractReview = (function() {
+
+            /**
+             * Properties of a ContractReview.
+             * @typedef {Object} northstar.data_hub.ContractReview.$Properties
+             * @property {string|null} [scope] ContractReview scope
+             * @property {string|null} [display_name] ContractReview display_name
+             * @property {string|null} [exchange] ContractReview exchange
+             * @property {string|null} [product] ContractReview product
+             * @property {string|null} [listing_date] ContractReview listing_date
+             * @property {string|null} [delisting_date] ContractReview delisting_date
+             * @property {string|null} [required_end] ContractReview required_end
+             * @property {string|null} [status] ContractReview status
+             * @property {boolean|null} [admitted] ContractReview admitted
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [requirements] ContractReview requirements
+             * @property {Array.<string>|null} [reasons] ContractReview reasons
+             * @property {string|null} [policy] ContractReview policy
+             * @property {Array.<string>|null} [null_fields] ContractReview null_fields
+             * @property {"scope"} [_scope] ContractReview _scope
+             * @property {"display_name"} [_display_name] ContractReview _display_name
+             * @property {"exchange"} [_exchange] ContractReview _exchange
+             * @property {"product"} [_product] ContractReview _product
+             * @property {"listing_date"} [_listing_date] ContractReview _listing_date
+             * @property {"delisting_date"} [_delisting_date] ContractReview _delisting_date
+             * @property {"required_end"} [_required_end] ContractReview _required_end
+             * @property {"status"} [_status] ContractReview _status
+             * @property {"admitted"} [_admitted] ContractReview _admitted
+             * @property {"policy"} [_policy] ContractReview _policy
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ContractReview.
+             * @memberof northstar.data_hub
+             * @interface IContractReview
+             * @augments northstar.data_hub.ContractReview.$Properties
+             * @deprecated Use northstar.data_hub.ContractReview.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ContractReview.
+             * @typedef {{
+             *   scope?: string|null;
+             *   display_name?: string|null;
+             *   exchange?: string|null;
+             *   product?: string|null;
+             *   listing_date?: string|null;
+             *   delisting_date?: string|null;
+             *   required_end?: string|null;
+             *   status?: string|null;
+             *   admitted?: boolean|null;
+             *   requirements?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   reasons?: Array.<string>|null;
+             *   policy?: string|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * ) & (
+             *   ({ _display_name?: undefined; display_name?: null }|{ _display_name?: "display_name"; display_name: string })
+             * ) & (
+             *   ({ _exchange?: undefined; exchange?: null }|{ _exchange?: "exchange"; exchange: string })
+             * ) & (
+             *   ({ _product?: undefined; product?: null }|{ _product?: "product"; product: string })
+             * ) & (
+             *   ({ _listing_date?: undefined; listing_date?: null }|{ _listing_date?: "listing_date"; listing_date: string })
+             * ) & (
+             *   ({ _delisting_date?: undefined; delisting_date?: null }|{ _delisting_date?: "delisting_date"; delisting_date: string })
+             * ) & (
+             *   ({ _required_end?: undefined; required_end?: null }|{ _required_end?: "required_end"; required_end: string })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _admitted?: undefined; admitted?: null }|{ _admitted?: "admitted"; admitted: boolean })
+             * ) & (
+             *   ({ _policy?: undefined; policy?: null }|{ _policy?: "policy"; policy: string })
+             * )} northstar.data_hub.ContractReview.$Shape
+             */
+
+            /**
+             * Constructs a new ContractReview.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a ContractReview.
+             * @constructor
+             * @param {northstar.data_hub.ContractReview.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ContractReview = function (properties) {
+                this.requirements = [];
+                this.reasons = [];
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ContractReview scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.scope = null;
+
+            /**
+             * ContractReview display_name.
+             * @member {string|null|undefined} display_name
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.display_name = null;
+
+            /**
+             * ContractReview exchange.
+             * @member {string|null|undefined} exchange
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.exchange = null;
+
+            /**
+             * ContractReview product.
+             * @member {string|null|undefined} product
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.product = null;
+
+            /**
+             * ContractReview listing_date.
+             * @member {string|null|undefined} listing_date
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.listing_date = null;
+
+            /**
+             * ContractReview delisting_date.
+             * @member {string|null|undefined} delisting_date
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.delisting_date = null;
+
+            /**
+             * ContractReview required_end.
+             * @member {string|null|undefined} required_end
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.required_end = null;
+
+            /**
+             * ContractReview status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.status = null;
+
+            /**
+             * ContractReview admitted.
+             * @member {boolean|null|undefined} admitted
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.admitted = null;
+
+            /**
+             * ContractReview requirements.
+             * @member {Array.<google.protobuf.Struct.$Properties>} requirements
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.requirements = $util.emptyArray;
+
+            /**
+             * ContractReview reasons.
+             * @member {Array.<string>} reasons
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.reasons = $util.emptyArray;
+
+            /**
+             * ContractReview policy.
+             * @member {string|null|undefined} policy
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.policy = null;
+
+            /**
+             * ContractReview null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ContractReview _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _display_name.
+             * @member {"display_name"|undefined} _display_name
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_display_name", {
+                get: $util.oneOfGetter($oneOfFields = ["display_name"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _exchange.
+             * @member {"exchange"|undefined} _exchange
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_exchange", {
+                get: $util.oneOfGetter($oneOfFields = ["exchange"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _product.
+             * @member {"product"|undefined} _product
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_product", {
+                get: $util.oneOfGetter($oneOfFields = ["product"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _listing_date.
+             * @member {"listing_date"|undefined} _listing_date
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_listing_date", {
+                get: $util.oneOfGetter($oneOfFields = ["listing_date"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _delisting_date.
+             * @member {"delisting_date"|undefined} _delisting_date
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_delisting_date", {
+                get: $util.oneOfGetter($oneOfFields = ["delisting_date"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _required_end.
+             * @member {"required_end"|undefined} _required_end
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_required_end", {
+                get: $util.oneOfGetter($oneOfFields = ["required_end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _admitted.
+             * @member {"admitted"|undefined} _admitted
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_admitted", {
+                get: $util.oneOfGetter($oneOfFields = ["admitted"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _policy.
+             * @member {"policy"|undefined} _policy
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_policy", {
+                get: $util.oneOfGetter($oneOfFields = ["policy"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ContractReview instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ContractReview
+             * @static
+             * @param {northstar.data_hub.ContractReview.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ContractReview} ContractReview instance
+             * @type {{
+             *   (properties: northstar.data_hub.ContractReview.$Shape): northstar.data_hub.ContractReview & northstar.data_hub.ContractReview.$Shape;
+             *   (properties?: northstar.data_hub.ContractReview.$Properties): northstar.data_hub.ContractReview;
+             * }}
+             */
+            ContractReview.create = function(properties) {
+                return new ContractReview(properties);
+            };
+
+            /**
+             * Encodes the specified ContractReview message. Does not implicitly {@link northstar.data_hub.ContractReview.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ContractReview
+             * @static
+             * @param {northstar.data_hub.ContractReview.$Properties} message ContractReview message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ContractReview.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.scope);
+                if (message.display_name != null && $Object.hasOwnProperty.call(message, "display_name"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.display_name);
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.exchange);
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.product);
+                if (message.listing_date != null && $Object.hasOwnProperty.call(message, "listing_date"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.listing_date);
+                if (message.delisting_date != null && $Object.hasOwnProperty.call(message, "delisting_date"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.delisting_date);
+                if (message.required_end != null && $Object.hasOwnProperty.call(message, "required_end"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.required_end);
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.status);
+                if (message.admitted != null && $Object.hasOwnProperty.call(message, "admitted"))
+                    writer.uint32(/* id 9, wireType 0 =*/72).bool(message.admitted);
+                if (message.requirements != null && message.requirements.length)
+                    for (let i = 0; i < message.requirements.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.requirements[i], writer.uint32(/* id 10, wireType 2 =*/82).fork(), _depth + 1).ldelim();
+                if (message.reasons != null && message.reasons.length)
+                    for (let i = 0; i < message.reasons.length; ++i)
+                        writer.uint32(/* id 11, wireType 2 =*/90).string(message.reasons[i]);
+                if (message.policy != null && $Object.hasOwnProperty.call(message, "policy"))
+                    writer.uint32(/* id 12, wireType 2 =*/98).string(message.policy);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ContractReview message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ContractReview
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ContractReview & northstar.data_hub.ContractReview.$Shape} ContractReview
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ContractReview.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ContractReview();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.display_name = reader.stringVerify();
+                            message._display_name = "display_name";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.exchange = reader.stringVerify();
+                            message._exchange = "exchange";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.product = reader.stringVerify();
+                            message._product = "product";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.listing_date = reader.stringVerify();
+                            message._listing_date = "listing_date";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.delisting_date = reader.stringVerify();
+                            message._delisting_date = "delisting_date";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.required_end = reader.stringVerify();
+                            message._required_end = "required_end";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 0)
+                                break;
+                            message.admitted = reader.bool();
+                            message._admitted = "admitted";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.requirements && message.requirements.length))
+                                message.requirements = [];
+                            message.requirements.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.reasons && message.reasons.length))
+                                message.reasons = [];
+                            message.reasons.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 2)
+                                break;
+                            message.policy = reader.stringVerify();
+                            message._policy = "policy";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ContractReview message.
+             * @function verify
+             * @memberof northstar.data_hub.ContractReview
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ContractReview.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                if (message.display_name != null && $Object.hasOwnProperty.call(message, "display_name")) {
+                    properties._display_name = 1;
+                    if (!$util.isString(message.display_name))
+                        return "display_name: string expected";
+                }
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    properties._exchange = 1;
+                    if (!$util.isString(message.exchange))
+                        return "exchange: string expected";
+                }
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product")) {
+                    properties._product = 1;
+                    if (!$util.isString(message.product))
+                        return "product: string expected";
+                }
+                if (message.listing_date != null && $Object.hasOwnProperty.call(message, "listing_date")) {
+                    properties._listing_date = 1;
+                    if (!$util.isString(message.listing_date))
+                        return "listing_date: string expected";
+                }
+                if (message.delisting_date != null && $Object.hasOwnProperty.call(message, "delisting_date")) {
+                    properties._delisting_date = 1;
+                    if (!$util.isString(message.delisting_date))
+                        return "delisting_date: string expected";
+                }
+                if (message.required_end != null && $Object.hasOwnProperty.call(message, "required_end")) {
+                    properties._required_end = 1;
+                    if (!$util.isString(message.required_end))
+                        return "required_end: string expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.admitted != null && $Object.hasOwnProperty.call(message, "admitted")) {
+                    properties._admitted = 1;
+                    if (typeof message.admitted !== "boolean")
+                        return "admitted: boolean expected";
+                }
+                if (message.requirements != null && $Object.hasOwnProperty.call(message, "requirements")) {
+                    if (!$Array.isArray(message.requirements))
+                        return "requirements: array expected";
+                    for (let i = 0; i < message.requirements.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.requirements[i], _depth + 1);
+                        if (error)
+                            return "requirements." + error;
+                    }
+                }
+                if (message.reasons != null && $Object.hasOwnProperty.call(message, "reasons")) {
+                    if (!$Array.isArray(message.reasons))
+                        return "reasons: array expected";
+                    for (let i = 0; i < message.reasons.length; ++i)
+                        if (!$util.isString(message.reasons[i]))
+                            return "reasons: string[] expected";
+                }
+                if (message.policy != null && $Object.hasOwnProperty.call(message, "policy")) {
+                    properties._policy = 1;
+                    if (!$util.isString(message.policy))
+                        return "policy: string expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ContractReview message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ContractReview
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ContractReview} ContractReview
+             */
+            ContractReview.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ContractReview)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ContractReview: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ContractReview();
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                if (object.display_name != null)
+                    message.display_name = $String(object.display_name);
+                if (object.exchange != null)
+                    message.exchange = $String(object.exchange);
+                if (object.product != null)
+                    message.product = $String(object.product);
+                if (object.listing_date != null)
+                    message.listing_date = $String(object.listing_date);
+                if (object.delisting_date != null)
+                    message.delisting_date = $String(object.delisting_date);
+                if (object.required_end != null)
+                    message.required_end = $String(object.required_end);
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.admitted != null)
+                    message.admitted = $Boolean(object.admitted);
+                if (object.requirements) {
+                    if (!$Array.isArray(object.requirements))
+                        throw $TypeError(".northstar.data_hub.ContractReview.requirements: array expected");
+                    message.requirements = $Array(object.requirements.length);
+                    for (let i = 0; i < object.requirements.length; ++i) {
+                        if (!$util.isObject(object.requirements[i]))
+                            throw $TypeError(".northstar.data_hub.ContractReview.requirements: object expected");
+                        message.requirements[i] = $root.google.protobuf.Struct.fromObject(object.requirements[i], _depth + 1);
+                    }
+                }
+                if (object.reasons) {
+                    if (!$Array.isArray(object.reasons))
+                        throw $TypeError(".northstar.data_hub.ContractReview.reasons: array expected");
+                    message.reasons = $Array(object.reasons.length);
+                    for (let i = 0; i < object.reasons.length; ++i)
+                        message.reasons[i] = $String(object.reasons[i]);
+                }
+                if (object.policy != null)
+                    message.policy = $String(object.policy);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.data_hub.ContractReview.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ContractReview message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ContractReview
+             * @static
+             * @param {northstar.data_hub.ContractReview} message ContractReview
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ContractReview.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.requirements = [];
+                    object.reasons = [];
+                    object.null_fields = [];
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                if (message.display_name != null && $Object.hasOwnProperty.call(message, "display_name")) {
+                    object.display_name = message.display_name;
+                    if (options.oneofs)
+                        object._display_name = "display_name";
+                }
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    object.exchange = message.exchange;
+                    if (options.oneofs)
+                        object._exchange = "exchange";
+                }
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product")) {
+                    object.product = message.product;
+                    if (options.oneofs)
+                        object._product = "product";
+                }
+                if (message.listing_date != null && $Object.hasOwnProperty.call(message, "listing_date")) {
+                    object.listing_date = message.listing_date;
+                    if (options.oneofs)
+                        object._listing_date = "listing_date";
+                }
+                if (message.delisting_date != null && $Object.hasOwnProperty.call(message, "delisting_date")) {
+                    object.delisting_date = message.delisting_date;
+                    if (options.oneofs)
+                        object._delisting_date = "delisting_date";
+                }
+                if (message.required_end != null && $Object.hasOwnProperty.call(message, "required_end")) {
+                    object.required_end = message.required_end;
+                    if (options.oneofs)
+                        object._required_end = "required_end";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.admitted != null && $Object.hasOwnProperty.call(message, "admitted")) {
+                    object.admitted = message.admitted;
+                    if (options.oneofs)
+                        object._admitted = "admitted";
+                }
+                if (message.requirements && message.requirements.length) {
+                    object.requirements = $Array(message.requirements.length);
+                    for (let j = 0; j < message.requirements.length; ++j)
+                        object.requirements[j] = $root.google.protobuf.Struct.toObject(message.requirements[j], options, _depth + 1);
+                }
+                if (message.reasons && message.reasons.length) {
+                    object.reasons = $Array(message.reasons.length);
+                    for (let j = 0; j < message.reasons.length; ++j)
+                        object.reasons[j] = message.reasons[j];
+                }
+                if (message.policy != null && $Object.hasOwnProperty.call(message, "policy")) {
+                    object.policy = message.policy;
+                    if (options.oneofs)
+                        object._policy = "policy";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ContractReview to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ContractReview.prototype.toJSON = function() {
+                return ContractReview.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ContractReview
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ContractReview
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ContractReview.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ContractReview";
+            };
+
+            return ContractReview;
+        })();
+
         data_hub.SyncSettingsRequest = (function() {
 
             /**

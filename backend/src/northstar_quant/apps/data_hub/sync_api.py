@@ -21,6 +21,25 @@ from northstar_quant.web.access import WorkspaceAccess
 from northstar_quant.web.requests import ApiModel, EvidenceRecord
 
 
+class ContractReviewRequest(ApiModel):
+    scope: str = Field(min_length=1, max_length=40)
+
+
+class ContractReview(ApiModel):
+    scope: str
+    display_name: str
+    exchange: str
+    product: str
+    listing_date: str | None
+    delisting_date: str | None
+    required_end: str | None
+    status: str
+    admitted: bool
+    requirements: list[dict[str, JsonValue]]
+    reasons: list[str]
+    policy: str
+
+
 class SyncSettingsRequest(ApiModel):
     revision: int
     enabled: bool
@@ -76,6 +95,13 @@ class SyncEvidence(EvidenceRecord):
 
 
 def register(app: FastAPI, access: WorkspaceAccess, engine: Engine, library: DataLibrary) -> None:
+    @app.post("/api/sync/contracts/review", response_model=ContractReview)
+    async def review_contract(request: Request, document: ContractReviewRequest) -> dict[str, Any]:
+        from northstar_quant.data_management.tushare.contract_review import review
+
+        access.protect(request)
+        return await run_in_threadpool(review, engine, document.scope)
+
     @app.get("/api/sync", response_model=SyncStatus)
     def status() -> dict[str, Any]:
         result = settings.status(engine)

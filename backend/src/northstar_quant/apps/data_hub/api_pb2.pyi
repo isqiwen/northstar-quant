@@ -284,6 +284,42 @@ class ProcessingQueueStatus(_message.Message):
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, observed_at: _Optional[str] = ..., total: _Optional[int] = ..., pending: _Optional[int] = ..., running: _Optional[int] = ..., published: _Optional[int] = ..., failed: _Optional[int] = ..., oldest_pending_id: _Optional[str] = ..., oldest_pending_at: _Optional[str] = ..., oldest_pending_seconds: _Optional[int] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class ContractReviewRequest(_message.Message):
+    __slots__ = ("scope",)
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    def __init__(self, scope: _Optional[str] = ...) -> None: ...
+
+class ContractReview(_message.Message):
+    __slots__ = ("scope", "display_name", "exchange", "product", "listing_date", "delisting_date", "required_end", "status", "admitted", "requirements", "reasons", "policy", "null_fields")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_FIELD_NUMBER: _ClassVar[int]
+    LISTING_DATE_FIELD_NUMBER: _ClassVar[int]
+    DELISTING_DATE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_END_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ADMITTED_FIELD_NUMBER: _ClassVar[int]
+    REQUIREMENTS_FIELD_NUMBER: _ClassVar[int]
+    REASONS_FIELD_NUMBER: _ClassVar[int]
+    POLICY_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    display_name: str
+    exchange: str
+    product: str
+    listing_date: str
+    delisting_date: str
+    required_end: str
+    status: str
+    admitted: bool
+    requirements: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    reasons: _containers.RepeatedScalarFieldContainer[str]
+    policy: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scope: _Optional[str] = ..., display_name: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., listing_date: _Optional[str] = ..., delisting_date: _Optional[str] = ..., required_end: _Optional[str] = ..., status: _Optional[str] = ..., admitted: _Optional[bool] = ..., requirements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reasons: _Optional[_Iterable[str]] = ..., policy: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class SyncSettingsRequest(_message.Message):
     __slots__ = ("revision", "enabled")
     REVISION_FIELD_NUMBER: _ClassVar[int]
