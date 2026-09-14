@@ -2,7 +2,9 @@
 
 import io
 import json
+import logging
 from decimal import Decimal
+from time import perf_counter
 from typing import Any
 
 from ..files import SourceFiles
@@ -25,6 +27,7 @@ def publish(
 ) -> dict[str, Any]:
     import pyarrow.parquet as pq  # type: ignore[import-untyped]
 
+    started = perf_counter()
     table = response_table(rows, job["dataset"])
     table = table.replace_schema_metadata(
         {
@@ -35,6 +38,7 @@ def publish(
     )
     stream = io.BytesIO()
     pq.write_table(table, stream, compression="zstd", row_group_size=512)
+    encoded = perf_counter()
     files = storage()
     parquet = archive.store(stream.getvalue())
     files.store(stream.getvalue())
@@ -54,6 +58,12 @@ def publish(
     content = json.dumps(manifest, ensure_ascii=False, sort_keys=True).encode()
     artifact = archive.store(content)
     files.store(content)
+    logging.getLogger(__name__).info(
+        "Publication request=%s encode=%.4f storage=%.4f",
+        str(job.get("request_id", "")),
+        encoded - started,
+        perf_counter() - encoded,
+    )
     return {
         **artifact.to_dict(),
         "parquet_hash": parquet.content_hash,

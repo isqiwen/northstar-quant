@@ -108,3 +108,107 @@ def test_exhausted_inodes_reject_before_accepting_bytes(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="free disk"):
         files.store(b"new fact")
     assert files.inventory() == []
+
+
+@pytest.mark.parametrize("same_content", [False, True])
+def test_parallel_immutable_writes_overlap_and_deduplicate_without_replacement(
+    tmp_path, monkeypatch, same_content
+):
+    import os
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    files = SourceFiles(tmp_path / "archive")
+    rendezvous = Barrier(2, timeout=5)
+    link = os.link
+
+    def concurrent_link(*args, **kwargs):
+        rendezvous.wait()  # Both files are fully flushed before either publishes.
+        return link(*args, **kwargs)
+
+    monkeypatch.setattr(os, "link", concurrent_link)
+    contents = [
+        b"first immutable response",
+        b"first immutable response" if same_content else b"second response",
+    ]
+    with ThreadPoolExecutor(2) as pool:
+        saved = list(pool.map(files.store, contents))
+    assert len(files.inventory()) == (1 if same_content else 2)
+    for item, content in zip(saved, contents):
+        assert files.read(item.content_hash, item.byte_count) == content
+    assert files.health()["incomplete_file_count"] == 0
+
+
+def test_parallel_writers_cannot_overrun_explicit_archive_quota(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    files = SourceFiles(tmp_path / "archive", max_file_bytes=10, max_total_bytes=10)
+    start = Barrier(2, timeout=5)
+
+    def store(content):
+        start.wait()
+        try:
+            return files.store(content)
+        except ValueError as error:
+            assert "capacity" in str(error)
+            return None
+
+    with ThreadPoolExecutor(2) as pool:
+        results = list(pool.map(store, [b"abcdef", b"123456"]))
+    assert sum(item is not None for item in results) == 1
+    assert sum(item.byte_count for item in files.inventory()) == 6
+
+
+def test_orphan_removal_waits_until_parallel_writer_finishes(tmp_path, monkeypatch):
+    import os
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    files = SourceFiles(tmp_path / "archive")
+    old = files.store(b"orphan")
+    entered, release, removing = Event(), Event(), Event()
+    link = os.link
+
+    def paused_link(*args, **kwargs):
+        entered.set()
+        assert release.wait(5)
+        return link(*args, **kwargs)
+
+    monkeypatch.setattr(os, "link", paused_link)
+
+    def remove():
+        removing.set()
+        files.remove_verified(old.content_hash, old.byte_count)
+
+    with ThreadPoolExecutor(2) as pool:
+        writer = pool.submit(files.store, b"new immutable object")
+        assert entered.wait(5)
+        removal = pool.submit(remove)
+        try:
+            assert removing.wait(5)
+            assert not removal.done()
+            assert files.read(old.content_hash, old.byte_count) == b"orphan"
+        finally:
+            release.set()
+        new = writer.result()
+        removal.result()
+    assert files.inventory() == [new]
+
+
+def test_failed_directory_sync_is_not_acknowledged_and_retry_verifies_orphan(tmp_path, monkeypatch):
+    files = SourceFiles(tmp_path / "archive")
+    sync = files._sync
+
+    def failure(path):
+        if path.parent == files.root / "objects":
+            raise OSError("injected directory sync failure")
+        sync(path)
+
+    monkeypatch.setattr(files, "_sync", failure)
+    with pytest.raises(OSError, match="sync failure"):
+        files.store(b"complete but unacknowledged")
+    monkeypatch.setattr(files, "_sync", sync)
+    saved = files.store(b"complete but unacknowledged")
+    assert files.inventory() == [saved]
+    assert files.read(saved.content_hash, saved.byte_count) == b"complete but unacknowledged"
