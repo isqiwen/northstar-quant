@@ -306,21 +306,47 @@ class SyncTokenRequest(_message.Message):
     token: str
     def __init__(self, token: _Optional[str] = ...) -> None: ...
 
+class SyncLane(_message.Message):
+    __slots__ = ("lane", "start", "end", "total", "validated", "waiting", "blocked", "running", "oldest_pending", "null_fields")
+    LANE_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    VALIDATED_FIELD_NUMBER: _ClassVar[int]
+    WAITING_FIELD_NUMBER: _ClassVar[int]
+    BLOCKED_FIELD_NUMBER: _ClassVar[int]
+    RUNNING_FIELD_NUMBER: _ClassVar[int]
+    OLDEST_PENDING_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    lane: str
+    start: str
+    end: str
+    total: int
+    validated: int
+    waiting: int
+    blocked: int
+    running: int
+    oldest_pending: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, lane: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., total: _Optional[int] = ..., validated: _Optional[int] = ..., waiting: _Optional[int] = ..., blocked: _Optional[int] = ..., running: _Optional[int] = ..., oldest_pending: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class SyncStatus(_message.Message):
-    __slots__ = ("settings", "token_configured", "datasets", "progress", "jobs", "unplanned_contracts")
+    __slots__ = ("settings", "token_configured", "datasets", "progress", "jobs", "lanes", "unplanned_contracts")
     SETTINGS_FIELD_NUMBER: _ClassVar[int]
     TOKEN_CONFIGURED_FIELD_NUMBER: _ClassVar[int]
     DATASETS_FIELD_NUMBER: _ClassVar[int]
     PROGRESS_FIELD_NUMBER: _ClassVar[int]
     JOBS_FIELD_NUMBER: _ClassVar[int]
+    LANES_FIELD_NUMBER: _ClassVar[int]
     UNPLANNED_CONTRACTS_FIELD_NUMBER: _ClassVar[int]
     settings: _struct_pb2.Struct
     token_configured: bool
     datasets: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     progress: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     jobs: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    lanes: _containers.RepeatedCompositeFieldContainer[SyncLane]
     unplanned_contracts: int
-    def __init__(self, settings: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., token_configured: _Optional[bool] = ..., datasets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., progress: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., jobs: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., unplanned_contracts: _Optional[int] = ...) -> None: ...
+    def __init__(self, settings: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., token_configured: _Optional[bool] = ..., datasets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., progress: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., jobs: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., lanes: _Optional[_Iterable[_Union[SyncLane, _Mapping]]] = ..., unplanned_contracts: _Optional[int] = ...) -> None: ...
 
 class SyncEvidence(_message.Message):
     __slots__ = ("request_id", "evidence_fields")

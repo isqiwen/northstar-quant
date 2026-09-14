@@ -125,12 +125,24 @@ export type SyncReprocessRequest = {
 export type SyncTokenRequest = {
   token: string;
 };
+export type SyncLane = {
+  lane: string;
+  start: string;
+  end: string;
+  total: number;
+  validated: number;
+  waiting: number;
+  blocked: number;
+  running: number;
+  oldest_pending?: string | null;
+};
 export type SyncStatus = {
   settings: Record<string, JsonValue>;
   token_configured: boolean;
   datasets?: (Record<string, JsonValue>)[];
   progress?: (Record<string, JsonValue>)[];
   jobs?: (Record<string, JsonValue>)[];
+  lanes?: (SyncLane)[];
   unplanned_contracts: number;
 };
 export type SyncEvidence = {

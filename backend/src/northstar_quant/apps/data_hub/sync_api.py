@@ -33,6 +33,18 @@ class SyncTokenRequest(ApiModel):
     token: str = Field(repr=False, min_length=16, max_length=512)
 
 
+class SyncLane(ApiModel):
+    lane: str
+    start: str
+    end: str
+    total: int
+    validated: int
+    waiting: int
+    blocked: int
+    running: int
+    oldest_pending: str | None
+
+
 class SyncStatus(ApiModel):
     settings: dict[str, JsonValue]
     token_configured: bool
@@ -40,6 +52,7 @@ class SyncStatus(ApiModel):
     progress: list[dict[str, JsonValue]]
     jobs: list[dict[str, JsonValue]]
     unplanned_contracts: int
+    lanes: list[SyncLane]
 
 
 class SyncEvidence(EvidenceRecord):

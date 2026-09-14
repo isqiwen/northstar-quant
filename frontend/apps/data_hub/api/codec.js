@@ -9752,6 +9752,736 @@ export const northstar = $root.northstar = (() => {
             return SyncTokenRequest;
         })();
 
+        data_hub.SyncLane = (function() {
+
+            /**
+             * Properties of a SyncLane.
+             * @typedef {Object} northstar.data_hub.SyncLane.$Properties
+             * @property {string|null} [lane] SyncLane lane
+             * @property {string|null} [start] SyncLane start
+             * @property {string|null} [end] SyncLane end
+             * @property {number|Long|null} [total] SyncLane total
+             * @property {number|Long|null} [validated] SyncLane validated
+             * @property {number|Long|null} [waiting] SyncLane waiting
+             * @property {number|Long|null} [blocked] SyncLane blocked
+             * @property {number|Long|null} [running] SyncLane running
+             * @property {string|null} [oldest_pending] SyncLane oldest_pending
+             * @property {Array.<string>|null} [null_fields] SyncLane null_fields
+             * @property {"lane"} [_lane] SyncLane _lane
+             * @property {"start"} [_start] SyncLane _start
+             * @property {"end"} [_end] SyncLane _end
+             * @property {"total"} [_total] SyncLane _total
+             * @property {"validated"} [_validated] SyncLane _validated
+             * @property {"waiting"} [_waiting] SyncLane _waiting
+             * @property {"blocked"} [_blocked] SyncLane _blocked
+             * @property {"running"} [_running] SyncLane _running
+             * @property {"oldest_pending"} [_oldest_pending] SyncLane _oldest_pending
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SyncLane.
+             * @memberof northstar.data_hub
+             * @interface ISyncLane
+             * @augments northstar.data_hub.SyncLane.$Properties
+             * @deprecated Use northstar.data_hub.SyncLane.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SyncLane.
+             * @typedef {{
+             *   lane?: string|null;
+             *   start?: string|null;
+             *   end?: string|null;
+             *   total?: number|Long|null;
+             *   validated?: number|Long|null;
+             *   waiting?: number|Long|null;
+             *   blocked?: number|Long|null;
+             *   running?: number|Long|null;
+             *   oldest_pending?: string|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _lane?: undefined; lane?: null }|{ _lane?: "lane"; lane: string })
+             * ) & (
+             *   ({ _start?: undefined; start?: null }|{ _start?: "start"; start: string })
+             * ) & (
+             *   ({ _end?: undefined; end?: null }|{ _end?: "end"; end: string })
+             * ) & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * ) & (
+             *   ({ _validated?: undefined; validated?: null }|{ _validated?: "validated"; validated: number|Long })
+             * ) & (
+             *   ({ _waiting?: undefined; waiting?: null }|{ _waiting?: "waiting"; waiting: number|Long })
+             * ) & (
+             *   ({ _blocked?: undefined; blocked?: null }|{ _blocked?: "blocked"; blocked: number|Long })
+             * ) & (
+             *   ({ _running?: undefined; running?: null }|{ _running?: "running"; running: number|Long })
+             * ) & (
+             *   ({ _oldest_pending?: undefined; oldest_pending?: null }|{ _oldest_pending?: "oldest_pending"; oldest_pending: string })
+             * )} northstar.data_hub.SyncLane.$Shape
+             */
+
+            /**
+             * Constructs a new SyncLane.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SyncLane.
+             * @constructor
+             * @param {northstar.data_hub.SyncLane.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SyncLane = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SyncLane lane.
+             * @member {string|null|undefined} lane
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.lane = null;
+
+            /**
+             * SyncLane start.
+             * @member {string|null|undefined} start
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.start = null;
+
+            /**
+             * SyncLane end.
+             * @member {string|null|undefined} end
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.end = null;
+
+            /**
+             * SyncLane total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.total = null;
+
+            /**
+             * SyncLane validated.
+             * @member {number|Long|null|undefined} validated
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.validated = null;
+
+            /**
+             * SyncLane waiting.
+             * @member {number|Long|null|undefined} waiting
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.waiting = null;
+
+            /**
+             * SyncLane blocked.
+             * @member {number|Long|null|undefined} blocked
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.blocked = null;
+
+            /**
+             * SyncLane running.
+             * @member {number|Long|null|undefined} running
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.running = null;
+
+            /**
+             * SyncLane oldest_pending.
+             * @member {string|null|undefined} oldest_pending
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.oldest_pending = null;
+
+            /**
+             * SyncLane null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            SyncLane.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SyncLane _lane.
+             * @member {"lane"|undefined} _lane
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            $Object.defineProperty(SyncLane.prototype, "_lane", {
+                get: $util.oneOfGetter($oneOfFields = ["lane"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncLane _start.
+             * @member {"start"|undefined} _start
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            $Object.defineProperty(SyncLane.prototype, "_start", {
+                get: $util.oneOfGetter($oneOfFields = ["start"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncLane _end.
+             * @member {"end"|undefined} _end
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            $Object.defineProperty(SyncLane.prototype, "_end", {
+                get: $util.oneOfGetter($oneOfFields = ["end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncLane _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            $Object.defineProperty(SyncLane.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncLane _validated.
+             * @member {"validated"|undefined} _validated
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            $Object.defineProperty(SyncLane.prototype, "_validated", {
+                get: $util.oneOfGetter($oneOfFields = ["validated"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncLane _waiting.
+             * @member {"waiting"|undefined} _waiting
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            $Object.defineProperty(SyncLane.prototype, "_waiting", {
+                get: $util.oneOfGetter($oneOfFields = ["waiting"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncLane _blocked.
+             * @member {"blocked"|undefined} _blocked
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            $Object.defineProperty(SyncLane.prototype, "_blocked", {
+                get: $util.oneOfGetter($oneOfFields = ["blocked"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncLane _running.
+             * @member {"running"|undefined} _running
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            $Object.defineProperty(SyncLane.prototype, "_running", {
+                get: $util.oneOfGetter($oneOfFields = ["running"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncLane _oldest_pending.
+             * @member {"oldest_pending"|undefined} _oldest_pending
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             */
+            $Object.defineProperty(SyncLane.prototype, "_oldest_pending", {
+                get: $util.oneOfGetter($oneOfFields = ["oldest_pending"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SyncLane instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SyncLane
+             * @static
+             * @param {northstar.data_hub.SyncLane.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SyncLane} SyncLane instance
+             * @type {{
+             *   (properties: northstar.data_hub.SyncLane.$Shape): northstar.data_hub.SyncLane & northstar.data_hub.SyncLane.$Shape;
+             *   (properties?: northstar.data_hub.SyncLane.$Properties): northstar.data_hub.SyncLane;
+             * }}
+             */
+            SyncLane.create = function(properties) {
+                return new SyncLane(properties);
+            };
+
+            /**
+             * Encodes the specified SyncLane message. Does not implicitly {@link northstar.data_hub.SyncLane.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SyncLane
+             * @static
+             * @param {northstar.data_hub.SyncLane.$Properties} message SyncLane message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SyncLane.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.lane != null && $Object.hasOwnProperty.call(message, "lane"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.lane);
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.start);
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.end);
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int64(message.total);
+                if (message.validated != null && $Object.hasOwnProperty.call(message, "validated"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).int64(message.validated);
+                if (message.waiting != null && $Object.hasOwnProperty.call(message, "waiting"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).int64(message.waiting);
+                if (message.blocked != null && $Object.hasOwnProperty.call(message, "blocked"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).int64(message.blocked);
+                if (message.running != null && $Object.hasOwnProperty.call(message, "running"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).int64(message.running);
+                if (message.oldest_pending != null && $Object.hasOwnProperty.call(message, "oldest_pending"))
+                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.oldest_pending);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SyncLane message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SyncLane
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SyncLane & northstar.data_hub.SyncLane.$Shape} SyncLane
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SyncLane.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SyncLane();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.lane = reader.stringVerify();
+                            message._lane = "lane";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.start = reader.stringVerify();
+                            message._start = "start";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.end = reader.stringVerify();
+                            message._end = "end";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 0)
+                                break;
+                            message.validated = reader.int64();
+                            message._validated = "validated";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 0)
+                                break;
+                            message.waiting = reader.int64();
+                            message._waiting = "waiting";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 0)
+                                break;
+                            message.blocked = reader.int64();
+                            message._blocked = "blocked";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 0)
+                                break;
+                            message.running = reader.int64();
+                            message._running = "running";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.oldest_pending = reader.stringVerify();
+                            message._oldest_pending = "oldest_pending";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SyncLane message.
+             * @function verify
+             * @memberof northstar.data_hub.SyncLane
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SyncLane.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.lane != null && $Object.hasOwnProperty.call(message, "lane")) {
+                    properties._lane = 1;
+                    if (!$util.isString(message.lane))
+                        return "lane: string expected";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    properties._start = 1;
+                    if (!$util.isString(message.start))
+                        return "start: string expected";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    properties._end = 1;
+                    if (!$util.isString(message.end))
+                        return "end: string expected";
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                if (message.validated != null && $Object.hasOwnProperty.call(message, "validated")) {
+                    properties._validated = 1;
+                    if (!$util.isInteger(message.validated) && !(message.validated && $util.isInteger(message.validated.low) && $util.isInteger(message.validated.high)))
+                        return "validated: integer|Long expected";
+                }
+                if (message.waiting != null && $Object.hasOwnProperty.call(message, "waiting")) {
+                    properties._waiting = 1;
+                    if (!$util.isInteger(message.waiting) && !(message.waiting && $util.isInteger(message.waiting.low) && $util.isInteger(message.waiting.high)))
+                        return "waiting: integer|Long expected";
+                }
+                if (message.blocked != null && $Object.hasOwnProperty.call(message, "blocked")) {
+                    properties._blocked = 1;
+                    if (!$util.isInteger(message.blocked) && !(message.blocked && $util.isInteger(message.blocked.low) && $util.isInteger(message.blocked.high)))
+                        return "blocked: integer|Long expected";
+                }
+                if (message.running != null && $Object.hasOwnProperty.call(message, "running")) {
+                    properties._running = 1;
+                    if (!$util.isInteger(message.running) && !(message.running && $util.isInteger(message.running.low) && $util.isInteger(message.running.high)))
+                        return "running: integer|Long expected";
+                }
+                if (message.oldest_pending != null && $Object.hasOwnProperty.call(message, "oldest_pending")) {
+                    properties._oldest_pending = 1;
+                    if (!$util.isString(message.oldest_pending))
+                        return "oldest_pending: string expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SyncLane message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SyncLane
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SyncLane} SyncLane
+             */
+            SyncLane.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SyncLane)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SyncLane: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SyncLane();
+                if (object.lane != null)
+                    message.lane = $String(object.lane);
+                if (object.start != null)
+                    message.start = $String(object.start);
+                if (object.end != null)
+                    message.end = $String(object.end);
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                if (object.validated != null)
+                    if ($util.Long)
+                        message.validated = $util.Long.fromValue(object.validated, false);
+                    else if (typeof object.validated === "string")
+                        message.validated = $parseInt(object.validated, 10);
+                    else if (typeof object.validated === "number")
+                        message.validated = object.validated;
+                    else if (typeof object.validated === "object")
+                        message.validated = new $util.LongBits(object.validated.low >>> 0, object.validated.high >>> 0).toNumber();
+                if (object.waiting != null)
+                    if ($util.Long)
+                        message.waiting = $util.Long.fromValue(object.waiting, false);
+                    else if (typeof object.waiting === "string")
+                        message.waiting = $parseInt(object.waiting, 10);
+                    else if (typeof object.waiting === "number")
+                        message.waiting = object.waiting;
+                    else if (typeof object.waiting === "object")
+                        message.waiting = new $util.LongBits(object.waiting.low >>> 0, object.waiting.high >>> 0).toNumber();
+                if (object.blocked != null)
+                    if ($util.Long)
+                        message.blocked = $util.Long.fromValue(object.blocked, false);
+                    else if (typeof object.blocked === "string")
+                        message.blocked = $parseInt(object.blocked, 10);
+                    else if (typeof object.blocked === "number")
+                        message.blocked = object.blocked;
+                    else if (typeof object.blocked === "object")
+                        message.blocked = new $util.LongBits(object.blocked.low >>> 0, object.blocked.high >>> 0).toNumber();
+                if (object.running != null)
+                    if ($util.Long)
+                        message.running = $util.Long.fromValue(object.running, false);
+                    else if (typeof object.running === "string")
+                        message.running = $parseInt(object.running, 10);
+                    else if (typeof object.running === "number")
+                        message.running = object.running;
+                    else if (typeof object.running === "object")
+                        message.running = new $util.LongBits(object.running.low >>> 0, object.running.high >>> 0).toNumber();
+                if (object.oldest_pending != null)
+                    message.oldest_pending = $String(object.oldest_pending);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.data_hub.SyncLane.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SyncLane message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SyncLane
+             * @static
+             * @param {northstar.data_hub.SyncLane} message SyncLane
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SyncLane.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.lane != null && $Object.hasOwnProperty.call(message, "lane")) {
+                    object.lane = message.lane;
+                    if (options.oneofs)
+                        object._lane = "lane";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    object.start = message.start;
+                    if (options.oneofs)
+                        object._start = "start";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    object.end = message.end;
+                    if (options.oneofs)
+                        object._end = "end";
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                if (message.validated != null && $Object.hasOwnProperty.call(message, "validated")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.validated = typeof message.validated === "number" ? $BigInt(message.validated) : $util.Long.fromBits(message.validated.low >>> 0, message.validated.high >>> 0, false).toBigInt();
+                    else if (typeof message.validated === "number")
+                        object.validated = options.longs === $String ? $String(message.validated) : message.validated;
+                    else
+                        object.validated = options.longs === $String ? $util.Long.prototype.toString.call(message.validated) : options.longs === $Number ? new $util.LongBits(message.validated.low >>> 0, message.validated.high >>> 0).toNumber() : message.validated;
+                    if (options.oneofs)
+                        object._validated = "validated";
+                }
+                if (message.waiting != null && $Object.hasOwnProperty.call(message, "waiting")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.waiting = typeof message.waiting === "number" ? $BigInt(message.waiting) : $util.Long.fromBits(message.waiting.low >>> 0, message.waiting.high >>> 0, false).toBigInt();
+                    else if (typeof message.waiting === "number")
+                        object.waiting = options.longs === $String ? $String(message.waiting) : message.waiting;
+                    else
+                        object.waiting = options.longs === $String ? $util.Long.prototype.toString.call(message.waiting) : options.longs === $Number ? new $util.LongBits(message.waiting.low >>> 0, message.waiting.high >>> 0).toNumber() : message.waiting;
+                    if (options.oneofs)
+                        object._waiting = "waiting";
+                }
+                if (message.blocked != null && $Object.hasOwnProperty.call(message, "blocked")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.blocked = typeof message.blocked === "number" ? $BigInt(message.blocked) : $util.Long.fromBits(message.blocked.low >>> 0, message.blocked.high >>> 0, false).toBigInt();
+                    else if (typeof message.blocked === "number")
+                        object.blocked = options.longs === $String ? $String(message.blocked) : message.blocked;
+                    else
+                        object.blocked = options.longs === $String ? $util.Long.prototype.toString.call(message.blocked) : options.longs === $Number ? new $util.LongBits(message.blocked.low >>> 0, message.blocked.high >>> 0).toNumber() : message.blocked;
+                    if (options.oneofs)
+                        object._blocked = "blocked";
+                }
+                if (message.running != null && $Object.hasOwnProperty.call(message, "running")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.running = typeof message.running === "number" ? $BigInt(message.running) : $util.Long.fromBits(message.running.low >>> 0, message.running.high >>> 0, false).toBigInt();
+                    else if (typeof message.running === "number")
+                        object.running = options.longs === $String ? $String(message.running) : message.running;
+                    else
+                        object.running = options.longs === $String ? $util.Long.prototype.toString.call(message.running) : options.longs === $Number ? new $util.LongBits(message.running.low >>> 0, message.running.high >>> 0).toNumber() : message.running;
+                    if (options.oneofs)
+                        object._running = "running";
+                }
+                if (message.oldest_pending != null && $Object.hasOwnProperty.call(message, "oldest_pending")) {
+                    object.oldest_pending = message.oldest_pending;
+                    if (options.oneofs)
+                        object._oldest_pending = "oldest_pending";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SyncLane to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SyncLane
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SyncLane.prototype.toJSON = function() {
+                return SyncLane.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SyncLane
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SyncLane
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SyncLane.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SyncLane";
+            };
+
+            return SyncLane;
+        })();
+
         data_hub.SyncStatus = (function() {
 
             /**
@@ -9762,6 +10492,7 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [datasets] SyncStatus datasets
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [progress] SyncStatus progress
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [jobs] SyncStatus jobs
+             * @property {Array.<northstar.data_hub.SyncLane.$Properties>|null} [lanes] SyncStatus lanes
              * @property {number|Long|null} [unplanned_contracts] SyncStatus unplanned_contracts
              * @property {"settings"} [_settings] SyncStatus _settings
              * @property {"token_configured"} [_token_configured] SyncStatus _token_configured
@@ -9785,6 +10516,7 @@ export const northstar = $root.northstar = (() => {
              *   datasets?: Array.<google.protobuf.Struct.$Shape>|null;
              *   progress?: Array.<google.protobuf.Struct.$Shape>|null;
              *   jobs?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   lanes?: Array.<northstar.data_hub.SyncLane.$Shape>|null;
              *   unplanned_contracts?: number|Long|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
@@ -9808,6 +10540,7 @@ export const northstar = $root.northstar = (() => {
                 this.datasets = [];
                 this.progress = [];
                 this.jobs = [];
+                this.lanes = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -9853,6 +10586,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             SyncStatus.prototype.jobs = $util.emptyArray;
+
+            /**
+             * SyncStatus lanes.
+             * @member {Array.<northstar.data_hub.SyncLane.$Properties>} lanes
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            SyncStatus.prototype.lanes = $util.emptyArray;
 
             /**
              * SyncStatus unplanned_contracts.
@@ -9945,6 +10686,9 @@ export const northstar = $root.northstar = (() => {
                         $root.google.protobuf.Struct.encode(message.jobs[i], writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
                 if (message.unplanned_contracts != null && $Object.hasOwnProperty.call(message, "unplanned_contracts"))
                     writer.uint32(/* id 6, wireType 0 =*/48).int64(message.unplanned_contracts);
+                if (message.lanes != null && message.lanes.length)
+                    for (let i = 0; i < message.lanes.length; ++i)
+                        $root.northstar.data_hub.SyncLane.encode(message.lanes[i], writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -10027,6 +10771,14 @@ export const northstar = $root.northstar = (() => {
                             message.jobs.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.lanes && message.lanes.length))
+                                message.lanes = [];
+                            message.lanes.push($root.northstar.data_hub.SyncLane.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
                     case 6: {
                             if (wireType !== 0)
                                 break;
@@ -10107,6 +10859,15 @@ export const northstar = $root.northstar = (() => {
                             return "jobs." + error;
                     }
                 }
+                if (message.lanes != null && $Object.hasOwnProperty.call(message, "lanes")) {
+                    if (!$Array.isArray(message.lanes))
+                        return "lanes: array expected";
+                    for (let i = 0; i < message.lanes.length; ++i) {
+                        let error = $root.northstar.data_hub.SyncLane.verify(message.lanes[i], _depth + 1);
+                        if (error)
+                            return "lanes." + error;
+                    }
+                }
                 if (message.unplanned_contracts != null && $Object.hasOwnProperty.call(message, "unplanned_contracts")) {
                     properties._unplanned_contracts = 1;
                     if (!$util.isInteger(message.unplanned_contracts) && !(message.unplanned_contracts && $util.isInteger(message.unplanned_contracts.low) && $util.isInteger(message.unplanned_contracts.high)))
@@ -10170,6 +10931,16 @@ export const northstar = $root.northstar = (() => {
                         message.jobs[i] = $root.google.protobuf.Struct.fromObject(object.jobs[i], _depth + 1);
                     }
                 }
+                if (object.lanes) {
+                    if (!$Array.isArray(object.lanes))
+                        throw $TypeError(".northstar.data_hub.SyncStatus.lanes: array expected");
+                    message.lanes = $Array(object.lanes.length);
+                    for (let i = 0; i < object.lanes.length; ++i) {
+                        if (!$util.isObject(object.lanes[i]))
+                            throw $TypeError(".northstar.data_hub.SyncStatus.lanes: object expected");
+                        message.lanes[i] = $root.northstar.data_hub.SyncLane.fromObject(object.lanes[i], _depth + 1);
+                    }
+                }
                 if (object.unplanned_contracts != null)
                     if ($util.Long)
                         message.unplanned_contracts = $util.Long.fromValue(object.unplanned_contracts, false);
@@ -10203,6 +10974,7 @@ export const northstar = $root.northstar = (() => {
                     object.datasets = [];
                     object.progress = [];
                     object.jobs = [];
+                    object.lanes = [];
                 }
                 if (message.settings != null && $Object.hasOwnProperty.call(message, "settings")) {
                     object.settings = $root.google.protobuf.Struct.toObject(message.settings, options, _depth + 1);
@@ -10238,6 +11010,11 @@ export const northstar = $root.northstar = (() => {
                         object.unplanned_contracts = options.longs === $String ? $util.Long.prototype.toString.call(message.unplanned_contracts) : options.longs === $Number ? new $util.LongBits(message.unplanned_contracts.low >>> 0, message.unplanned_contracts.high >>> 0).toNumber() : message.unplanned_contracts;
                     if (options.oneofs)
                         object._unplanned_contracts = "unplanned_contracts";
+                }
+                if (message.lanes && message.lanes.length) {
+                    object.lanes = $Array(message.lanes.length);
+                    for (let j = 0; j < message.lanes.length; ++j)
+                        object.lanes[j] = $root.northstar.data_hub.SyncLane.toObject(message.lanes[j], options, _depth + 1);
                 }
                 return object;
             };

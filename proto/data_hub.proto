@@ -167,12 +167,25 @@ message SyncReprocessRequest {
 message SyncTokenRequest {
   optional string token = 1 [(northstar.web.required_field) = true];
 }
+message SyncLane {
+  optional string lane = 1 [(northstar.web.required_field) = true];
+  optional string start = 2 [(northstar.web.required_field) = true];
+  optional string end = 3 [(northstar.web.required_field) = true];
+  optional int64 total = 4 [(northstar.web.required_field) = true];
+  optional int64 validated = 5 [(northstar.web.required_field) = true];
+  optional int64 waiting = 6 [(northstar.web.required_field) = true];
+  optional int64 blocked = 7 [(northstar.web.required_field) = true];
+  optional int64 running = 8 [(northstar.web.required_field) = true];
+  optional string oldest_pending = 9 [json_name = "oldest_pending", (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
 message SyncStatus {
   optional google.protobuf.Struct settings = 1 [(northstar.web.required_field) = true];
   optional bool token_configured = 2 [json_name = "token_configured", (northstar.web.required_field) = true];
   repeated google.protobuf.Struct datasets = 3;
   repeated google.protobuf.Struct progress = 4;
   repeated google.protobuf.Struct jobs = 5;
+  repeated SyncLane lanes = 7;
   optional int64 unplanned_contracts = 6 [json_name = "unplanned_contracts", (northstar.web.required_field) = true];
 }
 message SyncEvidence {

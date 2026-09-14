@@ -1,6 +1,6 @@
 """Live interfaces loaded on demand; configuration imports need no HTTP runtime."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .auth import LiveAuth as LiveAuth
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 __all__ = ["CommandUnknown", "LiveAuth", "LiveClient", "RuntimeUnavailable"]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name == "LiveAuth":
         from .auth import LiveAuth
 

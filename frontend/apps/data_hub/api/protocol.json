@@ -844,6 +844,83 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.SyncLane": {
+      "fields": {
+        "lane": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "total": {
+          "id": 4,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "validated": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "waiting": {
+          "id": 6,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "blocked": {
+          "id": 7,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "running": {
+          "id": 8,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "oldest_pending": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.data_hub.SyncStatus": {
       "fields": {
         "settings": {
@@ -880,6 +957,14 @@
           "id": 5,
           "presence": false,
           "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "lanes": {
+          "id": 7,
+          "presence": false,
+          "type": "northstar.data_hub.SyncLane",
           "required": false,
           "nullable": false,
           "rule": "repeated"

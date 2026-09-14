@@ -49,12 +49,6 @@ export function TushareSync() {
   const groups = data?.progress ?? [];
   const targets = (config?.targets ?? []) as Row[];
   const catalogErrors = (config?.catalog_errors ?? []) as Row[];
-  const total = groups
-    .filter((r) => r.status !== "SPLIT")
-    .reduce((n, r) => n + Number(r.windows), 0);
-  const done = groups
-    .filter((r) => r.status === "VALIDATED")
-    .reduce((n, r) => n + Number(r.windows), 0);
   const planned =
     !!config?.catalog_ready &&
     !!config?.planned_at &&
@@ -173,20 +167,58 @@ export function TushareSync() {
             </Button>
             <Button onClick={current.refresh}>刷新</Button>
           </Space>
-          <p>
-            {planned ? "本轮已规划" : "等待合约目录或正在规划历史区间"} · 已校验{" "}
-            {done.toLocaleString()} / 已规划 {total.toLocaleString()} 个分片
-          </p>
-          <Progress
-            percent={total ? Math.round((done / total) * 1000) / 10 : 0}
-            status={
-              done === total && planned && total > 0 ? "success" : "active"
-            }
-          />
           <p className="muted">
-            进度按分片统计。下载记录通过校验后发布固定版本；空结果、限频和权限异常保留待办，不算完成。已校验响应不代表上游所有历史记录均无遗漏。
+            首次从 2012 年按月向后补齐，各数据类型轮流推进。
+            首次同步之后新增的日期优先更新，剩余时间继续补历史；异常独立等待重试。
+          </p>
+          <p>
+            {planned
+              ? "本轮目录规划完成"
+              : "等待合约目录或正在规划区间，分片总数仍会增加"}
           </p>
         </Card>
+      </div>
+      <div className="grid-2">
+        {(["history", "daily"] as const).map((key) => {
+          const lane = data?.lanes?.find((row) => row.lane === key);
+          const total = lane?.total ?? 0;
+          const done = lane?.validated ?? 0;
+          return (
+            <Card
+              key={key}
+              title={key === "history" ? "历史补齐进度" : "每日更新状态"}
+            >
+              <p>
+                {lane && lane.start <= lane.end
+                  ? `${lane.start} → ${lane.end}`
+                  : key === "daily"
+                    ? "尚无首次同步之后的新增日期"
+                    : "等待首次同步规划"}
+              </p>
+              <p>
+                已校验 {done.toLocaleString()} / 已规划 {total.toLocaleString()}{" "}
+                个分片
+              </p>
+              <Progress
+                percent={total ? Math.round((done / total) * 1000) / 10 : 0}
+                status={
+                  planned && total > 0 && done === total ? "success" : "active"
+                }
+              />
+              <Space wrap>
+                <Tag>处理中：{lane?.running ?? 0}</Tag>
+                <Tag>等待重试：{lane?.waiting ?? 0}</Tag>
+                <Tag color={lane?.blocked ? "red" : "default"}>
+                  需处理：{lane?.blocked ?? 0}
+                </Tag>
+              </Space>
+              <p>最早未完成区间：{lane?.oldest_pending ?? "暂无"}</p>
+              <p className="muted">
+                分片校验进度不等于行情覆盖完整率；空结果不算完成，目录规划期间总数仍会增加。
+              </p>
+            </Card>
+          );
+        })}
       </div>
       <Card title="数据范围与进度">
         <p>
@@ -225,7 +257,7 @@ export function TushareSync() {
           ]}
         />
       </Card>
-      <Card title="异常与最近任务">
+      <Card title="异常任务与当前处理">
         <p className="muted">
           优先显示受阻、处理中及等待复核的任务；空结果不计入完成。
         </p>

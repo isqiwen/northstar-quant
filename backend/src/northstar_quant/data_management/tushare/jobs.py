@@ -11,7 +11,7 @@ from northstar_quant import code_revision
 
 from ..library import DataLibrary
 from ..maintenance import library_write
-from . import acquisition, coverage, credentials, planning, publication
+from . import acquisition, coverage, credentials, planning, publication, scheduling
 from .catalog import BY_KEY
 from .quality import (
     Empty,
@@ -47,27 +47,10 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
         planning.refresh(engine)
         planning.plan(engine)
         with engine.begin() as connection:
-            # Every fifth request gives old history a turn even while new data arrives.
-            count = connection.scalar(text("SELECT count(*) FROM data_sync_attempts")) or 0
-            order = "start_at ASC" if count % 5 == 4 else "start_at DESC"
-            row = (
-                connection.execute(
-                    text(f"""SELECT * FROM data_sync_jobs j
-                WHERE status IN ('PENDING','WAITING') AND next_at<=now()
-                AND (source_generation IS NOT NULL OR :download_ready)
-                AND (source_generation IS NOT NULL OR NOT EXISTS (SELECT 1 FROM data_sync_jobs b
-                WHERE b.dataset=j.dataset AND
-                b.status='BLOCKED' AND b.error LIKE 'Tushare 权限不足%'))
-                ORDER BY (source_generation IS NOT NULL) DESC,
-                CASE dataset WHEN 'contracts' THEN 0 WHEN 'calendar' THEN 1 ELSE 2 END,
-                {order},created_at LIMIT 1 FOR UPDATE SKIP LOCKED"""),
-                    {
-                        "download_ready": datetime.fromisoformat(config["next_request_at"])
-                        <= datetime.now(UTC)
-                    },
-                )
-                .mappings()
-                .one_or_none()
+            row = scheduling.choose(
+                connection,
+                download_ready=datetime.fromisoformat(config["next_request_at"])
+                <= datetime.now(UTC),
             )
             if row is None:
                 return None

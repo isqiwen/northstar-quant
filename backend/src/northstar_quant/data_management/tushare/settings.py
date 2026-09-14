@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy import Engine, text
 
 from ..maintenance import library_write
-from . import credentials
+from . import credentials, scheduling
 from .catalog import DATASETS
 from .store import serial, settings
 
@@ -38,6 +38,7 @@ def configure(engine: Engine, *, revision: int, enabled: bool) -> dict[str, Any]
 def status(engine: Engine) -> dict[str, Any]:
     config = settings(engine)
     with engine.connect() as connection:
+        config["history_end"], lanes = scheduling.progress(connection)
         rows = [
             serial(row)
             for row in connection.execute(
@@ -97,6 +98,7 @@ def status(engine: Engine) -> dict[str, Any]:
         "token_configured": credentials.configured(),
         "datasets": [item.public() for item in DATASETS],
         "progress": rows,
+        "lanes": lanes,
         "jobs": recent,
         "unplanned_contracts": unplanned,
     }
