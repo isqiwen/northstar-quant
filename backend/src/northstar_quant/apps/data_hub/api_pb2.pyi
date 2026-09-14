@@ -431,6 +431,26 @@ class ContractSearch(_message.Message):
     offset: int
     def __init__(self, exchange: _Optional[str] = ..., product: _Optional[str] = ..., search: _Optional[str] = ..., offset: _Optional[int] = ...) -> None: ...
 
+class AvailableSearch(_message.Message):
+    __slots__ = ("exchange", "product", "search", "offset", "dataset")
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    exchange: str
+    product: str
+    search: str
+    offset: int
+    dataset: str
+    def __init__(self, exchange: _Optional[str] = ..., product: _Optional[str] = ..., search: _Optional[str] = ..., offset: _Optional[int] = ..., dataset: _Optional[str] = ...) -> None: ...
+
+class PublishedSelection(_message.Message):
+    __slots__ = ("receipt_id",)
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    receipt_id: str
+    def __init__(self, receipt_id: _Optional[str] = ...) -> None: ...
+
 class ExplorerList(_message.Message):
     __slots__ = ("rows", "total")
     ROWS_FIELD_NUMBER: _ClassVar[int]

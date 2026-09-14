@@ -230,6 +230,18 @@ message ContractSearch {
   optional int64 offset = 4 [(northstar.web.required_field) = true];
 }
 
+message AvailableSearch {
+  optional string exchange = 1 [(northstar.web.required_field) = true];
+  optional string product = 2 [(northstar.web.required_field) = true];
+  optional string search = 3 [(northstar.web.required_field) = true];
+  optional int64 offset = 4 [(northstar.web.required_field) = true];
+  optional string dataset = 5 [(northstar.web.required_field) = true];
+}
+
+message PublishedSelection {
+  optional string receipt_id = 1 [(northstar.web.required_field) = true];
+}
+
 message ExplorerList {
   repeated google.protobuf.Struct rows = 1 [(northstar.web.required_field) = true];
   optional int64 total = 2 [(northstar.web.required_field) = true];
@@ -369,6 +381,8 @@ service BrowserApi {
   rpc QueryRows(ExplorerQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/query"; }
   rpc QueryVersions(ExplorerRange) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/versions"; }
   rpc QueryCoverage(ExplorerRange) returns (ExplorerCoverage) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/coverage"; }
+  rpc AvailableData(AvailableSearch) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/available"; }
+  rpc OpenPublished(PublishedSelection) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/open"; }
   rpc FindContracts(ContractSearch) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/contracts"; }
   rpc GetExplorer(northstar.web.Empty) returns (ExplorerCatalog) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer"; }
   rpc GetApiPublications (northstar.web.Empty) returns (PublicationCatalog) {

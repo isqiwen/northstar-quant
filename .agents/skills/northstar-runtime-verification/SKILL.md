@@ -42,3 +42,17 @@ compatibility merely to make an old acceptance command succeed.
 Report tested commit/image, checks actually run, skips/unknowns and cleanup outcome.
 Remove only the disposable resources this run created; leave the personal deployment
 unchanged unless its operation was explicitly in scope.
+
+
+## Data browsing acceptance
+
+For Data Hub discovery changes, exercise `scripts/acceptance/check_browser.py` from
+an ordinary `/browse` entry: select a nonempty publication without manually supplying
+contract/dates, inspect the resulting chart and exact rows, then recover from an
+empty manual date range using the available-data list. Contract catalog membership,
+sync counters and a nonempty publication request window are not proof that a chosen
+date range contains rows. The owning `exploration.discovery` entry opens a pinned
+receipt through the same file verification as `exploration.rows`; PostgreSQL tests
+in `backend/tests/data_management/test_exploration.py` cover that boundary. Use the
+existing synthetic installed fixtures; do not depend on today's date or personal
+historical downloads for repeatable browser acceptance.

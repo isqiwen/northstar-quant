@@ -259,6 +259,27 @@ def main() -> None:
                     ).to_be_visible()
                     screenshot("settlement-revision")
                     page.get_by_role("dialog").locator(".ant-modal-close").click()
+                    # Discover published data without guessing contract or dates.
+                    visit(data_url + "/browse")
+                    available = page.locator(".explorer-available")
+                    expect(available.get_by_text("RB2610.SHF", exact=True).first).to_be_visible()
+                    available.get_by_role("row").filter(has_text="1 分钟").get_by_role(
+                        "button", name="查看数据", exact=True
+                    ).first.click()
+                    expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
+                    expect(page.get_by_label("开始日期", exact=True)).to_have_value("2026-09-01")
+                    expect(page.get_by_label("结束日期", exact=True)).to_have_value("2026-09-03")
+                    screenshot("available-data")
+                    # An empty manual range leads back to actual published data.
+                    page.get_by_label("开始日期", exact=True).fill("2026-09-02")
+                    page.get_by_label("结束日期", exact=True).fill("2026-09-02")
+                    page.get_by_role("button", name="查询数据", exact=True).click()
+                    expect(page.get_by_text("0 条记录", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="选择已有数据", exact=True).click()
+                    available.get_by_role("row").filter(has_text="1 分钟").get_by_role(
+                        "button", name="查看数据", exact=True
+                    ).first.click()
+                    expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
                     visit(
                         data_url
                         + "/browse?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"

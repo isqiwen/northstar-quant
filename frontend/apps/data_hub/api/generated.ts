@@ -183,6 +183,16 @@ export type ContractSearch = {
   search: string;
   offset: number;
 };
+export type AvailableSearch = {
+  exchange: string;
+  product: string;
+  search: string;
+  offset: number;
+  dataset: string;
+};
+export type PublishedSelection = {
+  receipt_id: string;
+};
 export type ExplorerList = {
   rows: (Record<string, JsonValue>)[];
   total: number;

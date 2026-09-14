@@ -5,7 +5,8 @@ These project workflows are maintained with the code, not installed globally:
 - `northstar-issue-delivery`: reconcile Issue/Project evidence, implement the next
   vertical result and publish accurate acceptance status.
 - `northstar-runtime-verification`: choose existing installation, persistence and
-  lifecycle checks without confusing local tests with browser or broker evidence.
+  lifecycle checks without confusing local tests with browser or broker evidence;
+  includes discovering published Data Hub records and recovering from empty queries.
 - `northstar-research-validation`: validate a fixed research run against causal
   inputs, futures account reconciliation and reproducible result evidence.
 

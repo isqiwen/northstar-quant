@@ -22,6 +22,7 @@ import { useData } from "../../../shared/data";
 import { download } from "../../../shared/api";
 import { Failure, Heading } from "../../../shared/ui";
 import { explore } from "./api";
+import { AvailableData } from "./available-data";
 import { DataPanel } from "./data-panel";
 import { CoveragePanel } from "./coverage-panel";
 import { VersionsPanel } from "./versions-panel";
@@ -153,6 +154,52 @@ export function Explorer({
       if (mine === generation.current) setBusy(false);
     }
   }
+  async function openPublished(receipt_id: string) {
+    const mine = ++generation.current;
+    setBusy(true);
+    setError(undefined);
+    setResult(undefined);
+    setLoaded(undefined);
+    try {
+      const value = await explore("/api/explorer/open", { receipt_id });
+      if (mine !== generation.current) return;
+      const range = {
+        dataset: value.dataset,
+        scope: value.scope,
+        start: value.start,
+        end: value.end,
+        offset: 0,
+      };
+      setFilter(range);
+      setPreset(value.receipt_ids);
+      setLoaded(range);
+      setResult(value);
+      setExchange("");
+      setProduct("");
+      setSearch(value.scope);
+      window.history.replaceState(
+        null,
+        "",
+        scopeUrl("/browse", range) +
+          `&receipt=${encodeURIComponent(receipt_id)}`,
+      );
+      setTimeout(
+        () =>
+          document
+            .getElementById("explorer-result")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        0,
+      );
+    } catch (e) {
+      if (mine === generation.current) {
+        setError(e as Error);
+        setResult(undefined);
+        setLoaded(undefined);
+      }
+    } finally {
+      if (mine === generation.current) setBusy(false);
+    }
+  }
   async function exportRange() {
     if (!result || !loaded) return;
     setExporting(true);
@@ -199,7 +246,14 @@ export function Explorer({
         }
       />
       <Failure error={catalog.error || error} />
-      <Card className="explorer-filters">
+      {mode === "browse" && (
+        <AvailableData
+          catalog={catalog.data}
+          opening={busy}
+          onOpen={(id) => void openPublished(id)}
+        />
+      )}
+      <Card title="自定义合约和日期范围" className="explorer-filters">
         <Form layout="vertical" onFinish={() => void load()}>
           <div className="explorer-controls">
             <Form.Item label="交易所">
@@ -290,6 +344,9 @@ export function Explorer({
               />
             </Form.Item>
           </div>
+          <p className="muted">
+            开始和结束日期包含首尾两天，筛选行情记录，不是下载时间。分钟数据按供应商时间的自然日期（上海时区），日线按供应商交易日期；周/月线按行情标签与计算截止日期的较早日期。夜盘尚未在此按交易日重新归集。
+          </p>
           <Space wrap>
             {preset.length > 0 && (
               <Tag color="blue">正在查看指定的历史分片版本</Tag>
@@ -333,11 +390,35 @@ export function Explorer({
       </Space>
       {!loaded && !busy && !error && (
         <Card>
-          <Empty description="选择合约和日期范围，查询已同步的数据" />
+          <Empty
+            description={
+              mode === "browse"
+                ? "从上方已有数据列表点击查看，无需填写日期"
+                : "选择合约和日期范围，查询已同步的数据"
+            }
+          />
+        </Card>
+      )}
+      <div id="explorer-result" />
+      {mode === "browse" && result?.total === 0 && (
+        <Card>
+          <p>
+            所选合约和日期没有已发布记录。请从上方“已有数据”选择一份，自动填入有记录的日期。
+          </p>
+          <Button
+            onClick={() =>
+              document
+                .querySelector(".explorer-available")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            选择已有数据
+          </Button>
         </Card>
       )}
       {mode === "browse" && result && (
         <DataPanel
+          key={result.view_id}
           result={result}
           exporting={exporting}
           onExport={() => void exportRange()}

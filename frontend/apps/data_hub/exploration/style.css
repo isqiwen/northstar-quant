@@ -1,3 +1,9 @@
+.explorer-available {
+  margin-bottom: 20px;
+}
+#explorer-result {
+  scroll-margin-top: 24px;
+}
 .explorer-controls {
   display: grid;
   grid-template-columns: 1fr 1fr 1.6fr 1fr 1.2fr 1.2fr;

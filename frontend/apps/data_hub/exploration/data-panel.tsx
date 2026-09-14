@@ -67,6 +67,9 @@ export function DataPanel({
           <Tag>
             {result.scope} · {result.dataset}
           </Tag>
+          <Tag>
+            {result.start} — {result.end}
+          </Tag>
           <Tag>Asia/Shanghai</Tag>
           <Tag>固定 {result.receipt_ids.length} 个分片</Tag>
           <strong>{result.total.toLocaleString()} 条记录</strong>

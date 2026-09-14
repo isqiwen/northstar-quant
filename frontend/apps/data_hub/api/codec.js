@@ -13801,6 +13801,732 @@ export const northstar = $root.northstar = (() => {
             return ContractSearch;
         })();
 
+        data_hub.AvailableSearch = (function() {
+
+            /**
+             * Properties of an AvailableSearch.
+             * @typedef {Object} northstar.data_hub.AvailableSearch.$Properties
+             * @property {string|null} [exchange] AvailableSearch exchange
+             * @property {string|null} [product] AvailableSearch product
+             * @property {string|null} [search] AvailableSearch search
+             * @property {number|Long|null} [offset] AvailableSearch offset
+             * @property {string|null} [dataset] AvailableSearch dataset
+             * @property {"exchange"} [_exchange] AvailableSearch _exchange
+             * @property {"product"} [_product] AvailableSearch _product
+             * @property {"search"} [_search] AvailableSearch _search
+             * @property {"offset"} [_offset] AvailableSearch _offset
+             * @property {"dataset"} [_dataset] AvailableSearch _dataset
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an AvailableSearch.
+             * @memberof northstar.data_hub
+             * @interface IAvailableSearch
+             * @augments northstar.data_hub.AvailableSearch.$Properties
+             * @deprecated Use northstar.data_hub.AvailableSearch.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an AvailableSearch.
+             * @typedef {{
+             *   exchange?: string|null;
+             *   product?: string|null;
+             *   search?: string|null;
+             *   offset?: number|Long|null;
+             *   dataset?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _exchange?: undefined; exchange?: null }|{ _exchange?: "exchange"; exchange: string })
+             * ) & (
+             *   ({ _product?: undefined; product?: null }|{ _product?: "product"; product: string })
+             * ) & (
+             *   ({ _search?: undefined; search?: null }|{ _search?: "search"; search: string })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * )} northstar.data_hub.AvailableSearch.$Shape
+             */
+
+            /**
+             * Constructs a new AvailableSearch.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an AvailableSearch.
+             * @constructor
+             * @param {northstar.data_hub.AvailableSearch.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const AvailableSearch = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * AvailableSearch exchange.
+             * @member {string|null|undefined} exchange
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            AvailableSearch.prototype.exchange = null;
+
+            /**
+             * AvailableSearch product.
+             * @member {string|null|undefined} product
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            AvailableSearch.prototype.product = null;
+
+            /**
+             * AvailableSearch search.
+             * @member {string|null|undefined} search
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            AvailableSearch.prototype.search = null;
+
+            /**
+             * AvailableSearch offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            AvailableSearch.prototype.offset = null;
+
+            /**
+             * AvailableSearch dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            AvailableSearch.prototype.dataset = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * AvailableSearch _exchange.
+             * @member {"exchange"|undefined} _exchange
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            $Object.defineProperty(AvailableSearch.prototype, "_exchange", {
+                get: $util.oneOfGetter($oneOfFields = ["exchange"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * AvailableSearch _product.
+             * @member {"product"|undefined} _product
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            $Object.defineProperty(AvailableSearch.prototype, "_product", {
+                get: $util.oneOfGetter($oneOfFields = ["product"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * AvailableSearch _search.
+             * @member {"search"|undefined} _search
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            $Object.defineProperty(AvailableSearch.prototype, "_search", {
+                get: $util.oneOfGetter($oneOfFields = ["search"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * AvailableSearch _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            $Object.defineProperty(AvailableSearch.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * AvailableSearch _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             */
+            $Object.defineProperty(AvailableSearch.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new AvailableSearch instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.AvailableSearch
+             * @static
+             * @param {northstar.data_hub.AvailableSearch.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.AvailableSearch} AvailableSearch instance
+             * @type {{
+             *   (properties: northstar.data_hub.AvailableSearch.$Shape): northstar.data_hub.AvailableSearch & northstar.data_hub.AvailableSearch.$Shape;
+             *   (properties?: northstar.data_hub.AvailableSearch.$Properties): northstar.data_hub.AvailableSearch;
+             * }}
+             */
+            AvailableSearch.create = function(properties) {
+                return new AvailableSearch(properties);
+            };
+
+            /**
+             * Encodes the specified AvailableSearch message. Does not implicitly {@link northstar.data_hub.AvailableSearch.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.AvailableSearch
+             * @static
+             * @param {northstar.data_hub.AvailableSearch.$Properties} message AvailableSearch message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            AvailableSearch.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.exchange);
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.product);
+                if (message.search != null && $Object.hasOwnProperty.call(message, "search"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.search);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int64(message.offset);
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.dataset);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an AvailableSearch message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.AvailableSearch
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.AvailableSearch & northstar.data_hub.AvailableSearch.$Shape} AvailableSearch
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            AvailableSearch.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.AvailableSearch();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.exchange = reader.stringVerify();
+                            message._exchange = "exchange";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.product = reader.stringVerify();
+                            message._product = "product";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.search = reader.stringVerify();
+                            message._search = "search";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an AvailableSearch message.
+             * @function verify
+             * @memberof northstar.data_hub.AvailableSearch
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            AvailableSearch.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    properties._exchange = 1;
+                    if (!$util.isString(message.exchange))
+                        return "exchange: string expected";
+                }
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product")) {
+                    properties._product = 1;
+                    if (!$util.isString(message.product))
+                        return "product: string expected";
+                }
+                if (message.search != null && $Object.hasOwnProperty.call(message, "search")) {
+                    properties._search = 1;
+                    if (!$util.isString(message.search))
+                        return "search: string expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an AvailableSearch message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.AvailableSearch
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.AvailableSearch} AvailableSearch
+             */
+            AvailableSearch.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.AvailableSearch)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.AvailableSearch: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.AvailableSearch();
+                if (object.exchange != null)
+                    message.exchange = $String(object.exchange);
+                if (object.product != null)
+                    message.product = $String(object.product);
+                if (object.search != null)
+                    message.search = $String(object.search);
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an AvailableSearch message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.AvailableSearch
+             * @static
+             * @param {northstar.data_hub.AvailableSearch} message AvailableSearch
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            AvailableSearch.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    object.exchange = message.exchange;
+                    if (options.oneofs)
+                        object._exchange = "exchange";
+                }
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product")) {
+                    object.product = message.product;
+                    if (options.oneofs)
+                        object._product = "product";
+                }
+                if (message.search != null && $Object.hasOwnProperty.call(message, "search")) {
+                    object.search = message.search;
+                    if (options.oneofs)
+                        object._search = "search";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this AvailableSearch to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.AvailableSearch
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            AvailableSearch.prototype.toJSON = function() {
+                return AvailableSearch.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for AvailableSearch
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.AvailableSearch
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            AvailableSearch.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.AvailableSearch";
+            };
+
+            return AvailableSearch;
+        })();
+
+        data_hub.PublishedSelection = (function() {
+
+            /**
+             * Properties of a PublishedSelection.
+             * @typedef {Object} northstar.data_hub.PublishedSelection.$Properties
+             * @property {string|null} [receipt_id] PublishedSelection receipt_id
+             * @property {"receipt_id"} [_receipt_id] PublishedSelection _receipt_id
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a PublishedSelection.
+             * @memberof northstar.data_hub
+             * @interface IPublishedSelection
+             * @augments northstar.data_hub.PublishedSelection.$Properties
+             * @deprecated Use northstar.data_hub.PublishedSelection.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a PublishedSelection.
+             * @typedef {{
+             *   receipt_id?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _receipt_id?: undefined; receipt_id?: null }|{ _receipt_id?: "receipt_id"; receipt_id: string })
+             * )} northstar.data_hub.PublishedSelection.$Shape
+             */
+
+            /**
+             * Constructs a new PublishedSelection.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a PublishedSelection.
+             * @constructor
+             * @param {northstar.data_hub.PublishedSelection.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const PublishedSelection = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * PublishedSelection receipt_id.
+             * @member {string|null|undefined} receipt_id
+             * @memberof northstar.data_hub.PublishedSelection
+             * @instance
+             */
+            PublishedSelection.prototype.receipt_id = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * PublishedSelection _receipt_id.
+             * @member {"receipt_id"|undefined} _receipt_id
+             * @memberof northstar.data_hub.PublishedSelection
+             * @instance
+             */
+            $Object.defineProperty(PublishedSelection.prototype, "_receipt_id", {
+                get: $util.oneOfGetter($oneOfFields = ["receipt_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new PublishedSelection instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.PublishedSelection
+             * @static
+             * @param {northstar.data_hub.PublishedSelection.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.PublishedSelection} PublishedSelection instance
+             * @type {{
+             *   (properties: northstar.data_hub.PublishedSelection.$Shape): northstar.data_hub.PublishedSelection & northstar.data_hub.PublishedSelection.$Shape;
+             *   (properties?: northstar.data_hub.PublishedSelection.$Properties): northstar.data_hub.PublishedSelection;
+             * }}
+             */
+            PublishedSelection.create = function(properties) {
+                return new PublishedSelection(properties);
+            };
+
+            /**
+             * Encodes the specified PublishedSelection message. Does not implicitly {@link northstar.data_hub.PublishedSelection.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.PublishedSelection
+             * @static
+             * @param {northstar.data_hub.PublishedSelection.$Properties} message PublishedSelection message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PublishedSelection.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.receipt_id != null && $Object.hasOwnProperty.call(message, "receipt_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.receipt_id);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a PublishedSelection message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.PublishedSelection
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.PublishedSelection & northstar.data_hub.PublishedSelection.$Shape} PublishedSelection
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PublishedSelection.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.PublishedSelection();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.receipt_id = reader.stringVerify();
+                            message._receipt_id = "receipt_id";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a PublishedSelection message.
+             * @function verify
+             * @memberof northstar.data_hub.PublishedSelection
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            PublishedSelection.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.receipt_id != null && $Object.hasOwnProperty.call(message, "receipt_id")) {
+                    properties._receipt_id = 1;
+                    if (!$util.isString(message.receipt_id))
+                        return "receipt_id: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a PublishedSelection message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.PublishedSelection
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.PublishedSelection} PublishedSelection
+             */
+            PublishedSelection.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.PublishedSelection)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.PublishedSelection: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.PublishedSelection();
+                if (object.receipt_id != null)
+                    message.receipt_id = $String(object.receipt_id);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a PublishedSelection message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.PublishedSelection
+             * @static
+             * @param {northstar.data_hub.PublishedSelection} message PublishedSelection
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            PublishedSelection.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.receipt_id != null && $Object.hasOwnProperty.call(message, "receipt_id")) {
+                    object.receipt_id = message.receipt_id;
+                    if (options.oneofs)
+                        object._receipt_id = "receipt_id";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this PublishedSelection to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.PublishedSelection
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            PublishedSelection.prototype.toJSON = function() {
+                return PublishedSelection.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for PublishedSelection
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.PublishedSelection
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            PublishedSelection.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.PublishedSelection";
+            };
+
+            return PublishedSelection;
+        })();
+
         data_hub.ExplorerList = (function() {
 
             /**

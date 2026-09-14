@@ -86,6 +86,31 @@ def source_permissions(
     return sources, export_allowed
 
 
+def verified_scan(version: dict[str, Any], start: str, end: str) -> ResponseScan:
+    """Discovery and range queries verify the same immutable publication."""
+    if version["parquet_bytes"] > 32 * 1024 * 1024:
+        raise ValueError("所选分片超过 32 MiB，请缩小范围")
+    files = publication.storage()
+    manifest = json.loads(files.read(version["manifest_hash"], version["manifest_bytes"]))
+    if (
+        manifest["dataset"] != version["dataset"]
+        or manifest["scope"] != version["scope"]
+        or manifest["quality"] != version["quality"]
+        or manifest["parquet"]
+        != {"content_hash": version["parquet_hash"], "byte_count": version["parquet_bytes"]}
+    ):
+        raise ValueError("发布清单与固定版本不一致")
+    raw = files.read(version["parquet_hash"], version["parquet_bytes"])
+    return ResponseScan(
+        raw,
+        row_count=version["row_count"],
+        dataset=version["dataset"],
+        scope=version["scope"],
+        start=start,
+        end=end,
+    )
+
+
 def _read(
     engine: Engine,
     dataset: str,
@@ -100,7 +125,6 @@ def _read(
     if sum(r["parquet_bytes"] for r in versions) > 32 * 1024 * 1024:
         raise ValueError("所选分片超过 32 MiB，请缩小范围")
     sources, export_allowed = source_permissions(engine, versions)
-    files = publication.storage()
     selected: dict[tuple[str, ...], dict[str, Any]] = {}
     origins: dict[tuple[str, ...], list[str]] = {}
     identity = BY_KEY[dataset].identity
@@ -112,19 +136,7 @@ def _read(
         "selected_compressed_bytes": 0,
     }
     for version in versions:
-        manifest = json.loads(files.read(version["manifest_hash"], version["manifest_bytes"]))
-        if (
-            manifest["dataset"] != dataset
-            or manifest["scope"] != scope
-            or manifest["quality"] != version["quality"]
-            or manifest["parquet"]
-            != {"content_hash": version["parquet_hash"], "byte_count": version["parquet_bytes"]}
-        ):
-            raise ValueError("发布清单与固定版本不一致")
-        raw = files.read(version["parquet_hash"], version["parquet_bytes"])
-        scan = ResponseScan(
-            raw, row_count=version["row_count"], dataset=dataset, scope=scope, start=start, end=end
-        )
+        scan = verified_scan(version, start, end)
         for row in scan.rows():
             if len(json.dumps(row)) > 8192:
                 raise ValueError("单条记录超过浏览上限")

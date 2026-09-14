@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import Field, JsonValue
 from sqlalchemy import Engine
 
-from northstar_quant.data_management.exploration import catalog, quality, revisions, rows
+from northstar_quant.data_management.exploration import catalog, discovery, quality, revisions, rows
 from northstar_quant.web.requests import ApiModel
 
 
@@ -42,6 +42,14 @@ class ContractSearch(ApiModel):
     product: str = Field(max_length=20)
     search: str = Field(max_length=40)
     offset: int = Field(ge=0, le=100000)
+
+
+class AvailableSearch(ContractSearch):
+    dataset: str = Field(max_length=16)
+
+
+class PublishedSelection(ApiModel):
+    receipt_id: str = Field(max_length=36)
 
 
 class ExplorerList(ApiModel):
@@ -88,6 +96,14 @@ class ExplorerRows(ApiModel):
 
 
 def register(app: FastAPI, engine: Engine) -> None:
+    @app.post("/api/explorer/available", response_model=ExplorerList)
+    def available(document: AvailableSearch) -> dict[str, Any]:
+        return discovery.available(engine, **document.model_dump())
+
+    @app.post("/api/explorer/open", response_model=ExplorerRows)
+    def open_published(document: PublishedSelection) -> dict[str, Any]:
+        return discovery.open_published(engine, UUID(document.receipt_id))
+
     @app.post("/api/explorer/compare", response_model=RevisionComparison)
     def compare(document: RevisionRequest) -> dict[str, Any]:
         return revisions.compare(

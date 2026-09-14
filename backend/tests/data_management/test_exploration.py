@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import text
 
 from northstar_quant.apps.data_hub.application import create_app
-from northstar_quant.data_management.exploration import catalog, quality, rows
+from northstar_quant.data_management.exploration import catalog, discovery, quality, rows
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.storage_identity import initialize
@@ -93,6 +93,12 @@ def test_fixed_pages_and_revision_do_not_mix(published):
     assert len({r["_key"] for r in exact}) == 6
     assert exact[0]["open"] == "3100.1"
     assert len(catalog.versions(engine, **args)["rows"]) == 2
+    discovered = discovery.available(engine, "1min", "", "", "rb2610", 0)
+    assert discovered["total"] == 1
+    assert discovered["rows"][0]["receipt_id"] == latest["receipt_ids"][0]
+    # A revision arriving after discovery cannot change the selected publication.
+    reopened = discovery.open_published(engine, ids[0])
+    assert reopened["rows"][0]["open"] == "3100.1"
     with pytest.raises(ValueError, match="冲突"):
         rows.read(engine, **args, receipt_ids=ids + [UUID(latest["receipt_ids"][0])])
     with pytest.raises(ValueError, match="不属于"):
@@ -125,6 +131,17 @@ def test_protocol_range_export_and_corruption_refusal(published):
     ) as client:
         csrf = login_response(client).json()["csrf"]
         client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
+        available = client.post(
+            "/api/explorer/available",
+            json=dict(dataset="", exchange="", product="", search="", offset=0),
+        ).json()
+        assert available["total"] == 1
+        opened = client.post(
+            "/api/explorer/open", json={"receipt_id": available["rows"][0]["receipt_id"]}
+        )
+        assert opened.status_code == 200, opened.text
+        assert opened.json()["total"] == 6
+        assert (opened.json()["start"], opened.json()["end"]) == ("2026-09-01", "2026-09-03")
         selection = dict(
             dataset="1min",
             scope="RB2610.SHF",
@@ -151,6 +168,12 @@ def test_protocol_range_export_and_corruption_refusal(published):
         path.write_bytes(b"corrupt")
         refused = client.post("/api/explorer/query", json=selection)
         assert refused.status_code == 422, refused.text
+        assert (
+            client.post(
+                "/api/explorer/open", json={"receipt_id": data["receipt_ids"][0]}
+            ).status_code
+            == 422
+        )
 
 
 def test_revision_comparison_pins_both_versions_and_distinguishes_null(published):
@@ -267,3 +290,25 @@ def test_published_range_scan_reports_pruning_without_changing_values(published)
     assert whole["scan"]["rows_decoded"] == 1024
     assert narrow["scan"]["row_groups_read"] == 1
     assert whole["scan"]["row_groups_read"] == 2
+
+
+def test_available_excludes_catalog_only_and_split_sources(published):
+    library, _ = published
+    engine = library._engine
+    with engine.begin() as c:
+        c.execute(
+            text("""INSERT INTO data_sync_contracts
+            (ts_code,exchange,product,kind,details,planned_revision)
+            VALUES ('A0801.DCE','DCE','A','1','{}',1)""")
+        )
+        planning.enqueue(
+            c, "15min", "A0801.DCE", {"ts_code": "A0801.DCE"}, "2026-09-01", "2026-09-03"
+        )
+    assert discovery.available(engine, "", "", "", "A0801", 0)["total"] == 0
+    assert discovery.available(engine, "15min", "", "", "", 0)["total"] == 0
+    assert discovery.available(engine, "", "DCE", "", "", 0)["total"] == 0
+    found = discovery.available(engine, "", "SHFE", "RB", "rb", 0)
+    assert found["total"] == 1 and found["rows"][0]["row_count"] == 6
+    with engine.begin() as c:
+        c.execute(text("UPDATE data_sync_jobs SET status='SPLIT' WHERE scope='RB2610.SHF'"))
+    assert discovery.available(engine, "", "", "", "", 0)["total"] == 0

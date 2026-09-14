@@ -1197,6 +1197,60 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.AvailableSearch": {
+      "fields": {
+        "exchange": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "product": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "search": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 4,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "dataset": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.PublishedSelection": {
+      "fields": {
+        "receipt_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.data_hub.ExplorerList": {
       "fields": {
         "rows": {
@@ -2262,6 +2316,20 @@
       "path": "/api/explorer/coverage",
       "input": "northstar.data_hub.ExplorerRange",
       "output": "northstar.data_hub.ExplorerCoverage",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/available",
+      "input": "northstar.data_hub.AvailableSearch",
+      "output": "northstar.data_hub.ExplorerList",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/open",
+      "input": "northstar.data_hub.PublishedSelection",
+      "output": "northstar.data_hub.ExplorerRows",
       "runtime": false
     },
     {
