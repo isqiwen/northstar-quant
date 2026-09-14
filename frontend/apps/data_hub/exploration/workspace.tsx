@@ -1,6 +1,15 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { App, Button, Card, ConfigProvider, theme, Empty, Space } from "antd";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  App,
+  Button,
+  Card,
+  ConfigProvider,
+  theme,
+  Empty,
+  Space,
+  Drawer,
+} from "antd";
 import Link from "next/link";
 import { query } from "../api/client";
 import type {
@@ -58,8 +67,21 @@ export function Explorer({
   const [error, setError] = useState<Error>();
   const [exporting, setExporting] = useState(false);
   const generation = useRef(0);
+  const [rangeOpen, setRangeOpen] = useState(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (mode === "browse") {
+      if (params.has("scope")) setRangeOpen(true);
+      else {
+        try {
+          const saved = JSON.parse(
+            sessionStorage.getItem("northstar:data-browse") || "null",
+          );
+          if (saved?.scope && saved?.dataset)
+            void openInstrument(saved.scope, saved.dataset);
+        } catch {}
+      }
+    }
     setSearch(params.get("scope") || "");
     setPreset(params.get("receipt") ? [params.get("receipt")!] : []);
     setFilter((f) => ({
@@ -163,14 +185,14 @@ export function Explorer({
       if (mine === generation.current) setBusy(false);
     }
   }
-  async function openPublished(receipt_id: string) {
+  async function openInstrument(scope: string, dataset: string) {
     const mine = ++generation.current;
     setBusy(true);
     setError(undefined);
     setResult(undefined);
     setLoaded(undefined);
     try {
-      const value = await explore("/api/explorer/open", { receipt_id });
+      const value = await explore("/api/explorer/select", { scope, dataset });
       if (mine !== generation.current) return;
       const range = {
         dataset: value.dataset,
@@ -179,6 +201,12 @@ export function Explorer({
         end: value.end,
         offset: 0,
       };
+      try {
+        sessionStorage.setItem(
+          "northstar:data-browse",
+          JSON.stringify({ scope: value.scope, dataset: value.dataset }),
+        );
+      } catch {}
       setFilter(range);
       setPreset(value.receipt_ids);
       setLoaded(range);
@@ -190,7 +218,7 @@ export function Explorer({
         null,
         "",
         scopeUrl("/browse", range) +
-          `&receipt=${encodeURIComponent(receipt_id)}`,
+          `&receipt=${encodeURIComponent(value.receipt_ids[0])}`,
       );
     } catch (e) {
       if (mine === generation.current) {
@@ -242,9 +270,14 @@ export function Explorer({
         }
         description="Tushare · 固定历史版本。筛选仅用于查看，不改变全部自动同步范围。"
         actions={
-          <Link href="/sync">
-            <Button>查看自动同步</Button>
-          </Link>
+          <Space>
+            {mode === "browse" && (
+              <Button onClick={() => setRangeOpen(true)}>日期范围</Button>
+            )}
+            <Link href="/sync">
+              <Button>查看自动同步</Button>
+            </Link>
+          </Space>
         }
       />
       <Failure error={catalog.error || error} />
@@ -273,32 +306,41 @@ export function Explorer({
             <AvailableData
               catalog={catalog.data}
               opening={busy}
-              selectedReceipt={result?.receipt_ids[0]}
-              onOpen={(id) => void openPublished(id)}
+              selectedScope={result?.scope}
+              onOpen={(scope, dataset) => void openInstrument(scope, dataset)}
             />
           )}
-          <RangeFilters
-            catalog={catalog.data}
-            filter={filter}
-            exchange={exchange}
-            product={product}
-            contracts={contracts}
-            contractTotal={contractTotal}
-            preset={preset}
-            busy={busy}
-            onSubmit={() => void load()}
-            onChange={change}
-            onSearch={setSearch}
-            onExchange={(v) => {
-              setExchange(v);
-              setProduct("");
-              change({ scope: "" });
-            }}
-            onProduct={(v) => {
-              setProduct(v);
-              change({ scope: "" });
-            }}
-          />
+          <RangeSettings
+            inline={mode !== "browse"}
+            open={rangeOpen}
+            onClose={() => setRangeOpen(false)}
+          >
+            <RangeFilters
+              catalog={catalog.data}
+              filter={filter}
+              exchange={exchange}
+              product={product}
+              contracts={contracts}
+              contractTotal={contractTotal}
+              preset={preset}
+              busy={busy}
+              onSubmit={() => {
+                setRangeOpen(false);
+                void load();
+              }}
+              onChange={change}
+              onSearch={setSearch}
+              onExchange={(v) => {
+                setExchange(v);
+                setProduct("");
+                change({ scope: "" });
+              }}
+              onProduct={(v) => {
+                setProduct(v);
+                change({ scope: "" });
+              }}
+            />
+          </RangeSettings>
           <Space wrap className="explorer-links">
             {[
               ["/browse", "数据浏览"],
@@ -329,6 +371,7 @@ export function Explorer({
                 aria-label="行情周期"
               >
                 <span>历史周期</span>
+
                 {(catalog.data?.datasets || [])
                   .filter((d) => d.browsable)
                   .map((d) => (
@@ -341,17 +384,11 @@ export function Explorer({
                       }
                       title={
                         instrument?.periods.includes(String(d.key))
-                          ? "切换原生周期，保持当前日期范围"
+                          ? "切换原生周期并定位已有数据日期"
                           : "该合约尚无已发布数据"
                       }
                       onClick={() => {
-                        const range = {
-                          ...(loaded || filter),
-                          dataset: String(d.key),
-                          offset: 0,
-                        };
-                        change(range);
-                        void load(0, [], range);
+                        void openInstrument(filter.scope, String(d.key));
                       }}
                     >
                       {String(d.label)}
@@ -418,5 +455,31 @@ export function Explorer({
         </div>
       </ConfigProvider>
     </>
+  );
+}
+
+function RangeSettings({
+  inline,
+  open,
+  onClose,
+  children,
+}: {
+  inline: boolean;
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return inline ? (
+    children
+  ) : (
+    <Drawer
+      rootClassName="market-drawer"
+      title="合约与日期范围"
+      open={open}
+      onClose={onClose}
+      width={760}
+    >
+      {children}
+    </Drawer>
   );
 }

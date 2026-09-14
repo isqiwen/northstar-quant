@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   App,
   Button,
@@ -34,7 +34,25 @@ export function Shell({
   children: ReactNode;
   lookupCommand?: (id: string) => Promise<unknown>;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+  useEffect(() => {
+    try {
+      setCollapsed(
+        localStorage.getItem(`northstar:${name}:navigation`) !== "expanded",
+      );
+    } catch {}
+  }, [name]);
+  function toggleNavigation() {
+    setCollapsed((value) => {
+      try {
+        localStorage.setItem(
+          `northstar:${name}:navigation`,
+          value ? "expanded" : "collapsed",
+        );
+      } catch {}
+      return !value;
+    });
+  }
   const pathname = usePathname();
   const active =
     [...items]
@@ -44,7 +62,8 @@ export function Shell({
     <Layout className="workspace">
       <Layout.Sider
         theme="light"
-        width={238}
+        width={200}
+        collapsedWidth={64}
         collapsed={collapsed}
         breakpoint="lg"
         onBreakpoint={setCollapsed}
@@ -75,10 +94,7 @@ export function Shell({
       </Layout.Sider>
       <Layout>
         <Layout.Header className="topbar">
-          <SpaceHeader
-            collapsed={collapsed}
-            toggle={() => setCollapsed(!collapsed)}
-          />
+          <SpaceHeader collapsed={collapsed} toggle={toggleNavigation} />
           <div>
             <Tag bordered={false}>{name}</Tag>
             <Logout />

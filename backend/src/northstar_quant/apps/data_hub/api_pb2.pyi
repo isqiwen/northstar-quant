@@ -505,6 +505,14 @@ class ChartQuery(_message.Message):
     receipt_ids: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class InstrumentOpen(_message.Message):
+    __slots__ = ("scope", "dataset")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    dataset: str
+    def __init__(self, scope: _Optional[str] = ..., dataset: _Optional[str] = ...) -> None: ...
+
 class InstrumentSelection(_message.Message):
     __slots__ = ("scope",)
     SCOPE_FIELD_NUMBER: _ClassVar[int]

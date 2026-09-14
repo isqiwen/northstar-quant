@@ -21,8 +21,9 @@ def available(
     with engine.connect() as c:
         found = (
             c.execute(
-                text("""SELECT r.receipt_id,r.row_count,j.dataset,j.scope,j.start_at,j.end_at,
-                c.exchange,c.product,c.details->>'name' AS name,count(*) OVER() AS total
+                text("""WITH published AS (
+                SELECT r.receipt_id,r.row_count,j.dataset,j.scope,j.start_at,j.end_at,
+                c.exchange,c.product,c.details->>'name' AS name
                 FROM data_sync_jobs j JOIN data_sync_receipts r ON r.receipt_id=j.receipt_id
                 LEFT JOIN data_sync_contracts c ON c.ts_code=j.scope
                 WHERE j.status<>'SPLIT' AND r.row_count>0
@@ -32,8 +33,17 @@ def available(
                 AND (:search='' OR position(lower(:search) in lower(j.scope))>0
                     OR position(lower(:search) in lower(c.details->>'name'))>0
                     OR (c.exchange='CFFEX' AND c.product=ANY(:localized)))
-                ORDER BY j.end_at DESC,j.scope,j.dataset,r.receipt_id
-                LIMIT 10 OFFSET :offset"""),
+                ), grouped AS (
+                SELECT scope,min(start_at) AS available_start,max(end_at) AS available_end,
+                array_agg(DISTINCT dataset ORDER BY dataset) AS periods,
+                count(*) AS publications FROM published GROUP BY scope
+                ), preferred AS (
+                SELECT DISTINCT ON (scope) * FROM published
+                ORDER BY scope,end_at DESC,
+                CASE dataset WHEN 'daily' THEN 0 WHEN '15min' THEN 1 ELSE 2 END,dataset,receipt_id
+                ) SELECT p.*,g.available_start,g.available_end,g.periods,g.publications,
+                count(*) OVER() AS total FROM preferred p JOIN grouped g USING(scope)
+                ORDER BY available_end DESC,scope LIMIT 10 OFFSET :offset"""),
                 dict(
                     datasets=[dataset] if dataset else list(BROWSABLE_DATASETS),
                     exchange=exchange,
@@ -85,3 +95,23 @@ def open_published(engine: Engine, receipt_id: UUID) -> dict[str, Any]:
     end = max(days)
     start = max(min(days), (date.fromisoformat(end) - timedelta(days=30)).isoformat())
     return rows.read(engine, version["dataset"], version["scope"], start, end, [receipt_id])
+
+
+def open_instrument(engine: Engine, scope: str, dataset: str) -> dict[str, Any]:
+    """Choose a current nonempty native publication, then pin its actual data range."""
+    if dataset and dataset not in BROWSABLE_DATASETS:
+        raise ValueError("请选择已支持的数据类型")
+    with engine.connect() as c:
+        receipt = c.execute(
+            text("""SELECT r.receipt_id
+            FROM data_sync_jobs j JOIN data_sync_receipts r ON r.receipt_id=j.receipt_id
+            WHERE j.scope=:scope AND j.dataset=ANY(:datasets)
+            AND j.status<>'SPLIT' AND r.row_count>0
+            ORDER BY j.end_at DESC,
+            CASE j.dataset WHEN 'daily' THEN 0 WHEN '15min' THEN 1 ELSE 2 END,
+            j.dataset,r.receipt_id LIMIT 1"""),
+            {"scope": scope, "datasets": [dataset] if dataset else list(BROWSABLE_DATASETS)},
+        ).scalar_one_or_none()
+    if receipt is None:
+        raise ValueError("该合约周期尚无已发布数据，请选择其他周期")
+    return open_published(engine, receipt)

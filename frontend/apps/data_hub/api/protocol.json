@@ -1411,6 +1411,26 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.InstrumentOpen": {
+      "fields": {
+        "scope": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "dataset": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.data_hub.InstrumentSelection": {
       "fields": {
         "scope": {
@@ -2412,6 +2432,13 @@
       "method": "POST",
       "path": "/api/explorer/chart",
       "input": "northstar.data_hub.ChartQuery",
+      "output": "northstar.data_hub.ExplorerRows",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/select",
+      "input": "northstar.data_hub.InstrumentOpen",
       "output": "northstar.data_hub.ExplorerRows",
       "runtime": false
     },

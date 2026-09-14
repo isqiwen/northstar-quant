@@ -47,16 +47,21 @@ unchanged unless its operation was explicitly in scope.
 ## Data browsing acceptance
 
 For Data Hub discovery changes, exercise `scripts/acceptance/check_browser.py` from
-an ordinary `/browse` entry: select a nonempty publication without manually supplying
+an ordinary `/browse` entry: select a contract with a nonempty publication without manually supplying
 contract/dates, inspect the resulting chart and exact rows, then recover from an
 empty manual date range using the available-data list. Search by a supplied Chinese
 contract name and confirm the unchanged supplier code. For chart changes, switch
-only available native periods while keeping dates, inspect whole-range chart counts
+only available native periods and verify their populated dates, inspect whole-range chart counts
 across detail pagination, and exercise zoom/indicator controls. Chart presentation
 must not infer realtime prices or replace exact source values with indicator floats. Contract catalog membership,
 sync counters and a nonempty publication request window are not proof that a chosen
-date range contains rows. The owning `exploration.discovery` entry opens a pinned
+date range contains rows. The owning `exploration.discovery` entry selects a current native publication and opens a pinned
 receipt through the same file verification as `exploration.rows`; PostgreSQL tests
 in `backend/tests/data_management/test_exploration.py` cover that boundary. Use the
 existing synthetic installed fixtures; do not depend on today's date or personal
 historical downloads for repeatable browser acceptance.
+
+For the contract workbench, assert one row per contract across native periods. Open
+the date-range drawer for manual ranges and the detail drawer for raw rows/source
+checks; close drawers before chart interactions. Ordinary browse re-entry restores
+the last contract/period in the tab; explicit receipt links take precedence.

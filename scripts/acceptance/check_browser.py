@@ -234,6 +234,7 @@ def main() -> None:
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("3 条记录", exact=True)).to_be_visible()
                     expect(page.get_by_role("img", name="固定数据结算价曲线")).to_be_visible()
+                    page.get_by_role("button", name="数据明细与来源", exact=True).click()
                     expect(page.get_by_text("结算参数明细", exact=True)).to_be_visible()
                     expect(page.get_by_role("cell", name="3100.125", exact=True)).to_be_visible()
                     expect(page.get_by_role("cell", name="0.06", exact=True)).to_be_visible()
@@ -262,6 +263,7 @@ def main() -> None:
                     # Discover published data without guessing contract or dates.
                     visit(data_url + "/browse")
                     available = page.locator(".explorer-available")
+                    choose("已有数据类型", "1 分钟")
                     available.get_by_label("搜索已有数据合约", exact=True).fill("螺纹钢")
                     expect(available.get_by_text("螺纹钢2610", exact=True).first).to_be_visible()
                     expect(available.get_by_text("RB2610.SHF", exact=True).first).to_be_visible()
@@ -269,10 +271,15 @@ def main() -> None:
                         "button", name="查看数据", exact=True
                     ).first.click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
-                    expect(page.get_by_label("开始日期", exact=True)).to_have_value("2026-09-01")
-                    expect(page.get_by_label("结束日期", exact=True)).to_have_value("2026-09-03")
+                    expect(available.get_by_text("RB2610.SHF", exact=True)).to_have_count(1)
+                    expect(
+                        page.locator(".quote-summary").get_by_text(
+                            "2026-09-01 — 2026-09-03", exact=True
+                        )
+                    ).to_be_visible()
                     screenshot("available-data")
                     # An empty manual range leads back to actual published data.
+                    page.get_by_role("button", name="日期范围", exact=True).click()
                     page.get_by_label("开始日期", exact=True).fill("2026-09-02")
                     page.get_by_label("结束日期", exact=True).fill("2026-09-02")
                     page.get_by_label("结束日期", exact=True).press("Tab")
@@ -290,9 +297,11 @@ def main() -> None:
                     expect(page.get_by_role("button", name="查询数据", exact=True)).to_be_enabled()
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="数据明细与来源", exact=True).click()
                     page.locator("summary").filter(has_text="查询读取统计").click()
                     expect(page.get_by_text("文件身份仍完整核验", exact=False)).to_be_visible()
                     screenshot("range-cost")
+                    page.locator(".ant-drawer-close").click()
                     expect(
                         page.get_by_role("img", name="固定数据 K 线、成交量与持仓量")
                     ).to_be_visible()
@@ -313,13 +322,18 @@ def main() -> None:
                     periods = page.get_by_role("group", name="行情周期")
                     periods.get_by_role("button", name="每日结算参数", exact=True).click()
                     expect(page.get_by_role("img", name="固定数据结算价曲线")).to_be_visible()
-                    expect(page.get_by_label("开始日期", exact=True)).to_have_value("2026-09-01")
-                    expect(page.get_by_label("结束日期", exact=True)).to_have_value("2026-09-03")
+                    expect(
+                        page.locator(".quote-summary").get_by_text(
+                            "2026-09-01 — 2026-09-04", exact=True
+                        )
+                    ).to_be_visible()
                     periods.get_by_role("button", name="1 分钟", exact=True).click()
                     expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="数据明细与来源", exact=True).click()
                     page.locator(".ant-pagination-item-2").first.click()
                     expect(page.get_by_text("明细第 201–400 条", exact=True)).to_be_visible()
                     expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
+                    page.locator(".ant-drawer-close").click()
                     page.get_by_role("checkbox", name="MACD", exact=True).check()
                     page.get_by_role("button", name="全屏看图", exact=True).click()
                     expect(page.locator(":fullscreen")).to_have_count(1)
@@ -327,6 +341,8 @@ def main() -> None:
                     page.get_by_role("button", name="全屏看图", exact=True).click()
                     expect(page.locator(":fullscreen")).to_have_count(0)
                     screenshot("browse")
+                    visit(data_url + "/browse")
+                    expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
                     visit(
                         data_url
                         + "/quality?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-04"
@@ -451,6 +467,7 @@ def main() -> None:
                     )
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("固定 2 个分片", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="数据明细与来源", exact=True).click()
                     page.get_by_role("button", name="合并固定版本", exact=True).click()
                     expect(
                         page.get_by_role("heading", name="固定版本合并", exact=True)

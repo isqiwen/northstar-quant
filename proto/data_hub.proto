@@ -272,6 +272,10 @@ message ChartQuery {
   optional string end = 4 [(northstar.web.required_field) = true];
   repeated string receipt_ids = 5 [(northstar.web.required_field) = true];
 }
+message InstrumentOpen {
+  optional string scope = 1 [(northstar.web.required_field) = true];
+  optional string dataset = 2 [(northstar.web.required_field) = true];
+}
 message InstrumentSelection {
   optional string scope = 1 [(northstar.web.required_field) = true];
 }
@@ -399,6 +403,7 @@ service BrowserApi {
   rpc QueryVersions(ExplorerRange) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/versions"; }
   rpc QueryCoverage(ExplorerRange) returns (ExplorerCoverage) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/coverage"; }
   rpc ChartRows(ChartQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/chart"; }
+  rpc SelectInstrument(InstrumentOpen) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/select"; }
   rpc DescribeInstrument(InstrumentSelection) returns (ExplorerInstrument) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/instrument"; }
   rpc AvailableData(AvailableSearch) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/available"; }
   rpc OpenPublished(PublishedSelection) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/open"; }

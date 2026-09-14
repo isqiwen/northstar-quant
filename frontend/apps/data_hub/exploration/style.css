@@ -271,3 +271,58 @@
 .market-terminal a {
   color: #83b5ff;
 }
+
+.market-terminal {
+  grid-template-areas: "instruments result" "links links";
+  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+}
+.market-terminal .explorer-available {
+  max-height: calc(100dvh - 170px);
+  overflow: auto;
+}
+.market-terminal .explorer-available .ant-table-row {
+  cursor: pointer;
+}
+.market-terminal .quote-summary h2 {
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+.market-terminal .quote-summary .ant-card-body {
+  padding: 10px 14px;
+}
+.market-terminal .quote-summary p {
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+.market-terminal .price-chart-canvas {
+  height: clamp(340px, calc(100dvh - 410px), 900px);
+}
+.market-terminal .explorer-links {
+  margin: 0;
+}
+@media (max-width: 800px) {
+  .market-terminal {
+    grid-template-columns: 1fr;
+    grid-template-areas: "instruments" "result" "links";
+  }
+  .market-terminal .explorer-available {
+    max-height: 300px;
+    position: static;
+  }
+}
+
+.market-drawer .explorer-controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.market-drawer .ant-card {
+  border-color: #293545;
+}
+.market-drawer .ant-card-head {
+  border-bottom-color: #293545 !important;
+}
+.market-drawer .explorer-selected td {
+  background: #203852 !important;
+}
+.market-drawer .muted {
+  color: #91a2b7;
+}

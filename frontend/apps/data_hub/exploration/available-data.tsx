@@ -10,13 +10,13 @@ type Row = Record<string, unknown>;
 export function AvailableData({
   catalog,
   opening,
-  selectedReceipt,
+  selectedScope,
   onOpen,
 }: {
   catalog?: ExplorerCatalog;
   opening: boolean;
-  selectedReceipt?: string;
-  onOpen: (receipt: string) => void;
+  selectedScope?: string;
+  onOpen: (scope: string, dataset: string) => void;
 }) {
   const [filter, setFilter] = useState({
     dataset: "",
@@ -119,17 +119,22 @@ export function AvailableData({
       </Space>
       <Failure error={error} />
       <Table<Row>
-        rowKey="receipt_id"
+        rowKey="scope"
         size="small"
         loading={busy}
         dataSource={rows}
         onRow={(r) => ({
-          onDoubleClick: () => {
-            if (!opening) onOpen(String(r.receipt_id));
+          onClick: () => {
+            if (!opening) onOpen(String(r.scope), filter.dataset);
+          },
+          tabIndex: 0,
+          onKeyDown: (e) => {
+            if (!opening && e.key === "Enter")
+              onOpen(String(r.scope), filter.dataset);
           },
         })}
         rowClassName={(r) =>
-          r.receipt_id === selectedReceipt ? "instrument-active" : ""
+          r.scope === selectedScope ? "instrument-active" : ""
         }
         locale={{
           emptyText: (
@@ -146,30 +151,33 @@ export function AvailableData({
         }}
         columns={[
           {
-            title: "合约 / 发布区间",
+            title: "合约 / 可用周期",
             render: (_, r) => (
               <div className="instrument-cell">
                 <strong>{String(r.display_name || r.scope)}</strong>
                 <span>
-                  <span>{String(r.scope)}</span> · {label(r.dataset)}
+                  <span>{String(r.scope)}</span>
                 </span>
+                <small>{(r.periods as string[]).map(label).join(" · ")}</small>
                 <small>
-                  {String(r.start_at)} — {String(r.end_at)}
+                  {String(r.available_start)} — {String(r.available_end)}
                 </small>
               </div>
             ),
           },
           {
-            title: "记录",
+            title: "",
             width: 82,
             render: (_, r) => (
               <div className="instrument-action">
-                <span>{Number(r.row_count).toLocaleString()}</span>
                 <Button
                   size="small"
                   type="link"
                   disabled={opening}
-                  onClick={() => onOpen(String(r.receipt_id))}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpen(String(r.scope), filter.dataset);
+                  }}
                 >
                   查看数据
                 </Button>
@@ -179,7 +187,7 @@ export function AvailableData({
         ]}
       />
       <p className="muted">
-        区间可能有缺口。点击打开末尾最多31个自然日，可在下方调整范围。
+        每个合约只列一次。选中后打开最近发布中有记录的日期；区间可能有缺口。
       </p>
     </Card>
   );

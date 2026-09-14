@@ -11,6 +11,7 @@ import {
   Tag,
   Typography,
   Spin,
+  Drawer,
 } from "antd";
 import Link from "next/link";
 import type { ExplorerRows } from "../api/generated";
@@ -78,6 +79,7 @@ export function DataPanel({
   }, [result.view_id, compacted]);
   const chartRows = compacted ? result.rows : chartData?.rows || [];
   const [selected, setSelected] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const settlement = result.dataset === "settlement";
   const [columns, setColumns] = useState(() =>
     result.fields
@@ -88,7 +90,10 @@ export function DataPanel({
         return rank(a) - rank(b) || a.localeCompare(b);
       }),
   );
-  const choosePoint = useCallback((key: string) => setSelected(key), []);
+  const choosePoint = useCallback((key: string) => {
+    setSelected(key);
+    setDetailsOpen(true);
+  }, []);
   useEffect(() => setSelected(""), [result.offset]);
   const selectedRow =
     chartRows.find((r) => r._key === selected) ||
@@ -113,9 +118,9 @@ export function DataPanel({
             {result.start} — {result.end}
           </Tag>
           <Tag>Asia/Shanghai</Tag>
-          <Tag>固定 {result.receipt_ids.length} 个分片</Tag>
+
           <strong>{result.total.toLocaleString()} 条记录</strong>
-          {!compacted && <CompactButton result={result} />}
+          <Button onClick={() => setDetailsOpen(true)}>数据明细与来源</Button>
           <Button
             disabled={!result.export_allowed || !result.total}
             loading={exporting}
@@ -129,17 +134,6 @@ export function DataPanel({
           {result.export_allowed ? "" : "来源当前未开放导出权限。"}
         </p>
       </Card>
-      <details>
-        <summary>查询读取统计</summary>
-        <p className="muted">
-          涉及 {Number(result.scan.files)} 个文件；解码{" "}
-          {Number(result.scan.rows_decoded).toLocaleString()} 条记录， 读取{" "}
-          {Number(result.scan.row_groups_read)} /{" "}
-          {Number(result.scan.row_groups_total)} 个行组。 文件身份仍完整核验{" "}
-          {Number(result.scan.verified_bytes).toLocaleString()}{" "}
-          字节，行组裁剪减少解码， 不表示减少了文件哈希核验的读取量。
-        </p>
-      </details>
       {!result.rows.length ? (
         <Card>
           <Empty description="所选范围暂无已发布记录；请查看覆盖与质量" />
@@ -182,117 +176,134 @@ export function DataPanel({
               图表数值仅用于显示。
             </p>
           </Card>
-          <Card
-            title={settlement ? "结算参数明细" : "行情明细"}
-            extra={
-              <span>
-                明细第 {result.offset + 1}–{result.offset + result.rows.length}{" "}
-                条
-              </span>
-            }
-          >
-            <Select
-              aria-label="显示字段"
-              mode="multiple"
-              value={columns}
-              onChange={setColumns}
-              style={{ width: "100%", marginBottom: 16 }}
-              options={result.fields.map((f) => ({
-                value: String(f.key),
-                label: String(f.label),
-              }))}
-            />
-            <Table<Row>
-              rowKey="_key"
-              dataSource={result.rows}
-              size="small"
-              scroll={{ x: "max-content", y: 460 }}
-              onRow={(r) => ({
-                onClick: () => setSelected(String(r._key)),
-              })}
-              rowClassName={(r) =>
-                r._key === selected ? "explorer-selected" : ""
-              }
-              pagination={{
-                current: result.offset / 200 + 1,
-                pageSize: 200,
-                total: result.total,
-                showSizeChanger: false,
-                onChange: (p) => onPage((p - 1) * 200),
-              }}
-              columns={columns.map((k) => ({
-                title: String(
-                  result.fields.find((f) => f.key === k)?.label || k,
-                ),
-                dataIndex: k,
-                render: (v) =>
-                  v == null ? (
-                    <Tag>缺失</Tag>
-                  ) : (
-                    <Typography.Text copyable={{ text: String(v) }}>
-                      {String(v)}
-                    </Typography.Text>
-                  ),
-              }))}
-            />
-          </Card>
         </>
       )}
-      {selectedRow && (
-        <Card title="选中记录 · 精确值与来源版本">
-          <Evidence value={selectedRow} />
-        </Card>
-      )}
-      <Tabs
-        items={[
-          {
-            key: "fields",
-            label: "字段说明与范围统计",
-            children: (
-              <Table<Row>
-                rowKey="key"
-                pagination={false}
-                dataSource={result.fields}
-                columns={[
-                  { title: "字段", dataIndex: "key" },
-                  { title: "含义", dataIndex: "label" },
-                  { title: "单位 / 时间口径", dataIndex: "unit" },
-                  { title: "缺失数", dataIndex: "missing" },
-                  { title: "最小值", dataIndex: "minimum" },
-                  { title: "最大值", dataIndex: "maximum" },
-                ]}
-              />
-            ),
-          },
-          {
-            key: "versions",
-            label: "固定版本与来源",
-            children: (
-              <Card>
-                <Typography.Text copyable={{ text: result.view_id }}>
-                  查询版本 {result.view_id.slice(0, 12)}
-                </Typography.Text>
-                {result.versions.map((r) => (
-                  <p key={String(r.receipt_id)}>
-                    <Tag>{String(r.receipt_id)}</Tag>
-                    {String(r.start_at)} — {String(r.end_at)} ·{" "}
-                    <Link href={`/sync?request=${r.request_id}`}>
-                      同步记录与校验规则
-                    </Link>
-                  </p>
-                ))}
-                {result.sources.map((r) => (
-                  <p key={String(r.source_id)}>
-                    <Link href={`/sources/${r.source_id}`}>
-                      查看来源记录 {String(r.source_id)}
-                    </Link>
-                  </p>
-                ))}
-              </Card>
-            ),
-          },
-        ]}
-      />
+      <Drawer
+        rootClassName="market-drawer"
+        title="数据明细与来源"
+        width="min(1100px, 95vw)"
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+      >
+        {!compacted && <CompactButton result={result} />}
+        <details>
+          <summary>查询读取统计</summary>
+          <p className="muted">
+            涉及 {Number(result.scan.files)} 个文件；解码{" "}
+            {Number(result.scan.rows_decoded).toLocaleString()} 条记录， 读取{" "}
+            {Number(result.scan.row_groups_read)} /{" "}
+            {Number(result.scan.row_groups_total)} 个行组。 文件身份仍完整核验{" "}
+            {Number(result.scan.verified_bytes).toLocaleString()}{" "}
+            字节，行组裁剪减少解码， 不表示减少了文件哈希核验的读取量。
+          </p>
+        </details>
+        <Card
+          title={settlement ? "结算参数明细" : "行情明细"}
+          extra={
+            <span>
+              明细第 {result.offset + 1}–{result.offset + result.rows.length} 条
+            </span>
+          }
+        >
+          <Select
+            aria-label="显示字段"
+            mode="multiple"
+            value={columns}
+            onChange={setColumns}
+            style={{ width: "100%", marginBottom: 16 }}
+            options={result.fields.map((f) => ({
+              value: String(f.key),
+              label: String(f.label),
+            }))}
+          />
+          <Table<Row>
+            rowKey="_key"
+            dataSource={result.rows}
+            size="small"
+            scroll={{ x: "max-content", y: 460 }}
+            onRow={(r) => ({
+              onClick: () => setSelected(String(r._key)),
+            })}
+            rowClassName={(r) =>
+              r._key === selected ? "explorer-selected" : ""
+            }
+            pagination={{
+              current: result.offset / 200 + 1,
+              pageSize: 200,
+              total: result.total,
+              showSizeChanger: false,
+              onChange: (p) => onPage((p - 1) * 200),
+            }}
+            columns={columns.map((k) => ({
+              title: String(result.fields.find((f) => f.key === k)?.label || k),
+              dataIndex: k,
+              render: (v) =>
+                v == null ? (
+                  <Tag>缺失</Tag>
+                ) : (
+                  <Typography.Text copyable={{ text: String(v) }}>
+                    {String(v)}
+                  </Typography.Text>
+                ),
+            }))}
+          />
+        </Card>{" "}
+        {selectedRow && (
+          <Card title="选中记录 · 精确值与来源版本">
+            <Evidence value={selectedRow} />
+          </Card>
+        )}
+        <Tabs
+          items={[
+            {
+              key: "fields",
+              label: "字段说明与范围统计",
+              children: (
+                <Table<Row>
+                  rowKey="key"
+                  pagination={false}
+                  dataSource={result.fields}
+                  columns={[
+                    { title: "字段", dataIndex: "key" },
+                    { title: "含义", dataIndex: "label" },
+                    { title: "单位 / 时间口径", dataIndex: "unit" },
+                    { title: "缺失数", dataIndex: "missing" },
+                    { title: "最小值", dataIndex: "minimum" },
+                    { title: "最大值", dataIndex: "maximum" },
+                  ]}
+                />
+              ),
+            },
+            {
+              key: "versions",
+              label: "固定版本与来源",
+              children: (
+                <Card>
+                  <Typography.Text copyable={{ text: result.view_id }}>
+                    查询版本 {result.view_id.slice(0, 12)}
+                  </Typography.Text>
+                  {result.versions.map((r) => (
+                    <p key={String(r.receipt_id)}>
+                      <Tag>{String(r.receipt_id)}</Tag>
+                      {String(r.start_at)} — {String(r.end_at)} ·{" "}
+                      <Link href={`/sync?request=${r.request_id}`}>
+                        同步记录与校验规则
+                      </Link>
+                    </p>
+                  ))}
+                  {result.sources.map((r) => (
+                    <p key={String(r.source_id)}>
+                      <Link href={`/sources/${r.source_id}`}>
+                        查看来源记录 {String(r.source_id)}
+                      </Link>
+                    </p>
+                  ))}
+                </Card>
+              ),
+            },
+          ]}
+        />
+      </Drawer>
     </>
   );
 }

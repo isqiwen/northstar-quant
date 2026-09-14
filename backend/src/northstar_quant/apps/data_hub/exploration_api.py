@@ -89,6 +89,10 @@ class InstrumentSelection(ApiModel):
     scope: str = Field(min_length=1, max_length=40)
 
 
+class InstrumentOpen(InstrumentSelection):
+    dataset: str = Field(max_length=16)
+
+
 class ExplorerInstrument(ApiModel):
     scope: str
     name: str
@@ -122,6 +126,10 @@ class ExplorerRows(ApiModel):
 
 
 def register(app: FastAPI, engine: Engine) -> None:
+    @app.post("/api/explorer/select", response_model=ExplorerRows)
+    def select_instrument(document: InstrumentOpen) -> dict[str, Any]:
+        return discovery.open_instrument(engine, **document.model_dump())
+
     @app.post("/api/explorer/instrument", response_model=ExplorerInstrument)
     def instrument(document: InstrumentSelection) -> dict[str, Any]:
         return instruments.describe(engine, document.scope)

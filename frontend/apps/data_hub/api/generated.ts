@@ -220,6 +220,10 @@ export type ChartQuery = {
   end: string;
   receipt_ids: (string)[];
 };
+export type InstrumentOpen = {
+  scope: string;
+  dataset: string;
+};
 export type InstrumentSelection = {
   scope: string;
 };

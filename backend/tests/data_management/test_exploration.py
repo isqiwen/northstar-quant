@@ -344,6 +344,10 @@ def test_named_instrument_and_full_chart_share_fixed_rows(published):
         found = client.post("/api/explorer/available", json=search).json()
         assert found["total"] == 1 and found["rows"][0]["scope"] == "RB2610.SHF"
         assert found["rows"][0]["display_name"] == "螺纹钢2610"
+        opened = client.post(
+            "/api/explorer/select", json={"scope": "RB2610.SHF", "dataset": "1min"}
+        )
+        assert opened.status_code == 200 and opened.json()["total"] == 250
         instrument = client.post("/api/explorer/instrument", json={"scope": "RB2610.SHF"}).json()
         assert instrument["name"] == "螺纹钢2610" and instrument["periods"] == ["1min"]
         selection = dict(
@@ -369,3 +373,28 @@ def test_named_instrument_and_full_chart_share_fixed_rows(published):
             client.post("/api/explorer/chart", json={**selection, "scope": "OTHER.SHF"}).status_code
             == 422
         )
+
+
+def test_contract_discovery_groups_periods_and_selects_populated_native_range(published):
+    library, response = published
+    engine = library._engine
+    with engine.begin() as c:
+        planning.enqueue(
+            c, "15min", "RB2610.SHF", {"ts_code": "RB2610.SHF"}, "2026-09-01", "2026-09-03"
+        )
+        c.execute(text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"))
+    assert jobs.process_next(library)["status"] == "VALIDATED"
+    found = discovery.available(engine, "", "", "", "", 0)
+    assert found["total"] == 1
+    assert set(found["rows"][0]["periods"]) == {"1min", "15min"}
+    assert found["rows"][0]["publications"] == 2
+    first = discovery.open_instrument(engine, "RB2610.SHF", "1min")
+    other = discovery.open_instrument(engine, "RB2610.SHF", "15min")
+    assert first["dataset"] == "1min" and other["dataset"] == "15min"
+    assert first["total"] == other["total"] == 6
+    assert first["receipt_ids"] != other["receipt_ids"]
+    assert first["start"] == "2026-09-01" and first["end"] == "2026-09-03"
+    with pytest.raises(ValueError, match="尚无"):
+        discovery.open_instrument(engine, "RB2610.SHF", "daily")
+    with pytest.raises(ValueError, match="尚无"):
+        discovery.open_instrument(engine, "RB2611.SHF", "1min")

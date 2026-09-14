@@ -224,3 +224,43 @@ body {
     display: none;
   }
 }
+
+/* Shared compact application frame; app-owned work areas retain their authority. */
+.brand {
+  height: 64px;
+  padding: 14px;
+}
+.nav-caption {
+  padding-top: 4px;
+  padding-bottom: 8px;
+}
+.topbar {
+  height: 44px;
+  line-height: 44px;
+  padding: 0 16px;
+}
+.content {
+  padding: 18px 24px;
+}
+.page-heading {
+  margin-bottom: 16px;
+}
+.page-heading h1 {
+  font-size: 24px;
+}
+.workspace > .ant-layout-sider.ant-layout-sider-collapsed .ant-menu {
+  padding: 0 4px;
+}
+.workspace:has(.market-terminal) .content {
+  max-width: none;
+  padding: 12px;
+}
+.workspace:has(.market-terminal) .page-heading {
+  margin-bottom: 10px;
+}
+.workspace:has(.market-terminal) .page-heading h1 {
+  font-size: 20px;
+}
+.workspace:has(.market-terminal) .ant-layout-footer {
+  display: none;
+}
