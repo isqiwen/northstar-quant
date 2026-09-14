@@ -59,9 +59,7 @@ def lifecycle(
     )
 
 
-def manage(
-    app: str, action: str, *, follow: bool = False, instance: str | None = None
-) -> None:
+def manage(app: str, action: str, *, follow: bool = False, instance: str | None = None) -> None:
     from contextlib import nullcontext
 
     from publication_network import publication_hosts
@@ -210,9 +208,7 @@ def _manage(app: str, action: str, *, follow: bool, overrides: list[str]) -> Non
             )
     elif action in ("start", "restart", "stop"):
         if action != "stop" and app in ("data-hub", "research"):
-            run(
-                *compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check"
-            )
+            run(*compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check")
         lifecycle(compose, app, action)
     elif action == "status":
         run(*compose, "ps", "--all")

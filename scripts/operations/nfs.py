@@ -27,10 +27,7 @@ def topology(settings: dict) -> dict | None:
     if not isinstance(item, dict) or set(item) - {"host"}:
         raise ValueError("nfs 只接受 host；服务端及 /quant 导出由外部准备")
     for name in ("nfs", "data_hub", "research"):
-        if (
-            not isinstance(settings.get(name, {}).get("host"), str)
-            or not settings[name]["host"]
-        ):
+        if not isinstance(settings.get(name, {}).get("host"), str) or not settings[name]["host"]:
             raise ValueError(f"NFS 需要配置 {name}.host")
     if any(
         not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_.-]*", settings[name]["host"])
@@ -100,17 +97,13 @@ def check_client(current: dict | None, source: str, mode: str) -> None:
             or current["fstype"] not in {"nfs", "nfs4"}
             or mode not in options
             or "hard" not in options
-            or not any(
-                value == "vers=4" or value.startswith("vers=4.") for value in options
-            )
+            or not any(value == "vers=4" or value.startswith("vers=4.") for value in options)
         ):
             raise ValueError(
                 "行情路径已有不同挂载；请停止使用者、迁移并验证原 UUID 后卸载旧挂载，再部署"
             )
     elif MARKET.exists() and any(MARKET.iterdir()):
-        raise ValueError(
-            "行情本地目录非空；先迁移数据与 .northstar-storage-id，不能直接覆盖挂载"
-        )
+        raise ValueError("行情本地目录非空；先迁移数据与 .northstar-storage-id，不能直接覆盖挂载")
 
 
 def identity() -> str:
@@ -151,9 +144,7 @@ def prepare_client(request: dict) -> None:
     saved = STATE / "client.json"
     if not marker.exists():
         if mode != "rw" or saved.exists():
-            raise ValueError(
-                "共享缺少存储身份；首次请先部署 Data Hub，已有数据须恢复原身份"
-            )
+            raise ValueError("共享缺少存储身份；首次请先部署 Data Hub，已有数据须恢复原身份")
         # Retain host metadata and the NAS-managed snapshot directory without
         # traversing it. Never adopt ordinary unowned files or root symlinks.
         if any(
@@ -164,9 +155,7 @@ def prepare_client(request: dict) -> None:
             )
             for entry in MARKET.iterdir()
         ):
-            raise ValueError(
-                "共享包含已有文件但缺少存储身份；请恢复原身份或使用专用空目录"
-            )
+            raise ValueError("共享包含已有文件但缺少存储身份；请恢复原身份或使用专用空目录")
         with marker.open("x") as stream:
             os.fchmod(stream.fileno(), 0o644)
             stream.write(str(uuid4()) + "\n")
