@@ -191,6 +191,8 @@ export function SyncContracts({
           },
           {
             title: "查看",
+            fixed: "right",
+            width: 190,
             render: (_, row) => (
               <Space>
                 <Button type="link" onClick={() => onReview(String(row.scope))}>

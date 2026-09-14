@@ -48,7 +48,7 @@ export function ContractReview({
       size="large"
     >
       <Failure error={error} />
-      {!data && !error && <Spin />}
+      {!!scope && !data && !error && <Spin />}
       {data && (
         <>
           <Descriptions
