@@ -10,7 +10,6 @@ from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
 from northstar_quant.data_management.tushare import process_next
-from northstar_quant.data_management.tushare.store import initialize_dispatch
 from northstar_quant.logging_ import configure
 
 
@@ -24,8 +23,6 @@ def run() -> None:
         engine = open_database()
         require_current_database(engine)
         library = DataLibrary(engine, SourceFiles.from_environment())
-        with engine.begin() as connection:
-            initialize_dispatch(connection)
         # Resume persisted refresh/backoff deadlines; deployment is not a request
         # to redownload all catalogs and recent windows.
         # One bounded operation holds the existing publication lock. Pending
