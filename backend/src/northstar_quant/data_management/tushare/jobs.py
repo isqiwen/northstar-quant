@@ -3,10 +3,12 @@
 import json
 import logging
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from time import perf_counter
 from typing import Any
 from uuid import UUID, uuid4
 
+import httpx2
 from sqlalchemy import Engine, text
 
 from northstar_quant import code_revision
@@ -29,7 +31,9 @@ __all__ = ["initialize", "process_next"]
 _LOCK = 0x4E53515453594E
 
 
-def process_next(library: DataLibrary) -> dict[str, Any] | None:
+def process_next(
+    library: DataLibrary, *, client: httpx2.Client | None = None
+) -> dict[str, Any] | None:
     engine = library._engine
     checkpoint = perf_counter()
     timings: dict[str, float] = {}
@@ -111,8 +115,11 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                     )
                 content = library._files.read(source["source_hash"], source["source_bytes"])
             else:
-                content = acquisition.fetch(
-                    BY_KEY[selected["dataset"]].api, selected["parameters"], credentials.read()
+                fetch = partial(acquisition.fetch, client=client) if client else acquisition.fetch
+                content = fetch(
+                    BY_KEY[selected["dataset"]].api,
+                    selected["parameters"],
+                    credentials.read(),
                 )
             elapsed("acquisition")
             stage = "storage"
@@ -227,7 +234,22 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
         result = job(engine, UUID(selected["request_id"]))
         elapsed("readback")
         logging.getLogger(__name__).info(
-            "Sync timing request=%s stages=%s", selected["request_id"], timings
+            "Sync timing request=%s planning=%.4f claim=%.4f acquisition=%.4f "
+            "archive=%.4f validation=%.4f publication=%.4f completion=%.4f readback=%.4f",
+            selected["request_id"],
+            *(
+                timings.get(k, 0.0)
+                for k in (
+                    "planning",
+                    "claim",
+                    "acquisition",
+                    "archive",
+                    "validation",
+                    "publication",
+                    "completion",
+                    "readback",
+                )
+            ),
         )
         return result
 

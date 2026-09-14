@@ -344,3 +344,22 @@ def test_settlement_only_is_not_an_invented_close():
     row["vol"] = 600
     with pytest.raises(InvalidResponse):
         normalize(encoded(row), job)
+
+
+def test_pooled_provider_session_keeps_request_credentials_scoped_and_bounds():
+    import httpx2
+
+    from northstar_quant.data_management.tushare import acquisition
+
+    received = []
+
+    def handle(request):
+        received.append(json.loads(request.content))
+        return httpx2.Response(200, json={"code": 0, "data": {"fields": [], "items": []}})
+
+    with acquisition.open_client(transport=httpx2.MockTransport(handle)) as client:
+        for token in ("a" * 40, "b" * 40):
+            acquisition.fetch("fut_daily", {"ts_code": "RB2610.SHF"}, token, client=client)
+            assert not client.is_closed
+        assert [r["token"] for r in received] == ["a" * 40, "b" * 40]
+    assert client.is_closed

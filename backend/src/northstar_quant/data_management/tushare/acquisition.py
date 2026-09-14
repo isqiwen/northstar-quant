@@ -2,6 +2,7 @@
 
 import json
 import time
+from contextlib import nullcontext
 from decimal import Decimal
 from typing import Any, cast
 
@@ -22,26 +23,34 @@ class ResponseLimit(DownloadError):
     pass
 
 
+def open_client(*, transport: httpx2.BaseTransport | None = None) -> httpx2.Client:
+    return httpx2.Client(
+        transport=transport,
+        timeout=10,
+        follow_redirects=False,
+        trust_env=False,
+        headers={"Accept-Encoding": "identity"},
+        limits=httpx2.Limits(max_connections=1, max_keepalive_connections=1, keepalive_expiry=60),
+    )
+
+
 def fetch(
     api: str,
     parameters: dict[str, object],
     token: str,
     *,
     transport: httpx2.BaseTransport | None = None,
+    client: httpx2.Client | None = None,
 ) -> bytes:
     validate(token)
     parameters = dict(parameters)
     fields = parameters.pop("fields", "")
     started = time.monotonic()
     try:
-        with httpx2.Client(
-            transport=transport,
-            timeout=10,
-            follow_redirects=False,
-            trust_env=False,
-            headers={"Accept-Encoding": "identity"},
-        ) as client:
-            with client.stream(
+        with (
+            nullcontext(client) if client is not None else open_client(transport=transport)
+        ) as session:
+            with session.stream(
                 "POST",
                 ENDPOINT,
                 json={"api_name": api, "params": parameters, "token": token, "fields": fields},
