@@ -186,7 +186,7 @@ class SourceFiles:
         ):
             raise ValueError("insufficient free disk space for durable source reception")
         self._directory(destination.parent)
-        staging = self.root / "staging"
+        staging = self.root / "staging" / identity[:2]
         self._directory(staging)
         descriptor, temporary = tempfile.mkstemp(prefix="receive-", dir=staging)
         started = perf_counter()
@@ -320,13 +320,15 @@ class SourceFiles:
         staging = self.root / "staging"
         if staging.is_symlink():
             raise ValueError("source staging directory must not be a symbolic link")
-        incomplete = list(staging.iterdir())
+        incomplete = list(staging.rglob("*"))
         sizes = []
         for item in incomplete:
             try:
                 details = item.lstat()
             except FileNotFoundError:
                 continue  # A parallel writer completed its disposable staging file.
+            if stat.S_ISDIR(details.st_mode):
+                continue
             if not stat.S_ISREG(details.st_mode):
                 raise ValueError("unexpected object in source staging directory")
             sizes.append(details.st_size)

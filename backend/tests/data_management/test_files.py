@@ -88,7 +88,7 @@ def test_disk_reserve_warns_before_blocking_and_preserves_existing_bytes(
         files.store(b"new fact")
     assert files.store(b"retained fact") == first
     assert files.read(first.content_hash, first.byte_count) == b"retained fact"
-    assert not list((files.root / "staging").iterdir())
+    assert files.health()["incomplete_file_count"] == 0
 
 
 def test_exhausted_inodes_reject_before_accepting_bytes(tmp_path, monkeypatch):
