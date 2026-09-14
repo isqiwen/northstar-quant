@@ -263,3 +263,26 @@ def test_failed_follow_stops_other_log_processes():
         )
         == 1
     )
+
+
+def test_deploy_checks_all_configurations_before_starting_any_host(tmp_path, monkeypatch):
+    batch = module("all_apps")
+    for app in ("database", "data_hub", "live"):
+        directory = tmp_path / "deploy" / app
+        directory.mkdir(parents=True)
+        (directory / ".env").write_bytes(b"invalid" if app == "live" else b"valid")
+
+    def validate(app, content):
+        if content == b"invalid":
+            raise ValueError("invalid final application")
+
+    monkeypatch.setattr(batch.runpy, "run_path", lambda _: {"validate": validate})
+    calls = []
+    monkeypatch.setattr(batch.subprocess, "run", lambda *a, **k: calls.append(a))
+    with pytest.raises(ValueError, match="final application"):
+        batch.run(
+            SimpleNamespace(action="deploy"),
+            dict.fromkeys(["database", "data-hub", "live"]),
+            tmp_path,
+        )
+    assert not calls

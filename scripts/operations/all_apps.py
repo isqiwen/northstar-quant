@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import runpy
 import signal
 import subprocess
 import sys
@@ -12,6 +13,14 @@ from contextlib import ExitStack
 
 def run(args, configs: dict, root) -> int:
     apps = list(configs)
+    if args.action == "deploy":
+        validate = runpy.run_path(str(root / "scripts/operations/application_configuration.py"))[
+            "validate"
+        ]
+        for app in apps:
+            path = root / "deploy" / app.replace("-", "_") / ".env"
+            with path.open("rb") as source:
+                validate(app, source.read(1024 * 1024 + 1))
     if args.action == "stop":
         apps.reverse()
     commands = {

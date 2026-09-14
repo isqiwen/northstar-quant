@@ -72,9 +72,10 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
         ROOT / "backend/src/northstar_quant/web/passwords.py", package / "web/passwords.py"
     )
     (package / "live").mkdir()
-    shutil.copyfile(
-        ROOT / "backend/src/northstar_quant/live/instances.py", package / "live/instances.py"
-    )
+    for filename in ("__init__.py", "instances.py"):
+        shutil.copyfile(
+            ROOT / "backend/src/northstar_quant/live" / filename, package / "live" / filename
+        )
     (package / "trading").mkdir()
     for filename in ("__init__.py", "environment.py"):
         shutil.copyfile(
@@ -705,3 +706,21 @@ def test_deploy_preserves_workspace_credentials(app, monkeypatch):
     monkeypatch.setattr(os, "environ", os.environ.copy())
     manage(app, "deploy", follow=False, overrides=[])
     assert any("up" in call for call in calls)
+
+
+def test_live_configuration_can_be_checked_without_installed_backend_dependencies(deployment):
+    repo, _, environment = deployment
+    # -S disables site-packages even when pytest itself uses the backend virtualenv.
+    program = (
+        "import runpy; "
+        "validate=runpy.run_path('scripts/operations/application_configuration.py')['validate']; "
+        "validate('live', open('deploy/live/.env','rb').read())"
+    )
+    result = subprocess.run(
+        [sys.executable, "-S", "-c", program],
+        cwd=repo,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
