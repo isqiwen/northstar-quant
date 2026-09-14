@@ -99,7 +99,8 @@ content=json.dumps({'code':0,'data':{'fields':['ts_code','trade_time','open','hi
 acquisition.fetch=lambda *args:content
 result=jobs.process_next(library)
 assert result['status']=='VALIDATED', result
-# Retain a failed response and a corrected revision for the real browsing controls.
+baseline_receipt_id=result["receipt_id"]
+# Retain a partial response and a corrected revision for the real browsing controls.
 for invalid in (True,False):
     document=json.loads(content)
     if invalid:
@@ -113,6 +114,7 @@ for invalid in (True,False):
         c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
     result=jobs.process_next(library)
     assert result['status']==('BLOCKED' if invalid else 'VALIDATED'),result
+result['baseline_receipt_id']=baseline_receipt_id
 print(json.dumps(result))
 """
     if compact:

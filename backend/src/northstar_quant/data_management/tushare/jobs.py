@@ -234,11 +234,11 @@ def process_next(
         result = job(engine, UUID(selected["request_id"]))
         elapsed("readback")
         logging.getLogger(__name__).info(
-            "Sync timing request=%s planning=%.4f claim=%.4f acquisition=%.4f "
-            "archive=%.4f validation=%.4f publication=%.4f completion=%.4f readback=%.4f",
+            "Sync timing request=%s planning= %s claim= %s acquisition= %s "
+            "archive= %s validation= %s publication= %s completion= %s readback= %s",
             selected["request_id"],
             *(
-                timings.get(k, 0.0)
+                f"{timings.get(k, 0.0):.4f}"
                 for k in (
                     "planning",
                     "claim",
