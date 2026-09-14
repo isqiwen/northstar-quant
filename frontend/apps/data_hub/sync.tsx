@@ -79,8 +79,8 @@ export function TushareSync() {
       current.refresh();
       message.success(
         value
-          ? "自动同步已启用，后台继续下载全部历史并持续补齐"
-          : "已暂停；当前分片完成后停止领取新任务",
+          ? "自动同步已启用，后台按已退市合约采集完整生命周期"
+          : "已暂停；当前请求完成后停止领取新任务",
       );
     } catch (e) {
       message.error((e as Error).message);
@@ -281,7 +281,7 @@ export function TushareSync() {
           columns={[
             { title: "数据", dataIndex: "label" },
             {
-              title: "分片进度",
+              title: "内部请求进度",
               render: (_, row) => (
                 <Space wrap>
                   {groups

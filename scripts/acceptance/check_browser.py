@@ -224,7 +224,7 @@ def main() -> None:
                 with app.web("data-api") as data_url:
                     visit(data_url)
                     expect(page.get_by_role("heading", name="期货数据工作台")).to_be_visible()
-                    expect(page.get_by_text("已发现合约", exact=True)).to_be_visible()
+                    expect(page.get_by_text("已规划退市合约", exact=True)).to_be_visible()
                     screenshot("overview")
                     visit(
                         data_url + "/browse?dataset=settlement&scope=RB2610.SHF"
@@ -262,6 +262,7 @@ def main() -> None:
                     # Discover published data without guessing contract or dates.
                     visit(data_url + "/browse")
                     available = page.locator(".explorer-available")
+                    expect(available.get_by_text("RB2610.SHF", exact=True).first).to_be_visible()
                     choose("已有数据类型", "1 分钟")
                     available.get_by_label("搜索已有数据合约", exact=True).fill("螺纹钢")
                     expect(available.get_by_text("螺纹钢2610", exact=True).first).to_be_visible()

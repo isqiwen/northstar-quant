@@ -68,6 +68,7 @@ export function AvailableData({
       <Space wrap className="instrument-search">
         <Select
           aria-label="已有数据类型"
+          virtual={false}
           style={{ width: "100%" }}
           value={filter.dataset}
           options={[

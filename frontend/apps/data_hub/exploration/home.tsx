@@ -20,13 +20,12 @@ export function DataOverview() {
   const sync = useData(query("/api/sync"), 5000);
   const available = !!catalog.data && !catalog.error && !catalog.loading;
   const datasets = catalog.error ? [] : catalog.data?.datasets || [];
-  const count = (field: string) =>
-    datasets.reduce((n, r) => n + Number(r[field] || 0), 0);
+  const contracts = sync.data?.lanes?.find((lane) => lane.lane === "contracts");
   return (
     <>
       <Heading
         title="期货数据工作台"
-        description="Tushare 历史数据 · 从覆盖概况到精确记录"
+        description="交易所 → 品种 → 已退市合约 · 完整生命周期验收后发布"
         actions={
           <Link href="/browse">
             <Button type="primary">浏览行情数据</Button>
@@ -37,20 +36,17 @@ export function DataOverview() {
       <StorageAlert capacity={sync.data?.settings.source_capacity} />
       <Row gutter={[16, 16]}>
         {[
-          [
-            "已发现合约",
-            (catalog.data?.products || []).reduce(
-              (n, r) => n + Number(r.contracts),
-              0,
-            ),
-          ],
-          ["已校验分片", count("validated")],
-          ["等待发布或重试", count("waiting")],
-          ["异常分片", count("blocked")],
+          ["已规划退市合约", contracts?.total ?? 0],
+          ["已发布完整合约", contracts?.validated ?? 0],
+          ["待核验合约", contracts?.waiting ?? 0],
+          ["已拒绝合约", contracts?.blocked ?? 0],
         ].map(([title, value]) => (
           <Col xs={12} xl={6} key={title}>
             <Card>
-              <Statistic title={title} value={available ? value : "—"} />
+              <Statistic
+                title={title}
+                value={available && sync.data && !sync.error ? value : "—"}
+              />
             </Card>
           </Col>
         ))}
@@ -75,7 +71,7 @@ export function DataOverview() {
           message={String(sync.data.settings.error)}
         />
       )}
-      <Card title="数据集概况">
+      <Card title="内部采集诊断">
         <Table
           rowKey="key"
           dataSource={datasets}
@@ -84,7 +80,7 @@ export function DataOverview() {
           columns={[
             { title: "数据集", dataIndex: "label" },
             {
-              title: "已规划分片",
+              title: "内部请求数",
               dataIndex: "windows",
               render: (v) => v ?? 0,
             },
@@ -111,7 +107,7 @@ export function DataOverview() {
           ]}
         />
         <p className="muted">
-          已校验数量不是全市场完整率。行情、交易日历、结算参数分别同步，权限不足与未发布区间会保留待办。
+          内部请求通过校验不等于合约完整。只有全部必需数据完整、适用性明确的已退市合约才进入正式浏览库。
         </p>
       </Card>
       <Row gutter={[16, 16]}>
