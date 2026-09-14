@@ -12,9 +12,8 @@ from sqlalchemy import Connection, Engine, text
 from northstar_quant import code_revision
 
 from .catalog import BY_KEY, DATASETS, EXCHANGES, NANHUA_CODES
+from .origins import HISTORY_START
 from .store import settings
-
-HISTORY_START = date(2012, 1, 1)
 
 
 def enqueue(
@@ -25,6 +24,18 @@ def enqueue(
     start: str,
     end: str,
 ) -> None:
+    if start and end:
+        if end < HISTORY_START.isoformat():
+            return
+        if start < HISTORY_START.isoformat():
+            start = HISTORY_START.isoformat()
+            parameters = dict(parameters)
+            if BY_KEY[dataset].api == "ft_mins":
+                parameters["start_date"] = f"{start} 00:00:00"
+            elif BY_KEY[dataset].api == "fut_weekly_detail":
+                parameters["start_week"] = HISTORY_START.strftime("%G%V")
+            else:
+                parameters["start_date"] = HISTORY_START.strftime("%Y%m%d")
     # Persist the field selection with the request, including split/retry identities.
     if BY_KEY[dataset].fields:
         parameters = {**parameters, "fields": ",".join(BY_KEY[dataset].fields)}
@@ -116,7 +127,7 @@ def plan(engine: Engine) -> None:
             details = contract["details"]
             start_text = details.get("list_date")
             end_text = details.get("delist_date")
-            if not start_text:
+            if not start_text and contract["kind"] == "2":
                 # Continuous instruments use the earliest actual contract for their product.
                 start_text = connection.scalar(
                     text("""SELECT min(details->>'list_date')
@@ -195,6 +206,9 @@ def plan(engine: Engine) -> None:
                     window_start = max(
                         HISTORY_START, datetime.strptime(group["begin"], "%Y%m%d").date()
                     )
+                    if dataset.scope == "market":
+                        # Index history is not bounded by the available contract catalog.
+                        window_start = HISTORY_START
                     window_end = target
                 # Calendar-month shards stay fixed. The open month uses daily shards,
                 # so the current cycle's endpoint never grows underneath a running task.
@@ -276,6 +290,8 @@ def split(connection: Connection, job: dict[str, Any]) -> bool:
         params = dict(job["parameters"])
         if BY_KEY[job["dataset"]].api == "ft_mins":
             params.update(start_date=f"{a} 00:00:00", end_date=f"{b} 23:59:59")
+        elif BY_KEY[job["dataset"]].api == "fut_weekly_detail":
+            params.update(start_week=a.strftime("%G%V"), end_week=b.strftime("%G%V"))
         else:
             params.update(start_date=a.strftime("%Y%m%d"), end_date=b.strftime("%Y%m%d"))
         enqueue(connection, job["dataset"], job["scope"], params, a.isoformat(), b.isoformat())

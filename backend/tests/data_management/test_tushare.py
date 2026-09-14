@@ -165,6 +165,8 @@ def test_settlement_fields_survive_download_and_fixed_publication(
         assert receipts == []
     else:
         assert result["status"] == "VALIDATED"
+        assert result["origin"]["first_observed"] == "2026-09-01"
+        assert result["origin"]["source_hash"] == attempt["source_hash"]
         receipt = receipts[0]
         snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
         assert snapshot["parameters"]["fields"] == ",".join(selected)
@@ -955,8 +957,8 @@ def test_historical_empty_remains_uncovered_with_slow_automatic_recheck(automati
             "15min",
             "RB9505.SHF",
             {"ts_code": "RB9505.SHF", "freq": "15min"},
-            "1995-04-17",
-            "1995-04-30",
+            "2012-04-17",
+            "2012-04-30",
         )
         c.execute(text("UPDATE data_sync_jobs SET attempts=6"))
     payload = json.loads(response())
@@ -965,8 +967,8 @@ def test_historical_empty_remains_uncovered_with_slow_automatic_recheck(automati
     before = datetime.now(UTC)
     result = jobs.process_next(automatic)
     assert result["status"] == "WAITING"
-    assert "7 天" in result["error"]
-    assert datetime.fromisoformat(result["next_at"]) >= before + timedelta(days=7)
+    assert "起点探测" in result["error"]
+    assert datetime.fromisoformat(result["next_at"]) >= before + timedelta(days=90)
     with automatic._engine.connect() as c:
         assert c.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
     assert jobs.process_next(automatic) is None

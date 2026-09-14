@@ -11,7 +11,7 @@ from northstar_quant import code_revision
 
 from ..library import DataLibrary
 from ..maintenance import library_write
-from . import acquisition, coverage, credentials, planning, publication, scheduling
+from . import acquisition, coverage, credentials, origins, planning, publication, scheduling
 from .catalog import BY_KEY
 from .quality import (
     Empty,
@@ -119,6 +119,8 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 if not coverage.confirmed_empty(engine, selected):
                     raise
                 rows, quality = [], closed_interval_evidence(selected["dataset"])
+            with engine.begin() as connection:
+                origins.observe(connection, selected, rows)
             coverage.verify(engine, selected, rows, quality)
             stage = "storage"
             artifact = publication.publish(
@@ -166,15 +168,22 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 and selected["end_at"] >= (planning.target_day() - timedelta(days=10)).isoformat()
             )
             historical_empty = isinstance(error, EmptyResponse) and not recent
+            with engine.connect() as connection:
+                observed = origins.first(connection, selected["dataset"], selected["scope"])
+            leading = historical_empty and (
+                observed is None or selected["end_at"] < observed.isoformat()
+            )
             _fail(
                 engine,
                 selected,
-                "历史区间返回空数据，7 天后复核覆盖；不认定已完成"
+                "起点探测：该历史区间暂无数据，继续查找后续区间；90 天后复核，不认定已完成"
+                if leading
+                else "历史区间返回空数据，7 天后复核覆盖；不认定已完成"
                 if historical_empty
                 else str(error),
                 retry=not selected["source_generation"],
                 waiting=True,
-                retry_after=timedelta(days=7) if historical_empty else None,
+                retry_after=timedelta(days=90 if leading else 7) if historical_empty else None,
             )
         except acquisition.DownloadError as error:
             _fail(engine, selected, str(error), retry=error.retry)

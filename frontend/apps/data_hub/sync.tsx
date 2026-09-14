@@ -43,6 +43,7 @@ export function TushareSync() {
         .then(setDetail)
         .catch((e) => message.error((e as Error).message));
   }, [message]);
+  const origin = detail?.origin as Row | undefined;
   const source = detail?.reprocess_source as Row | undefined;
   const data = current.error ? undefined : current.data;
   const config = data?.settings;
@@ -359,6 +360,13 @@ export function TushareSync() {
                   key: "range",
                   label: "时间区间",
                   children: `${detail.start_at || "目录"} — ${detail.end_at || ""}`,
+                },
+                {
+                  key: "origin",
+                  label: "已发现的数据起点",
+                  children: origin?.first_observed
+                    ? `${origin.first_observed}（最早有效响应；更早范围仍需核查）`
+                    : "探测中；2012-01-01 以前不采集，空响应不作为起点证据",
                 },
                 {
                   key: "status",

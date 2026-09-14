@@ -6,7 +6,8 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import Connection, text
 
-from .planning import HISTORY_START, target_day
+from .origins import HISTORY_START
+from .planning import target_day
 
 
 def history_end(connection: Connection) -> date | None:
@@ -30,6 +31,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
         )
         SELECT j.* FROM data_sync_jobs j LEFT JOIN served s USING(dataset)
         WHERE j.status IN ('PENDING','WAITING') AND j.next_at<=now()
+        AND (j.start_at='' OR j.start_at>=:floor)
         AND (j.source_generation IS NOT NULL OR :download_ready)
         AND (j.source_generation IS NOT NULL OR NOT EXISTS (
             SELECT 1 FROM data_sync_jobs b WHERE b.dataset=j.dataset
@@ -47,6 +49,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
             {
                 "boundary": boundary.isoformat() if boundary else target_day().isoformat(),
                 "download_ready": download_ready,
+                "floor": HISTORY_START.isoformat(),
             },
         )
         .mappings()

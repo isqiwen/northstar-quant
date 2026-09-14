@@ -136,7 +136,10 @@ def job(engine: Engine, request_id: UUID) -> dict[str, Any]:
         )
         if row is None:
             raise LookupError("同步分片不存在")
+        from .origins import describe
+
         result = serial(row)
+        result["origin"] = describe(connection, result)
         source = (
             connection.execute(
                 text("""SELECT generation,source_hash,source_bytes FROM data_sync_attempts
