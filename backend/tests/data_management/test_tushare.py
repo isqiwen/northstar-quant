@@ -1106,6 +1106,7 @@ def test_history_floor_applies_to_contracts_calendars_products_and_indices(autom
 
 def test_zero_volume_blocked_source_reprocesses_without_downloading(automatic, monkeypatch):
     from uuid import UUID
+
     from northstar_quant.data_management.tushare import quality, reprocessing
 
     request_id = UUID(pending(automatic))
