@@ -295,7 +295,7 @@
   font-size: 11px;
 }
 .market-terminal .price-chart-canvas {
-  height: clamp(340px, calc(100dvh - 410px), 900px);
+  height: clamp(340px, calc(100dvh - 520px), 900px);
 }
 .market-terminal .explorer-links {
   margin: 0;

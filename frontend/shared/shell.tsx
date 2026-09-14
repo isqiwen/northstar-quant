@@ -66,7 +66,9 @@ export function Shell({
         collapsedWidth={64}
         collapsed={collapsed}
         breakpoint="lg"
-        onBreakpoint={setCollapsed}
+        onBreakpoint={(small) => {
+          if (small) setCollapsed(true);
+        }}
       >
         <Link href="/" className="brand">
           <span className="brand-symbol">N</span>

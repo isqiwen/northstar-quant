@@ -129,10 +129,6 @@ export function DataPanel({
             导出所选范围
           </Button>
         </Space>
-        <p className="muted">
-          {result.note}{" "}
-          {result.export_allowed ? "" : "来源当前未开放导出权限。"}
-        </p>
       </Card>
       {!result.rows.length ? (
         <Card>
@@ -185,6 +181,10 @@ export function DataPanel({
         open={detailsOpen}
         onClose={() => setDetailsOpen(false)}
       >
+        <p className="muted">
+          {result.note}{" "}
+          {result.export_allowed ? "" : "来源当前未开放导出权限。"}
+        </p>
         {!compacted && <CompactButton result={result} />}
         <details>
           <summary>查询读取统计</summary>

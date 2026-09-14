@@ -149,7 +149,7 @@ def main() -> None:
                 target = args.screenshot.resolve()
                 page.screenshot(
                     path=str(target.with_name(target.stem + "-" + name + target.suffix)),
-                    full_page=True,
+                    full_page=name not in {"browse", "available-data", "chart-fullscreen"},
                     animations="disabled",
                 )
 
