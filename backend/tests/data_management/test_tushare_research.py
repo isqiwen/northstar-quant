@@ -155,3 +155,15 @@ def test_receipt_admission_rejects_unproven_meaning(automatic, monkeypatch, prob
             interpretation_reference="Synthetic integration label",
         )
     assert automatic.list_attempts() == []
+
+
+def test_zero_volume_observation_cannot_become_executable_bar():
+    from northstar_quant.data_management.tushare.research import _session_rows
+
+    with pytest.raises(ValueError, match="not an executable"):
+        _session_rows(
+            [{"ts_code": "RB2610.SHF", "observation_status": "ZERO_VOLUME"}],
+            _spec(),
+            "RB2610.SHF",
+            "BAR_END",
+        )

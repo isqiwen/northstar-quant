@@ -11,7 +11,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/7"
+RULE = "tushare-response/8"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -162,6 +162,7 @@ def _evidence(
         "normalization": normalization.evidence(dataset),
         "unique_rows": len(rows),
         "duplicate_rows": total - len(rows),
+        "zero_volume_rows": sum(row.get("observation_status") == "ZERO_VOLUME" for row in rows),
         "content_hash": hashlib.sha256(canonical).hexdigest(),
         "coverage_basis": "CALENDAR_NON_TRADING" if closed else "SUPPLIER_RESPONSE",
         "availability_basis": "FINAL_REVISED",
@@ -222,17 +223,32 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
             except ValueError as error:
                 raise InvalidResponse("额外数值字段超出精确范围") from error
     if definition.api in _BAR_APIS or all(field in row for field in _OHLC):
+        zero_volume = row.get("vol") == "0"
+        missing_ohl = all(row.get(field) is None for field in ("open", "high", "low"))
+        # Observed daily supplier records may retain a reference close on zero-volume
+        # days. Preserve nulls; neither that close nor settlement proves an execution.
+        reference_only = (
+            job["dataset"] in {"daily", "adjusted"}
+            and zero_volume
+            and missing_ohl
+            and row.get("amount") in (None, "0")
+        )
+        checked = ("close",) if reference_only else _OHLC
         try:
-            prices = [number(row[field]) for field in _OHLC]
+            prices = [number(row[field]) for field in checked]
         except InvalidResponse as error:
-            raise InvalidResponse(str(error), fields=_OHLC) from error
-        if any(not p.is_finite() or p < 0 for p in prices):
-            raise InvalidResponse("OHLC 价格无效", fields=_OHLC)
-        o, h, low, c = prices
-        if not low <= min(o, c) <= max(o, c) <= h:
-            raise InvalidResponse("OHLC 高低价关系不成立", fields=_OHLC)
+            raise InvalidResponse(
+                "行情价格缺失或无效；仅零成交日线可保留空开高低价", fields=checked
+            ) from error
+        if any(not p.is_finite() or p <= 0 for p in prices):
+            raise InvalidResponse("OHLC 价格无效", fields=checked)
+        if not reference_only:
+            o, h, low, c = prices
+            if not low <= min(o, c) <= max(o, c) <= h:
+                raise InvalidResponse("OHLC 高低价关系不成立", fields=_OHLC)
         if definition.api in _BAR_APIS and row["vol"] is None:
             raise InvalidResponse("行情 vol 缺少成交量；不得填零", fields=("vol",))
+        row["observation_status"] = "ZERO_VOLUME" if zero_volume else "TRADED"
     for field in ("vol", "oi", "amount"):
         if row.get(field) is not None:
             quantity = number(row[field])

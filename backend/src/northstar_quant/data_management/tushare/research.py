@@ -145,6 +145,8 @@ def _session_rows(
     for row in rows:
         if row.get("ts_code") != symbol:
             raise ValueError("fixed receipt contains another contract")
+        if row.get("observation_status") == "ZERO_VOLUME":
+            raise ValueError("zero-volume observation is not an executable research bar")
         label = (
             datetime.strptime(row["trade_time"], "%Y-%m-%d %H:%M:%S")
             .replace(tzinfo=ZoneInfo("Asia/Shanghai"))

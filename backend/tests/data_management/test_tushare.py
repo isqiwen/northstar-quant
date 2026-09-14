@@ -1102,3 +1102,38 @@ def test_history_floor_applies_to_contracts_calendars_products_and_indices(autom
             )
             == 0
         )
+
+
+def test_zero_volume_blocked_source_reprocesses_without_downloading(automatic, monkeypatch):
+    from uuid import UUID
+    from northstar_quant.data_management.tushare import quality, reprocessing
+
+    request_id = UUID(pending(automatic))
+    data = json.loads(response())
+    row = data["data"]["items"][0]
+    fields = data["data"]["fields"]
+    for name, value in {"open": None, "high": None, "low": None, "vol": 0, "amount": 0}.items():
+        row[fields.index(name)] = value
+    raw = json.dumps(data).encode()
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: raw)
+    original_normalize = jobs.normalize
+    monkeypatch.setattr(
+        jobs,
+        "normalize",
+        lambda *a: (_ for _ in ()).throw(quality.InvalidResponse("previous strict price rule")),
+    )
+    blocked = jobs.process_next(automatic)
+    assert blocked["status"] == "BLOCKED"
+    source = UUID(blocked["reprocess_source"]["generation"])
+    monkeypatch.setattr(jobs, "normalize", original_normalize)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: pytest.fail("must reuse retained bytes"))
+    reprocessing.enqueue(automatic._engine, request_id=request_id, source_generation=source)
+    result = jobs.process_next(automatic)
+    assert result["status"] == "VALIDATED"
+    assert result["attempts"] == blocked["attempts"]
+    assert result["attempts_detail"][0]["parent_generation"] == str(source)
+    with automatic._engine.connect() as connection:
+        receipt = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+    assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == raw
+    snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
+    assert snapshot["quality"]["zero_volume_rows"] == 1

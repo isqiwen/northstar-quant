@@ -279,3 +279,39 @@ def test_historical_period_recalculation_preserves_both_dates(dataset):
     job.update(start_at="2026-06-01", end_at="2026-06-30")
     with pytest.raises(InvalidResponse, match="请求窗口"):
         normalize(encoded(row), job)
+
+
+@pytest.mark.parametrize("dataset", ["daily", "adjusted"])
+def test_zero_volume_reference_close_keeps_null_prices_and_exact_status(dataset):
+    from northstar_quant.data_management.tushare.publication import response_table
+
+    row, job = market_response(dataset)
+    row.update(open=None, high=None, low=None, vol=0, amount=0, oi=60)
+    accepted, evidence = normalize(encoded(row), job)
+    assert accepted[0]["observation_status"] == "ZERO_VOLUME"
+    assert all(accepted[0][f] is None for f in ("open", "high", "low"))
+    assert accepted[0]["close"] == row["close"]
+    assert evidence["zero_volume_rows"] == 1
+    table = response_table(accepted, dataset)
+    assert table["open"].to_pylist() == [None]
+    assert table["observation_status"].to_pylist() == ["ZERO_VOLUME"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"vol": 1},
+        {"vol": None},
+        {"amount": 1},
+        {"open": "3100.1"},
+        {"close": 0},
+        {"close": None},
+        {"close": "invalid"},
+    ],
+)
+def test_missing_daily_prices_are_not_excused_by_inconsistent_zero_volume(change):
+    row, job = market_response("daily")
+    row.update(open=None, high=None, low=None, vol=0, amount=0)
+    row.update(change)
+    with pytest.raises(InvalidResponse):
+        normalize(encoded(row), job)
