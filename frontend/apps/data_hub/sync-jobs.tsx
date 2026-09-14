@@ -2,7 +2,8 @@
 
 import { App, Button, Card, Select, Space, Table } from "antd";
 import { useEffect, useState } from "react";
-import { mutate, query } from "./api/client";
+import { query } from "./api/client";
+import { querySyncJobs } from "./sync-job-query";
 import type { SyncJobPage } from "./api/generated";
 import { fetchQuery } from "../../shared/data";
 import { Failure } from "../../shared/ui";
@@ -35,18 +36,22 @@ export function SyncJobs({
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let active = true;
+    const abort = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     setResult(undefined);
     setError(undefined);
     setLoading(true);
     async function refresh() {
       try {
-        const page = await mutate("/api/sync/jobs/query", {
-          dataset: filter.dataset,
-          status: filter.status,
-          offset: (filter.page - 1) * 10,
-          limit: 10,
-        });
+        const page = await querySyncJobs(
+          {
+            dataset: filter.dataset,
+            status: filter.status,
+            offset: (filter.page - 1) * 10,
+            limit: 10,
+          },
+          abort.signal,
+        );
         if (active) {
           setResult(page);
           setError(undefined);
@@ -66,6 +71,7 @@ export function SyncJobs({
     void refresh();
     return () => {
       active = false;
+      abort.abort();
       clearTimeout(timer);
     };
   }, [filter.dataset, filter.status, filter.page]);

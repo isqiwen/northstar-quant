@@ -11,7 +11,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/8"
+RULE = "tushare-response/9"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -228,7 +228,7 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
         # Observed daily supplier records may retain a reference close on zero-volume
         # days. Preserve nulls; neither that close nor settlement proves an execution.
         reference_only = (
-            job["dataset"] in {"daily", "adjusted"}
+            job["dataset"] in {"daily", "adjusted", "week", "month"}
             and zero_volume
             and missing_ohl
             and row.get("amount") in (None, "0")
@@ -238,7 +238,7 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
             prices = [number(row[field]) for field in checked]
         except InvalidResponse as error:
             raise InvalidResponse(
-                "行情价格缺失或无效；仅零成交日线可保留空开高低价", fields=checked
+                "行情价格缺失或无效；仅零成交日/周/月线可保留空开高低价", fields=checked
             ) from error
         if any(not p.is_finite() or p <= 0 for p in prices):
             raise InvalidResponse("OHLC 价格无效", fields=checked)
