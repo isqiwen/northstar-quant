@@ -322,10 +322,10 @@ def main() -> None:
                     expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
                     page.get_by_role("checkbox", name="MACD", exact=True).check()
                     page.get_by_role("button", name="全屏看图", exact=True).click()
-                    page.wait_for_function("Boolean(document.fullscreenElement)")
+                    expect(page.locator(":fullscreen")).to_have_count(1)
                     screenshot("chart-fullscreen")
                     page.get_by_role("button", name="全屏看图", exact=True).click()
-                    page.wait_for_function("!document.fullscreenElement")
+                    expect(page.locator(":fullscreen")).to_have_count(0)
                     screenshot("browse")
                     visit(
                         data_url

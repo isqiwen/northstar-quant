@@ -260,3 +260,14 @@
     max-height: 300px;
   }
 }
+
+.market-terminal .ant-card {
+  border-color: #293545;
+}
+.market-terminal .ant-card-head {
+  border-bottom-color: #293545 !important;
+}
+.market-terminal .ant-btn-link,
+.market-terminal a {
+  color: #83b5ff;
+}

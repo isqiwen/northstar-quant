@@ -253,6 +253,7 @@ export function Explorer({
           mode === "browse"
             ? {
                 algorithm: theme.darkAlgorithm,
+                components: { Table: { headerBg: "#1b2635" } },
                 token: {
                   colorBgContainer: "#141b25",
                   colorBgElevated: "#1a2533",
