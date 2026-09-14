@@ -22,13 +22,28 @@ def combine(connection: Connection, selected: Any) -> Any:
         or dataset.scope in ("catalog", "calendar", "product")
     ):
         return selected
-    # A sizing estimate, never proof of completeness. Native frequency reduces
-    # expected density; the response limit guard remains authoritative. Bound
-    # parsing/quality work by the response row/byte limits, not an arbitrary month.
-    rows_per_day = (
-        600 / int(dataset.frequency.removesuffix("min")) if dataset.api == "ft_mins" else 1
+    # Actual successful response density calibrates request size. It is only an
+    # estimate: changing liquidity/session lengths still require truncation guards.
+    samples = (
+        connection.execute(
+            text("""SELECT r.row_count,
+        (j.end_at::date-j.start_at::date+1) AS days
+        FROM data_sync_receipts r JOIN data_sync_coverage v USING(receipt_id)
+        JOIN data_sync_jobs j ON j.request_id=r.request_id
+        WHERE j.dataset=:dataset AND r.row_count>0 AND j.start_at<>''
+        ORDER BY r.created_at DESC LIMIT 32"""),
+            {"dataset": dataset.key},
+        )
+        .mappings()
+        .all()
     )
-    days = max(1, int((dataset.limit - 1) / rows_per_day))
+    rows_per_day = max((row["row_count"] / row["days"] for row in samples), default=0)
+    if rows_per_day == 0:
+        rows_per_day = (
+            600 / int(dataset.frequency.removesuffix("min")) if dataset.api == "ft_mins" else 1
+        )
+    # Reserve 10% for density changes; a full response is never declared complete.
+    days = max(1, int((dataset.limit * 0.9) / rows_per_day))
     start = date.fromisoformat(selected["start_at"])
     end = date.fromisoformat(selected["end_at"])
     boundary = history_end(connection)

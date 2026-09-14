@@ -168,3 +168,74 @@ def test_batching_does_not_absorb_a_downloaded_or_missing_interval(automatic):
         selected = scheduling.choose(c, download_ready=True)
         assert batching.combine(c, selected)["request_id"] == first
         assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE status='SPLIT'")) == 0
+
+
+def test_observed_native_density_expands_later_requests_without_mutating_receipt(
+    automatic, monkeypatch
+):
+    import json
+    from datetime import datetime, timedelta
+
+    from northstar_quant.data_management.tushare import acquisition, batching, jobs
+
+    with automatic._engine.begin() as c:
+        planning.enqueue(
+            c,
+            "1min",
+            "RB2610.SHF",
+            {
+                "ts_code": "RB2610.SHF",
+                "freq": "1min",
+                "start_date": "2012-01-01 00:00:00",
+                "end_date": "2012-01-31 23:59:59",
+            },
+            "2012-01-01",
+            "2012-01-31",
+        )
+    rows = []
+    for day in range(1, 32):
+        for minute in range(100):
+            stamp = (datetime(2012, 1, day, 9) + timedelta(minutes=minute)).isoformat(sep=" ")
+            rows.append(["RB2610.SHF", stamp, 3100, 3100, 3100, 3100, 1, 1])
+    payload = json.dumps(
+        {
+            "code": 0,
+            "data": {
+                "fields": ["ts_code", "trade_time", "open", "high", "low", "close", "vol", "oi"],
+                "items": rows,
+            },
+        }
+    ).encode()
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: payload)
+    published = jobs.process_next(automatic)
+    assert published["status"] == "VALIDATED"
+    with automatic._engine.begin() as c:
+        for start, end in [
+            ("2012-02-01", "2012-02-29"),
+            ("2012-03-01", "2012-03-31"),
+            ("2012-04-01", "2012-04-30"),
+        ]:
+            planning.enqueue(
+                c,
+                "1min",
+                "RB2610.SHF",
+                {
+                    "ts_code": "RB2610.SHF",
+                    "freq": "1min",
+                    "start_date": f"{start} 00:00:00",
+                    "end_date": f"{end} 23:59:59",
+                },
+                start,
+                end,
+            )
+        c.execute(text("UPDATE data_sync_settings SET api_next_at='{}'"))
+        selected = scheduling.choose(c, download_ready=True)
+        combined = batching.combine(c, selected)
+        assert (combined["start_at"], combined["end_at"]) == ("2012-02-01", "2012-03-31")
+        assert (
+            c.scalar(
+                text("SELECT row_count FROM data_sync_receipts WHERE receipt_id=:id"),
+                {"id": published["receipt_id"]},
+            )
+            == 3100
+        )
