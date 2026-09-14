@@ -1224,3 +1224,5 @@ Tushare worker 由一个监督进程与多个 `spawn` 子进程组成。监督�
 对照 [Python multiprocessing 3.14 文档](https://docs.python.org/3/library/multiprocessing.html) 与 [PostgreSQL 18 advisory locks](https://www.postgresql.org/docs/18/explicit-locking.html)（2026-09-14 查阅；项目运行版本由自身依赖决定）：使用 spawn 避免继承连接与日志线程；短事务串行领取任务、合并范围和分配供应商配额，任务独立连接上的事务锁覆盖整个处理过程。只有取得已失去连接的任务锁后才恢复 RUNNING，不按超时抢占慢任务。已留存响应从其固定身份恢复，不重复请求供应商；最终提交继续检查 generation，并将 receipt、coverage 和任务结果放在同一事务。规划与目录更新另行串行，文件写入及备份继续遵守原有共享/排他维护锁。
 
 监督进程按 CPU affinity/cgroup、可用内存、子进程实测 RSS 与数据库连接余量渐进扩容，内存不足时让多余进程完成当前任务后退出；存储容量仍由写入准入检查并明确暂停。所有进程共享持久全局/API 配额与退避，不能以并行突破供应商限额。子进程日志先按现有规则净化，再通过有界队列交给监督进程唯一文件写入器，避免争抢轮转锁。停止时先等待已领取任务，超过有界退出等待则终止子进程，后续依赖数据库连接锁与原文恢复；管理 Web 不拥有这一生命周期。
+
+同日 hub.local 实测百万级队列的领取查询触发 PostgreSQL JIT：EXPLAIN 显示约470ms用于编译，实际索引探测/排序约12ms。按 [PostgreSQL JIT 适用范围](https://www.postgresql.org/docs/18/jit-decision.html)，仅在领取事务使用 `SET LOCAL jit=off`，不修改数据库全局配置；同机三次只读领取查询为29.8/16.9/16.2ms。已启动12个同步子进程，任务可同时处于下载和校验阶段；总吞吐仍受供应商额度、网络与持久文件写入约束，不以CPU满载作为成功标准。

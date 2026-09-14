@@ -20,6 +20,10 @@ def history_end(connection: Connection) -> date | None:
 
 
 def choose(connection: Connection, *, download_ready: bool) -> Any:
+    # Indexed LIMIT probes are millisecond OLTP work. A large backlog can inflate
+    # estimated costs enough to trigger ~0.5 s of LLVM compilation per claim.
+    # Restrict this choice to the caller's short admission transaction.
+    connection.execute(text("SET LOCAL jit=off"))
     boundary = history_end(connection)
     from .catalog import BY_KEY
 
