@@ -186,7 +186,7 @@ Data Hub 对应 `dev:data`、后端 `19082`；Live 对应 `dev:live`、后端 `1
 
 本机 Python 入口为 `uv run --project backend northstar serve data-api`、`uv run --project backend northstar serve research-api`、
 `uv run --project backend northstar serve live-api`（Live 管理 API）和 `uv run --project backend northstar serve live-kernel`（内核）。
-`uv run --project backend northstar serve data-worker` 启动独立数据执行器，需要与 Data API 使用相同数据库、来源目录和代码版本。
+`uv run --project backend northstar serve data-worker` 启动独立数据执行器，需要与 Data API 使用相同数据库、来源目录和代码版本。执行器按可用 CPU、内存和数据库连接余量启动多个子进程，并行下载、校验和发布；全体进程共享 Tushare 请求额度。关闭网页或重启 API 不会停止这些任务。
 `uv run --project backend northstar serve live-monitor` 启动独立只读健康观察，使用初始化生成的 `monitor/read.toml` 和所属实例的内核地址。
 前三个默认监听表中的 `190xx` 端口；不要与同端口容器同时启动。
 Data Hub 配置 `NORTHSTAR_DATABASE_URL`；Research 使用 `NORTHSTAR_RESEARCH_DATABASE` 本机 SQLite，Live 使用实例本地状态目录（见部署模板）。

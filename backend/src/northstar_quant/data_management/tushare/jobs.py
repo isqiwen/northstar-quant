@@ -1,8 +1,8 @@
-"""One fenced downloader; persisted retries and atomic coverage/receipt commits."""
+"""Independent fenced pipelines; persisted retries and atomic publication commits."""
 
 import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from functools import partial
 from time import perf_counter
 from typing import Any
@@ -17,13 +17,12 @@ from ..library import DataLibrary
 from ..maintenance import library_write
 from . import (
     acquisition,
-    batching,
+    claiming,
     coverage,
     credentials,
     origins,
     planning,
     publication,
-    scheduling,
 )
 from .catalog import BY_KEY
 from .quality import (
@@ -34,14 +33,13 @@ from .quality import (
     closed_interval_evidence,
     normalize,
 )
-from .store import initialize, job, serial, settings
+from .store import initialize, job
 
 __all__ = ["initialize", "process_next"]
-_LOCK = 0x4E53515453594E
 
 
 def process_next(
-    library: DataLibrary, *, client: httpx2.Client | None = None
+    library: DataLibrary, *, client: httpx2.Client | None = None, plan: bool = True
 ) -> dict[str, Any] | None:
     engine = library._engine
     checkpoint = perf_counter()
@@ -54,66 +52,14 @@ def process_next(
         checkpoint = now
 
     with library_write(engine), engine.begin() as ownership:
-        if not ownership.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": _LOCK}):
-            return None
-        config = settings(engine)
-        if not config["enabled"]:
-            return None
-        with engine.begin() as connection:
-            connection.execute(
-                text("""UPDATE data_sync_attempts SET finished_at=now(),outcome='INTERRUPTED'
-                WHERE finished_at IS NULL""")
-            )
-            connection.execute(
-                text("""UPDATE data_sync_jobs SET status='PENDING',generation=NULL,
-                error='进程中断，继续未提交分片' WHERE status='RUNNING'""")
-            )
-        planning.refresh(engine)
-        planning.plan(engine)
+        if plan:
+            claiming.prepare(engine)
         elapsed("planning")
-        with engine.begin() as connection:
-            row = scheduling.choose(
-                connection,
-                download_ready=datetime.fromisoformat(config["next_request_at"])
-                <= datetime.now(UTC),
-            )
-            if row is None:
-                return None
-            selected = serial(batching.combine(connection, row))
-            generation = uuid4()
-            connection.execute(
-                text("""UPDATE data_sync_jobs SET status='RUNNING',generation=:g,
-                attempts=attempts+CASE WHEN source_generation IS NULL THEN 1 ELSE 0 END,
-                updated_at=now() WHERE request_id=:id"""),
-                {"g": generation, "id": selected["request_id"]},
-            )
-            connection.execute(
-                text("""INSERT INTO data_sync_attempts
-                    (generation,request_id,parent_generation,code_revision)
-                    VALUES(:g,:id,:parent,:revision)"""),
-                {
-                    "g": generation,
-                    "id": selected["request_id"],
-                    "parent": selected["source_generation"],
-                    "revision": code_revision(),
-                },
-            )
-            if not selected["source_generation"]:
-                connection.execute(
-                    text("""UPDATE data_sync_settings SET next_request_at=now()+:delay,
-                    api_next_at=api_next_at || jsonb_build_object(
-                        CAST(:api AS text),now()+:api_delay)"""),
-                    {
-                        "delay": timedelta(seconds=60 / config["requests_per_minute"]),
-                        "api": BY_KEY[selected["dataset"]].api,
-                        "api_delay": timedelta(
-                            seconds=60 / BY_KEY[selected["dataset"]].requests_per_minute
-                        ),
-                    },
-                )
+        selected = claiming.claim(engine, ownership)
+        if selected is None:
+            return None
+        generation = selected["generation"]
         elapsed("claim")
-        selected["generation"] = generation
-        selected["attempts"] += int(not selected["source_generation"])
         stage = "download"
         try:
             if selected["source_generation"]:
@@ -232,7 +178,8 @@ def process_next(
                     connection.execute(
                         text("""UPDATE data_sync_settings SET
                         api_next_at=api_next_at || jsonb_build_object(CAST(:api AS text),
-                            now()+:delay)"""),
+                            greatest(CAST(api_next_at->>CAST(:api AS text) AS timestamptz),
+                                     now()+:delay))"""),
                         {
                             "api": BY_KEY[selected["dataset"]].api,
                             "delay": timedelta(
@@ -278,11 +225,11 @@ def _finish(
     error: str | None = None,
     delay: timedelta = timedelta(),
 ) -> None:
-    connection.execute(
+    changed = connection.scalar(
         text("""UPDATE data_sync_jobs SET status=:status,error=:error,
         next_at=now()+:delay,updated_at=now(),
         source_generation=CASE WHEN :status='WAITING' THEN source_generation ELSE NULL END
-        WHERE request_id=:id AND generation=:g"""),
+        WHERE request_id=:id AND generation=:g RETURNING generation"""),
         {
             "status": status,
             "error": error,
@@ -291,6 +238,8 @@ def _finish(
             "g": selected["generation"],
         },
     )
+    if changed is None:
+        return
     connection.execute(
         text("""UPDATE data_sync_attempts SET finished_at=now(),outcome=:status,error=:error
         WHERE generation=:g"""),
@@ -334,6 +283,8 @@ def _commit(
     artifact: dict[str, Any],
 ) -> None:
     with engine.begin() as connection:
+        if selected["dataset"] == "contracts":
+            claiming.lock_catalog(connection)
         generation = connection.scalar(
             text("SELECT generation FROM data_sync_jobs WHERE request_id=:id FOR UPDATE"),
             {"id": selected["request_id"]},
@@ -386,7 +337,8 @@ def _commit(
         connection.execute(
             text(
                 "UPDATE data_sync_jobs SET receipt_id=:receipt,checked_at=CASE "
-                "WHEN source_generation IS NULL THEN now() ELSE checked_at END WHERE "
+                "WHEN source_generation IS NULL THEN now() "
+                "ELSE COALESCE(checked_at,now()) END WHERE "
                 "request_id=:id"
             ),
             {"id": selected["request_id"], "receipt": receipt},

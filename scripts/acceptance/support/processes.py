@@ -287,18 +287,18 @@ print(json.dumps(result))
         with log_path.open("a") as log:
             arguments = [self.executable, "serve", "data-worker"]
             if synthetic_tushare:
-                arguments = [
-                    str(Path(self.executable).parent / "python"),
-                    "-c",
-                    """
+                script = self.directory / "synthetic_data_worker.py"
+                script.write_text("""
 from northstar_quant.data_management.tushare import acquisition
 from northstar_quant.apps.data_hub.worker import run
 def denied(*args, **kwargs):
     raise acquisition.DownloadError('Synthetic acceptance: provider permission denied')
-acquisition.fetch=denied
-run()
-""",
-                ]
+def initialize():
+    acquisition.fetch = denied
+if __name__ == '__main__':
+    run(initializer=initialize)
+""")
+                arguments = [str(Path(self.executable).parent / "python"), str(script)]
             process = subprocess.Popen(
                 arguments,
                 cwd=self.directory,

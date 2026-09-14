@@ -2,6 +2,7 @@
 
 import logging
 import signal
+from collections.abc import Callable
 from threading import Event
 
 from northstar_quant.apps.storage import open_database, require_current_database
@@ -9,38 +10,33 @@ from northstar_quant.data_management.compaction import process_next as compact_n
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
-from northstar_quant.data_management.tushare import acquisition, process_next
+from northstar_quant.data_management.tushare.claiming import prepare
 from northstar_quant.logging_ import configure
 
+from .parallel import Pipelines
 
-def run() -> None:
+
+def run(*, initializer: Callable[[], None] | None = None) -> None:
     runtime_logs = configure("data_hub", "worker")
     stop = Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     signal.signal(signal.SIGINT, lambda *_: stop.set())
     engine = None
-    client = acquisition.open_client()
+    pipelines = Pipelines(runtime_logs, initializer)
     try:
         engine = open_database()
         require_current_database(engine)
         library = DataLibrary(engine, SourceFiles.from_environment())
-        # Resume persisted refresh/backoff deadlines; deployment is not a request
-        # to redownload all catalogs and recent windows.
-        # One bounded operation holds the existing publication lock. Pending
-        # receipts remain independent; no in-memory queue or expiry-based takeover.
         while not stop.is_set():
-            sync = process_next(library, client=client)
+            pipelines.maintain(engine)
+            prepare(engine)
             result = process_attempt(library)
             compacted = compact_next(engine, library._files)
-            if sync is not None:
-                logging.getLogger(__name__).info(
-                    "Data sync %s: %s", sync["request_id"], sync["status"]
-                )
             if compacted is not None:
                 logging.getLogger(__name__).info(
                     "Data compaction %s: %s", compacted["compaction_id"], compacted["status"]
                 )
-            if result is None and sync is None and compacted is None:
+            if result is None and compacted is None:
                 stop.wait(1)
             elif result is not None:
                 logging.getLogger(__name__).info(
@@ -50,7 +46,7 @@ def run() -> None:
         logging.getLogger(__name__).exception("Data worker failed")
         raise
     finally:
-        client.close()
+        pipelines.close()
         if engine is not None:
             engine.dispose()
         logging.getLogger(__name__).info("Data worker stopped")

@@ -482,6 +482,9 @@ def test_files_saved_before_commit_can_be_reused_after_crash(automatic, monkeypa
     assert len(inventory) == 3
     ready(automatic)
     monkeypatch.setattr(jobs, "_commit", original)
+    monkeypatch.setattr(
+        acquisition, "fetch", lambda *args: pytest.fail("durable raw must not redownload")
+    )
     assert jobs.process_next(automatic)["status"] == "VALIDATED"
     assert automatic._files.inventory() == inventory
 
