@@ -95,3 +95,12 @@ never interpret those facts as supplier lifecycle acceptance. Verify package has
 and deterministic reconstruction in joint backup/restore. Real admission must
 show verified listing/delisting dates and all supported dataset completeness;
 unknown historical sessions or applicability keep publication blocked.
+
+A full, explicitly authorized Data Hub schema reset also removes extensions in
+`public`. Before initializing that empty schema through the application role,
+restore the baseline's existing `btree_gist` prerequisite through the database
+administrator. Do not grant database administration to the application role.
+A 42501 during `maintenance init-db` must be diagnosed from the database error;
+retrying or reopening registration does not resolve it. After initialization,
+verify empty old-data tables, unchanged account/token fingerprints and stopped
+sync before enabling the new collector through its owning settings interface.
