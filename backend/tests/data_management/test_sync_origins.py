@@ -47,24 +47,32 @@ def test_origin_keeps_earliest_evidence_across_restarts_and_frequencies(automati
         assert c.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
 
 
-def test_all_enqueue_paths_enforce_history_floor(automatic):
+def test_internal_requests_preserve_pre_2012_lifetime(automatic):
     with automatic._engine.begin() as c:
-        planning.enqueue(c, "daily", "OLD", {}, "2000-01-01", "2011-12-31")
-        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs")) == 0
         planning.enqueue(
-            c, "1min", "CROSS", {"start_date": "2011-12-01 00:00:00"}, "2011-12-01", "2012-01-05"
+            c,
+            "1min",
+            "RB2610.SHF",
+            {"start_date": "2011-12-01 00:00:00"},
+            "2011-12-01",
+            "2012-01-05",
         )
         job = c.execute(text("SELECT * FROM data_sync_jobs")).mappings().one()
-        assert job["start_at"] == "2012-01-01"
-        assert job["parameters"]["start_date"] == "2012-01-01 00:00:00"
+        assert job["start_at"] == "2011-12-01"
         planning.split(c, dict(job))
-        assert c.scalar(text("SELECT min(start_at) FROM data_sync_jobs")) == "2012-01-01"
+        assert c.scalar(text("SELECT min(start_at) FROM data_sync_jobs")) == "2011-12-01"
+        assert c.scalar(text("SELECT count(*) FROM data_contract_requests")) == 3
 
 
 def test_actual_contract_missing_listing_never_borrows_product_start(automatic, monkeypatch):
     monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
     with automatic._engine.begin() as c:
-        c.execute(text("UPDATE data_sync_contracts SET planned_revision=0"))
+        c.execute(
+            text(
+                "UPDATE data_sync_contracts SET planned_revision=0, "
+                "details=jsonb_build_object('delist_date','20260901')"
+            )
+        )
         c.execute(
             text("""INSERT INTO data_sync_contracts
             (ts_code,exchange,product,kind,details,planned_revision)

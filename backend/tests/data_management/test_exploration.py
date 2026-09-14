@@ -27,6 +27,8 @@ def published(postgres_engine, clean_database, tmp_path, monkeypatch):
     monkeypatch.setenv("NORTHSTAR_MARKET_STORAGE_ID", storage_id)
     monkeypatch.setenv("NORTHSTAR_DATA_SECRET_DIR", str(tmp_path / "secret"))
     credentials.save("synthetic-explorer-token")
+    monkeypatch.setenv("NORTHSTAR_DATA_DIR", str(tmp_path / "source"))
+    monkeypatch.delenv("NORTHSTAR_STORAGE_ID", raising=False)
     library = DataLibrary(engine, SourceFiles(tmp_path / "source", min_free_bytes=0))
     with engine.begin() as c:
         c.execute(
@@ -37,11 +39,15 @@ def published(postgres_engine, clean_database, tmp_path, monkeypatch):
             text("""INSERT INTO data_sync_contracts
             (ts_code,exchange,product,kind,details,planned_revision)
             VALUES ('RB2610.SHF','SHFE','RB','1',
-            '{"list_date":"20200101","delist_date":"20300101"}',1)""")
+            '{"list_date":"20200101","delist_date":"20260903"}',1)""")
         )
         c.execute(
             text("""INSERT INTO data_sync_calendar VALUES
             ('SHFE','2026-09-01',true),('SHFE','2026-09-02',false),('SHFE','2026-09-03',true)""")
+        )
+        c.execute(
+            text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
+            VALUES('RB2610.SHF','2020-01-01','2026-09-03')""")
         )
         planning.enqueue(
             c, "1min", "RB2610.SHF", {"ts_code": "RB2610.SHF"}, "2026-09-01", "2026-09-03"
@@ -67,8 +73,61 @@ def published(postgres_engine, clean_database, tmp_path, monkeypatch):
         },
     }
     monkeypatch.setattr(acquisition, "fetch", lambda *args: json.dumps(response).encode())
+    process = jobs.process_next
+
+    def completed_request(*args, **kwargs):
+        result = process(*args, **kwargs)
+        if result and result["status"] == "VALIDATED":
+            publish_read_fixture(library)
+        return result
+
+    monkeypatch.setattr(jobs, "process_next", completed_request)
     assert jobs.process_next(library)["status"] == "VALIDATED"
     return library, response
+
+
+def publish_read_fixture(library):
+    # Synthetic already-admitted publication facts for reader/restore regression.
+    # This does not exercise or establish supplier whole-contract admission.
+    from northstar_quant.data_management.contract_data.packages import write_package
+    from northstar_quant.data_management.publications import PublishedDatasets
+    from northstar_quant.data_management.tushare.store import serial
+
+    with library._engine.begin() as c:
+        inputs = [
+            serial(r)
+            for r in c.execute(
+                text("""SELECT r.*,j.dataset,j.scope
+            FROM data_sync_jobs j JOIN data_sync_receipts r ON r.receipt_id=j.receipt_id
+            WHERE j.status='VALIDATED' AND j.scope='RB2610.SHF'
+            ORDER BY j.dataset,r.receipt_id""")
+            ).mappings()
+        ]
+        if not inputs:
+            return
+        manifest = dict(
+            rule="SYNTHETIC_READER_ACCEPTANCE",
+            scope="RB2610.SHF",
+            exchange="SHFE",
+            product="RB",
+            inputs=inputs,
+        )
+        artifact = write_package(
+            PublishedDatasets.from_environment().root, manifest, library._files
+        )
+        c.execute(
+            text("""INSERT INTO data_contract_publications
+            (publication_id,scope,manifest,package_hash,package_bytes,path)
+            VALUES(:id,'RB2610.SHF',CAST(:manifest AS jsonb),:hash,:bytes,:path)
+            ON CONFLICT DO NOTHING"""),
+            dict(
+                id=artifact["publication_id"],
+                manifest=json.dumps(manifest),
+                hash=artifact["sha256"],
+                bytes=artifact["bytes"],
+                path=artifact["path"],
+            ),
+        )
 
 
 def test_fixed_pages_and_revision_do_not_mix(published):
@@ -110,7 +169,7 @@ def test_coverage_never_infers_complete_minutes(published):
     library, _ = published
     args = dict(dataset="1min", scope="RB2610.SHF", start="2026-09-01", end="2026-09-04")
     report = quality.coverage(library._engine, **args)
-    assert [r["state"] for r in report["days"]] == ["RESPONSE_VALIDATED"] * 3 + ["NOT_DOWNLOADED"]
+    assert [r["state"] for r in report["days"]] == ["RESPONSE_VALIDATED"] * 3 + ["NOT_APPLICABLE"]
     assert report["days"][1]["calendar_open"] is False
     with library._engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='BLOCKED',error='synthetic missing'"))
@@ -293,7 +352,7 @@ def test_published_range_scan_reports_pruning_without_changing_values(published)
     assert whole["scan"]["row_groups_read"] == 2
 
 
-def test_available_excludes_catalog_only_and_split_sources(published):
+def test_available_excludes_unpublished_material_and_keeps_fixed_split_inputs(published):
     library, _ = published
     engine = library._engine
     with engine.begin() as c:
@@ -312,7 +371,7 @@ def test_available_excludes_catalog_only_and_split_sources(published):
     assert found["total"] == 1 and found["rows"][0]["row_count"] == 6
     with engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='SPLIT' WHERE scope='RB2610.SHF'"))
-    assert discovery.available(engine, "", "", "", "", 0)["total"] == 0
+    assert discovery.available(engine, "", "", "", "", 0)["total"] == 1
 
 
 def test_named_instrument_and_full_chart_share_fixed_rows(published):

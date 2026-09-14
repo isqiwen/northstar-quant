@@ -81,7 +81,10 @@ def _plan(c: Connection, stores: dict[str, SourceFiles]) -> dict[str, Any]:
 def preview(engine: Engine, archive: SourceFiles) -> dict[str, Any]:
     if engine.dialect.name != "postgresql":
         raise ValueError("无引用对象清理只适用于 Data Hub")
-    stores = {"source": archive, "published": storage()}
+    stores = {"source": archive}
+    processed = storage()
+    if processed.root != archive.root:
+        stores["processed"] = processed
     with engine.begin() as c:
         freeze_sources(c)
         plan = _plan(c, stores)
@@ -91,7 +94,10 @@ def preview(engine: Engine, archive: SourceFiles) -> dict[str, Any]:
 def execute(engine: Engine, archive: SourceFiles, plan_id: str) -> dict[str, Any]:
     if engine.dialect.name != "postgresql":
         raise ValueError("无引用对象清理只适用于 Data Hub")
-    stores = {"source": archive, "published": storage()}
+    stores = {"source": archive}
+    processed = storage()
+    if processed.root != archive.root:
+        stores["processed"] = processed
     with engine.begin() as ownership:
         freeze_sources(ownership)
         old = (

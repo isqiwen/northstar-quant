@@ -62,6 +62,10 @@ def _published(library, monkeypatch, *, opening_record=False, missing_price=Fals
     monkeypatch.setattr(
         acquisition, "fetch", lambda *args: pytest.fail("research must not download")
     )
+    if not missing_price:
+        from tests.data_management.test_exploration import publish_read_fixture
+
+        publish_read_fixture(library)
     with library._engine.connect() as connection:
         return connection.scalar(text("SELECT receipt_id FROM data_sync_receipts"))
 

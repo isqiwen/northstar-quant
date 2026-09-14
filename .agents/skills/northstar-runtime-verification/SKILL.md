@@ -75,7 +75,7 @@ while clearing it when the owning artifact identity changes.
 ### Contract completeness review
 
 `POST /api/sync/contracts/review` reports a real contract's listing-to-expiry
-requirements (active contracts end at the completed trading-day boundary).
+requirements. Active contracts are ineligible; only ended real contracts may collect or publish.
 Use the browser's “整体验收” action on downloaded contract data. Check a complete
 calendar through the candidate cutoff; an old maximum open day is insufficient.
 A response/window count, nonempty chart or successful HTTP request is not whole
@@ -85,3 +85,13 @@ source deletion. Test with `backend/tests/data_management/test_contract_review.p
 against the disposable PostgreSQL database. Preserve old fixed receipts when
 changing response quality rules; rejection of new mixed-quality responses must
 not publish their remaining good rows.
+
+## Complete retired-contract catalog
+
+Data Hub discovery and Research handoff require a contract package membership.
+A validated supplier response alone is private processing evidence. Installed
+browser fixtures may explicitly pin synthetic package facts to exercise readers;
+never interpret those facts as supplier lifecycle acceptance. Verify package hash
+and deterministic reconstruction in joint backup/restore. Real admission must
+show verified listing/delisting dates and all supported dataset completeness;
+unknown historical sessions or applicability keep publication blocked.

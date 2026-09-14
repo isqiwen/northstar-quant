@@ -106,4 +106,10 @@ def combine(connection: Connection, selected: Any) -> Any:
         error=:reason,updated_at=now() WHERE request_id=ANY(:ids)"""),
         {"reason": f"合并下载：{request_id}", "ids": children},
     )
+    connection.execute(
+        text("""INSERT INTO data_contract_requests(scope,request_id)
+        SELECT DISTINCT scope,:combined FROM data_contract_requests
+        WHERE request_id=ANY(:children) ON CONFLICT DO NOTHING"""),
+        dict(combined=request_id, children=children),
+    )
     return combined

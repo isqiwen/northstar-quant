@@ -7,6 +7,8 @@ from threading import Event
 
 from northstar_quant.apps.storage import open_database, require_current_database
 from northstar_quant.data_management.compaction import process_next as compact_next
+from northstar_quant.data_management.contract_data.processing import process_next as contract_next
+from northstar_quant.data_management.contract_data.retention import release_rejected
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
@@ -30,6 +32,8 @@ def run(*, initializer: Callable[[], None] | None = None) -> None:
         while not stop.is_set():
             pipelines.maintain(engine)
             prepare(engine)
+            contract_next(engine)
+            release_rejected(engine, library._files)
             result = process_attempt(library)
             compacted = compact_next(engine, library._files)
             if compacted is not None:

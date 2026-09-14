@@ -105,7 +105,7 @@ def test_interrupted_and_conflicting_merges_keep_originals(published):
     assert "冲突" in failed["error"]
 
 
-def test_protocol_and_restored_physical_publication(published):
+def test_protocol_and_restored_physical_publication(published, tmp_path):
     from northstar_quant.apps.data_hub.application import create_app
     from northstar_quant.data_management.tushare import publication, retention
     from tests.apps.browser import ProtocolClient, login_response
@@ -130,8 +130,15 @@ def test_protocol_and_restored_physical_publication(published):
         assert client.get(base).json()["status"] == "SUCCEEDED"
         with library._engine.connect() as c:
             references = compaction.references(c)
+        from northstar_quant.data_management.files import SourceFiles
+        from northstar_quant.data_management.library import manifest
+
+        archived = SourceFiles(tmp_path / "backup-sources")
+        with library._engine.connect() as c:
+            for item in manifest(c):
+                archived.store(library._files.read(item["content_hash"], item["byte_count"]))
         for item in references:
             publication.storage()._path(item["content_hash"]).unlink()
         assert client.post(base + "/query", json={"offset": 0, "limit": 2}).status_code == 422
-        retention.restore_publications(library._engine, library._files)
+        retention.restore_publications(library._engine, archived)
         assert client.post(base + "/query", json={"offset": 0, "limit": 2}).json() == before.json()

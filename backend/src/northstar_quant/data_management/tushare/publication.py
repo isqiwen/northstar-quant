@@ -8,13 +8,12 @@ from time import perf_counter
 from typing import Any
 
 from ..files import SourceFiles
-from ..publications import PublishedDatasets
 from . import normalization
 
 
 def storage() -> SourceFiles:
-    market = PublishedDatasets.from_environment()
-    return SourceFiles(market.root / "tushare", shared_read=True)
+    # Response artifacts are private processing material, not contract publications.
+    return SourceFiles.from_environment()
 
 
 def publish(

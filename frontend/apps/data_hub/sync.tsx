@@ -1,5 +1,6 @@
 "use client";
 import { StorageAlert } from "./storage-alert";
+import { ContractReview } from "./contract-review";
 
 import {
   App,
@@ -38,6 +39,7 @@ export function TushareSync() {
   const current = useData(query("/api/sync"), 3000);
   const [form] = Form.useForm();
   const [busy, setBusy] = useState(false);
+  const [reviewScope, setReviewScope] = useState<string>();
   const [detail, setDetail] = useState<Row>();
   const [filter, setFilter] = useState<JobFilter>({
     dataset: "",
@@ -90,7 +92,7 @@ export function TushareSync() {
     <>
       <Heading
         title="Tushare 自动同步"
-        description="同步 2012 年以来全部期货历史数据，自动补缺与复核。页面关闭不影响后台同步。"
+        description="只下载已退市真实合约，核验上市至退市全部必需数据。完整合约对应一个发布包。"
       />
       <Failure error={current.error} />
       <StorageAlert capacity={config?.source_capacity} />
@@ -180,36 +182,27 @@ export function TushareSync() {
             <Button onClick={current.refresh}>刷新</Button>
           </Space>
           <p className="muted">
-            首次从 2012 年按月向后补齐，各数据类型轮流推进。
-            首次同步之后新增的日期优先更新，剩余时间继续补历史；异常独立等待重试。
+            按退市合约组织下载，优先处理最近退市的合约，同一合约内完成各类数据。
+            未退市及退市日期不明的合约不下载。
           </p>
-          <p>
-            {planned
-              ? "本轮目录规划完成"
-              : "等待合约目录或正在规划区间，分片总数仍会增加"}
-          </p>
+          <p>{planned ? "本轮目录规划完成" : "等待目录或正在逐合约规划"}</p>
         </Card>
       </div>
       <div className="grid-2">
-        {(["history", "daily"] as const).map((key) => {
+        {(["contracts"] as const).map((key) => {
           const lane = data?.lanes?.find((row) => row.lane === key);
           const total = lane?.total ?? 0;
           const done = lane?.validated ?? 0;
           return (
-            <Card
-              key={key}
-              title={key === "history" ? "历史补齐进度" : "每日更新状态"}
-            >
+            <Card key={key} title="完整合约发布进度">
               <p>
                 {lane && lane.start <= lane.end
                   ? `${lane.start} → ${lane.end}`
-                  : key === "daily"
-                    ? "尚无首次同步之后的新增日期"
-                    : "等待首次同步规划"}
+                  : "等待已退市合约规划"}
               </p>
               <p>
-                已校验 {done.toLocaleString()} / 已规划 {total.toLocaleString()}{" "}
-                个分片
+                已发布 {done.toLocaleString()} / 已规划 {total.toLocaleString()}{" "}
+                个合约
               </p>
               <Progress
                 percent={total ? Math.round((done / total) * 1000) / 10 : 0}
@@ -226,16 +219,60 @@ export function TushareSync() {
               </Space>
               <p>最早未完成区间：{lane?.oldest_pending ?? "暂无"}</p>
               <p className="muted">
-                分片校验进度不等于行情覆盖完整率；空结果不算完成，目录规划期间总数仍会增加。
+                只有全部必需数据完整通过才计为发布；待核验和异常合约不计完成。
               </p>
             </Card>
           );
         })}
       </div>
+      <Card title="合约下载与验收">
+        <Table<Row>
+          rowKey="scope"
+          size="small"
+          dataSource={(config?.contracts ?? []) as Row[]}
+          columns={[
+            { title: "交易所", dataIndex: "exchange" },
+            { title: "品种", dataIndex: "product" },
+            {
+              title: "合约",
+              render: (_, r) => String(r.display_name || r.scope),
+            },
+            { title: "上市", dataIndex: "start_date" },
+            { title: "退市", dataIndex: "end_date" },
+            {
+              title: "状态",
+              render: (_, r) =>
+                (
+                  ({
+                    COLLECTING: "采集中",
+                    VERIFYING: "待核验",
+                    REJECTED: "已拒绝",
+                    PUBLISHED: "已发布",
+                  }) as Record<string, string>
+                )[String(r.status)] ?? String(r.status),
+            },
+            {
+              title: "",
+              render: (_, r) => (
+                <Button
+                  type="link"
+                  onClick={() => setReviewScope(String(r.scope))}
+                >
+                  整体验收
+                </Button>
+              ),
+            },
+          ]}
+        />
+      </Card>
+      <ContractReview
+        scope={reviewScope}
+        onClose={() => setReviewScope(undefined)}
+      />
       <Card title="数据范围与进度">
         <p>
-          2012-01-01 起，全部交易所、全部品种和相关到期合约；1、5、15、30、60
-          分钟、日/周/月线及期货相关历史资料。按交易所目录发现新增合约，周期性检查新增区间和历史缺口。
+          全部交易所 → 品种 → 已退市真实合约，覆盖上市至退市；1、5、15、30、60
+          分钟、日/周/月线及期货相关历史资料。按目录发现新退市合约；日期缺失不猜测，空响应不当作完成。
         </p>
         <Table
           pagination={false}
@@ -323,7 +360,7 @@ export function TushareSync() {
                   label: "已发现的数据起点",
                   children: origin?.first_observed
                     ? `${origin.first_observed}（最早有效响应；更早范围仍需核查）`
-                    : "探测中；2012-01-01 以前不采集，空响应不作为起点证据",
+                    : "探测中；覆盖完整生命周期，空响应不作为起点证据",
                 },
                 {
                   key: "status",

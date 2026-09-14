@@ -26,6 +26,11 @@ def references(connection: Connection) -> list[dict[str, object]]:
 
 def restore_publications(engine: Engine, files: SourceFiles) -> None:
     with engine.connect() as connection:
+        from ..contract_data.packages import restore_packages
+        from ..publications import PublishedDatasets
+
+        if connection.scalar(text("SELECT EXISTS(SELECT 1 FROM data_contract_publications)")):
+            restore_packages(connection, PublishedDatasets.from_environment().root, files)
         from ..compaction import references as compacted_references
 
         for item in compacted_references(connection):

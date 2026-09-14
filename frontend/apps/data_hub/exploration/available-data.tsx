@@ -63,8 +63,8 @@ export function AvailableData({
   const label = (key: unknown) =>
     String(catalog?.datasets.find((d) => d.key === key)?.label || key);
   return (
-    <Card title="已有数据 · 合约" className="explorer-available">
-      <p className="muted">已下载记录供检查 · 尚不代表整合约验收通过</p>
+    <Card title="已发布 · 完整合约" className="explorer-available">
+      <p className="muted">仅展示已退市且整体验收通过的合约</p>
       <Space wrap className="instrument-search">
         <Select
           aria-label="已有数据类型"
@@ -158,7 +158,7 @@ export function AvailableData({
         }
         locale={{
           emptyText: (
-            <Empty description="当前筛选没有已发布数据，试试其他类型或查看全部已有数据。" />
+            <Empty description="暂无完整合约发布包。请到历史同步查看合约下载和验收进度。" />
           ),
         }}
         pagination={{
@@ -221,7 +221,7 @@ export function AvailableData({
         onClose={() => setReviewScope(undefined)}
       />
       <p className="muted">
-        每个合约只列一次。选中后打开最近发布中有记录的日期；区间可能有缺口。
+        每个合约对应完整生命周期发布包；选中后读取固定发布版本。
       </p>
     </Card>
   );

@@ -51,6 +51,10 @@ def _second(library):
             (ts_code,exchange,product,kind,details,planned_revision)
             VALUES('RB2611.SHF','SHFE','RB','1','{}',1)""")
         )
+        connection.execute(
+            text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
+            VALUES('RB2611.SHF','2020-01-01','2026-09-02')""")
+        )
         planning.enqueue(
             connection,
             "daily",

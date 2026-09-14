@@ -71,6 +71,11 @@ def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, o
         with connection.begin():
             freeze_sources(connection)
             snapshot = connection.execute(text("SELECT pg_export_snapshot()")).scalar_one()
+            from .contract_data.packages import verify_packages
+            from .publications import PublishedDatasets
+
+            if connection.scalar(text("SELECT EXISTS(SELECT 1 FROM data_contract_publications)")):
+                verify_packages(connection, PublishedDatasets.from_environment().root)
             references = manifest(connection)
             archived = SourceFiles(
                 target / "sources",

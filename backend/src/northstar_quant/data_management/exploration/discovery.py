@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlalchemy import Engine, text
 
+from ..contract_data.catalog import RECEIPTS, require_receipt
 from ..tushare.store import serial
 from . import rows
 from .catalog import BROWSABLE_DATASETS
@@ -21,12 +22,15 @@ def available(
     with engine.connect() as c:
         found = (
             c.execute(
-                text("""WITH published AS (
+                text(
+                    RECEIPTS
+                    + """, published AS (
                 SELECT r.receipt_id,r.row_count,j.dataset,j.scope,j.start_at,j.end_at,
                 c.exchange,c.product,c.details->>'name' AS name
-                FROM data_sync_jobs j JOIN data_sync_receipts r ON r.receipt_id=j.receipt_id
+                FROM admitted a JOIN data_sync_receipts r ON r.receipt_id=a.receipt_id
+                JOIN data_sync_jobs j ON j.request_id=r.request_id
                 LEFT JOIN data_sync_contracts c ON c.ts_code=j.scope
-                WHERE j.status<>'SPLIT' AND r.row_count>0
+                WHERE r.row_count>0 AND j.scope=a.contract_scope
                 AND j.dataset=ANY(:datasets)
                 AND (:exchange='' OR c.exchange=:exchange)
                 AND (:product='' OR c.product=:product)
@@ -43,7 +47,8 @@ def available(
                 CASE dataset WHEN 'daily' THEN 0 WHEN '15min' THEN 1 ELSE 2 END,dataset,receipt_id
                 ) SELECT p.*,g.available_start,g.available_end,g.periods,g.publications,
                 count(*) OVER() AS total FROM preferred p JOIN grouped g USING(scope)
-                ORDER BY available_end DESC,scope LIMIT 10 OFFSET :offset"""),
+                ORDER BY available_end DESC,scope LIMIT 10 OFFSET :offset"""
+                ),
                 dict(
                     datasets=[dataset] if dataset else list(BROWSABLE_DATASETS),
                     exchange=exchange,
@@ -70,6 +75,7 @@ def available(
 
 def open_published(engine: Engine, receipt_id: UUID) -> dict[str, Any]:
     with engine.connect() as c:
+        require_receipt(c, receipt_id)
         version = (
             c.execute(
                 text("""SELECT r.*,j.dataset,j.scope,j.start_at,j.end_at
@@ -103,13 +109,17 @@ def open_instrument(engine: Engine, scope: str, dataset: str) -> dict[str, Any]:
         raise ValueError("请选择已支持的数据类型")
     with engine.connect() as c:
         receipt = c.execute(
-            text("""SELECT r.receipt_id
-            FROM data_sync_jobs j JOIN data_sync_receipts r ON r.receipt_id=j.receipt_id
-            WHERE j.scope=:scope AND j.dataset=ANY(:datasets)
-            AND j.status<>'SPLIT' AND r.row_count>0
+            text(
+                RECEIPTS
+                + """SELECT r.receipt_id
+            FROM admitted a JOIN data_sync_receipts r ON r.receipt_id=a.receipt_id
+            JOIN data_sync_jobs j ON j.request_id=r.request_id
+            WHERE j.scope=:scope AND a.contract_scope=:scope AND j.dataset=ANY(:datasets)
+            AND r.row_count>0
             ORDER BY j.end_at DESC,
             CASE j.dataset WHEN 'daily' THEN 0 WHEN '15min' THEN 1 ELSE 2 END,
-            j.dataset,r.receipt_id LIMIT 1"""),
+            j.dataset,r.receipt_id LIMIT 1"""
+            ),
             {"scope": scope, "datasets": [dataset] if dataset else list(BROWSABLE_DATASETS)},
         ).scalar_one_or_none()
     if receipt is None:

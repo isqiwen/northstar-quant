@@ -6,6 +6,29 @@ from pathlib import Path
 
 from support.processes import InstalledApplication
 
+# Synthetic already-admitted facts exercise immutable package reading in the
+# installed browser. They are not evidence of Tushare lifecycle completeness.
+_PACKAGE_FIXTURE = """
+def pin_reader_fixture():
+    from northstar_quant.data_management.contract_data.packages import write_package
+    from northstar_quant.data_management.publications import PublishedDatasets
+    from northstar_quant.data_management.tushare.store import serial
+    with engine.begin() as c:
+        inputs=[serial(r) for r in c.execute(text("SELECT r.*,j.dataset,j.scope "
+            "FROM data_sync_jobs j JOIN data_sync_receipts r ON r.receipt_id=j.receipt_id "
+            "WHERE j.status='VALIDATED' AND j.scope='RB2610.SHF' "
+            "ORDER BY j.dataset,r.receipt_id")).mappings()]
+        manifest=dict(rule='SYNTHETIC_BROWSER_ACCEPTANCE',scope='RB2610.SHF',
+            exchange='SHFE',product='RB',inputs=inputs)
+        artifact=write_package(PublishedDatasets.from_environment().root,manifest,library._files)
+        c.execute(text("INSERT INTO data_contract_publications "
+            "(publication_id,scope,manifest,package_hash,package_bytes,path) "
+            "VALUES(:id,'RB2610.SHF',CAST(:manifest AS jsonb),:hash,:bytes,:path) "
+            "ON CONFLICT DO NOTHING"),dict(id=artifact['publication_id'],
+                manifest=json.dumps(manifest),
+                hash=artifact['sha256'],bytes=artifact['bytes'],path=artifact['path']))
+"""
+
 
 def seed_settlement(app: InstalledApplication) -> None:
     """Publish exact/null fee columns and a revision through the installed worker."""
@@ -50,6 +73,25 @@ for revised in (False, True):
     result=jobs.process_next(library)
     assert result['status']=='VALIDATED',result
 """
+    code = code.replace(
+        "with engine.begin() as c:", _PACKAGE_FIXTURE + "\nwith engine.begin() as c:", 1
+    )
+    code = code.replace(
+        "    assert result['status']=='VALIDATED',result",
+        "    assert result['status']=='VALIDATED',result\n    pin_reader_fixture()",
+    )
+    code = code.replace(
+        "\nassert result['status']=='VALIDATED',result",
+        "\nassert result['status']=='VALIDATED',result\npin_reader_fixture()",
+    )
+    code = code.replace(
+        "assert result['status']=='VALIDATED', result",
+        "assert result['status']=='VALIDATED', result\npin_reader_fixture()",
+    )
+    code = code.replace(
+        "result['baseline_receipt_id']=baseline_receipt_id",
+        "pin_reader_fixture()\nresult['baseline_receipt_id']=baseline_receipt_id",
+    )
     result = subprocess.run(
         [str(Path(app.executable).parent / "python"), "-c", code],
         text=True,
@@ -82,6 +124,11 @@ with engine.begin() as c:
     c.execute(text("INSERT INTO data_sync_contracts(ts_code,exchange,product,"
         "kind,details,planned_revision) "
         "VALUES ('RB2610.SHF','SHFE','RB','1','{}',1) ON CONFLICT DO NOTHING"))
+    c.execute(text("UPDATE data_sync_contracts SET details=CAST(:details AS jsonb) "
+        "WHERE ts_code='RB2610.SHF'"), {'details':json.dumps(dict(
+            list_date='20260901',delist_date='20260904'))})
+    c.execute(text("INSERT INTO data_contract_collections(scope,start_date,end_date) "
+        "VALUES('RB2610.SHF','2026-09-01','2026-09-04') ON CONFLICT DO NOTHING"))
     c.execute(text("INSERT INTO data_sync_calendar VALUES ('SHFE','2026-09-01',true),"
         "('SHFE','2026-09-02',false),('SHFE','2026-09-03',true) ON CONFLICT DO NOTHING"))
     planning.enqueue(c,'1min','RB2610.SHF',{'ts_code':'RB2610.SHF'},'2026-09-01','2026-09-03')
@@ -136,6 +183,25 @@ assert result['status']=='VALIDATED',result
 print(json.dumps(result))
 """,
         )
+    code = code.replace(
+        "with engine.begin() as c:", _PACKAGE_FIXTURE + "\nwith engine.begin() as c:", 1
+    )
+    code = code.replace(
+        "    assert result['status']=='VALIDATED',result",
+        "    assert result['status']=='VALIDATED',result\n    pin_reader_fixture()",
+    )
+    code = code.replace(
+        "\nassert result['status']=='VALIDATED',result",
+        "\nassert result['status']=='VALIDATED',result\npin_reader_fixture()",
+    )
+    code = code.replace(
+        "assert result['status']=='VALIDATED', result",
+        "assert result['status']=='VALIDATED', result\npin_reader_fixture()",
+    )
+    code = code.replace(
+        "result['baseline_receipt_id']=baseline_receipt_id",
+        "pin_reader_fixture()\nresult['baseline_receipt_id']=baseline_receipt_id",
+    )
     result = subprocess.run(
         [str(Path(app.executable).parent / "python"), "-c", code],
         text=True,

@@ -7,6 +7,7 @@ import { Failure } from "../../shared/ui";
 import { exchangeName } from "./exploration/instrument-labels";
 
 const labels: Record<string, string> = {
+  NOT_ELIGIBLE: "不在下载范围",
   VERIFIED: "已核验",
   RECEIVED: "响应已收到",
   COLLECTING: "待补齐",

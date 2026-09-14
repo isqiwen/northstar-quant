@@ -48,11 +48,17 @@ def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
             VALUES('RB2610.SHF','SHFE','RB','1','{}',1)""")
         )
         connection.execute(
+            text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
+            VALUES('RB2610.SHF','1990-01-01','2026-09-02')""")
+        )
+        connection.execute(
             text(
                 "INSERT INTO data_sync_calendar VALUES('SHFE','2026-09-01',true),"
                 "('SHFE','2026-09-02',true)"
             )
         )
+    monkeypatch.setenv("NORTHSTAR_DATA_DIR", str(tmp_path / "sources"))
+    monkeypatch.delenv("NORTHSTAR_STORAGE_ID", raising=False)
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
     return library
 
@@ -419,6 +425,7 @@ def test_planning_all_capabilities_is_idempotent_and_stops_at_expiry(automatic, 
 
     monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
     with automatic._engine.begin() as connection:
+        connection.execute(text("DELETE FROM data_contract_collections"))
         connection.execute(text("DELETE FROM data_sync_contracts"))
         for kind, code in [("1", "RB2609.SHF"), ("2", "RB.SHF")]:
             connection.execute(
@@ -578,7 +585,7 @@ def test_missing_price_is_retained_then_corrected_response_can_publish(automatic
         assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
         assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 0
     assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == incomplete
-    assert publication.storage().inventory() == []
+    assert len(publication.storage().inventory()) == 1  # Private rejected raw response only.
     # The existing UI retry operation requeues the failed job; no alternate import path.
     monkeypatch.setattr(planning, "plan", lambda *_: None)
     monkeypatch.setattr(planning, "refresh", lambda *_: None)
@@ -962,8 +969,8 @@ def test_historical_empty_remains_uncovered_with_slow_automatic_recheck(automati
         planning.enqueue(
             c,
             "15min",
-            "RB9505.SHF",
-            {"ts_code": "RB9505.SHF", "freq": "15min"},
+            "RB2610.SHF",
+            {"ts_code": "RB2610.SHF", "freq": "15min"},
             "2012-04-17",
             "2012-04-30",
         )
@@ -988,20 +995,21 @@ def test_catalog_arrival_replans_continuous_ranges_without_duplicate_downloads(
 
     monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
     with automatic._engine.begin() as c:
+        c.execute(text("DELETE FROM data_contract_collections"))
         c.execute(text("DELETE FROM data_sync_contracts"))
         c.execute(
             text("INSERT INTO data_sync_contracts VALUES ('A.DCE','DCE','A','2','{}',NULL,0)")
         )
     planning.plan(automatic._engine)
     with automatic._engine.begin() as c:
-        assert c.scalar(text("SELECT planning_error FROM data_sync_contracts"))
+        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs")) == 0
         planning.enqueue(c, "contracts", "DCE", {"exchange": "DCE", "fut_type": "1"}, "", "")
     row = {
         "ts_code": "A2609.DCE",
         "exchange": "DCE",
         "fut_code": "A",
         "list_date": "20260901",
-        "delist_date": "20260909",
+        "delist_date": "20260908",
     }
     payload = json.dumps(
         {"code": 0, "data": {"fields": list(row), "items": [list(row.values())]}}
@@ -1035,7 +1043,7 @@ def test_index_planning_sends_explicit_official_codes_and_deduplicates(automatic
         c.execute(
             text(
                 "UPDATE data_sync_contracts SET planned_revision=0, "
-                'details=\'{"list_date":"20260901","delist_date":"20260909"}\''
+                'details=\'{"list_date":"20260901","delist_date":"20260908"}\''
             )
         )
     planning.plan(automatic._engine)
@@ -1068,11 +1076,12 @@ def test_observed_provider_rejections_are_classified_without_raw_message(message
     assert TOKEN not in str(caught.value)
 
 
-def test_history_floor_applies_to_contracts_calendars_products_and_indices(automatic, monkeypatch):
+def test_only_expired_contracts_are_planned_without_truncating_lifetime(automatic, monkeypatch):
     from datetime import date
 
     monkeypatch.setattr(planning, "target_day", lambda: date(2012, 2, 2))
     with automatic._engine.begin() as c:
+        c.execute(text("DELETE FROM data_contract_collections"))
         c.execute(text("DELETE FROM data_sync_contracts"))
         for code, kind, begin, end in [
             ("AL1112.SHF", "1", "20100101", "20111215"),
@@ -1098,8 +1107,9 @@ def test_history_floor_applies_to_contracts_calendars_products_and_indices(autom
             .all()
         )
         assert rows
-        assert all(r["start_at"] >= "2012-01-01" for r in rows)
-        assert not any(r["scope"] == "AL1112.SHF" for r in rows)
+        assert min(r["start_at"] for r in rows) == "2010-01-01"
+        assert any(r["scope"] == "AL1112.SHF" for r in rows)
+        assert not any(r["scope"] == "AL1202.SHF" for r in rows)
         assert {"calendar", "daily", "1min", "holdings", "index", "mapping"} <= {
             r["dataset"] for r in rows
         }

@@ -7,13 +7,13 @@ from fastapi import FastAPI, HTTPException
 from pydantic import Field, JsonValue
 from sqlalchemy import Engine
 
+from northstar_quant.data_management.contract_data.reading import query as read_published
 from northstar_quant.data_management.exploration import (
     catalog,
     discovery,
     instruments,
     quality,
     revisions,
-    rows,
 )
 from northstar_quant.web.requests import ApiModel
 
@@ -136,7 +136,7 @@ def register(app: FastAPI, engine: Engine) -> None:
 
     @app.post("/api/explorer/chart", response_model=ExplorerRows)
     def chart(document: ChartQuery) -> dict[str, Any]:
-        return rows.read(
+        return read_published(
             engine,
             **document.model_dump(exclude={"receipt_ids"}),
             receipt_ids=[UUID(v) for v in document.receipt_ids],
@@ -179,7 +179,7 @@ def register(app: FastAPI, engine: Engine) -> None:
     @app.post("/api/explorer/query", response_model=ExplorerRows)
     def query(document: ExplorerQuery) -> dict[str, Any]:
         values = document.model_dump(exclude={"receipt_ids"})
-        return rows.read(engine, receipt_ids=[UUID(v) for v in document.receipt_ids], **values)
+        return read_published(engine, receipt_ids=[UUID(v) for v in document.receipt_ids], **values)
 
     @app.post("/api/explorer/export", response_model=ExplorerRows)
     def export(document: ExplorerQuery) -> dict[str, Any]:

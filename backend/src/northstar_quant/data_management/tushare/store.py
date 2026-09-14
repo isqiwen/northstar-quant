@@ -109,6 +109,9 @@ def initialize(connection: Connection) -> None:
         "INSERT INTO data_sync_settings(singleton) VALUES(true) ON CONFLICT DO NOTHING"
     )
 
+    from ..contract_data.storage import initialize as initialize_contracts
+
+    initialize_contracts(connection)
     initialize_runtime_storage(connection)
 
 
@@ -155,7 +158,10 @@ def job(engine: Engine, request_id: UUID) -> dict[str, Any]:
             connection.execute(
                 text("""SELECT generation,source_hash,source_bytes FROM data_sync_attempts
             WHERE request_id=:id AND source_hash IS NOT NULL AND parent_generation IS NULL
-            AND finished_at IS NOT NULL ORDER BY started_at DESC,generation DESC LIMIT 1"""),
+            AND finished_at IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM data_contract_source_releases x
+                WHERE x.source_id=data_sync_attempts.generation)
+            ORDER BY started_at DESC,generation DESC LIMIT 1"""),
                 {"id": request_id},
             )
             .mappings()

@@ -51,8 +51,9 @@ def status(engine: Engine) -> dict[str, Any]:
         ]
         unplanned = connection.scalar(
             text(
-                "SELECT count(*) FROM data_sync_contracts WHERE planned_revision<>:r "
-                "OR planning_error IS NOT NULL"
+                "SELECT count(*) FROM data_sync_contracts WHERE kind='1' "
+                "AND details->>'delist_date'<to_char(CURRENT_DATE,'YYYYMMDD') "
+                "AND (planned_revision<>:r OR planning_error IS NOT NULL)"
             ),
             {"r": config["revision"]},
         )
@@ -81,6 +82,10 @@ def status(engine: Engine) -> dict[str, Any]:
                 {"target": target_day()},
             ).mappings()
         ]
+    from ..contract_data.catalog import list_collections
+
+    with engine.connect() as connection:
+        config["contracts"] = list_collections(connection)
     return {
         "settings": config,
         "token_configured": credentials.configured(),

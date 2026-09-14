@@ -1,7 +1,6 @@
 """Whole-contract review must not turn partial downloads into admission/deletion."""
 
 import json
-from datetime import date
 from uuid import uuid4
 
 import pytest
@@ -50,16 +49,12 @@ def test_listing_before_old_history_floor_is_not_silently_shortened(automatic):
     assert any("交易日历" in reason for reason in result["reasons"])
 
 
-def test_latest_completed_day_requires_calendar_through_candidate_cutoff(automatic, monkeypatch):
-    from northstar_quant.data_management.tushare import contract_review
-
-    lifetime(automatic, end="20261031")
-    monkeypatch.setattr(contract_review, "target_day", lambda: date(2026, 9, 3))
-    # A stale max(open day) is not evidence that subsequent dates were closed.
-    assert review(automatic._engine, "RB2610.SHF")["required_end"] is None
-    with automatic._engine.begin() as c:
-        c.execute(text("INSERT INTO data_sync_calendar VALUES('SHFE','2026-09-03',false)"))
-    assert review(automatic._engine, "RB2610.SHF")["required_end"] == "2026-09-02"
+def test_active_contract_is_excluded_even_when_some_days_are_complete(automatic):
+    lifetime(automatic, end="20991031")
+    result = review(automatic._engine, "RB2610.SHF")
+    assert result["required_end"] is None
+    assert result["status"] == "NOT_ELIGIBLE"
+    assert result["admitted"] is False
 
 
 def test_bad_response_marks_contract_invalid_but_network_failure_does_not(automatic, monkeypatch):

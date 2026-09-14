@@ -177,8 +177,7 @@ def main() -> None:
                 with app.web("data-api") as data_url:
                     visit(data_url + "/sync")
                     expect(page.get_by_role("heading", name="Tushare 自动同步")).to_be_visible()
-                    expect(page.get_by_text("历史补齐进度", exact=True)).to_be_visible()
-                    expect(page.get_by_text("每日更新状态", exact=True)).to_be_visible()
+                    expect(page.get_by_text("完整合约发布进度", exact=True)).to_be_visible()
                     expect(page.get_by_text("异常任务与当前处理", exact=True)).to_be_visible()
                     page.get_by_role("button", name="退出登录", exact=True).click()
                     expect(

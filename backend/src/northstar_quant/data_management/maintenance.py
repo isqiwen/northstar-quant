@@ -60,3 +60,10 @@ def record_backup(connection: Connection, document: dict[str, Any], content: byt
             "sources": json.dumps(document["sources"]),
         },
     )
+
+
+def try_freeze_sources(connection: Connection) -> bool:
+    """Defer routine retention while an ingestion holds the shared source gate."""
+    return bool(
+        connection.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": _LIBRARY_LOCK})
+    )

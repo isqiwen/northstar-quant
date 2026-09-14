@@ -31,6 +31,11 @@ def enqueue(engine: Engine, *, request_id: UUID, source_generation: UUID) -> dic
             AND finished_at IS NOT NULL ORDER BY started_at DESC,generation DESC LIMIT 1"""),
             {"id": request_id},
         )
+        if connection.scalar(
+            text("SELECT 1 FROM data_contract_source_releases WHERE source_id=:id"),
+            {"id": source_generation},
+        ):
+            raise ValueError("原始响应已随拒绝合约清理，不能重处理")
         if latest != source_generation:
             raise ValueError("只能重处理当前最新的已留存响应，请刷新记录")
         if current["source_generation"] not in (None, source_generation):

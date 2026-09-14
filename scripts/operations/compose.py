@@ -224,6 +224,19 @@ def _manage(app: str, action: str, *, follow: bool, overrides: list[str]) -> Non
             api = "data-api" if app == "data-hub" else "research-api"
             run(*compose, "build", api, app)
             if app == "data-hub":
+                # A fresh explicitly cleared database needs its current baseline.
+                # The owner refuses nonempty incompatible schemas; never migrates
+                # or clears facts as a side effect of deployment.
+                run(
+                    *compose,
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "maintenance",
+                    "northstar",
+                    "maintenance",
+                    "init-db",
+                )
                 prepare_sync_storage()
             run(
                 *compose,

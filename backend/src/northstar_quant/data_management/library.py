@@ -204,13 +204,16 @@ def initialize_library(connection: Connection) -> None:
 def manifest(connection: Connection) -> list[dict[str, object]]:
     """Read archive references inside the caller's consistent backup snapshot."""
 
+    sources_query = select(_sources.c.source_id, _sources.c.content_hash, _sources.c.byte_count)
+    if connection.dialect.name == "postgresql":
+        sources_query = sources_query.where(
+            text("""NOT EXISTS (
+            SELECT 1 FROM data_contract_source_releases released
+            WHERE released.source_id=data_sources.source_id)""")
+        )
     references = [
         _json_row(row)
-        for row in connection.execute(
-            select(_sources.c.source_id, _sources.c.content_hash, _sources.c.byte_count).order_by(
-                _sources.c.source_id
-            )
-        ).mappings()
+        for row in connection.execute(sources_query.order_by(_sources.c.source_id)).mappings()
     ]
     if connection.dialect.name == "sqlite":
         return references
@@ -737,7 +740,14 @@ class DataLibrary:
         """
         count = 0
         with self._engine.connect().execution_options(yield_per=100) as connection:
-            rows = connection.execute(select(_sources).order_by(_sources.c.source_id)).mappings()
+            query = select(_sources)
+            if connection.dialect.name == "postgresql":
+                query = query.where(
+                    text("""NOT EXISTS (
+                    SELECT 1 FROM data_contract_source_releases released
+                    WHERE released.source_id=data_sources.source_id)""")
+                )
+            rows = connection.execute(query.order_by(_sources.c.source_id)).mappings()
             for source in rows:
                 self._verify_source(dict(source))
                 count += 1

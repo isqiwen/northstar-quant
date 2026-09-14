@@ -57,6 +57,9 @@ def submit(
         raise ValueError("Tushare futures timestamps require Asia/Shanghai")
     with library_write(library._engine):
         with library._engine.connect() as connection:
+            from ..contract_data.catalog import require_receipt
+
+            require_receipt(connection, receipt_id)
             row = (
                 connection.execute(
                     text("""SELECT r.*,j.dataset,j.scope,j.parameters,c.exchange,c.product

@@ -1,6 +1,5 @@
 """Durable initial boundaries, fair history selection and truthful lane progress."""
 
-from datetime import date
 from uuid import uuid4
 
 from sqlalchemy import text
@@ -34,65 +33,36 @@ def attempt(connection, request_id):
     )
 
 
-def test_initial_history_starts_oldest_month_and_rotates_data_types(automatic):
+def test_requests_without_a_retired_contract_owner_cannot_run(automatic):
     with automatic._engine.begin() as c:
-        first = add(c, "daily", "2012-01-01", "A")
-        add(c, "daily", "2012-01-01", "B")
-        other = add(c, "1min", "2012-01-02")
-        add(c, "5min", "2012-02-01")
-        add(c, "daily", "2026-09-13")
-        c.execute(text("UPDATE data_sync_jobs SET created_at='2026-09-14T02:00:00Z'"))
-        # Both initial types eligible; once daily has a turn, 1min wins over daily B.
-        attempt(c, first)
-        assert scheduling.choose(c, download_ready=True)["request_id"] == other
-        c.execute(
-            text("UPDATE data_sync_jobs SET status='BLOCKED' WHERE request_id=:r"), {"r": other}
-        )
-        assert scheduling.choose(c, download_ready=True)["scope"] == "B"
+        add(c, "daily", "2012-01-01", "UNOWNED")
+        owned = add(c, "1min", "2012-02-01")
+        assert scheduling.choose(c, download_ready=True)["request_id"] == owned
+        attempt(c, owned)
+        assert scheduling.choose(c, download_ready=True) is None
 
 
-def test_new_days_preempt_backfill_and_boundary_survives_restart_and_settings_edits(automatic):
+def test_contract_requests_resume_after_restart_and_respect_quota(automatic):
     with automatic._engine.begin() as c:
         old = add(c, "daily", "2012-01-01")
-        c.execute(text("UPDATE data_sync_jobs SET created_at='2026-09-14T02:00:00Z'"))
-        new = add(c, "daily", "2026-09-14")
-        c.execute(text("UPDATE data_sync_settings SET revision=revision+1,updated_at=now()"))
+        new = add(c, "daily", "2012-02-01")
+        c.execute(text("UPDATE data_sync_settings SET revision=revision+1"))
     with automatic._engine.begin() as c:
-        assert scheduling.history_end(c) == date(2026, 9, 13)
-        assert scheduling.choose(c, download_ready=True)["request_id"] == new
-        attempt(c, new)
         assert scheduling.choose(c, download_ready=True)["request_id"] == old
+        attempt(c, old)
+        assert scheduling.choose(c, download_ready=True)["request_id"] == new
         assert scheduling.choose(c, download_ready=False) is None
 
 
-def test_lane_progress_excludes_split_and_does_not_count_empty_or_blocked_as_complete(automatic):
+def test_response_success_does_not_increment_published_contracts(automatic):
     with automatic._engine.begin() as c:
-        old = add(c, "daily", "2012-01-01")
-        split = add(c, "daily", "2012-01-02")
-        blocked = add(c, "1min", "2012-01-01")
-        c.execute(text("UPDATE data_sync_jobs SET created_at='2026-09-14T02:00:00Z'"))
-        new = add(c, "daily", "2026-09-14")
-        attempt(c, old)
-        c.execute(
-            text("UPDATE data_sync_jobs SET status='SPLIT' WHERE request_id=:r"), {"r": split}
-        )
-        c.execute(
-            text("UPDATE data_sync_jobs SET status='BLOCKED' WHERE request_id=:r"), {"r": blocked}
-        )
-        c.execute(
-            text("UPDATE data_sync_jobs SET status='VALIDATED' WHERE request_id=:r"), {"r": new}
-        )
+        add(c, "daily", "2012-01-01")
+        c.execute(text("UPDATE data_sync_jobs SET status='VALIDATED'"))
     result = settings.status(automatic._engine)
-    history, daily = result["lanes"]
-    assert result["settings"]["history_end"] == "2026-09-13"
-    assert (history["total"], history["validated"], history["waiting"], history["blocked"]) == (
-        2,
-        0,
-        1,
-        1,
-    )
-    assert history["oldest_pending"] == "2012-01-01"
-    assert (daily["total"], daily["validated"]) == (1, 1)
+    lane = result["lanes"][0]
+    assert lane["lane"] == "contracts"
+    assert lane["total"] == 1
+    assert lane["validated"] == 0
 
 
 def test_api_cooldown_is_shared_by_native_periods_but_not_other_apis(automatic):

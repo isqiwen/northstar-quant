@@ -6,8 +6,6 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
-HISTORY_START = date(2012, 1, 1)
-
 
 def observe(connection: Connection, job: dict[str, Any], rows: list[dict[str, Any]]) -> None:
     """Called after response validation, independently of full interval coverage."""
@@ -27,8 +25,7 @@ def observe(connection: Connection, job: dict[str, Any], rows: list[dict[str, An
         )
         if job["dataset"] in ("week", "month"):
             day = min(day, datetime.strptime(row["end_date"], "%Y%m%d").date())
-        if day >= HISTORY_START:
-            days.append(day)
+        days.append(day)
     if not days:
         return
     connection.execute(
@@ -67,7 +64,6 @@ def describe(connection: Connection, job: dict[str, Any]) -> dict[str, Any]:
         .one_or_none()
     )
     return {
-        "history_floor": HISTORY_START.isoformat(),
         "first_observed": evidence["first_observed"] if evidence else None,
         "generation": str(evidence["generation"]) if evidence else None,
         "source_hash": evidence["source_hash"] if evidence else None,
