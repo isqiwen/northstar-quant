@@ -1264,3 +1264,16 @@ def test_queue_will_not_download_after_metadata_becomes_unknown(automatic):
         c.execute(text("UPDATE data_sync_contracts SET details=details-'last_ddate'"))
         assert choose(c, download_ready=True) is None
         assert c.scalar(text("SELECT status FROM data_sync_jobs")) == "PENDING"
+
+
+def test_malformed_unplanned_date_cannot_starve_valid_download(automatic):
+    from northstar_quant.data_management.tushare.scheduling import choose
+
+    pending(automatic)
+    with automatic._engine.begin() as c:
+        c.execute(
+            text("""INSERT INTO data_sync_contracts
+            (ts_code,exchange,product,kind,details) VALUES('AL1201.SHF','SHFE','AL','1',
+            '{"list_date":"20110101","delist_date":"20120101unknown"}')""")
+        )
+        assert choose(c, download_ready=True)["scope"] == "RB2610.SHF"

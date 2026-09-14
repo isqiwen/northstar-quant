@@ -15,6 +15,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
         FROM data_sync_contracts d LEFT JOIN data_contract_collections w ON w.scope=d.ts_code
         WHERE d.kind='1' AND d.planned_revision<>(SELECT revision FROM data_sync_settings)
         AND (w.scope IS NULL OR w.status IN ('COLLECTING','VERIFYING'))
+        AND d.details->>'delist_date' ~ '^[0-9]{8}$'
         AND d.details->>'delist_date'>=:floor"""),
         dict(floor=SEARCH_START.strftime("%Y%m%d")),
     )
