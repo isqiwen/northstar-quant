@@ -243,8 +243,8 @@ def main() -> None:
                         "&start=2026-09-01&end=2026-09-04"
                     )
                     page.get_by_role("button", name="查询数据", exact=True).click()
-                    for receipt in (market["receipt_id"], market["baseline_receipt_id"]):
-                        page.locator(f'tr[data-row-key="{receipt}"] input[type=checkbox]').check()
+                    page.locator(".ant-table-tbody input[type=checkbox]").nth(0).check()
+                    page.locator(".ant-table-tbody input[type=checkbox]").nth(1).check()
                     page.get_by_role("button", name="比较所选版本", exact=True).click()
                     expect(
                         page.get_by_role("dialog").get_by_role(
