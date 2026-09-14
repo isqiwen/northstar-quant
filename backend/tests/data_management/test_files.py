@@ -212,3 +212,23 @@ def test_failed_directory_sync_is_not_acknowledged_and_retry_verifies_orphan(tmp
     saved = files.store(b"complete but unacknowledged")
     assert files.inventory() == [saved]
     assert files.read(saved.content_hash, saved.byte_count) == b"complete but unacknowledged"
+
+
+def test_capacity_observation_tolerates_a_writer_finishing_during_staging_scan(
+    tmp_path, monkeypatch
+):
+    files = SourceFiles(tmp_path / "archive")
+    transient = files.root / "staging" / "receive-finishing"
+    transient.write_bytes(b"temporary")
+    lstat = Path.lstat
+
+    def finishing(path, *args, **kwargs):
+        if path == transient:
+            transient.unlink(missing_ok=True)
+        return lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", finishing)
+    assert files.health()["incomplete_file_count"] == 0
+    (files.root / "staging" / "unsafe").symlink_to(tmp_path / "outside")
+    with pytest.raises(ValueError, match="unexpected object"):
+        files.health()
