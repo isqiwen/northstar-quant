@@ -21,40 +21,66 @@ def history_end(connection: Connection) -> date | None:
 
 def choose(connection: Connection, *, download_ready: bool) -> Any:
     boundary = history_end(connection)
-    return (
-        connection.execute(
-            text("""
-        WITH served AS (
-            SELECT j.dataset,max(a.started_at) AS last_at
-            FROM data_sync_attempts a JOIN data_sync_jobs j USING(request_id)
-            GROUP BY j.dataset
-        )
-        SELECT j.* FROM data_sync_jobs j LEFT JOIN served s USING(dataset)
-        WHERE j.status IN ('PENDING','WAITING') AND j.next_at<=now()
-        AND (j.start_at='' OR j.start_at>=:floor)
-        AND (j.source_generation IS NOT NULL OR :download_ready)
-        AND (j.source_generation IS NOT NULL OR NOT EXISTS (
-            SELECT 1 FROM data_sync_jobs b WHERE b.dataset=j.dataset
-            AND b.status='BLOCKED' AND b.error LIKE 'Tushare 权限不足%'))
-        ORDER BY (j.source_generation IS NOT NULL) DESC,
-            CASE j.dataset WHEN 'contracts' THEN 0 WHEN 'calendar' THEN 1 ELSE 2 END,
-            (j.end_at > :boundary) DESC,
-            CASE WHEN j.end_at > :boundary THEN left(j.start_at,7) END DESC,
-            CASE WHEN j.end_at <= :boundary THEN left(j.start_at,7) END ASC,
-            s.last_at ASC NULLS FIRST,
-            CASE WHEN j.end_at > :boundary THEN j.start_at END DESC,
-            j.start_at ASC,j.created_at,j.request_id
-        LIMIT 1 FOR UPDATE OF j SKIP LOCKED
+    from .catalog import BY_KEY
+
+    parameters = {
+        "boundary": boundary.isoformat() if boundary else target_day().isoformat(),
+        "floor": HISTORY_START.isoformat(),
+        "datasets": list(BY_KEY),
+    }
+    # Reprocessing always precedes downloads. Each indexed probe returns at most
+    # one candidate per dataset/lane; only this bounded set participates in sorting.
+    for retained in (True, False):
+        if not retained and not download_ready:
+            continue
+        source = "IS NOT NULL" if retained else "IS NULL"
+        probes = []
+        for recent, direction in ((False, "ASC"), (True, "DESC")):
+            relation = ">" if recent else "<="
+            probes.append(f"""
+                SELECT candidate.* FROM unnest(CAST(:datasets AS text[])) AS d(dataset)
+                CROSS JOIN LATERAL (
+                    SELECT request_id,dataset,start_at,end_at,created_at
+                    FROM data_sync_jobs j
+                    WHERE j.dataset=d.dataset AND j.status IN ('PENDING','WAITING')
+                    AND j.next_at<=now() AND j.source_generation {source}
+                    AND (j.start_at='' OR j.start_at>=:floor)
+                    AND j.end_at {relation} :boundary
+                    AND NOT EXISTS (SELECT 1 FROM data_sync_jobs b
+                        WHERE b.dataset=j.dataset AND b.status='BLOCKED'
+                        AND b.error LIKE 'Tushare 权限不足%' AND {str(not retained).lower()})
+                    ORDER BY j.start_at {direction},j.created_at,j.request_id LIMIT 1
+                ) candidate
+            """)
+        query = " UNION ALL ".join(probes)
+        row = (
+            connection.execute(
+                text(f"""
+            WITH candidates AS ({query}), served AS (
+                SELECT j.dataset,max(a.started_at) AS last_at
+                FROM data_sync_attempts a JOIN data_sync_jobs j USING(request_id)
+                GROUP BY j.dataset
+            ), selected AS (
+                SELECT c.request_id FROM candidates c LEFT JOIN served s USING(dataset)
+                ORDER BY CASE c.dataset WHEN 'contracts' THEN 0 WHEN 'calendar' THEN 1 ELSE 2 END,
+                    (c.end_at>:boundary) DESC,
+                    CASE WHEN c.end_at>:boundary THEN left(c.start_at,7) END DESC,
+                    CASE WHEN c.end_at<=:boundary THEN left(c.start_at,7) END ASC,
+                    s.last_at ASC NULLS FIRST,
+                    CASE WHEN c.end_at>:boundary THEN c.start_at END DESC,
+                    c.start_at,c.created_at,c.request_id LIMIT 1
+            )
+            SELECT j.* FROM data_sync_jobs j JOIN selected USING(request_id)
+            FOR UPDATE OF j SKIP LOCKED
         """),
-            {
-                "boundary": boundary.isoformat() if boundary else target_day().isoformat(),
-                "download_ready": download_ready,
-                "floor": HISTORY_START.isoformat(),
-            },
+                parameters,
+            )
+            .mappings()
+            .one_or_none()
         )
-        .mappings()
-        .one_or_none()
-    )
+        if row is not None:
+            return row
+    return None
 
 
 def progress(connection: Connection) -> tuple[str | None, list[dict[str, Any]]]:

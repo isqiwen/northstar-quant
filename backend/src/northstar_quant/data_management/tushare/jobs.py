@@ -1,7 +1,9 @@
 """One fenced downloader; persisted retries and atomic coverage/receipt commits."""
 
 import json
+import logging
 from datetime import UTC, datetime, timedelta
+from time import perf_counter
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -29,6 +31,15 @@ _LOCK = 0x4E53515453594E
 
 def process_next(library: DataLibrary) -> dict[str, Any] | None:
     engine = library._engine
+    checkpoint = perf_counter()
+    timings: dict[str, float] = {}
+
+    def elapsed(name: str) -> None:
+        nonlocal checkpoint
+        now = perf_counter()
+        timings[name] = round(now - checkpoint, 4)
+        checkpoint = now
+
     with library_write(engine), engine.begin() as ownership:
         if not ownership.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": _LOCK}):
             return None
@@ -46,6 +57,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
             )
         planning.refresh(engine)
         planning.plan(engine)
+        elapsed("planning")
         with engine.begin() as connection:
             row = scheduling.choose(
                 connection,
@@ -78,6 +90,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                     text("UPDATE data_sync_settings SET next_request_at=now()+:delay"),
                     {"delay": timedelta(seconds=60 / config["requests_per_minute"])},
                 )
+        elapsed("claim")
         selected["generation"] = generation
         selected["attempts"] += int(not selected["source_generation"])
         stage = "download"
@@ -101,6 +114,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 content = acquisition.fetch(
                     BY_KEY[selected["dataset"]].api, selected["parameters"], credentials.read()
                 )
+            elapsed("acquisition")
             stage = "storage"
             archived = library._files.store(content)
             with engine.begin() as connection:
@@ -112,6 +126,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                     WHERE generation=:g"""),
                     {"hash": archived.content_hash, "size": archived.byte_count, "g": generation},
                 )
+            elapsed("archive")
             stage = "quality"
             try:
                 rows, quality = normalize(content, selected)
@@ -122,6 +137,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
             with engine.begin() as connection:
                 origins.observe(connection, selected, rows)
             coverage.verify(engine, selected, rows, quality)
+            elapsed("validation")
             stage = "storage"
             artifact = publication.publish(
                 rows,
@@ -130,6 +146,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 library._files,
                 source={"content_hash": archived.content_hash, "byte_count": archived.byte_count},
             )
+            elapsed("publication")
             stage = "commit"
             _commit(
                 engine,
@@ -206,7 +223,13 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                         text("UPDATE data_sync_settings SET enabled=false,error=:error"),
                         {"error": reason},
                     )
-        return job(engine, UUID(selected["request_id"]))
+        elapsed("completion")
+        result = job(engine, UUID(selected["request_id"]))
+        elapsed("readback")
+        logging.getLogger(__name__).info(
+            "Sync timing request=%s stages=%s", selected["request_id"], timings
+        )
+        return result
 
 
 def _finish(
