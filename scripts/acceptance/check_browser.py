@@ -224,7 +224,7 @@ def main() -> None:
                 with app.web("data-api") as data_url:
                     visit(data_url)
                     expect(page.get_by_role("heading", name="期货数据工作台")).to_be_visible()
-                    expect(page.get_by_text("已规划退市合约", exact=True)).to_be_visible()
+                    expect(page.get_by_text("已规划结束合约", exact=True)).to_be_visible()
                     screenshot("overview")
                     visit(
                         data_url + "/browse?dataset=settlement&scope=RB2610.SHF"

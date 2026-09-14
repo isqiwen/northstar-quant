@@ -25,7 +25,7 @@ export function DataOverview() {
     <>
       <Heading
         title="期货数据工作台"
-        description="交易所 → 品种 → 已退市合约 · 完整生命周期验收后发布"
+        description="交易所 → 品种 → 已结束合约 · 完整生命周期验收后发布"
         actions={
           <Link href="/browse">
             <Button type="primary">浏览行情数据</Button>
@@ -36,7 +36,7 @@ export function DataOverview() {
       <StorageAlert capacity={sync.data?.settings.source_capacity} />
       <Row gutter={[16, 16]}>
         {[
-          ["已规划退市合约", contracts?.total ?? 0],
+          ["已规划结束合约", contracts?.total ?? 0],
           ["已发布完整合约", contracts?.validated ?? 0],
           ["待核验合约", contracts?.waiting ?? 0],
           ["已拒绝合约", contracts?.blocked ?? 0],
@@ -107,7 +107,7 @@ export function DataOverview() {
           ]}
         />
         <p className="muted">
-          内部请求通过校验不等于合约完整。只有全部必需数据完整、适用性明确的已退市合约才进入正式浏览库。
+          内部请求通过校验不等于合约完整。只有全部必需数据完整、适用性明确的已结束合约才进入正式浏览库。
         </p>
       </Card>
       <Row gutter={[16, 16]}>

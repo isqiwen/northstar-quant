@@ -79,7 +79,7 @@ export function TushareSync() {
       current.refresh();
       message.success(
         value
-          ? "自动同步已启用，后台按已退市合约采集完整生命周期"
+          ? "自动同步已启用，后台按已结束合约采集完整生命周期"
           : "已暂停；当前请求完成后停止领取新任务",
       );
     } catch (e) {
@@ -198,7 +198,7 @@ export function TushareSync() {
               <p>
                 {lane && lane.start <= lane.end
                   ? `${lane.start} → ${lane.end}`
-                  : "等待已退市合约规划"}
+                  : "等待已结束合约规划"}
               </p>
               <p>
                 已发布 {done.toLocaleString()} / 已规划 {total.toLocaleString()}{" "}

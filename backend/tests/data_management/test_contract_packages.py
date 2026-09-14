@@ -131,7 +131,9 @@ def test_rejected_raw_cleanup_preserves_fixed_receipts(automatic, monkeypatch, p
     assert release_rejected(automatic._engine, automatic._files) == 0
 
 
-@pytest.mark.parametrize("pin_kind", ["backup", "another_contract", "source_gate"])
+@pytest.mark.parametrize(
+    "pin_kind", ["backup", "another_contract", "source_gate", "unknown_lifecycle"]
+)
 def test_rejected_cleanup_respects_other_owners_and_maintenance(automatic, monkeypatch, pin_kind):
     from northstar_quant.data_management.contract_data.retention import release_rejected
     from northstar_quant.data_management.maintenance import library_write
@@ -146,6 +148,8 @@ def test_rejected_cleanup_respects_other_owners_and_maintenance(automatic, monke
     jobs.process_next(automatic)
     with automatic._engine.begin() as c:
         c.execute(text("UPDATE data_contract_collections SET status='REJECTED'"))
+        if pin_kind == "unknown_lifecycle":
+            c.execute(text("UPDATE data_sync_contracts SET details=details-'last_ddate'"))
         if pin_kind == "another_contract":
             c.execute(
                 text("""INSERT INTO data_sync_contracts

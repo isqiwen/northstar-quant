@@ -1235,6 +1235,8 @@ def test_historical_candidate_preempts_existing_newer_collection(automatic, monk
                     ),
                 ),
             )
+    with automatic._engine.begin() as c:
+        assert choose(c, download_ready=True) is None
     planning.plan(automatic._engine)
     with automatic._engine.begin() as c:
         assert c.scalar(text("SELECT min(end_date) FROM data_contract_collections")) == date(
