@@ -150,6 +150,11 @@ export function pendingCommand(): Pending | null {
           status: stored.status,
         }
       : null;
+    // This endpoint is read-only. A polling failure cannot leave an uncertain command.
+    if (value?.path === "/api/sync/jobs/query") {
+      sessionStorage.removeItem(key);
+      return null;
+    }
     // Persist only the fields needed to inquire about a command, never request payloads.
     if (value) sessionStorage.setItem(key, JSON.stringify(value));
     if (!restored) {

@@ -332,3 +332,25 @@ it("decodes Python cash-flow facts without losing precision or reversal identity
     ],
   });
 });
+
+it("removes an erroneous polling notice while retaining real uncertain commands", async () => {
+  const api = await import("../../shared/api");
+  memory.set(
+    "northstar.pending-command",
+    JSON.stringify({
+      id: "poll",
+      path: "/api/sync/jobs/query",
+      status: "UNKNOWN",
+    }),
+  );
+  expect(api.pendingCommand()).toBeNull();
+  memory.set(
+    "northstar.pending-command",
+    JSON.stringify({
+      id: "order",
+      path: "/api/streams/s/control",
+      status: "UNKNOWN",
+    }),
+  );
+  expect(api.pendingCommand()?.id).toBe("order");
+});
