@@ -14,6 +14,8 @@ from northstar_quant import code_revision
 from .catalog import BY_KEY, DATASETS, EXCHANGES, NANHUA_CODES
 from .store import settings
 
+HISTORY_START = date(2012, 1, 1)
+
 
 def enqueue(
     connection: Connection,
@@ -147,6 +149,7 @@ def plan(engine: Engine) -> None:
                     {"r": config["revision"], "code": contract["ts_code"]},
                 )
                 continue
+            start = max(start, HISTORY_START)
             for year in range(start.year, target.year + 1):
                 a, b = date(year, 1, 1), min(date(year, 12, 31), target)
                 enqueue(
@@ -189,7 +192,9 @@ def plan(engine: Engine) -> None:
                     )
                     if contract["ts_code"] != group["first"]:
                         continue
-                    window_start = datetime.strptime(group["begin"], "%Y%m%d").date()
+                    window_start = max(
+                        HISTORY_START, datetime.strptime(group["begin"], "%Y%m%d").date()
+                    )
                     window_end = target
                 # Calendar-month shards stay fixed. The open month uses daily shards,
                 # so the current cycle's endpoint never grows underneath a running task.
@@ -219,6 +224,9 @@ def plan(engine: Engine) -> None:
 
 
 def _window(connection: Connection, key: str, contract: Any, start: date, end: date) -> None:
+    start = max(start, HISTORY_START)
+    if end < start:
+        return
     dataset = BY_KEY[key]
     scope = contract["ts_code"]
     params: dict[str, object] = {

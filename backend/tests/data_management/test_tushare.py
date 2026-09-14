@@ -1057,3 +1057,46 @@ def test_observed_provider_rejections_are_classified_without_raw_message(message
     with pytest.raises(acquisition.DownloadError, match=label) as caught:
         acquisition.decode(json.dumps({"code": 40203, "msg": message + TOKEN}).encode())
     assert TOKEN not in str(caught.value)
+
+
+def test_history_floor_applies_to_contracts_calendars_products_and_indices(automatic, monkeypatch):
+    from datetime import date
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2012, 2, 2))
+    with automatic._engine.begin() as c:
+        c.execute(text("DELETE FROM data_sync_contracts"))
+        for code, kind, begin, end in [
+            ("AL1112.SHF", "1", "20100101", "20111215"),
+            ("AL1202.SHF", "1", "20110101", "20120215"),
+            ("AL.SHF", "2", "20100101", ""),
+        ]:
+            c.execute(
+                text(
+                    "INSERT INTO data_sync_contracts(ts_code,exchange,product,kind,details) "
+                    "VALUES(:code,'SHFE','AL',:kind,CAST(:details AS jsonb))"
+                ),
+                {
+                    "code": code,
+                    "kind": kind,
+                    "details": json.dumps({"list_date": begin, "delist_date": end}),
+                },
+            )
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        rows = (
+            c.execute(text("SELECT dataset,scope,start_at,end_at FROM data_sync_jobs"))
+            .mappings()
+            .all()
+        )
+        assert rows
+        assert all(r["start_at"] >= "2012-01-01" for r in rows)
+        assert not any(r["scope"] == "AL1112.SHF" for r in rows)
+        assert {"calendar", "daily", "1min", "holdings", "index", "mapping"} <= {
+            r["dataset"] for r in rows
+        }
+        assert (
+            c.scalar(
+                text("SELECT count(*) FROM data_sync_contracts WHERE planning_error IS NOT NULL")
+            )
+            == 0
+        )

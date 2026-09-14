@@ -85,7 +85,7 @@ export function TushareSync() {
     <>
       <Heading
         title="Tushare 自动同步"
-        description="同步全部期货历史数据，自动补缺与复核。页面关闭不影响后台同步。"
+        description="同步 2012 年以来全部期货历史数据，自动补缺与复核。页面关闭不影响后台同步。"
       />
       <Failure error={current.error} />
       {config?.error && (
@@ -190,7 +190,7 @@ export function TushareSync() {
       </div>
       <Card title="数据范围与进度">
         <p>
-          全部交易所、全部品种和到期合约；1、5、15、30、60
+          2012-01-01 起，全部交易所、全部品种和相关到期合约；1、5、15、30、60
           分钟、日/周/月线及期货相关历史资料。按交易所目录发现新增合约，周期性检查新增区间和历史缺口。
         </p>
         <Table

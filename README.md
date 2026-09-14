@@ -323,3 +323,5 @@ CI 无论成功或失败均保留 `acceptance-<SHA>-<attempt>` 产物 14 天，�
 
 彻底卸载使用 `python3 scripts/northstarctl.py purge-host <应用> --yes`，会删除该应用所在主机的全部 Northstar 部署和本地数据（含同机数据库）；可先用 `--dry-run` 查看目标。
 NAS 共享只卸载、不删除远端数据。详见[完全卸载](deploy/README.md#完全卸载应用主机)。
+
+Data Hub 固定同步 2012-01-01 以来的数据，不下载更早行情；合约目录作为来源元数据保留，用于识别跨越该日期的合约。
