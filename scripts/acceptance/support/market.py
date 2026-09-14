@@ -126,7 +126,7 @@ with engine.begin() as c:
         "VALUES ('RB2610.SHF','SHFE','RB','1','{}',1) ON CONFLICT DO NOTHING"))
     c.execute(text("UPDATE data_sync_contracts SET details=CAST(:details AS jsonb) "
         "WHERE ts_code='RB2610.SHF'"), {'details':json.dumps(dict(
-            list_date='20260901',delist_date='20260904'))})
+            list_date='20260901',delist_date='20260904',last_ddate='20260905'))})
     c.execute(text("INSERT INTO data_contract_collections(scope,start_date,end_date) "
         "VALUES('RB2610.SHF','2026-09-01','2026-09-04') ON CONFLICT DO NOTHING"))
     c.execute(text("INSERT INTO data_sync_calendar VALUES ('SHFE','2026-09-01',true),"

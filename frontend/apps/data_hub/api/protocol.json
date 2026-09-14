@@ -841,7 +841,7 @@
           "required": false,
           "nullable": true
         },
-        "delisting_date": {
+        "last_trade_date": {
           "id": 6,
           "presence": true,
           "type": "string",
@@ -899,6 +899,41 @@
           "required": false,
           "nullable": false,
           "rule": "repeated"
+        },
+        "last_delivery_date": {
+          "id": 13,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "first_delivery_date": {
+          "id": 14,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "delivery_month": {
+          "id": 15,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "lifecycle_status": {
+          "id": 16,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "lifecycle_reason": {
+          "id": 17,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
         }
       },
       "array": false,

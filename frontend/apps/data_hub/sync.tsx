@@ -182,8 +182,8 @@ export function TushareSync() {
             <Button onClick={current.refresh}>刷新</Button>
           </Space>
           <p className="muted">
-            按退市合约组织下载，优先处理最近退市的合约，同一合约内完成各类数据。
-            未退市及退市日期不明的合约不下载。
+            从 2012-01-01 起查找历史合约，按最后交易日从早到晚下载。
+            跨越起点的合约保留上市日起的完整数据。最后交易日和最后交割日均已结束才可下载，日期不明则等待核实。
           </p>
           <p>{planned ? "本轮目录规划完成" : "等待目录或正在逐合约规划"}</p>
         </Card>
@@ -238,9 +238,11 @@ export function TushareSync() {
               render: (_, r) => String(r.display_name || r.scope),
             },
             { title: "上市", dataIndex: "start_date" },
-            { title: "退市", dataIndex: "end_date" },
+            { title: "最后交易日", dataIndex: "last_trade_date" },
+            { title: "最后交割日", dataIndex: "last_delivery_date" },
+            { title: "生命周期", dataIndex: "lifecycle_reason" },
             {
-              title: "状态",
+              title: "采集 / 发布",
               render: (_, r) =>
                 (
                   ({

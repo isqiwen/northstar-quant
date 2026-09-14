@@ -123,13 +123,18 @@ export type ContractReview = {
   exchange: string;
   product: string;
   listing_date?: string | null;
-  delisting_date?: string | null;
+  last_trade_date?: string | null;
   required_end?: string | null;
   status: string;
   admitted: boolean;
   requirements?: (Record<string, JsonValue>)[];
   reasons?: (string)[];
   policy: string;
+  last_delivery_date?: string | null;
+  first_delivery_date?: string | null;
+  delivery_month?: string | null;
+  lifecycle_status: string;
+  lifecycle_reason: string;
 };
 export type SyncSettingsRequest = {
   revision: number;

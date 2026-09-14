@@ -9126,7 +9126,7 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [exchange] ContractReview exchange
              * @property {string|null} [product] ContractReview product
              * @property {string|null} [listing_date] ContractReview listing_date
-             * @property {string|null} [delisting_date] ContractReview delisting_date
+             * @property {string|null} [last_trade_date] ContractReview last_trade_date
              * @property {string|null} [required_end] ContractReview required_end
              * @property {string|null} [status] ContractReview status
              * @property {boolean|null} [admitted] ContractReview admitted
@@ -9134,16 +9134,26 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<string>|null} [reasons] ContractReview reasons
              * @property {string|null} [policy] ContractReview policy
              * @property {Array.<string>|null} [null_fields] ContractReview null_fields
+             * @property {string|null} [last_delivery_date] ContractReview last_delivery_date
+             * @property {string|null} [first_delivery_date] ContractReview first_delivery_date
+             * @property {string|null} [delivery_month] ContractReview delivery_month
+             * @property {string|null} [lifecycle_status] ContractReview lifecycle_status
+             * @property {string|null} [lifecycle_reason] ContractReview lifecycle_reason
              * @property {"scope"} [_scope] ContractReview _scope
              * @property {"display_name"} [_display_name] ContractReview _display_name
              * @property {"exchange"} [_exchange] ContractReview _exchange
              * @property {"product"} [_product] ContractReview _product
              * @property {"listing_date"} [_listing_date] ContractReview _listing_date
-             * @property {"delisting_date"} [_delisting_date] ContractReview _delisting_date
+             * @property {"last_trade_date"} [_last_trade_date] ContractReview _last_trade_date
              * @property {"required_end"} [_required_end] ContractReview _required_end
              * @property {"status"} [_status] ContractReview _status
              * @property {"admitted"} [_admitted] ContractReview _admitted
              * @property {"policy"} [_policy] ContractReview _policy
+             * @property {"last_delivery_date"} [_last_delivery_date] ContractReview _last_delivery_date
+             * @property {"first_delivery_date"} [_first_delivery_date] ContractReview _first_delivery_date
+             * @property {"delivery_month"} [_delivery_month] ContractReview _delivery_month
+             * @property {"lifecycle_status"} [_lifecycle_status] ContractReview _lifecycle_status
+             * @property {"lifecycle_reason"} [_lifecycle_reason] ContractReview _lifecycle_reason
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -9163,7 +9173,7 @@ export const northstar = $root.northstar = (() => {
              *   exchange?: string|null;
              *   product?: string|null;
              *   listing_date?: string|null;
-             *   delisting_date?: string|null;
+             *   last_trade_date?: string|null;
              *   required_end?: string|null;
              *   status?: string|null;
              *   admitted?: boolean|null;
@@ -9171,6 +9181,11 @@ export const northstar = $root.northstar = (() => {
              *   reasons?: Array.<string>|null;
              *   policy?: string|null;
              *   null_fields?: Array.<string>|null;
+             *   last_delivery_date?: string|null;
+             *   first_delivery_date?: string|null;
+             *   delivery_month?: string|null;
+             *   lifecycle_status?: string|null;
+             *   lifecycle_reason?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
@@ -9183,7 +9198,7 @@ export const northstar = $root.northstar = (() => {
              * ) & (
              *   ({ _listing_date?: undefined; listing_date?: null }|{ _listing_date?: "listing_date"; listing_date: string })
              * ) & (
-             *   ({ _delisting_date?: undefined; delisting_date?: null }|{ _delisting_date?: "delisting_date"; delisting_date: string })
+             *   ({ _last_trade_date?: undefined; last_trade_date?: null }|{ _last_trade_date?: "last_trade_date"; last_trade_date: string })
              * ) & (
              *   ({ _required_end?: undefined; required_end?: null }|{ _required_end?: "required_end"; required_end: string })
              * ) & (
@@ -9192,6 +9207,16 @@ export const northstar = $root.northstar = (() => {
              *   ({ _admitted?: undefined; admitted?: null }|{ _admitted?: "admitted"; admitted: boolean })
              * ) & (
              *   ({ _policy?: undefined; policy?: null }|{ _policy?: "policy"; policy: string })
+             * ) & (
+             *   ({ _last_delivery_date?: undefined; last_delivery_date?: null }|{ _last_delivery_date?: "last_delivery_date"; last_delivery_date: string })
+             * ) & (
+             *   ({ _first_delivery_date?: undefined; first_delivery_date?: null }|{ _first_delivery_date?: "first_delivery_date"; first_delivery_date: string })
+             * ) & (
+             *   ({ _delivery_month?: undefined; delivery_month?: null }|{ _delivery_month?: "delivery_month"; delivery_month: string })
+             * ) & (
+             *   ({ _lifecycle_status?: undefined; lifecycle_status?: null }|{ _lifecycle_status?: "lifecycle_status"; lifecycle_status: string })
+             * ) & (
+             *   ({ _lifecycle_reason?: undefined; lifecycle_reason?: null }|{ _lifecycle_reason?: "lifecycle_reason"; lifecycle_reason: string })
              * )} northstar.data_hub.ContractReview.$Shape
              */
 
@@ -9254,12 +9279,12 @@ export const northstar = $root.northstar = (() => {
             ContractReview.prototype.listing_date = null;
 
             /**
-             * ContractReview delisting_date.
-             * @member {string|null|undefined} delisting_date
+             * ContractReview last_trade_date.
+             * @member {string|null|undefined} last_trade_date
              * @memberof northstar.data_hub.ContractReview
              * @instance
              */
-            ContractReview.prototype.delisting_date = null;
+            ContractReview.prototype.last_trade_date = null;
 
             /**
              * ContractReview required_end.
@@ -9316,6 +9341,46 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             ContractReview.prototype.null_fields = $util.emptyArray;
+
+            /**
+             * ContractReview last_delivery_date.
+             * @member {string|null|undefined} last_delivery_date
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.last_delivery_date = null;
+
+            /**
+             * ContractReview first_delivery_date.
+             * @member {string|null|undefined} first_delivery_date
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.first_delivery_date = null;
+
+            /**
+             * ContractReview delivery_month.
+             * @member {string|null|undefined} delivery_month
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.delivery_month = null;
+
+            /**
+             * ContractReview lifecycle_status.
+             * @member {string|null|undefined} lifecycle_status
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.lifecycle_status = null;
+
+            /**
+             * ContractReview lifecycle_reason.
+             * @member {string|null|undefined} lifecycle_reason
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.lifecycle_reason = null;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -9376,13 +9441,13 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
-             * ContractReview _delisting_date.
-             * @member {"delisting_date"|undefined} _delisting_date
+             * ContractReview _last_trade_date.
+             * @member {"last_trade_date"|undefined} _last_trade_date
              * @memberof northstar.data_hub.ContractReview
              * @instance
              */
-            $Object.defineProperty(ContractReview.prototype, "_delisting_date", {
-                get: $util.oneOfGetter($oneOfFields = ["delisting_date"]),
+            $Object.defineProperty(ContractReview.prototype, "_last_trade_date", {
+                get: $util.oneOfGetter($oneOfFields = ["last_trade_date"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -9431,6 +9496,61 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * ContractReview _last_delivery_date.
+             * @member {"last_delivery_date"|undefined} _last_delivery_date
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_last_delivery_date", {
+                get: $util.oneOfGetter($oneOfFields = ["last_delivery_date"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _first_delivery_date.
+             * @member {"first_delivery_date"|undefined} _first_delivery_date
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_first_delivery_date", {
+                get: $util.oneOfGetter($oneOfFields = ["first_delivery_date"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _delivery_month.
+             * @member {"delivery_month"|undefined} _delivery_month
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_delivery_month", {
+                get: $util.oneOfGetter($oneOfFields = ["delivery_month"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _lifecycle_status.
+             * @member {"lifecycle_status"|undefined} _lifecycle_status
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_lifecycle_status", {
+                get: $util.oneOfGetter($oneOfFields = ["lifecycle_status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _lifecycle_reason.
+             * @member {"lifecycle_reason"|undefined} _lifecycle_reason
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_lifecycle_reason", {
+                get: $util.oneOfGetter($oneOfFields = ["lifecycle_reason"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new ContractReview instance using the specified properties.
              * @function create
              * @memberof northstar.data_hub.ContractReview
@@ -9472,8 +9592,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 4, wireType 2 =*/34).string(message.product);
                 if (message.listing_date != null && $Object.hasOwnProperty.call(message, "listing_date"))
                     writer.uint32(/* id 5, wireType 2 =*/42).string(message.listing_date);
-                if (message.delisting_date != null && $Object.hasOwnProperty.call(message, "delisting_date"))
-                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.delisting_date);
+                if (message.last_trade_date != null && $Object.hasOwnProperty.call(message, "last_trade_date"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.last_trade_date);
                 if (message.required_end != null && $Object.hasOwnProperty.call(message, "required_end"))
                     writer.uint32(/* id 7, wireType 2 =*/58).string(message.required_end);
                 if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
@@ -9488,6 +9608,16 @@ export const northstar = $root.northstar = (() => {
                         writer.uint32(/* id 11, wireType 2 =*/90).string(message.reasons[i]);
                 if (message.policy != null && $Object.hasOwnProperty.call(message, "policy"))
                     writer.uint32(/* id 12, wireType 2 =*/98).string(message.policy);
+                if (message.last_delivery_date != null && $Object.hasOwnProperty.call(message, "last_delivery_date"))
+                    writer.uint32(/* id 13, wireType 2 =*/106).string(message.last_delivery_date);
+                if (message.first_delivery_date != null && $Object.hasOwnProperty.call(message, "first_delivery_date"))
+                    writer.uint32(/* id 14, wireType 2 =*/114).string(message.first_delivery_date);
+                if (message.delivery_month != null && $Object.hasOwnProperty.call(message, "delivery_month"))
+                    writer.uint32(/* id 15, wireType 2 =*/122).string(message.delivery_month);
+                if (message.lifecycle_status != null && $Object.hasOwnProperty.call(message, "lifecycle_status"))
+                    writer.uint32(/* id 16, wireType 2 =*/130).string(message.lifecycle_status);
+                if (message.lifecycle_reason != null && $Object.hasOwnProperty.call(message, "lifecycle_reason"))
+                    writer.uint32(/* id 17, wireType 2 =*/138).string(message.lifecycle_reason);
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -9573,8 +9703,8 @@ export const northstar = $root.northstar = (() => {
                     case 6: {
                             if (wireType !== 2)
                                 break;
-                            message.delisting_date = reader.stringVerify();
-                            message._delisting_date = "delisting_date";
+                            message.last_trade_date = reader.stringVerify();
+                            message._last_trade_date = "last_trade_date";
                             continue;
                         }
                     case 7: {
@@ -9627,6 +9757,41 @@ export const northstar = $root.northstar = (() => {
                             if (!(message.null_fields && message.null_fields.length))
                                 message.null_fields = [];
                             message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 13: {
+                            if (wireType !== 2)
+                                break;
+                            message.last_delivery_date = reader.stringVerify();
+                            message._last_delivery_date = "last_delivery_date";
+                            continue;
+                        }
+                    case 14: {
+                            if (wireType !== 2)
+                                break;
+                            message.first_delivery_date = reader.stringVerify();
+                            message._first_delivery_date = "first_delivery_date";
+                            continue;
+                        }
+                    case 15: {
+                            if (wireType !== 2)
+                                break;
+                            message.delivery_month = reader.stringVerify();
+                            message._delivery_month = "delivery_month";
+                            continue;
+                        }
+                    case 16: {
+                            if (wireType !== 2)
+                                break;
+                            message.lifecycle_status = reader.stringVerify();
+                            message._lifecycle_status = "lifecycle_status";
+                            continue;
+                        }
+                    case 17: {
+                            if (wireType !== 2)
+                                break;
+                            message.lifecycle_reason = reader.stringVerify();
+                            message._lifecycle_reason = "lifecycle_reason";
                             continue;
                         }
                     }
@@ -9687,10 +9852,10 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.listing_date))
                         return "listing_date: string expected";
                 }
-                if (message.delisting_date != null && $Object.hasOwnProperty.call(message, "delisting_date")) {
-                    properties._delisting_date = 1;
-                    if (!$util.isString(message.delisting_date))
-                        return "delisting_date: string expected";
+                if (message.last_trade_date != null && $Object.hasOwnProperty.call(message, "last_trade_date")) {
+                    properties._last_trade_date = 1;
+                    if (!$util.isString(message.last_trade_date))
+                        return "last_trade_date: string expected";
                 }
                 if (message.required_end != null && $Object.hasOwnProperty.call(message, "required_end")) {
                     properties._required_end = 1;
@@ -9735,6 +9900,31 @@ export const northstar = $root.northstar = (() => {
                         if (!$util.isString(message.null_fields[i]))
                             return "null_fields: string[] expected";
                 }
+                if (message.last_delivery_date != null && $Object.hasOwnProperty.call(message, "last_delivery_date")) {
+                    properties._last_delivery_date = 1;
+                    if (!$util.isString(message.last_delivery_date))
+                        return "last_delivery_date: string expected";
+                }
+                if (message.first_delivery_date != null && $Object.hasOwnProperty.call(message, "first_delivery_date")) {
+                    properties._first_delivery_date = 1;
+                    if (!$util.isString(message.first_delivery_date))
+                        return "first_delivery_date: string expected";
+                }
+                if (message.delivery_month != null && $Object.hasOwnProperty.call(message, "delivery_month")) {
+                    properties._delivery_month = 1;
+                    if (!$util.isString(message.delivery_month))
+                        return "delivery_month: string expected";
+                }
+                if (message.lifecycle_status != null && $Object.hasOwnProperty.call(message, "lifecycle_status")) {
+                    properties._lifecycle_status = 1;
+                    if (!$util.isString(message.lifecycle_status))
+                        return "lifecycle_status: string expected";
+                }
+                if (message.lifecycle_reason != null && $Object.hasOwnProperty.call(message, "lifecycle_reason")) {
+                    properties._lifecycle_reason = 1;
+                    if (!$util.isString(message.lifecycle_reason))
+                        return "lifecycle_reason: string expected";
+                }
                 return null;
             };
 
@@ -9766,8 +9956,8 @@ export const northstar = $root.northstar = (() => {
                     message.product = $String(object.product);
                 if (object.listing_date != null)
                     message.listing_date = $String(object.listing_date);
-                if (object.delisting_date != null)
-                    message.delisting_date = $String(object.delisting_date);
+                if (object.last_trade_date != null)
+                    message.last_trade_date = $String(object.last_trade_date);
                 if (object.required_end != null)
                     message.required_end = $String(object.required_end);
                 if (object.status != null)
@@ -9800,6 +9990,16 @@ export const northstar = $root.northstar = (() => {
                     for (let i = 0; i < object.null_fields.length; ++i)
                         message.null_fields[i] = $String(object.null_fields[i]);
                 }
+                if (object.last_delivery_date != null)
+                    message.last_delivery_date = $String(object.last_delivery_date);
+                if (object.first_delivery_date != null)
+                    message.first_delivery_date = $String(object.first_delivery_date);
+                if (object.delivery_month != null)
+                    message.delivery_month = $String(object.delivery_month);
+                if (object.lifecycle_status != null)
+                    message.lifecycle_status = $String(object.lifecycle_status);
+                if (object.lifecycle_reason != null)
+                    message.lifecycle_reason = $String(object.lifecycle_reason);
                 return message;
             };
 
@@ -9850,10 +10050,10 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._listing_date = "listing_date";
                 }
-                if (message.delisting_date != null && $Object.hasOwnProperty.call(message, "delisting_date")) {
-                    object.delisting_date = message.delisting_date;
+                if (message.last_trade_date != null && $Object.hasOwnProperty.call(message, "last_trade_date")) {
+                    object.last_trade_date = message.last_trade_date;
                     if (options.oneofs)
-                        object._delisting_date = "delisting_date";
+                        object._last_trade_date = "last_trade_date";
                 }
                 if (message.required_end != null && $Object.hasOwnProperty.call(message, "required_end")) {
                     object.required_end = message.required_end;
@@ -9884,6 +10084,31 @@ export const northstar = $root.northstar = (() => {
                     object.policy = message.policy;
                     if (options.oneofs)
                         object._policy = "policy";
+                }
+                if (message.last_delivery_date != null && $Object.hasOwnProperty.call(message, "last_delivery_date")) {
+                    object.last_delivery_date = message.last_delivery_date;
+                    if (options.oneofs)
+                        object._last_delivery_date = "last_delivery_date";
+                }
+                if (message.first_delivery_date != null && $Object.hasOwnProperty.call(message, "first_delivery_date")) {
+                    object.first_delivery_date = message.first_delivery_date;
+                    if (options.oneofs)
+                        object._first_delivery_date = "first_delivery_date";
+                }
+                if (message.delivery_month != null && $Object.hasOwnProperty.call(message, "delivery_month")) {
+                    object.delivery_month = message.delivery_month;
+                    if (options.oneofs)
+                        object._delivery_month = "delivery_month";
+                }
+                if (message.lifecycle_status != null && $Object.hasOwnProperty.call(message, "lifecycle_status")) {
+                    object.lifecycle_status = message.lifecycle_status;
+                    if (options.oneofs)
+                        object._lifecycle_status = "lifecycle_status";
+                }
+                if (message.lifecycle_reason != null && $Object.hasOwnProperty.call(message, "lifecycle_reason")) {
+                    object.lifecycle_reason = message.lifecycle_reason;
+                    if (options.oneofs)
+                        object._lifecycle_reason = "lifecycle_reason";
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);

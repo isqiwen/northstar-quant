@@ -5,6 +5,7 @@ from sqlalchemy import Engine, text
 from ..files import SourceFiles
 from ..library import manifest
 from ..maintenance import try_freeze_sources
+from .lifecycle import completed
 
 
 def release_rejected(engine: Engine, files: SourceFiles) -> int:
@@ -14,6 +15,19 @@ def release_rejected(engine: Engine, files: SourceFiles) -> int:
         # Intent is durable before unlink. A crash leaves an ordinary unreferenced
         # file, handled by the existing verified orphan cleanup, not a broken pin.
         with engine.begin() as c:
+            eligible = []
+            for contract in c.execute(
+                text("""SELECT d.* FROM data_sync_contracts d
+                JOIN data_contract_collections w ON w.scope=d.ts_code
+                WHERE w.status='REJECTED'""")
+            ).mappings():
+                try:
+                    completed(contract)
+                except ValueError:
+                    continue
+                eligible.append(contract["ts_code"])
+            if not eligible:
+                return 0
             candidates = (
                 c.execute(
                     text("""SELECT DISTINCT s.source_id,s.content_hash,s.byte_count,w.scope
@@ -22,9 +36,12 @@ def release_rejected(engine: Engine, files: SourceFiles) -> int:
                 JOIN data_contract_requests cr USING(request_id)
                 JOIN data_contract_collections w ON w.scope=cr.scope AND w.status='REJECTED'
                 WHERE s.input_kind='TUSHARE_RESPONSE'
+                AND w.scope=ANY(CAST(:eligible AS text[]))
                 AND NOT EXISTS(SELECT 1 FROM data_contract_requests owners
                     JOIN data_contract_collections kept ON kept.scope=owners.scope
-                    WHERE owners.request_id=j.request_id AND kept.status<>'REJECTED')
+                    WHERE owners.request_id=j.request_id
+                    AND (kept.status<>'REJECTED'
+                        OR NOT kept.scope=ANY(CAST(:eligible AS text[]))))
                 AND NOT EXISTS(SELECT 1 FROM data_contract_source_releases x
                     WHERE x.source_id=s.source_id)
                 AND NOT EXISTS(SELECT 1 FROM data_sync_receipts r
@@ -38,7 +55,8 @@ def release_rejected(engine: Engine, files: SourceFiles) -> int:
                 AND NOT EXISTS(SELECT 1 FROM data_backups b,
                     jsonb_array_elements(b.source_references) p
                     WHERE p->>'content_hash'=s.content_hash)
-                ORDER BY s.source_id LIMIT 16""")
+                ORDER BY s.source_id LIMIT 16"""),
+                    dict(eligible=eligible),
                 )
                 .mappings()
                 .all()

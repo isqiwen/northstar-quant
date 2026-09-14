@@ -165,7 +165,7 @@ message ContractReview {
   optional string exchange = 3 [(northstar.web.required_field) = true];
   optional string product = 4 [(northstar.web.required_field) = true];
   optional string listing_date = 5 [(northstar.web.nullable) = true];
-  optional string delisting_date = 6 [(northstar.web.nullable) = true];
+  optional string last_trade_date = 6 [(northstar.web.nullable) = true];
   optional string required_end = 7 [(northstar.web.nullable) = true];
   optional string status = 8 [(northstar.web.required_field) = true];
   optional bool admitted = 9 [(northstar.web.required_field) = true];
@@ -173,6 +173,11 @@ message ContractReview {
   repeated string reasons = 11;
   optional string policy = 12 [(northstar.web.required_field) = true];
   repeated string null_fields = 2046;
+  optional string last_delivery_date = 13 [(northstar.web.nullable) = true];
+  optional string first_delivery_date = 14 [(northstar.web.nullable) = true];
+  optional string delivery_month = 15 [(northstar.web.nullable) = true];
+  optional string lifecycle_status = 16 [(northstar.web.required_field) = true];
+  optional string lifecycle_reason = 17 [(northstar.web.required_field) = true];
 }
 
 message SyncSettingsRequest {

@@ -45,7 +45,7 @@ def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
         connection.execute(
             text("""INSERT INTO data_sync_contracts
             (ts_code,exchange,product,kind,details,planned_revision)
-            VALUES('RB2610.SHF','SHFE','RB','1','{}',1)""")
+            VALUES('RB2610.SHF','SHFE','RB','1','{"list_date":"19900101","delist_date":"20260902","last_ddate":"20260903"}',1)""")
         )
         connection.execute(
             text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
@@ -434,7 +434,13 @@ def test_planning_all_capabilities_is_idempotent_and_stops_at_expiry(automatic, 
                 {
                     "code": code,
                     "kind": kind,
-                    "details": json.dumps({"list_date": "20260901", "delist_date": "20260903"}),
+                    "details": json.dumps(
+                        {
+                            "list_date": "20260901",
+                            "delist_date": "20260903",
+                            "last_ddate": "20260904",
+                        }
+                    ),
                 },
             )
     planning.plan(automatic._engine)
@@ -1010,6 +1016,7 @@ def test_catalog_arrival_replans_continuous_ranges_without_duplicate_downloads(
         "fut_code": "A",
         "list_date": "20260901",
         "delist_date": "20260908",
+        "last_ddate": "20260908",
     }
     payload = json.dumps(
         {"code": 0, "data": {"fields": list(row), "items": [list(row.values())]}}
@@ -1043,7 +1050,7 @@ def test_index_planning_sends_explicit_official_codes_and_deduplicates(automatic
         c.execute(
             text(
                 "UPDATE data_sync_contracts SET planned_revision=0, "
-                'details=\'{"list_date":"20260901","delist_date":"20260908"}\''
+                'details=\'{"list_date":"20260901","delist_date":"20260908","last_ddate":"20260908"}\''
             )
         )
     planning.plan(automatic._engine)
@@ -1085,6 +1092,7 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
         c.execute(text("DELETE FROM data_sync_contracts"))
         for code, kind, begin, end in [
             ("AL1112.SHF", "1", "20100101", "20111215"),
+            ("AL1201.SHF", "1", "20100101", "20120115"),
             ("AL1202.SHF", "1", "20110101", "20120215"),
             ("AL.SHF", "2", "20100101", ""),
         ]:
@@ -1096,7 +1104,9 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
                 {
                     "code": code,
                     "kind": kind,
-                    "details": json.dumps({"list_date": begin, "delist_date": end}),
+                    "details": json.dumps(
+                        {"list_date": begin, "delist_date": end, "last_ddate": end}
+                    ),
                 },
             )
     planning.plan(automatic._engine)
@@ -1108,7 +1118,8 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
         )
         assert rows
         assert min(r["start_at"] for r in rows) == "2010-01-01"
-        assert any(r["scope"] == "AL1112.SHF" for r in rows)
+        assert any(r["scope"] == "AL1201.SHF" for r in rows)
+        assert not any(r["scope"] == "AL1112.SHF" for r in rows)
         assert not any(r["scope"] == "AL1202.SHF" for r in rows)
         assert {"calendar", "daily", "1min", "holdings", "index", "mapping"} <= {
             r["dataset"] for r in rows
@@ -1202,3 +1213,52 @@ def test_provider_rate_reply_cools_whole_api_without_blocking_daily(automatic, m
     result = jobs.process_next(automatic)
     assert result["dataset"] == "daily" and result["status"] == "VALIDATED"
     assert calls == ["ft_mins", "fut_daily"]
+
+
+def test_historical_candidate_preempts_existing_newer_collection(automatic, monkeypatch):
+    from datetime import date
+
+    from northstar_quant.data_management.tushare.scheduling import choose
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 14))
+    pending(automatic)
+    with automatic._engine.begin() as c:
+        for code, last in [("AL1202.SHF", "20120215"), ("AL1201.SHF", "20120115")]:
+            c.execute(
+                text("""INSERT INTO data_sync_contracts
+                (ts_code,exchange,product,kind,details) VALUES(:code,'SHFE','AL','1',
+                CAST(:details AS jsonb))"""),
+                dict(
+                    code=code,
+                    details=json.dumps(
+                        dict(list_date="20110101", delist_date=last, last_ddate=last)
+                    ),
+                ),
+            )
+    planning.plan(automatic._engine)
+    with automatic._engine.begin() as c:
+        assert c.scalar(text("SELECT min(end_date) FROM data_contract_collections")) == date(
+            2012, 1, 15
+        )
+        row = choose(c, download_ready=True)
+        owners = list(
+            c.scalars(
+                text("SELECT scope FROM data_contract_requests WHERE request_id=:id"),
+                dict(id=row["request_id"]),
+            )
+        )
+        assert "AL1201.SHF" in owners
+        # Planning another candidate cannot create a flood before the oldest is collected.
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_contract_collections")) == 2
+
+
+def test_queue_will_not_download_after_metadata_becomes_unknown(automatic):
+    from northstar_quant.data_management.tushare.scheduling import choose
+
+    pending(automatic)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_contracts SET details=details-'last_ddate'"))
+        assert choose(c, download_ready=True) is None
+        assert c.scalar(text("SELECT status FROM data_sync_jobs")) == "PENDING"

@@ -30,7 +30,10 @@ def test_no_active_continuous_or_unknown_contract_is_eligible(kind, end):
 
 def test_retired_contract_keeps_full_lifetime_before_old_floor():
     value = completed(
-        dict(kind="1", details=dict(list_date="20090101", delist_date="20110101")),
+        dict(
+            kind="1",
+            details=dict(list_date="20090101", delist_date="20110101", last_ddate="20110105"),
+        ),
         today=date(2026, 9, 14),
     )
     assert value.start == date(2009, 1, 1)
@@ -41,7 +44,7 @@ def test_package_cannot_publish_with_unknown_completeness(automatic, monkeypatch
     with automatic._engine.begin() as c:
         c.execute(
             text("""UPDATE data_sync_contracts SET details=
-            '{"list_date":"20260901","delist_date":"20260902"}'""")
+            '{"list_date":"20260901","delist_date":"20260902","last_ddate":"20260903"}'""")
         )
     with pytest.raises(ValueError, match="禁止发布"):
         publish(automatic._engine, "RB2610.SHF")
@@ -165,3 +168,37 @@ def test_rejected_cleanup_respects_other_owners_and_maintenance(automatic, monke
     else:
         assert release_rejected(automatic._engine, automatic._files) == 0
     assert automatic.verify_sources() == 1
+
+
+@pytest.mark.parametrize(
+    "delivery,state",
+    [("20260915", "DELIVERING"), (None, "UNKNOWN"), ("20260901", "UNKNOWN")],
+)
+def test_last_trade_does_not_establish_business_completion(delivery, state):
+    from northstar_quant.data_management.contract_data.lifecycle import describe
+
+    contract = dict(
+        kind="1",
+        details=dict(
+            list_date="20250101",
+            delist_date="20260911",
+            last_ddate=delivery,
+        ),
+    )
+    assert describe(contract, today=date(2026, 9, 14))["lifecycle_status"] == state
+    with pytest.raises(ValueError):
+        completed(contract, today=date(2026, 9, 14))
+
+
+def test_unknown_lifecycle_never_rejects_existing_collection(automatic):
+    from northstar_quant.data_management.contract_data.processing import process_next
+
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_contracts SET details=details-'last_ddate'"))
+        c.execute(
+            text("""UPDATE data_contract_collections SET status='VERIFYING',
+            updated_at=now()-interval '2 minutes'""")
+        )
+    assert process_next(automatic._engine) == "RB2610.SHF"
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT status FROM data_contract_collections")) == "VERIFYING"

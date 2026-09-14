@@ -283,6 +283,11 @@ def main() -> None:
                     expect(review.get_by_text("已下载不等于整合约完整", exact=True)).to_be_visible()
                     expect(review.get_by_text("每日结算参数", exact=True)).to_be_visible()
                     expect(review.get_by_text("整体验收待核验", exact=True)).to_be_visible()
+                    expect(review.get_by_text("上市 / 最后交易日", exact=True)).to_be_visible()
+                    expect(review.get_by_text("交割月份 / 最后交割日", exact=True)).to_be_visible()
+                    expect(
+                        review.get_by_text("最后交易日和最后交割日均已完成", exact=True)
+                    ).to_be_visible()
                     screenshot("contract-review")
                     review.locator(".ant-drawer-close").click()
 

@@ -4,12 +4,36 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
+from ..contract_data.lifecycle import SEARCH_START, completed
 from .catalog import BY_KEY
 
 
 def choose(connection: Connection, *, download_ready: bool) -> Any:
     connection.execute(text("SET LOCAL jit=off"))
+    earliest = connection.scalar(
+        text("""SELECT min(d.details->>'delist_date')
+        FROM data_sync_contracts d LEFT JOIN data_contract_collections w ON w.scope=d.ts_code
+        WHERE d.kind='1' AND d.planned_revision<>(SELECT revision FROM data_sync_settings)
+        AND (w.scope IS NULL OR w.status IN ('COLLECTING','VERIFYING'))
+        AND d.details->>'delist_date'>=:floor"""),
+        dict(floor=SEARCH_START.strftime("%Y%m%d")),
+    )
+    eligible = []
+    for contract in connection.execute(
+        text("""SELECT d.* FROM data_sync_contracts d
+        JOIN data_contract_collections w ON w.scope=d.ts_code
+        WHERE w.status IN ('COLLECTING','VERIFYING')
+        AND d.planning_error IS NULL""")
+    ).mappings():
+        try:
+            life = completed(contract)
+        except ValueError:
+            continue
+        if life.end >= SEARCH_START:
+            if earliest is None or life.end.strftime("%Y%m%d") <= earliest:
+                eligible.append(contract["ts_code"])
     parameters = {
+        "eligible": eligible,
         "datasets": list(BY_KEY),
         "apis": [d.api for d in BY_KEY.values()],
         "download_ready": download_ready,
@@ -27,8 +51,9 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
             LEFT JOIN data_contract_requests cr ON cr.request_id=j.request_id
             LEFT JOIN data_contract_collections w ON w.scope=cr.scope
                 AND w.status IN ('COLLECTING','VERIFYING')
+                AND w.scope=ANY(CAST(:eligible AS text[]))
             WHERE j.status IN ('PENDING','WAITING') AND j.next_at<=now()
-            AND (j.dataset IN ('contracts','calendar') OR w.scope IS NOT NULL)
+            AND (j.dataset='contracts' OR w.scope IS NOT NULL)
             AND (j.source_generation IS NOT NULL OR (:download_ready AND COALESCE(
                 (SELECT (api_next_at->>d.api)::timestamptz FROM data_sync_settings),
                 '-infinity'::timestamptz)<=now()))
@@ -38,8 +63,8 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
             GROUP BY j.request_id
         ), selected AS (
             SELECT r.request_id FROM ready r
-            ORDER BY (r.dataset='contracts') DESC, (r.source_generation IS NOT NULL) DESC,
-                r.owner_end DESC, r.owner_scope,
+            ORDER BY (r.dataset='contracts') DESC, r.owner_end, r.owner_scope,
+                (r.source_generation IS NOT NULL) DESC,
                 (r.dataset='calendar') DESC,
                 (SELECT max(a.started_at) FROM data_sync_attempts a
                     JOIN data_sync_jobs s USING(request_id)

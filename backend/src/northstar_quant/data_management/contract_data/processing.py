@@ -30,9 +30,7 @@ def process_next(engine: Engine) -> str | None:
                 reason=:reason,updated_at=now() WHERE scope=:scope"""),
                 dict(
                     scope=scope,
-                    status="REJECTED"
-                    if result["status"] in {"INVALID", "NOT_ELIGIBLE"}
-                    else "VERIFYING",
+                    status="REJECTED" if result["status"] == "INVALID" else "VERIFYING",
                     reason="；".join(result["reasons"]),
                 ),
             )

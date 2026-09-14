@@ -291,13 +291,13 @@ class ContractReviewRequest(_message.Message):
     def __init__(self, scope: _Optional[str] = ...) -> None: ...
 
 class ContractReview(_message.Message):
-    __slots__ = ("scope", "display_name", "exchange", "product", "listing_date", "delisting_date", "required_end", "status", "admitted", "requirements", "reasons", "policy", "null_fields")
+    __slots__ = ("scope", "display_name", "exchange", "product", "listing_date", "last_trade_date", "required_end", "status", "admitted", "requirements", "reasons", "policy", "null_fields", "last_delivery_date", "first_delivery_date", "delivery_month", "lifecycle_status", "lifecycle_reason")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     EXCHANGE_FIELD_NUMBER: _ClassVar[int]
     PRODUCT_FIELD_NUMBER: _ClassVar[int]
     LISTING_DATE_FIELD_NUMBER: _ClassVar[int]
-    DELISTING_DATE_FIELD_NUMBER: _ClassVar[int]
+    LAST_TRADE_DATE_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_END_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ADMITTED_FIELD_NUMBER: _ClassVar[int]
@@ -305,12 +305,17 @@ class ContractReview(_message.Message):
     REASONS_FIELD_NUMBER: _ClassVar[int]
     POLICY_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    LAST_DELIVERY_DATE_FIELD_NUMBER: _ClassVar[int]
+    FIRST_DELIVERY_DATE_FIELD_NUMBER: _ClassVar[int]
+    DELIVERY_MONTH_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_STATUS_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_REASON_FIELD_NUMBER: _ClassVar[int]
     scope: str
     display_name: str
     exchange: str
     product: str
     listing_date: str
-    delisting_date: str
+    last_trade_date: str
     required_end: str
     status: str
     admitted: bool
@@ -318,7 +323,12 @@ class ContractReview(_message.Message):
     reasons: _containers.RepeatedScalarFieldContainer[str]
     policy: str
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, scope: _Optional[str] = ..., display_name: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., listing_date: _Optional[str] = ..., delisting_date: _Optional[str] = ..., required_end: _Optional[str] = ..., status: _Optional[str] = ..., admitted: _Optional[bool] = ..., requirements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reasons: _Optional[_Iterable[str]] = ..., policy: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    last_delivery_date: str
+    first_delivery_date: str
+    delivery_month: str
+    lifecycle_status: str
+    lifecycle_reason: str
+    def __init__(self, scope: _Optional[str] = ..., display_name: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., listing_date: _Optional[str] = ..., last_trade_date: _Optional[str] = ..., required_end: _Optional[str] = ..., status: _Optional[str] = ..., admitted: _Optional[bool] = ..., requirements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reasons: _Optional[_Iterable[str]] = ..., policy: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ..., last_delivery_date: _Optional[str] = ..., first_delivery_date: _Optional[str] = ..., delivery_month: _Optional[str] = ..., lifecycle_status: _Optional[str] = ..., lifecycle_reason: _Optional[str] = ...) -> None: ...
 
 class SyncSettingsRequest(_message.Message):
     __slots__ = ("revision", "enabled")

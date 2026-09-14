@@ -20,7 +20,11 @@ def lifetime(library, start="20260901", end="20260902"):
     with library._engine.begin() as c:
         c.execute(
             text("UPDATE data_sync_contracts SET details=CAST(:details AS jsonb)"),
-            {"details": json.dumps(dict(name="螺纹钢2610", list_date=start, delist_date=end))},
+            {
+                "details": json.dumps(
+                    dict(name="螺纹钢2610", list_date=start, delist_date=end, last_ddate=end)
+                )
+            },
         )
 
 

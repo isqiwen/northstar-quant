@@ -75,7 +75,12 @@ while clearing it when the owning artifact identity changes.
 ### Contract completeness review
 
 `POST /api/sync/contracts/review` reports a real contract's listing-to-expiry
-requirements. Active contracts are ineligible; only ended real contracts may collect or publish.
+requirements. Check actual listing, last trading and last delivery dates separately.
+Active or delivery-in-progress contracts are ineligible; missing/conflicting metadata stays unknown.
+Search last trading dates from 2012-01-01 ascending, preserving pre-2012 listing history.
+Exercise both planning and claiming against an existing newer queue; changing only SQL planning
+order leaves already queued downloads ahead of historical candidates. Unknown lifecycle metadata
+must also block rejected-source cleanup, not just new planning.
 Use the browser's “整体验收” action on downloaded contract data. Check a complete
 calendar through the candidate cutoff; an old maximum open day is insufficient.
 A response/window count, nonempty chart or successful HTTP request is not whole
@@ -93,7 +98,7 @@ A validated supplier response alone is private processing evidence. Installed
 browser fixtures may explicitly pin synthetic package facts to exercise readers;
 never interpret those facts as supplier lifecycle acceptance. Verify package hash
 and deterministic reconstruction in joint backup/restore. Real admission must
-show verified listing/delisting dates and all supported dataset completeness;
+show verified listing/last-trading/last-delivery dates and all supported dataset completeness;
 unknown historical sessions or applicability keep publication blocked.
 
 A full, explicitly authorized Data Hub schema reset also removes extensions in

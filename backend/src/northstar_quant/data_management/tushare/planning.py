@@ -11,7 +11,7 @@ from sqlalchemy import Connection, Engine, text
 
 from northstar_quant import code_revision
 
-from ..contract_data.lifecycle import completed
+from ..contract_data.lifecycle import SEARCH_START, completed
 from .catalog import BY_KEY, DATASETS, EXCHANGES, NANHUA_CODES
 from .store import settings
 
@@ -108,6 +108,8 @@ def refresh(engine: Engine) -> None:
 def plan(engine: Engine) -> None:
     config = settings(engine)
     target = target_day()
+    if not config["enabled"]:
+        return
     with engine.begin() as connection:
         connection.execute(
             text("""UPDATE data_contract_collections w SET status='VERIFYING',
@@ -115,18 +117,27 @@ def plan(engine: Engine) -> None:
                 SELECT 1 FROM data_contract_requests cr JOIN data_sync_jobs j USING(request_id)
                 WHERE cr.scope=w.scope AND j.status IN ('PENDING','RUNNING'))""")
         )
+        # Finish catalog discovery before comparing historical candidates across exchanges.
         if connection.scalar(
-            text("SELECT EXISTS(SELECT 1 FROM data_contract_collections WHERE status='COLLECTING')")
+            text("""SELECT EXISTS(SELECT 1 FROM data_sync_jobs
+            WHERE dataset='contracts' AND status IN ('PENDING','RUNNING','WAITING'))""")
         ):
             return
         contracts = (
             connection.execute(
-                text("""SELECT * FROM data_sync_contracts
+                text("""SELECT d.* FROM data_sync_contracts d
+            LEFT JOIN data_contract_collections w ON w.scope=d.ts_code
             WHERE planned_revision<>:revision AND kind='1'
+            AND (w.scope IS NULL OR w.status IN ('COLLECTING','VERIFYING'))
             AND details->>'delist_date' ~ '^[0-9]{8}$'
+            AND details->>'delist_date'>=:search_start
             AND details->>'delist_date'<:today
-            ORDER BY details->>'delist_date' DESC,exchange,product,ts_code LIMIT 1 FOR UPDATE"""),
-                dict(revision=config["revision"], today=target.strftime("%Y%m%d")),
+            ORDER BY details->>'delist_date',exchange,product,ts_code LIMIT 1 FOR UPDATE OF d"""),
+                dict(
+                    revision=config["revision"],
+                    today=target.strftime("%Y%m%d"),
+                    search_start=SEARCH_START.strftime("%Y%m%d"),
+                ),
             )
             .mappings()
             .all()
@@ -142,6 +153,21 @@ def plan(engine: Engine) -> None:
                 )
                 continue
             start, end = lifetime.start, lifetime.end
+            # Existing newer work cannot block an older candidate after priority changes.
+            if connection.scalar(
+                text("""SELECT EXISTS(SELECT 1
+                FROM data_contract_collections w JOIN data_sync_contracts d ON d.ts_code=w.scope
+                WHERE w.status='COLLECTING' AND w.end_date>=:floor AND w.end_date<=:end
+                AND d.planned_revision=:revision AND d.planning_error IS NULL
+                AND w.scope<>:scope)"""),
+                dict(
+                    floor=SEARCH_START,
+                    end=end,
+                    revision=config["revision"],
+                    scope=contract["ts_code"],
+                ),
+            ):
+                return
             connection.execute(
                 text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
                 VALUES(:scope,:start,:end) ON CONFLICT(scope) DO UPDATE

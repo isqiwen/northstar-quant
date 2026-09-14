@@ -61,12 +61,27 @@ export function ContractReview({
               },
               {
                 key: "life",
-                label: "上市 / 退市",
-                children: `${data.listing_date ?? "未知"} / ${data.delisting_date ?? "未知"}`,
+                label: "上市 / 最后交易日",
+                children: `${data.listing_date ?? "未知"} / ${data.last_trade_date ?? "未知"}`,
+              },
+              {
+                key: "delivery",
+                label: "交割月份 / 最后交割日",
+                children: `${data.delivery_month ?? "未知"} / ${data.last_delivery_date ?? "未知"}`,
+              },
+              {
+                key: "lifecycle",
+                label: "合约生命周期",
+                children: data.lifecycle_reason,
+              },
+              {
+                key: "firstDelivery",
+                label: "首次交割日",
+                children: data.first_delivery_date ?? "供应商未提供，不推算",
               },
               {
                 key: "end",
-                label: "本次应检查至",
+                label: "行情检查至",
                 children: data.required_end ?? "等待完整交易日历",
               },
               {

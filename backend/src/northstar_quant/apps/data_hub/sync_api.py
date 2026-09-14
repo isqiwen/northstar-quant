@@ -31,7 +31,12 @@ class ContractReview(ApiModel):
     exchange: str
     product: str
     listing_date: str | None
-    delisting_date: str | None
+    last_trade_date: str | None
+    first_delivery_date: str | None
+    last_delivery_date: str | None
+    delivery_month: str | None
+    lifecycle_status: str
+    lifecycle_reason: str
     required_end: str | None
     status: str
     admitted: bool

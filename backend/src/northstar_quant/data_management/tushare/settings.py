@@ -52,7 +52,8 @@ def status(engine: Engine) -> dict[str, Any]:
         unplanned = connection.scalar(
             text(
                 "SELECT count(*) FROM data_sync_contracts WHERE kind='1' "
-                "AND details->>'delist_date'<to_char(CURRENT_DATE,'YYYYMMDD') "
+                "AND details->>'delist_date'>='20120101' "
+                "AND details->>'last_ddate'<to_char(CURRENT_DATE,'YYYYMMDD') "
                 "AND (planned_revision<>:r OR planning_error IS NOT NULL)"
             ),
             {"r": config["revision"]},

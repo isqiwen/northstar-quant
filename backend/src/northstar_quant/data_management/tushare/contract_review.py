@@ -4,12 +4,12 @@ This is a read projection of retained evidence, never a new publication authorit
 Unknown session/applicability evidence cannot qualify a contract or authorize deletion.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import Connection, Engine, text
 
-from ..contract_data.lifecycle import completed
+from ..contract_data.lifecycle import completed, describe
 from ..exploration.instruments import display_name
 from .catalog import DATASETS, Dataset
 
@@ -30,8 +30,7 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
     if contract["kind"] != "1":
         raise ValueError("全生命周期验收以真实合约为单位；连续序列不能代替真实合约")
     details = contract["details"]
-    start = _date(details.get("list_date"))
-    expiry = _date(details.get("delist_date"))
+    facts = describe(contract)
     reasons = []
     try:
         lifetime = completed(contract)
@@ -43,14 +42,13 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
             ),
             exchange=contract["exchange"],
             product=contract["product"],
-            listing_date=start.isoformat() if start else None,
-            delisting_date=expiry.isoformat() if expiry else None,
+            **facts,
             required_end=None,
-            status="NOT_ELIGIBLE",
+            status="UNKNOWN" if facts["lifecycle_status"] == "UNKNOWN" else "NOT_ELIGIBLE",
             admitted=False,
             requirements=[],
             reasons=[str(error)],
-            policy="仅已退市真实合约参与完整生命周期下载及发布",
+            policy="仅最后交易日和最后交割日均已完成的真实合约参与下载及发布",
         )
     start, end = lifetime.start, lifetime.end
     calendar_complete = False
@@ -68,7 +66,7 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
         )
         calendar_complete = calendar["days"] == (end - start).days + 1
         if not calendar_complete:
-            reasons.append("交易日历未覆盖上市至退市整个生命周期")
+            reasons.append("交易日历未覆盖上市至最后交易日")
         elif calendar["last_open"] is not None:
             end = calendar["last_open"]
         else:
@@ -78,7 +76,9 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
         scopes = _scopes(c, dataset, contract)
         item = _requirement(c, dataset, scopes, start, end)
         if dataset.key == "contracts":
-            item.update(status="RECEIVED", reason="合约元数据已收到；上市及退市范围仍需上述核对")
+            item.update(
+                status="RECEIVED", reason="合约元数据已收到；最后交易与交割范围仍需上述核对"
+            )
         elif dataset.key == "calendar":
             item.update(
                 status="VERIFIED" if calendar_complete else "UNKNOWN",
@@ -91,6 +91,7 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
         [
             "分钟行情：缺少全生命周期历史交易时段及供应商时间标签的已核实证据",
             "周/月线及品种级数据：应有记录、发布日与适用范围尚未完成核验",
+            "交割及结算相关要求：交易结束后的适用区间尚无已核实规则，不能按行情区间认定完整",
             "主力映射、复权序列及市场指数保持独立身份；关联完整性尚未完成核验",
         ]
     )
@@ -102,8 +103,7 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
         ),
         "exchange": contract["exchange"],
         "product": contract["product"],
-        "listing_date": start.isoformat() if start else None,
-        "delisting_date": expiry.isoformat() if expiry else None,
+        **facts,
         "required_end": end.isoformat() if calendar_complete else None,
         "status": "INVALID" if invalid else "VERIFICATION_PENDING",
         "admitted": False,
@@ -114,15 +114,6 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
             "已下载、空响应和请求完成都不等于整合约完整。此报告不执行数据清理。"
         ),
     }
-
-
-def _date(value: Any) -> date | None:
-    if not isinstance(value, str) or len(value) != 8:
-        return None
-    try:
-        return datetime.strptime(value, "%Y%m%d").date()
-    except ValueError:
-        return None
 
 
 def _scopes(c: Connection, dataset: Dataset, contract: Any) -> list[str]:
