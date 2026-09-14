@@ -54,7 +54,10 @@ export function TushareSync() {
     setDiagnostics(scope);
   }
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("request");
+    const parameters = new URLSearchParams(window.location.search);
+    const contract = parameters.get("contract");
+    if (contract) setDiagnostics(contract);
+    const id = parameters.get("request");
     if (id)
       void fetchQuery(query(`/api/sync/jobs/${id}`))
         .then(setDetail)

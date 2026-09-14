@@ -228,6 +228,8 @@ def main() -> None:
                     visit(data_url)
                     expect(page.get_by_role("heading", name="期货数据工作台")).to_be_visible()
                     expect(page.get_by_text("已规划结束合约", exact=True)).to_be_visible()
+                    expect(page.get_by_text("内部采集诊断", exact=True)).to_have_count(0)
+                    expect(page.locator('tr[data-row-key="RB2610.SHF"]')).to_have_count(1)
                     screenshot("overview")
                     visit(
                         data_url + "/browse?dataset=settlement&scope=RB2610.SHF"
@@ -442,12 +444,16 @@ def main() -> None:
                     expect(
                         page.get_by_role("dialog").get_by_text("每日结算参数", exact=True)
                     ).to_be_visible()
-                    page.get_by_role("dialog").locator(".ant-drawer-close").click()
+                    page.get_by_role("dialog", name="合约全生命周期验收", exact=True).locator(
+                        ".ant-drawer-close"
+                    ).click()
                     contract_row.get_by_role("button", name="请求诊断", exact=True).click()
                     expect(
                         page.get_by_text("仅查看 RB2610.SHF 所属请求", exact=False)
                     ).to_be_visible()
-                    page.get_by_role("dialog").locator(".ant-drawer-close").click()
+                    page.get_by_role("dialog", name="RB2610.SHF · 请求诊断", exact=True).locator(
+                        ".ant-drawer-close"
+                    ).click()
                     page.get_by_role("button", name="采集服务诊断", exact=True).click()
                     choose("任务状态", "需处理")
                     page.get_by_role("combobox", name="任务状态").press("ArrowDown")
@@ -469,7 +475,9 @@ def main() -> None:
                         page.get_by_role("option", name="全部状态", exact=True)
                     ).to_have_attribute("aria-selected", "true")
                     page.get_by_role("combobox", name="任务状态").press("Escape")
-                    page.get_by_role("dialog").locator(".ant-drawer-close").click()
+                    page.get_by_role("dialog", name="采集服务诊断", exact=True).locator(
+                        ".ant-drawer-close"
+                    ).click()
                     screenshot("sync")
                     visit(data_url + f"/attempts/{imported['attempt_id']}")
                     expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible(timeout=30000)

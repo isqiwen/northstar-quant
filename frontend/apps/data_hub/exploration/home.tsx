@@ -1,25 +1,19 @@
 "use client";
 import { StorageAlert } from "../storage-alert";
-import {
-  Alert,
-  Button,
-  Card,
-  Col,
-  Row,
-  Space,
-  Statistic,
-  Table,
-  Tag,
-} from "antd";
+import { Alert, Button, Card, Col, Row, Space, Statistic, Tag } from "antd";
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { SyncContracts } from "../sync-contracts";
+import { ContractReview } from "../contract-review";
 import { useData } from "../../../shared/data";
 import { Failure, Heading } from "../../../shared/ui";
 import { query } from "../api/client";
 export function DataOverview() {
-  const catalog = useData(query("/api/explorer"), 10000);
+  const router = useRouter();
+  const [reviewScope, setReviewScope] = useState<string>();
   const sync = useData(query("/api/sync"), 5000);
-  const available = !!catalog.data && !catalog.error && !catalog.loading;
-  const datasets = catalog.error ? [] : catalog.data?.datasets || [];
+  const available = !!sync.data && !sync.error && !sync.loading;
   const contracts = sync.data?.lanes?.find((lane) => lane.lane === "contracts");
   return (
     <>
@@ -32,7 +26,7 @@ export function DataOverview() {
           </Link>
         }
       />
-      <Failure error={catalog.error || sync.error} />
+      <Failure error={sync.error} />
       <StorageAlert capacity={sync.data?.settings.source_capacity} />
       <Row gutter={[16, 16]}>
         {[
@@ -71,45 +65,16 @@ export function DataOverview() {
           message={String(sync.data.settings.error)}
         />
       )}
-      <Card title="内部采集诊断">
-        <Table
-          rowKey="key"
-          dataSource={datasets}
-          loading={catalog.loading}
-          pagination={false}
-          columns={[
-            { title: "数据集", dataIndex: "label" },
-            {
-              title: "内部请求数",
-              dataIndex: "windows",
-              render: (v) => v ?? 0,
-            },
-            { title: "已校验", dataIndex: "validated", render: (v) => v ?? 0 },
-            {
-              title: "待处理异常",
-              dataIndex: "blocked",
-              render: (v) => (v ? <Tag color="red">{String(v)}</Tag> : "0"),
-            },
-            {
-              title: "最近核查",
-              dataIndex: "checked_at",
-              render: (v) => v || "尚无记录",
-            },
-            {
-              title: "查看",
-              render: (_, r) =>
-                r.browsable ? (
-                  <Link href={`/browse?dataset=${r.key}`}>浏览数据</Link>
-                ) : (
-                  <Link href="/sync">同步资料</Link>
-                ),
-            },
-          ]}
-        />
-        <p className="muted">
-          内部请求通过校验不等于合约完整。只有全部必需数据完整、适用性明确的已结束合约才进入正式浏览库。
-        </p>
-      </Card>
+      <SyncContracts
+        onReview={setReviewScope}
+        onRequests={(scope) =>
+          router.push(`/sync?contract=${encodeURIComponent(scope)}`)
+        }
+      />
+      <ContractReview
+        scope={reviewScope}
+        onClose={() => setReviewScope(undefined)}
+      />
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
           <Card title="覆盖与质量">
