@@ -234,22 +234,9 @@ def process_next(
         result = job(engine, UUID(selected["request_id"]))
         elapsed("readback")
         logging.getLogger(__name__).info(
-            "Sync timing request=%s planning= %s claim= %s acquisition= %s "
-            "archive= %s validation= %s publication= %s completion= %s readback= %s",
+            "Sync timing request=%s stages=%s",
             selected["request_id"],
-            *(
-                f"{timings.get(k, 0.0):.4f}"
-                for k in (
-                    "planning",
-                    "claim",
-                    "acquisition",
-                    "archive",
-                    "validation",
-                    "publication",
-                    "completion",
-                    "readback",
-                )
-            ),
+            " ".join(f"{name}={seconds:.4f}" for name, seconds in timings.items()),
         )
         return result
 

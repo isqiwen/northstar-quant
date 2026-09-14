@@ -293,7 +293,7 @@ print(json.dumps(result))
                     """
 from northstar_quant.data_management.tushare import acquisition
 from northstar_quant.apps.data_hub.worker import run
-def denied(*args):
+def denied(*args, **kwargs):
     raise acquisition.DownloadError('Synthetic acceptance: provider permission denied')
 acquisition.fetch=denied
 run()
