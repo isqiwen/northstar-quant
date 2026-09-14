@@ -3,7 +3,7 @@
 import { App, Button, Card, Select, Space, Table } from "antd";
 import { useEffect, useState } from "react";
 import { query } from "./api/client";
-import { querySyncJobs } from "./sync-job-query";
+import { querySyncJobs } from "./sync-query";
 import type { SyncJobPage } from "./api/generated";
 import { fetchQuery } from "../../shared/data";
 import { Failure } from "../../shared/ui";
@@ -15,16 +15,18 @@ const labels: Record<string, string> = {
   RUNNING: "处理中",
   WAITING: "等待重试或源端发布",
   BLOCKED: "需处理",
-  VALIDATED: "已校验并发布",
-  SPLIT: "已重新分片",
+  VALIDATED: "响应已校验",
+  SPLIT: "请求已拆分",
 };
 
 export function SyncJobs({
+  ownerScope,
   datasets,
   filter,
   onFilter,
   onDetail,
 }: {
+  ownerScope: string;
   datasets: Row[];
   filter: JobFilter;
   onFilter: (value: JobFilter) => void;
@@ -45,6 +47,7 @@ export function SyncJobs({
       try {
         const page = await querySyncJobs(
           {
+            owner_scope: ownerScope,
             dataset: filter.dataset,
             status: filter.status,
             offset: (filter.page - 1) * 10,
@@ -74,7 +77,7 @@ export function SyncJobs({
       abort.abort();
       clearTimeout(timer);
     };
-  }, [filter.dataset, filter.status, filter.page]);
+  }, [ownerScope, filter.dataset, filter.status, filter.page]);
   const names = Object.fromEntries(
     datasets.map((r) => [String(r.key), String(r.label)]),
   );
@@ -94,9 +97,12 @@ export function SyncJobs({
     }
   }
   return (
-    <Card title="异常任务与当前处理">
+    <Card title="内部采集记录">
       <p className="muted">
-        查询全部任务；优先显示受阻、处理中及等待复核的任务，空结果不计入完成。
+        {ownerScope
+          ? `仅查看 ${ownerScope} 所属请求，包含关联的品种级数据。`
+          : "采集服务的技术诊断记录。"}
+        响应校验不代表完整合约已发布。
       </p>
       <Space wrap style={{ marginBottom: 16 }}>
         <Select

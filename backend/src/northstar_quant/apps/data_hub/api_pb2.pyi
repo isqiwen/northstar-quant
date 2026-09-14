@@ -394,17 +394,51 @@ class SyncStatus(_message.Message):
     unplanned_contracts: int
     def __init__(self, settings: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., token_configured: _Optional[bool] = ..., datasets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., progress: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., jobs: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., lanes: _Optional[_Iterable[_Union[SyncLane, _Mapping]]] = ..., unplanned_contracts: _Optional[int] = ...) -> None: ...
 
+class CollectionQuery(_message.Message):
+    __slots__ = ("exchange", "product", "search", "status", "offset", "limit")
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    exchange: str
+    product: str
+    search: str
+    status: str
+    offset: int
+    limit: int
+    def __init__(self, exchange: _Optional[str] = ..., product: _Optional[str] = ..., search: _Optional[str] = ..., status: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class CollectionPage(_message.Message):
+    __slots__ = ("total", "offset", "limit", "items", "exchanges", "products")
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    EXCHANGES_FIELD_NUMBER: _ClassVar[int]
+    PRODUCTS_FIELD_NUMBER: _ClassVar[int]
+    total: int
+    offset: int
+    limit: int
+    items: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    exchanges: _containers.RepeatedScalarFieldContainer[str]
+    products: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., items: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., exchanges: _Optional[_Iterable[str]] = ..., products: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class SyncJobQuery(_message.Message):
-    __slots__ = ("dataset", "status", "offset", "limit")
+    __slots__ = ("owner_scope", "dataset", "status", "offset", "limit")
+    OWNER_SCOPE_FIELD_NUMBER: _ClassVar[int]
     DATASET_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    owner_scope: str
     dataset: str
     status: str
     offset: int
     limit: int
-    def __init__(self, dataset: _Optional[str] = ..., status: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+    def __init__(self, owner_scope: _Optional[str] = ..., dataset: _Optional[str] = ..., status: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class SyncJobPage(_message.Message):
     __slots__ = ("total", "offset", "limit", "items")

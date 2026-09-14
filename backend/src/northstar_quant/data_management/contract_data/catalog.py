@@ -1,6 +1,5 @@
 """Published contract packages are the sole ordinary browsing admission boundary."""
 
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Connection, text
@@ -36,18 +35,3 @@ def require_receipt(c: Connection, receipt_id: UUID) -> None:
     from .packages import verify_package
 
     verify_package(PublishedDatasets.from_environment().root, package)
-
-
-def list_collections(c: Connection) -> list[dict[str, Any]]:
-    from ..tushare.store import serial
-    from .lifecycle import describe
-
-    return [
-        {**serial(r), **describe(r)}
-        for r in c.execute(
-            text("""SELECT w.*,d.exchange,d.product,d.kind,d.details,
-        d.details->>'name' AS display_name FROM data_contract_collections w
-        JOIN data_sync_contracts d ON d.ts_code=w.scope
-        ORDER BY w.end_date,w.scope LIMIT 100""")
-        ).mappings()
-    ]

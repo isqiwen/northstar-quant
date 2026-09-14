@@ -1,21 +1,23 @@
 "use client";
 import { StorageAlert } from "./storage-alert";
 import { ContractReview } from "./contract-review";
+import { SyncContracts } from "./sync-contracts";
 
 import {
   App,
   Button,
   Card,
+  Collapse,
   Form,
   Input,
   Modal,
   Progress,
   Space,
-  Table,
+  Drawer,
   Tag,
   Descriptions,
 } from "antd";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { query, mutate } from "./api/client";
 import { useData, fetchQuery } from "../../shared/data";
 import { Evidence, Failure, Heading } from "../../shared/ui";
@@ -30,8 +32,8 @@ const labels: Record<string, string> = {
   RUNNING: "处理中",
   WAITING: "等待重试或源端发布",
   BLOCKED: "需处理",
-  VALIDATED: "已校验并发布",
-  SPLIT: "已重新分片",
+  VALIDATED: "响应已校验",
+  SPLIT: "请求已拆分",
 };
 
 export function TushareSync() {
@@ -46,10 +48,10 @@ export function TushareSync() {
     status: "",
     page: 1,
   });
-  const jobsSection = useRef<HTMLDivElement>(null);
-  function showJobs(dataset: string, status: string) {
-    setFilter({ dataset, status, page: 1 });
-    jobsSection.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const [diagnostics, setDiagnostics] = useState<string>();
+  function showRequests(scope: string) {
+    setFilter({ dataset: "", status: "", page: 1 });
+    setDiagnostics(scope);
   }
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("request");
@@ -62,7 +64,6 @@ export function TushareSync() {
   const source = detail?.reprocess_source as Row | undefined;
   const data = current.error ? undefined : current.data;
   const config = data?.settings;
-  const groups = data?.progress ?? [];
   const targets = (config?.targets ?? []) as Row[];
   const catalogErrors = (config?.catalog_errors ?? []) as Row[];
   const planned =
@@ -92,7 +93,7 @@ export function TushareSync() {
     <>
       <Heading
         title="Tushare 自动同步"
-        description="只下载已退市真实合约，核验上市至退市全部必需数据。完整合约对应一个发布包。"
+        description="交易所 → 品种 → 合约。每个完整合约对应一次发布，行情和结算资料归入合约详情。"
       />
       <Failure error={current.error} />
       <StorageAlert capacity={config?.source_capacity} />
@@ -102,93 +103,29 @@ export function TushareSync() {
           {String(config.error)}
         </Card>
       )}
-      {!!catalogErrors.length && (
-        <Card title="目录范围待核查">
-          {catalogErrors.map((r) => (
-            <p key={String(r.ts_code)}>
-              {String(r.ts_code)}：{String(r.planning_error)}
-            </p>
-          ))}
-        </Card>
-      )}
-      <div className="grid-two">
-        <Card title="数据服务凭据">
-          <p>
-            Token：
-            <Tag color={data?.token_configured ? "green" : "default"}>
-              {data?.token_configured ? "已配置（不回显）" : "尚未配置"}
-            </Tag>
-          </p>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={async (values: { token: string }) => {
-              setBusy(true);
-              try {
-                await mutate("/api/sync/token", { token: values.token });
-                form.resetFields();
-                current.refresh();
-                message.success("Token 已保存到后端私有凭据目录");
-              } catch (e) {
-                message.error((e as Error).message);
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <Form.Item
-              name="token"
-              label="Tushare token"
-              rules={[{ required: true, min: 16, max: 512 }]}
-            >
-              <Input.Password
-                autoComplete="new-password"
-                placeholder="输入或更换 token"
-              />
-            </Form.Item>
-            <Button htmlType="submit" loading={busy}>
-              保存 token
-            </Button>
-          </Form>
-        </Card>
-        <Card title="自动同步">
-          <p>
-            目标交易日：
-            {targets.length
-              ? targets
-                  .map((r) => `${r.exchange} ${r.target_trading_day}`)
-                  .join(" · ")
-              : "等待交易日历"}
-          </p>
-          <Space wrap>
-            <Tag color={config?.enabled ? "blue" : "default"}>
-              {config?.enabled ? "已启用" : "已暂停"}
-            </Tag>
-            <Button
-              type="primary"
-              disabled={!data?.token_configured || !config}
-              loading={busy}
-              onClick={() => enabled(true)}
-            >
-              {config?.enabled ? "重试异常任务" : "开始同步全部数据"}
-            </Button>
-            <Button
-              disabled={!config?.enabled}
-              loading={busy}
-              onClick={() => enabled(false)}
-            >
-              暂停
-            </Button>
-            <Button onClick={current.refresh}>刷新</Button>
-          </Space>
-          <p className="muted">
-            从 2012-01-01 起查找历史合约，按最后交易日从早到晚下载。
-            跨越起点的合约保留上市日起的完整数据。最后交易日和最后交割日均已结束才可下载，日期不明则等待核实。
-          </p>
-          <p>{planned ? "本轮目录规划完成" : "等待目录或正在逐合约规划"}</p>
-        </Card>
-      </div>
-      <div className="grid-2">
+      <Space wrap>
+        <Tag color={config?.enabled ? "blue" : "default"}>
+          {config?.enabled ? "已启用" : "已暂停"}
+        </Tag>
+        <Button
+          type="primary"
+          disabled={!data?.token_configured || !config}
+          loading={busy}
+          onClick={() => enabled(true)}
+        >
+          {config?.enabled ? "重试异常任务" : "开始同步全部数据"}
+        </Button>
+        <Button
+          disabled={!config?.enabled}
+          loading={busy}
+          onClick={() => enabled(false)}
+        >
+          暂停
+        </Button>
+        <Button onClick={current.refresh}>刷新</Button>
+        <Button onClick={() => showRequests("")}>采集服务诊断</Button>
+      </Space>
+      <div>
         {(["contracts"] as const).map((key) => {
           const lane = data?.lanes?.find((row) => row.lane === key);
           const total = lane?.total ?? 0;
@@ -211,10 +148,10 @@ export function TushareSync() {
                 }
               />
               <Space wrap>
-                <Tag>处理中：{lane?.running ?? 0}</Tag>
-                <Tag>等待重试：{lane?.waiting ?? 0}</Tag>
+                <Tag>待采集 / 采集中：{lane?.running ?? 0} 个合约</Tag>
+                <Tag>待完整性核验：{lane?.waiting ?? 0} 个合约</Tag>
                 <Tag color={lane?.blocked ? "red" : "default"}>
-                  需处理：{lane?.blocked ?? 0}
+                  已拒绝：{lane?.blocked ?? 0} 个合约
                 </Tag>
               </Space>
               <p>最早未完成区间：{lane?.oldest_pending ?? "暂无"}</p>
@@ -225,113 +162,115 @@ export function TushareSync() {
           );
         })}
       </div>
-      <Card title="合约下载与验收">
-        <Table<Row>
-          rowKey="scope"
-          size="small"
-          dataSource={(config?.contracts ?? []) as Row[]}
-          columns={[
-            { title: "交易所", dataIndex: "exchange" },
-            { title: "品种", dataIndex: "product" },
-            {
-              title: "合约",
-              render: (_, r) => String(r.display_name || r.scope),
-            },
-            { title: "上市", dataIndex: "start_date" },
-            { title: "最后交易日", dataIndex: "last_trade_date" },
-            { title: "最后交割日", dataIndex: "last_delivery_date" },
-            { title: "生命周期", dataIndex: "lifecycle_reason" },
-            {
-              title: "采集 / 发布",
-              render: (_, r) =>
-                (
-                  ({
-                    COLLECTING: "采集中",
-                    VERIFYING: "待核验",
-                    REJECTED: "已拒绝",
-                    PUBLISHED: "已发布",
-                  }) as Record<string, string>
-                )[String(r.status)] ?? String(r.status),
-            },
-            {
-              title: "",
-              render: (_, r) => (
-                <Button
-                  type="link"
-                  onClick={() => setReviewScope(String(r.scope))}
-                >
-                  整体验收
-                </Button>
-              ),
-            },
-          ]}
-        />
-      </Card>
+      <SyncContracts onReview={setReviewScope} onRequests={showRequests} />
+      <Collapse
+        items={[
+          {
+            key: "settings",
+            label: "采集设置与目录信息",
+            children: (
+              <>
+                {!!catalogErrors.length && (
+                  <Card title="目录范围待核查">
+                    {catalogErrors.map((r) => (
+                      <p key={String(r.ts_code)}>
+                        {String(r.ts_code)}：{String(r.planning_error)}
+                      </p>
+                    ))}
+                  </Card>
+                )}
+                <div className="grid-two">
+                  <Card title="数据服务凭据">
+                    <p>
+                      Token：
+                      <Tag color={data?.token_configured ? "green" : "default"}>
+                        {data?.token_configured
+                          ? "已配置（不回显）"
+                          : "尚未配置"}
+                      </Tag>
+                    </p>
+                    <Form
+                      form={form}
+                      layout="vertical"
+                      onFinish={async (values: { token: string }) => {
+                        setBusy(true);
+                        try {
+                          await mutate("/api/sync/token", {
+                            token: values.token,
+                          });
+                          form.resetFields();
+                          current.refresh();
+                          message.success("Token 已保存到后端私有凭据目录");
+                        } catch (e) {
+                          message.error((e as Error).message);
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                    >
+                      <Form.Item
+                        name="token"
+                        label="Tushare token"
+                        rules={[{ required: true, min: 16, max: 512 }]}
+                      >
+                        <Input.Password
+                          autoComplete="new-password"
+                          placeholder="输入或更换 token"
+                        />
+                      </Form.Item>
+                      <Button htmlType="submit" loading={busy}>
+                        保存 token
+                      </Button>
+                    </Form>
+                  </Card>
+                  <Card title="自动同步">
+                    <p>
+                      目标交易日：
+                      {targets.length
+                        ? targets
+                            .map((r) => `${r.exchange} ${r.target_trading_day}`)
+                            .join(" · ")
+                        : "等待交易日历"}
+                    </p>
+
+                    <p className="muted">
+                      从 2012-01-01 起查找历史合约，按最后交易日从早到晚下载。
+                      跨越起点的合约保留上市日起的完整数据。最后交易日和最后交割日均已结束才可下载，日期不明则等待核实。
+                    </p>
+                    <p>
+                      {planned
+                        ? "本轮目录规划完成"
+                        : "等待目录或正在逐合约规划"}
+                    </p>
+                  </Card>
+                </div>
+              </>
+            ),
+          },
+        ]}
+      />
       <ContractReview
         scope={reviewScope}
         onClose={() => setReviewScope(undefined)}
       />
-      <Card title="数据范围与进度">
-        <p>
-          全部交易所 → 品种 → 已退市真实合约，覆盖上市至退市；1、5、15、30、60
-          分钟、日/周/月线及期货相关历史资料。按目录发现新退市合约；日期缺失不猜测，空响应不当作完成。
-        </p>
-        <Table
-          pagination={false}
-          rowKey="key"
-          dataSource={data?.datasets ?? []}
-          columns={[
-            { title: "数据", dataIndex: "label" },
-            {
-              title: "内部请求进度",
-              render: (_, row) => (
-                <Space wrap>
-                  {groups
-                    .filter((g) => g.dataset === row.key)
-                    .map((g) => (
-                      <button
-                        type="button"
-                        key={String(g.status)}
-                        aria-label={`${row.label} ${labels[String(g.status)]} ${g.windows} 条，查看任务`}
-                        onClick={() =>
-                          showJobs(String(row.key), String(g.status))
-                        }
-                        style={{
-                          border: 0,
-                          background: "transparent",
-                          padding: 0,
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Tag
-                          color={
-                            g.status === "BLOCKED"
-                              ? "red"
-                              : g.status === "VALIDATED"
-                                ? "green"
-                                : "default"
-                          }
-                        >
-                          {labels[String(g.status)]}: {String(g.windows)}
-                        </Tag>
-                      </button>
-                    ))}
-                </Space>
-              ),
-            },
-          ]}
-        />
-      </Card>
-      <div ref={jobsSection}>
-        <SyncJobs
-          datasets={data?.datasets ?? []}
-          filter={filter}
-          onFilter={setFilter}
-          onDetail={setDetail}
-        />
-      </div>
+      <Drawer
+        title={diagnostics ? `${diagnostics} · 请求诊断` : "采集服务诊断"}
+        open={diagnostics !== undefined}
+        onClose={() => setDiagnostics(undefined)}
+        size="large"
+      >
+        {diagnostics !== undefined && (
+          <SyncJobs
+            ownerScope={diagnostics}
+            datasets={data?.datasets ?? []}
+            filter={filter}
+            onFilter={setFilter}
+            onDetail={setDetail}
+          />
+        )}
+      </Drawer>
       <Modal
-        title="同步记录与固定数据"
+        title="内部请求与响应证据"
         open={!!detail}
         onCancel={() => setDetail(undefined)}
         footer={null}
@@ -367,7 +306,7 @@ export function TushareSync() {
                 {
                   key: "status",
                   label: "状态",
-                  children: labels[String(detail.status)] || "固定发布版本",
+                  children: labels[String(detail.status)] || "固定响应版本",
                 },
                 {
                   key: "reason",

@@ -26,10 +26,19 @@ it("polling neither displays a submitted command nor changes an existing uncerta
   vi.stubGlobal("window", { dispatchEvent });
   const fetch = vi.fn().mockResolvedValue(new Response());
   vi.stubGlobal("fetch", fetch);
-  const { querySyncJobs } = await import("../../apps/data_hub/sync-job-query");
+  const { querySyncJobs, queryCollections } =
+    await import("../../apps/data_hub/sync-query");
   const body = { dataset: "daily", status: "BLOCKED", offset: 0, limit: 10 };
   await querySyncJobs(body);
   await querySyncJobs(body);
+  await queryCollections({
+    exchange: "SHFE",
+    product: "RB",
+    search: "",
+    status: "",
+    offset: 0,
+    limit: 20,
+  });
   fetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
   await expect(querySyncJobs(body)).rejects.toThrow("query failed");
   expect(storage.setItem).not.toHaveBeenCalled();

@@ -82,6 +82,7 @@ class SyncStatus(ApiModel):
 
 
 class SyncJobQuery(ApiModel):
+    owner_scope: str = Field(default="", max_length=40)
     dataset: str
     status: str
     offset: int = Field(ge=0)
@@ -100,6 +101,10 @@ class SyncEvidence(EvidenceRecord):
 
 
 def register(app: FastAPI, access: WorkspaceAccess, engine: Engine, library: DataLibrary) -> None:
+    from . import collection_api
+
+    collection_api.register(app, access, engine)
+
     @app.post("/api/sync/contracts/review", response_model=ContractReview)
     async def review_contract(request: Request, document: ContractReviewRequest) -> dict[str, Any]:
         from northstar_quant.data_management.tushare.contract_review import review

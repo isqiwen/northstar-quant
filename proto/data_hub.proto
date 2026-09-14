@@ -212,7 +212,24 @@ message SyncStatus {
   repeated SyncLane lanes = 7;
   optional int64 unplanned_contracts = 6 [json_name = "unplanned_contracts", (northstar.web.required_field) = true];
 }
+message CollectionQuery {
+  optional string exchange = 1 [(northstar.web.required_field) = true];
+  optional string product = 2 [(northstar.web.required_field) = true];
+  optional string search = 3 [(northstar.web.required_field) = true];
+  optional string status = 4 [(northstar.web.required_field) = true];
+  optional int64 offset = 5 [(northstar.web.required_field) = true];
+  optional int64 limit = 6 [(northstar.web.required_field) = true];
+}
+message CollectionPage {
+  optional int64 total = 1 [(northstar.web.required_field) = true];
+  optional int64 offset = 2 [(northstar.web.required_field) = true];
+  optional int64 limit = 3 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct items = 4;
+  repeated string exchanges = 5;
+  repeated string products = 6;
+}
 message SyncJobQuery {
+  optional string owner_scope = 5;
   optional string dataset = 1 [(northstar.web.required_field) = true];
   optional string status = 2 [(northstar.web.required_field) = true];
   optional int64 offset = 3 [(northstar.web.required_field) = true];
@@ -460,6 +477,10 @@ service BrowserApi {
   rpc PostApiSyncToken (SyncTokenRequest) returns (SyncStatus) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/sync/token";
+  }
+  rpc QueryCollections (CollectionQuery) returns (CollectionPage) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/contracts/query";
   }
   rpc QuerySyncJobs (SyncJobQuery) returns (SyncJobPage) {
     option (northstar.web.http_method) = "POST";

@@ -1128,8 +1128,114 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.CollectionQuery": {
+      "fields": {
+        "exchange": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "product": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "search": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "limit": {
+          "id": 6,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.CollectionPage": {
+      "fields": {
+        "total": {
+          "id": 1,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "limit": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "items": {
+          "id": 4,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "exchanges": {
+          "id": 5,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "products": {
+          "id": 6,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.data_hub.SyncJobQuery": {
       "fields": {
+        "owner_scope": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
         "dataset": {
           "id": 1,
           "presence": true,
@@ -2672,6 +2778,13 @@
       "path": "/api/sync/token",
       "input": "northstar.data_hub.SyncTokenRequest",
       "output": "northstar.data_hub.SyncStatus",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/sync/contracts/query",
+      "input": "northstar.data_hub.CollectionQuery",
+      "output": "northstar.data_hub.CollectionPage",
       "runtime": false
     },
     {

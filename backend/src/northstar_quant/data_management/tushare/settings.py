@@ -83,10 +83,6 @@ def status(engine: Engine) -> dict[str, Any]:
                 {"target": target_day()},
             ).mappings()
         ]
-    from ..contract_data.catalog import list_collections
-
-    with engine.connect() as connection:
-        config["contracts"] = list_collections(connection)
     return {
         "settings": config,
         "token_configured": credentials.configured(),

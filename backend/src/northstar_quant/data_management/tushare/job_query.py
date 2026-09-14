@@ -10,7 +10,9 @@ from .store import serial
 STATUSES = frozenset({"PENDING", "RUNNING", "WAITING", "BLOCKED", "VALIDATED", "SPLIT"})
 
 
-def search(engine: Engine, *, dataset: str, status: str, offset: int, limit: int) -> dict[str, Any]:
+def search(
+    engine: Engine, *, dataset: str, status: str, offset: int, limit: int, owner_scope: str = ""
+) -> dict[str, Any]:
     if dataset and dataset not in BY_KEY:
         raise ValueError("未知数据类型")
     if status and status not in STATUSES:
@@ -23,6 +25,12 @@ def search(engine: Engine, *, dataset: str, status: str, offset: int, limit: int
         if value:
             conditions.append(f"{name}=:{name}")
             params[name] = value
+    if owner_scope:
+        conditions.append(
+            "EXISTS(SELECT 1 FROM data_contract_requests cr "
+            "WHERE cr.request_id=data_sync_jobs.request_id AND cr.scope=:owner_scope)"
+        )
+        params["owner_scope"] = owner_scope
     where = " AND ".join(conditions) or "true"
     # Count and rows belong to one snapshot even while the worker changes states.
     with engine.connect().execution_options(isolation_level="REPEATABLE READ") as c, c.begin():

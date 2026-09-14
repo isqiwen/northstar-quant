@@ -178,7 +178,8 @@ def main() -> None:
                     visit(data_url + "/sync")
                     expect(page.get_by_role("heading", name="Tushare 自动同步")).to_be_visible()
                     expect(page.get_by_text("完整合约发布进度", exact=True)).to_be_visible()
-                    expect(page.get_by_text("异常任务与当前处理", exact=True)).to_be_visible()
+                    expect(page.get_by_text("合约数据与进度", exact=True)).to_be_visible()
+                    expect(page.get_by_text("内部采集记录", exact=True)).to_have_count(0)
                     page.get_by_role("button", name="退出登录", exact=True).click()
                     expect(
                         page.get_by_role("heading", name="登录 Northstar Data Hub")
@@ -186,12 +187,14 @@ def main() -> None:
                     assert context.request.get(data_url + "/api/sync").status == 401
                     screenshot("login")
                     visit(data_url + "/sync")
+                    page.get_by_text("采集设置与目录信息", exact=True).click()
                     page.get_by_label("Tushare token", exact=True).fill(
                         "synthetic-browser-test-token"
                     )
                     page.get_by_role("button", name="保存 token", exact=True).click()
                     expect(page.get_by_text("已配置（不回显）", exact=True)).to_be_visible()
                     page.reload()
+                    page.get_by_text("采集设置与目录信息", exact=True).click()
                     expect(page.get_by_label("Tushare token", exact=True)).to_have_value("")
                     page.get_by_role("button", name="开始同步全部数据", exact=True).click()
                     expect(page.get_by_text("已启用", exact=True)).to_be_visible()
@@ -430,15 +433,23 @@ def main() -> None:
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
                     visit(data_url + "/sync")
+                    expect(page.get_by_text("合约数据与进度", exact=True)).to_be_visible()
+                    expect(page.get_by_text("内部请求进度", exact=True)).to_have_count(0)
+                    expect(page.get_by_text("数据范围与进度", exact=True)).to_have_count(0)
+                    contract_row = page.locator('tr[data-row-key="RB2610.SHF"]')
+                    expect(contract_row).to_have_count(1)
+                    contract_row.get_by_role("button", name="合约详情", exact=True).click()
                     expect(
-                        page.get_by_text(
-                            "Synthetic acceptance: provider permission denied",
-                            exact=True,
-                        ).first
+                        page.get_by_role("dialog").get_by_text("每日结算参数", exact=True)
                     ).to_be_visible()
-                    page.get_by_role(
-                        "button", name=re.compile(r"需处理 .*条，查看任务")
-                    ).first.click()
+                    page.get_by_role("dialog").locator(".ant-drawer-close").click()
+                    contract_row.get_by_role("button", name="请求诊断", exact=True).click()
+                    expect(
+                        page.get_by_text("仅查看 RB2610.SHF 所属请求", exact=False)
+                    ).to_be_visible()
+                    page.get_by_role("dialog").locator(".ant-drawer-close").click()
+                    page.get_by_role("button", name="采集服务诊断", exact=True).click()
+                    choose("任务状态", "需处理")
                     page.get_by_role("combobox", name="任务状态").press("ArrowDown")
                     expect(page.get_by_role("option", name="需处理", exact=True)).to_have_attribute(
                         "aria-selected", "true"
@@ -450,14 +461,15 @@ def main() -> None:
                         ).first
                     ).to_be_visible()
                     page.get_by_role("button", name=re.compile(r"^记\s*录$")).first.click()
-                    expect(page.get_by_role("dialog")).to_be_visible()
-                    page.get_by_role("dialog").locator(".ant-modal-close").click()
+                    expect(page.locator(".ant-modal")).to_be_visible()
+                    page.locator(".ant-modal .ant-modal-close").click()
                     page.get_by_role("button", name="清除筛选", exact=True).click()
                     page.get_by_role("combobox", name="任务状态").press("ArrowDown")
                     expect(
                         page.get_by_role("option", name="全部状态", exact=True)
                     ).to_have_attribute("aria-selected", "true")
                     page.get_by_role("combobox", name="任务状态").press("Escape")
+                    page.get_by_role("dialog").locator(".ant-drawer-close").click()
                     screenshot("sync")
                     visit(data_url + f"/attempts/{imported['attempt_id']}")
                     expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible(timeout=30000)

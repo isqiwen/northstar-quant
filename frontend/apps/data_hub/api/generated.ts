@@ -167,7 +167,24 @@ export type SyncStatus = {
   lanes?: (SyncLane)[];
   unplanned_contracts: number;
 };
+export type CollectionQuery = {
+  exchange: string;
+  product: string;
+  search: string;
+  status: string;
+  offset: number;
+  limit: number;
+};
+export type CollectionPage = {
+  total: number;
+  offset: number;
+  limit: number;
+  items?: (Record<string, JsonValue>)[];
+  exchanges?: (string)[];
+  products?: (string)[];
+};
 export type SyncJobQuery = {
+  owner_scope?: string;
   dataset: string;
   status: string;
   offset: number;

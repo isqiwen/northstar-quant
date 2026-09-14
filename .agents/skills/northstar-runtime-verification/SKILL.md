@@ -109,3 +109,13 @@ A 42501 during `maintenance init-db` must be diagnosed from the database error;
 retrying or reopening registration does not resolve it. After initialization,
 verify empty old-data tables, unchanged account/token fingerprints and stopped
 sync before enabling the new collector through its owning settings interface.
+
+
+For synchronization UI changes, enter `/sync` without a request deep link. Verify
+contract counts and one row per contract; dataset/request counters belong only to
+an explicitly opened diagnostics view. Exercise exchange/product filters and server
+pagination beyond 100 collections. Open contract details for native dataset checks,
+and contract request diagnostics for owner-linked product requests (job scope may
+be a product, not the contract). A validated response must never display as a complete
+contract publication. Token configuration is under the collapsed collection settings;
+reopen it after reload before checking that the token field is empty.
