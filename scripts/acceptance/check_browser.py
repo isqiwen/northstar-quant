@@ -273,6 +273,7 @@ def main() -> None:
                     # An empty manual range leads back to actual published data.
                     page.get_by_label("开始日期", exact=True).fill("2026-09-02")
                     page.get_by_label("结束日期", exact=True).fill("2026-09-02")
+                    page.get_by_label("结束日期", exact=True).press("Tab")
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("0 条记录", exact=True)).to_be_visible()
                     page.get_by_role("button", name="选择已有数据", exact=True).click()
