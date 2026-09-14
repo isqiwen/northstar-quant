@@ -321,14 +321,15 @@ class SourceFiles:
         if staging.is_symlink():
             raise ValueError("source staging directory must not be a symbolic link")
         incomplete = list(staging.iterdir())
-        if any(item.is_symlink() or not item.is_file() for item in incomplete):
-            raise ValueError("unexpected object in source staging directory")
         sizes = []
         for item in incomplete:
             try:
-                sizes.append(item.stat().st_size)
+                details = item.lstat()
             except FileNotFoundError:
                 continue  # A parallel writer completed its disposable staging file.
+            if not stat.S_ISREG(details.st_mode):
+                raise ValueError("unexpected object in source staging directory")
+            sizes.append(details.st_size)
         used = sum(item.byte_count for item in objects) + sum(sizes)
         return {
             "used_bytes": used,
