@@ -65,3 +65,8 @@ For the contract workbench, assert one row per contract across native periods. O
 the date-range drawer for manual ranges and the detail drawer for raw rows/source
 checks; close drawers before chart interactions. Ordinary browse re-entry restores
 the last contract/period in the tab; explicit receipt links take precedence.
+
+Exercise detail pagination for both native and compacted views. A parent that
+clears the current result during every page fetch unmounts the drawer and loses
+its open state; preserve the current fixed view until the next page arrives,
+while clearing it when the owning artifact identity changes.

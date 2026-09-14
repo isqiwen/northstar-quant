@@ -48,10 +48,10 @@ export function CompactionDetail({ id }: { id: string }) {
   const [exporting, setExporting] = useState(false);
   const { message } = App.useApp();
   const status = job.data?.status;
+  useEffect(() => setResult(undefined), [id]);
   useEffect(() => {
     if (status !== "SUCCEEDED") return;
     let active = true;
-    setResult(undefined);
     explore(`/api/explorer/compactions/${id}/query`, { offset, limit: 200 })
       .then((value) => {
         if (active) {
