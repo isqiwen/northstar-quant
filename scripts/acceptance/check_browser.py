@@ -466,8 +466,10 @@ def main() -> None:
                         + "/browse?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
                     )
                     page.get_by_role("button", name="查询数据", exact=True).click()
-                    expect(page.get_by_text("固定 2 个分片", exact=True)).to_be_visible()
                     page.get_by_role("button", name="数据明细与来源", exact=True).click()
+                    expect(
+                        page.get_by_role("button", name="合并固定版本", exact=True)
+                    ).to_be_enabled()
                     page.get_by_role("button", name="合并固定版本", exact=True).click()
                     expect(
                         page.get_by_role("heading", name="固定版本合并", exact=True)
@@ -483,6 +485,7 @@ def main() -> None:
                         )
                         expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
                         expect(page.get_by_role("button", name="导出所选范围")).to_be_disabled()
+                        page.get_by_role("button", name="数据明细与来源", exact=True).click()
                         page.locator(".ant-pagination-item-2").first.click()
                         expect(page.get_by_text("明细第 201–400 条", exact=True)).to_be_visible()
                         screenshot("compaction")
