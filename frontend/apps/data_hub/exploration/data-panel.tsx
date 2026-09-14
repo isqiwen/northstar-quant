@@ -10,11 +10,13 @@ import {
   Tabs,
   Tag,
   Typography,
+  Spin,
 } from "antd";
 import Link from "next/link";
 import type { ExplorerRows } from "../api/generated";
-import { Evidence } from "../../../shared/ui";
+import { Evidence, Failure } from "../../../shared/ui";
 import { CompactButton } from "./compact-button";
+import { explore } from "./api";
 import { PriceChart } from "./price-chart";
 type Row = Record<string, unknown>;
 const fieldOrder = [
@@ -38,13 +40,43 @@ export function DataPanel({
   onExport,
   onPage,
   compacted = false,
+  instrumentName,
 }: {
   compacted?: boolean;
+  instrumentName?: string;
   result: ExplorerRows;
   exporting: boolean;
   onExport: () => void;
   onPage: (offset: number) => void;
 }) {
+  const [chartData, setChartData] = useState<ExplorerRows>();
+  const [chartError, setChartError] = useState<Error>();
+  useEffect(() => {
+    let active = true;
+    setChartData(undefined);
+    setChartError(undefined);
+    if (compacted || !result.total) return;
+    void explore("/api/explorer/chart", {
+      dataset: result.dataset,
+      scope: result.scope,
+      start: result.start,
+      end: result.end,
+      receipt_ids: result.receipt_ids,
+    })
+      .then((value) => {
+        if (value.view_id !== result.view_id)
+          throw new Error("图表版本与明细不一致");
+        if (active) setChartData(value);
+      })
+      .catch((error) => {
+        if (active) setChartError(error);
+      });
+    return () => {
+      active = false;
+    };
+    // view_id binds the entire immutable range; table pagination must not reload or reset the chart.
+  }, [result.view_id, compacted]);
+  const chartRows = compacted ? result.rows : chartData?.rows || [];
   const [selected, setSelected] = useState("");
   const settlement = result.dataset === "settlement";
   const [columns, setColumns] = useState(() =>
@@ -58,10 +90,20 @@ export function DataPanel({
   );
   const choosePoint = useCallback((key: string) => setSelected(key), []);
   useEffect(() => setSelected(""), [result.offset]);
-  const selectedRow = result.rows.find((r) => r._key === selected);
+  const selectedRow =
+    chartRows.find((r) => r._key === selected) ||
+    result.rows.find((r) => r._key === selected);
   return (
     <>
-      <Card>
+      <Card className="quote-summary">
+        <h2>
+          {instrumentName || result.scope}{" "}
+          <small>
+            {instrumentName && instrumentName !== result.scope
+              ? result.scope
+              : ""}
+          </small>
+        </h2>
         <Space wrap>
           <Tag color="blue">Tushare</Tag>
           <Tag>
@@ -105,20 +147,23 @@ export function DataPanel({
       ) : (
         <>
           <Card
-            title={`${settlement ? "结算价" : "行情图"} · 当前第 ${result.offset + 1}–${result.offset + result.rows.length} 条`}
+            className="market-chart-card"
+            title={`${settlement ? "结算价" : "行情图"} · ${compacted ? "当前明细页" : "固定范围"}`}
           >
-            {settlement && result.rows.some((r) => r.settle != null) ? (
-              <PriceChart
-                rows={result.rows}
-                onSelect={choosePoint}
-                settlement
-              />
+            <Failure error={chartError} />
+            {!compacted && !chartData && !chartError && (
+              <Spin tip="正在读取固定范围行情">
+                <div style={{ height: 520 }} />
+              </Spin>
+            )}
+            {settlement && chartRows.some((r) => r.settle != null) ? (
+              <PriceChart rows={chartRows} onSelect={choosePoint} settlement />
             ) : !settlement &&
-              result.rows.some((r) =>
+              chartRows.some((r) =>
                 ["open", "high", "low", "close"].every((k) => r[k] != null),
               ) ? (
-              <PriceChart rows={result.rows} onSelect={choosePoint} />
-            ) : (
+              <PriceChart rows={chartRows} onSelect={choosePoint} />
+            ) : compacted || chartData ? (
               <Empty
                 description={
                   settlement
@@ -126,15 +171,26 @@ export function DataPanel({
                     : "源端未提供完整 OHLC，请查看精确明细"
                 }
               />
-            )}
+            ) : null}
             <p className="muted">
               {settlement
                 ? "供应商历史结算价不代表账户已经结算。缺值不连线；费用与保证金保持供应商原始口径，未知为空。点击数据点查看精确记录。"
                 : "横轴按供应商记录排列，不填充休市价格。点击蜡烛查看精确记录；缺失成交量/持仓量保留为空。"}
-              缩放只作用于当前页，图表数值仅用于显示。
+              {compacted
+                ? "合并视图图表显示当前明细页。"
+                : "图表覆盖完整固定范围，明细翻页不会截断图表或均线。"}
+              图表数值仅用于显示。
             </p>
           </Card>
-          <Card title={settlement ? "结算参数明细" : "行情明细"}>
+          <Card
+            title={settlement ? "结算参数明细" : "行情明细"}
+            extra={
+              <span>
+                明细第 {result.offset + 1}–{result.offset + result.rows.length}{" "}
+                条
+              </span>
+            }
+          >
             <Select
               aria-label="显示字段"
               mode="multiple"

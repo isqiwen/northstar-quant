@@ -1,6 +1,7 @@
 """Pinned range reads, corruption refusal, coverage evidence and export authorization."""
 
 import json
+from datetime import datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -312,3 +313,59 @@ def test_available_excludes_catalog_only_and_split_sources(published):
     with engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='SPLIT' WHERE scope='RB2610.SHF'"))
     assert discovery.available(engine, "", "", "", "", 0)["total"] == 0
+
+
+def test_named_instrument_and_full_chart_share_fixed_rows(published):
+    from tests.apps.browser import ProtocolClient
+
+    library, response = published
+    engine = library._engine
+    template = response["data"]["items"][0]
+    response["data"]["items"] = [
+        [
+            template[0],
+            (datetime(2026, 9, 1, 9) + timedelta(minutes=i)).strftime("%Y-%m-%d %H:%M:%S"),
+            *template[2:],
+        ]
+        for i in range(250)
+    ]
+    with engine.begin() as c:
+        c.execute(
+            text("UPDATE data_sync_contracts SET details=details||CAST(:name AS jsonb)"),
+            {"name": json.dumps({"name": "螺纹钢2610"})},
+        )
+        c.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+        c.execute(text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"))
+    assert jobs.process_next(library)["status"] == "VALIDATED"
+    with ProtocolClient(create_app(engine, library), base_url="http://127.0.0.1") as client:
+        csrf = login_response(client).json()["csrf"]
+        client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
+        search = dict(dataset="", exchange="", product="", search="螺纹钢", offset=0)
+        found = client.post("/api/explorer/available", json=search).json()
+        assert found["total"] == 1 and found["rows"][0]["scope"] == "RB2610.SHF"
+        assert found["rows"][0]["display_name"] == "螺纹钢2610"
+        instrument = client.post("/api/explorer/instrument", json={"scope": "RB2610.SHF"}).json()
+        assert instrument["name"] == "螺纹钢2610" and instrument["periods"] == ["1min"]
+        selection = dict(
+            dataset="1min",
+            scope="RB2610.SHF",
+            start="2026-09-01",
+            end="2026-09-03",
+            receipt_ids=[found["rows"][0]["receipt_id"]],
+        )
+        page = client.post(
+            "/api/explorer/query", json={**selection, "offset": 0, "limit": 200}
+        ).json()
+        chart = client.post("/api/explorer/chart", json=selection)
+        assert chart.status_code == 200, chart.text
+        data = chart.json()
+        assert data["view_id"] == page["view_id"] and len(data["rows"]) == 250
+        assert data["rows"][:200] == page["rows"]
+        assert (
+            client.post("/api/explorer/chart", json={**selection, "receipt_ids": []}).status_code
+            == 422
+        )
+        assert (
+            client.post("/api/explorer/chart", json={**selection, "scope": "OTHER.SHF"}).status_code
+            == 422
+        )

@@ -9,6 +9,7 @@ from sqlalchemy import Engine, text
 from ..tushare.store import serial
 from . import rows
 from .catalog import BROWSABLE_DATASETS
+from .instruments import display_name, localized_products
 from .parquet import day_label
 
 
@@ -21,14 +22,16 @@ def available(
         found = (
             c.execute(
                 text("""SELECT r.receipt_id,r.row_count,j.dataset,j.scope,j.start_at,j.end_at,
-                c.exchange,c.product,count(*) OVER() AS total
+                c.exchange,c.product,c.details->>'name' AS name,count(*) OVER() AS total
                 FROM data_sync_jobs j JOIN data_sync_receipts r ON r.receipt_id=j.receipt_id
                 LEFT JOIN data_sync_contracts c ON c.ts_code=j.scope
                 WHERE j.status<>'SPLIT' AND r.row_count>0
                 AND j.dataset=ANY(:datasets)
                 AND (:exchange='' OR c.exchange=:exchange)
                 AND (:product='' OR c.product=:product)
-                AND (:search='' OR position(lower(:search) in lower(j.scope))>0)
+                AND (:search='' OR position(lower(:search) in lower(j.scope))>0
+                    OR position(lower(:search) in lower(c.details->>'name'))>0
+                    OR (c.exchange='CFFEX' AND c.product=ANY(:localized)))
                 ORDER BY j.end_at DESC,j.scope,j.dataset,r.receipt_id
                 LIMIT 10 OFFSET :offset"""),
                 dict(
@@ -36,13 +39,23 @@ def available(
                     exchange=exchange,
                     product=product,
                     search=search,
+                    localized=localized_products(search),
                     offset=offset,
                 ),
             )
             .mappings()
             .all()
         )
-    return {"rows": [serial(r) for r in found], "total": found[0]["total"] if found else 0}
+    return {
+        "rows": [
+            {
+                **serial(r),
+                "display_name": display_name(r["scope"], r["name"], r["exchange"], r["product"]),
+            }
+            for r in found
+        ],
+        "total": found[0]["total"] if found else 0,
+    }
 
 
 def open_published(engine: Engine, receipt_id: UUID) -> dict[str, Any]:

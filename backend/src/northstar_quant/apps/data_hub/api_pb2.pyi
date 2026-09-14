@@ -491,6 +491,38 @@ class ExplorerQuery(_message.Message):
     limit: int
     def __init__(self, dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., offset: _Optional[int] = ..., receipt_ids: _Optional[_Iterable[str]] = ..., limit: _Optional[int] = ...) -> None: ...
 
+class ChartQuery(_message.Message):
+    __slots__ = ("dataset", "scope", "start", "end", "receipt_ids")
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_IDS_FIELD_NUMBER: _ClassVar[int]
+    dataset: str
+    scope: str
+    start: str
+    end: str
+    receipt_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class InstrumentSelection(_message.Message):
+    __slots__ = ("scope",)
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    def __init__(self, scope: _Optional[str] = ...) -> None: ...
+
+class ExplorerInstrument(_message.Message):
+    __slots__ = ("scope", "name", "exchange", "periods")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PERIODS_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    name: str
+    exchange: str
+    periods: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scope: _Optional[str] = ..., name: _Optional[str] = ..., exchange: _Optional[str] = ..., periods: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class ExplorerCoverage(_message.Message):
     __slots__ = ("days", "jobs", "note")
     DAYS_FIELD_NUMBER: _ClassVar[int]

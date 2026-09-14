@@ -213,6 +213,22 @@ export type ExplorerQuery = {
   receipt_ids: (string)[];
   limit: number;
 };
+export type ChartQuery = {
+  dataset: string;
+  scope: string;
+  start: string;
+  end: string;
+  receipt_ids: (string)[];
+};
+export type InstrumentSelection = {
+  scope: string;
+};
+export type ExplorerInstrument = {
+  scope: string;
+  name: string;
+  exchange: string;
+  periods: (string)[];
+};
 export type ExplorerCoverage = {
   days: (Record<string, JsonValue>)[];
   jobs: (Record<string, JsonValue>)[];

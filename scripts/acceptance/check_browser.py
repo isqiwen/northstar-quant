@@ -262,6 +262,8 @@ def main() -> None:
                     # Discover published data without guessing contract or dates.
                     visit(data_url + "/browse")
                     available = page.locator(".explorer-available")
+                    available.get_by_label("搜索已有数据合约", exact=True).fill("螺纹钢")
+                    expect(available.get_by_text("螺纹钢2610", exact=True).first).to_be_visible()
                     expect(available.get_by_text("RB2610.SHF", exact=True).first).to_be_visible()
                     available.get_by_role("row").filter(has_text="1 分钟").get_by_role(
                         "button", name="查看数据", exact=True
@@ -295,11 +297,35 @@ def main() -> None:
                         page.get_by_role("img", name="固定数据 K 线、成交量与持仓量")
                     ).to_be_visible()
                     expect(page.get_by_role("button", name="导出所选范围")).to_be_disabled()
-                    expect(page.get_by_text("行情图 · 当前第 1–200 条", exact=True)).to_be_visible()
-                    page.locator(".ant-pagination-item-2").first.click()
+                    expect(page.get_by_text("行情图 · 固定范围", exact=True)).to_be_visible()
+                    expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
                     expect(
-                        page.get_by_text("行情图 · 当前第 201–400 条", exact=True)
+                        page.locator(".quote-summary").get_by_text("螺纹钢2610", exact=False)
                     ).to_be_visible()
+                    page.get_by_role("button", name="全范围", exact=True).click()
+                    page.get_by_role("checkbox", name="MACD", exact=True).check()
+                    page.get_by_role("button", name="最近120根", exact=True).click()
+                    expect(
+                        page.get_by_role("group", name="行情周期").get_by_role(
+                            "button", name="15 分钟", exact=True
+                        )
+                    ).to_be_disabled()
+                    periods = page.get_by_role("group", name="行情周期")
+                    periods.get_by_role("button", name="每日结算参数", exact=True).click()
+                    expect(page.get_by_role("img", name="固定数据结算价曲线")).to_be_visible()
+                    expect(page.get_by_label("开始日期", exact=True)).to_have_value("2026-09-01")
+                    expect(page.get_by_label("结束日期", exact=True)).to_have_value("2026-09-03")
+                    periods.get_by_role("button", name="1 分钟", exact=True).click()
+                    expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
+                    page.locator(".ant-pagination-item-2").first.click()
+                    expect(page.get_by_text("明细第 201–400 条", exact=True)).to_be_visible()
+                    expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
+                    page.get_by_role("checkbox", name="MACD", exact=True).check()
+                    page.get_by_role("button", name="全屏看图", exact=True).click()
+                    page.wait_for_function("Boolean(document.fullscreenElement)")
+                    screenshot("chart-fullscreen")
+                    page.get_by_role("button", name="全屏看图", exact=True).click()
+                    page.wait_for_function("!document.fullscreenElement")
                     screenshot("browse")
                     visit(
                         data_url
@@ -441,9 +467,7 @@ def main() -> None:
                         expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
                         expect(page.get_by_role("button", name="导出所选范围")).to_be_disabled()
                         page.locator(".ant-pagination-item-2").first.click()
-                        expect(
-                            page.get_by_text("行情图 · 当前第 201–400 条", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("明细第 201–400 条", exact=True)).to_be_visible()
                         screenshot("compaction")
                 from datetime import date, timedelta
 

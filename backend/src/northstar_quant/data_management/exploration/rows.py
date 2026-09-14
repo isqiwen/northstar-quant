@@ -193,7 +193,7 @@ def _read(
         "versions": [serial(r) for r in versions],
         "scan": {"files": len(versions), **cost},
         "note": (
-            "供应商修订后历史，非首次可得行情。图表仅显示当前页固定版本记录；"
+            "供应商修订后历史，非首次可得行情。图表与明细使用同一固定查询范围；"
             "字段统计针对当前固定查询范围。"
         ),
     }

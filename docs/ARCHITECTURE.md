@@ -500,6 +500,21 @@ Research/Live 的连接池使用 `mode=rw` 打开应用已创建的文件，在�
 保留手动筛选及空结果返回入口。日期含首尾，分钟按上海供应商自然日期，日线按供应商
 交易日期，周/月按既有双日期范围键；不在展示层另行解释夜盘交易日。
 
+2026-09-14 图表与中文合约：查阅 [Apache ECharts Axis](https://echarts.apache.org/handbook/en/concepts/axis/)
+及 [dataZoom](https://echarts.apache.org/en/option.html#dataZoom)，继续使用已锁定 ECharts 6.1.0，
+无新依赖。左侧已发布数据列表和右侧暗色行情图共用原 Data API；合约中文名取已同步
+`details.name`，展示及中文搜索保留供应商代码。部分仅返回代码的中金所品种名称按
+[中金所产品目录](https://www.cffex.com.cn/cp/)和[首页](https://www.cffex.com.cn/)（本日查阅）
+补充展示标签；未知名称仍保留原名/代码，不写回行情身份或研究材料。
+
+图表使用明确 receipt 集合的只读 `explorer/chart`，复用同一精确读取及32MiB/20,000行边界；
+返回的 view_id 必须与明细相同。图表完整读取固定范围，明细继续200行分页，翻页不重置
+图表或截断均线。原生周期按钮由同合约实际非空发布种类决定；切换保持日期范围，不从
+其他周期重采样，范围内无记录则明确为空。MA5/10/20/60及MACD(12,26,9)仅作展示，
+使用当前及此前固定记录，从范围起点预热；MACD EMA以首个有效收盘初始化，直方图为
+2×(DIF−DEA)，缺失值重置预热。不调用策略配置或产生交易输入，精确悬浮信息仍用原值。
+当前合并产物详情保留其分页读取边界并注明当前明细页，不将其冒充供应商全范围图表。
+
 ### 固定范围读取（本地批次 2026-09-11）
 
 查阅 [Arrow Parquet 25.0.1](https://arrow.apache.org/docs/python/parquet.html)、

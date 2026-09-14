@@ -265,6 +265,23 @@ message ExplorerQuery {
   optional int64 limit = 7 [(northstar.web.required_field) = true];
 }
 
+message ChartQuery {
+  optional string dataset = 1 [(northstar.web.required_field) = true];
+  optional string scope = 2 [(northstar.web.required_field) = true];
+  optional string start = 3 [(northstar.web.required_field) = true];
+  optional string end = 4 [(northstar.web.required_field) = true];
+  repeated string receipt_ids = 5 [(northstar.web.required_field) = true];
+}
+message InstrumentSelection {
+  optional string scope = 1 [(northstar.web.required_field) = true];
+}
+message ExplorerInstrument {
+  optional string scope = 1 [(northstar.web.required_field) = true];
+  optional string name = 2 [(northstar.web.required_field) = true];
+  optional string exchange = 3 [(northstar.web.required_field) = true];
+  repeated string periods = 4 [(northstar.web.required_field) = true];
+}
+
 message ExplorerCoverage {
   repeated google.protobuf.Struct days = 1 [(northstar.web.required_field) = true];
   repeated google.protobuf.Struct jobs = 2 [(northstar.web.required_field) = true];
@@ -381,6 +398,8 @@ service BrowserApi {
   rpc QueryRows(ExplorerQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/query"; }
   rpc QueryVersions(ExplorerRange) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/versions"; }
   rpc QueryCoverage(ExplorerRange) returns (ExplorerCoverage) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/coverage"; }
+  rpc ChartRows(ChartQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/chart"; }
+  rpc DescribeInstrument(InstrumentSelection) returns (ExplorerInstrument) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/instrument"; }
   rpc AvailableData(AvailableSearch) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/available"; }
   rpc OpenPublished(PublishedSelection) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/open"; }
   rpc FindContracts(ContractSearch) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/contracts"; }

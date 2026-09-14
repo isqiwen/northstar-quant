@@ -24,11 +24,12 @@ P extends `/api/attempts` ? messages.GetApiAttemptsResponse :
 P extends `/api/datasets` ? messages.GetApiDatasetsResponse :
 P extends `/api/sources` ? messages.GetApiSourcesResponse :
 P extends `/api/sync` ? messages.SyncStatus : never;
-export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/research-inputs/assemble` | `/api/explorer/compactions` | `/api/explorer/available` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/research-inputs` | `/api/explorer/export` | `/api/sync/jobs/query` | `/api/explorer/query` | `/api/sync/reprocess` | `/api/explorer/open` | `/api/sync/settings` | `/api/sync/token` | `/api/logout` | `/api/setup` | `/api/login`;
+export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/research-inputs/assemble` | `/api/explorer/compactions` | `/api/explorer/instrument` | `/api/explorer/available` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/research-inputs` | `/api/explorer/export` | `/api/sync/jobs/query` | `/api/explorer/query` | `/api/explorer/chart` | `/api/sync/reprocess` | `/api/explorer/open` | `/api/sync/settings` | `/api/sync/token` | `/api/logout` | `/api/setup` | `/api/login`;
 export type CommandResponse<P> = P extends `/api/explorer/compactions/${string}/export` ? messages.ExplorerRows :
 P extends `/api/explorer/compactions/${string}/query` ? messages.ExplorerRows :
 P extends `/api/research-inputs/assemble` ? messages.DatasetDetails :
 P extends `/api/explorer/compactions` ? messages.Compaction :
+P extends `/api/explorer/instrument` ? messages.ExplorerInstrument :
 P extends `/api/explorer/available` ? messages.ExplorerList :
 P extends `/api/explorer/contracts` ? messages.ExplorerList :
 P extends `/api/explorer/versions` ? messages.ExplorerList :
@@ -38,6 +39,7 @@ P extends `/api/research-inputs` ? messages.ProcessingAttempt :
 P extends `/api/explorer/export` ? messages.ExplorerRows :
 P extends `/api/sync/jobs/query` ? messages.SyncJobPage :
 P extends `/api/explorer/query` ? messages.ExplorerRows :
+P extends `/api/explorer/chart` ? messages.ExplorerRows :
 P extends `/api/sync/reprocess` ? messages.SyncEvidence :
 P extends `/api/explorer/open` ? messages.ExplorerRows :
 P extends `/api/sync/settings` ? messages.SyncStatus :
@@ -49,6 +51,7 @@ export type CommandBody<P> = P extends `/api/explorer/compactions/${string}/expo
 P extends `/api/explorer/compactions/${string}/query` ? messages.CompactionPage :
 P extends `/api/research-inputs/assemble` ? messages.AssembleResearchRequest :
 P extends `/api/explorer/compactions` ? messages.CompactionRequest :
+P extends `/api/explorer/instrument` ? messages.InstrumentSelection :
 P extends `/api/explorer/available` ? messages.AvailableSearch :
 P extends `/api/explorer/contracts` ? messages.ContractSearch :
 P extends `/api/explorer/versions` ? messages.ExplorerRange :
@@ -58,6 +61,7 @@ P extends `/api/research-inputs` ? messages.PrepareResearchRequest :
 P extends `/api/explorer/export` ? messages.ExplorerQuery :
 P extends `/api/sync/jobs/query` ? messages.SyncJobQuery :
 P extends `/api/explorer/query` ? messages.ExplorerQuery :
+P extends `/api/explorer/chart` ? messages.ChartQuery :
 P extends `/api/sync/reprocess` ? messages.SyncReprocessRequest :
 P extends `/api/explorer/open` ? messages.PublishedSelection :
 P extends `/api/sync/settings` ? messages.SyncSettingsRequest :

@@ -1,20 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import {
-  App,
-  Button,
-  Card,
-  Empty,
-  Form,
-  Input,
-  Select,
-  Space,
-  Tag,
-} from "antd";
+import { App, Button, Card, ConfigProvider, theme, Empty, Space } from "antd";
 import Link from "next/link";
 import { query } from "../api/client";
 import type {
   ExplorerRows,
+  ExplorerInstrument,
   ExplorerCoverage,
   ExplorerRange,
 } from "../api/generated";
@@ -22,6 +13,7 @@ import { useData } from "../../../shared/data";
 import { download } from "../../../shared/api";
 import { Failure, Heading } from "../../../shared/ui";
 import { explore } from "./api";
+import { RangeFilters } from "./range-filters";
 import { AvailableData } from "./available-data";
 import { DataPanel } from "./data-panel";
 import { CoveragePanel } from "./coverage-panel";
@@ -54,6 +46,7 @@ export function Explorer({
   const [search, setSearch] = useState("");
   const [contracts, setContracts] = useState<Row[]>([]);
   const [contractTotal, setContractTotal] = useState(0);
+  const [instrument, setInstrument] = useState<ExplorerInstrument>();
   const [result, setResult] = useState<ExplorerRows>();
   const [coverage, setCoverage] = useState<ExplorerCoverage>();
   const [versions, setVersions] = useState<Row[]>([]);
@@ -67,6 +60,7 @@ export function Explorer({
   const generation = useRef(0);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    setSearch(params.get("scope") || "");
     setPreset(params.get("receipt") ? [params.get("receipt")!] : []);
     setFilter((f) => ({
       ...f,
@@ -101,6 +95,21 @@ export function Explorer({
       clearTimeout(timer);
     };
   }, [exchange, product, search]);
+  useEffect(() => {
+    let active = true;
+    setInstrument(undefined);
+    if (!filter.scope) return;
+    void explore("/api/explorer/instrument", { scope: filter.scope })
+      .then((value) => {
+        if (active) setInstrument(value);
+      })
+      .catch((e) => {
+        if (active) setError(e);
+      });
+    return () => {
+      active = false;
+    };
+  }, [filter.scope]);
   function change(values: Partial<ExplorerRange>) {
     setPreset([]);
     generation.current++;
@@ -183,13 +192,6 @@ export function Explorer({
         scopeUrl("/browse", range) +
           `&receipt=${encodeURIComponent(receipt_id)}`,
       );
-      setTimeout(
-        () =>
-          document
-            .getElementById("explorer-result")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-        0,
-      );
     } catch (e) {
       if (mine === generation.current) {
         setError(e as Error);
@@ -246,197 +248,174 @@ export function Explorer({
         }
       />
       <Failure error={catalog.error || error} />
-      {mode === "browse" && (
-        <AvailableData
-          catalog={catalog.data}
-          opening={busy}
-          onOpen={(id) => void openPublished(id)}
-        />
-      )}
-      <Card title="自定义合约和日期范围" className="explorer-filters">
-        <Form layout="vertical" onFinish={() => void load()}>
-          <div className="explorer-controls">
-            <Form.Item label="交易所">
-              <Select
-                aria-label="交易所"
-                value={exchange}
-                options={[
-                  { value: "", label: "全部交易所" },
-                  ...(catalog.data?.exchanges || []).map((v) => ({
-                    value: v,
-                    label: v,
-                  })),
-                ]}
-                onChange={(v) => {
-                  setExchange(v);
-                  setProduct("");
-                  change({ scope: "" });
-                }}
-              />
-            </Form.Item>
-            <Form.Item label="品种">
-              <Select
-                aria-label="品种"
-                showSearch
-                optionFilterProp="label"
-                value={product}
-                options={[
-                  { value: "", label: "全部品种" },
-                  ...Array.from(
-                    new Set(
-                      (catalog.data?.products || [])
-                        .filter((r) => !exchange || r.exchange === exchange)
-                        .map((r) => String(r.product)),
-                    ),
-                  ).map((v) => ({ value: v, label: v })),
-                ]}
-                onChange={(v) => {
-                  setProduct(v);
-                  change({ scope: "" });
-                }}
-              />
-            </Form.Item>
-            <Form.Item label="合约">
-              <Select
-                aria-label="合约"
-                showSearch
-                filterOption={false}
-                onSearch={setSearch}
-                value={filter.scope || undefined}
-                placeholder="搜索合约代码"
-                notFoundContent="目录中暂无匹配合约"
-                options={contracts.map((r) => ({
-                  value: String(r.ts_code),
-                  label: `${r.ts_code}${r.kind === "2" ? " · 连续序列" : ""}`,
-                }))}
-                onChange={(v) => change({ scope: v })}
-              />
-            </Form.Item>
-            <Form.Item label="数据类型">
-              <Select
-                aria-label="数据类型"
-                value={filter.dataset}
-                options={(catalog.data?.datasets || [])
-                  .filter((r) => r.browsable)
-                  .map((r) => ({
-                    value: String(r.key),
-                    label: String(r.label),
-                  }))}
-                onChange={(v) => {
-                  change({ dataset: v });
-                }}
-              />
-            </Form.Item>
-            <Form.Item label="开始日期">
-              <Input
-                aria-label="开始日期"
-                type="date"
-                value={filter.start}
-                onChange={(e) => change({ start: e.target.value })}
-              />
-            </Form.Item>
-            <Form.Item label="结束日期">
-              <Input
-                aria-label="结束日期"
-                type="date"
-                value={filter.end}
-                onChange={(e) => change({ end: e.target.value })}
-              />
-            </Form.Item>
-          </div>
-          <p className="muted">
-            开始和结束日期包含首尾两天，筛选行情记录，不是下载时间。分钟数据按供应商时间的自然日期（上海时区），日线按供应商交易日期；周/月线按行情标签与计算截止日期的较早日期。夜盘尚未在此按交易日重新归集。
-          </p>
-          <Space wrap>
-            {preset.length > 0 && (
-              <Tag color="blue">正在查看指定的历史分片版本</Tag>
-            )}
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={busy}
-              disabled={!filter.scope}
-            >
-              查询数据
-            </Button>
-            <span className="muted">
-              合约匹配 {contractTotal} 个，最多显示前 50
-              个；可输入代码缩小范围。
-            </span>
-          </Space>
-        </Form>
-      </Card>
-      <Space wrap className="explorer-links">
-        {[
-          ["/browse", "数据浏览"],
-          ["/quality", "覆盖与质量"],
-          ["/versions", "版本与来源"],
-        ].map(([path, label]) => (
-          <Link key={path} href={scopeUrl(path, linkRange)}>
-            <Button
-              type={
-                path ===
-                `/${mode === "browse" ? "browse" : mode === "quality" ? "quality" : "versions"}`
-                  ? "primary"
-                  : "default"
+      <ConfigProvider
+        theme={
+          mode === "browse"
+            ? {
+                algorithm: theme.darkAlgorithm,
+                token: {
+                  colorBgContainer: "#141b25",
+                  colorBgElevated: "#1a2533",
+                  colorBgLayout: "#10151d",
+                  colorBorderSecondary: "#293545",
+                  colorText: "#dbe5ef",
+                  colorTextSecondary: "#94a6bc",
+                  colorPrimary: "#6a9de8",
+                  borderRadiusLG: 6,
+                },
               }
-            >
-              {label}
-            </Button>
-          </Link>
-        ))}
-        <Link href="/sources">来源归档与处理记录</Link>
-        <Link href="/datasets">研究快照</Link>
-      </Space>
-      {!loaded && !busy && !error && (
-        <Card>
-          <Empty
-            description={
-              mode === "browse"
-                ? "从上方已有数据列表点击查看，无需填写日期"
-                : "选择合约和日期范围，查询已同步的数据"
-            }
+            : undefined
+        }
+      >
+        <div className={mode === "browse" ? "market-terminal" : undefined}>
+          {mode === "browse" && (
+            <AvailableData
+              catalog={catalog.data}
+              opening={busy}
+              selectedReceipt={result?.receipt_ids[0]}
+              onOpen={(id) => void openPublished(id)}
+            />
+          )}
+          <RangeFilters
+            catalog={catalog.data}
+            filter={filter}
+            exchange={exchange}
+            product={product}
+            contracts={contracts}
+            contractTotal={contractTotal}
+            preset={preset}
+            busy={busy}
+            onSubmit={() => void load()}
+            onChange={change}
+            onSearch={setSearch}
+            onExchange={(v) => {
+              setExchange(v);
+              setProduct("");
+              change({ scope: "" });
+            }}
+            onProduct={(v) => {
+              setProduct(v);
+              change({ scope: "" });
+            }}
           />
-        </Card>
-      )}
-      <div id="explorer-result" />
-      {mode === "browse" && result?.total === 0 && (
-        <Card>
-          <p>
-            所选合约和日期没有已发布记录。请从上方“已有数据”选择一份，自动填入有记录的日期。
-          </p>
-          <Button
-            onClick={() =>
-              document
-                .querySelector(".explorer-available")
-                ?.scrollIntoView({ behavior: "smooth" })
-            }
-          >
-            选择已有数据
-          </Button>
-        </Card>
-      )}
-      {mode === "browse" && result && (
-        <DataPanel
-          key={result.view_id}
-          result={result}
-          exporting={exporting}
-          onExport={() => void exportRange()}
-          onPage={(offset) => void load(offset, result.receipt_ids, loaded!)}
-        />
-      )}
-      {mode === "quality" && coverage && (
-        <CoveragePanel coverage={coverage} linkRange={linkRange} />
-      )}
-      {mode === "versions" && loaded && (
-        <VersionsPanel
-          versions={versions}
-          linkRange={linkRange}
-          versionPage={versionPage}
-          versionTotal={versionTotal}
-          onPage={(offset) => void load(offset)}
-        />
-      )}
+          <Space wrap className="explorer-links">
+            {[
+              ["/browse", "数据浏览"],
+              ["/quality", "覆盖与质量"],
+              ["/versions", "版本与来源"],
+            ].map(([path, label]) => (
+              <Link key={path} href={scopeUrl(path, linkRange)}>
+                <Button
+                  type={
+                    path ===
+                    `/${mode === "browse" ? "browse" : mode === "quality" ? "quality" : "versions"}`
+                      ? "primary"
+                      : "default"
+                  }
+                >
+                  {label}
+                </Button>
+              </Link>
+            ))}
+            <Link href="/sources">来源归档与处理记录</Link>
+            <Link href="/datasets">研究快照</Link>
+          </Space>
+          <div id="explorer-result" className="explorer-result-content">
+            {mode === "browse" && filter.scope && (
+              <div
+                className="period-toolbar"
+                role="group"
+                aria-label="行情周期"
+              >
+                <span>历史周期</span>
+                {(catalog.data?.datasets || [])
+                  .filter((d) => d.browsable)
+                  .map((d) => (
+                    <Button
+                      key={String(d.key)}
+                      size="small"
+                      type={filter.dataset === d.key ? "primary" : "text"}
+                      disabled={
+                        busy || !instrument?.periods.includes(String(d.key))
+                      }
+                      title={
+                        instrument?.periods.includes(String(d.key))
+                          ? "切换原生周期，保持当前日期范围"
+                          : "该合约尚无已发布数据"
+                      }
+                      onClick={() => {
+                        const range = {
+                          ...(loaded || filter),
+                          dataset: String(d.key),
+                          offset: 0,
+                        };
+                        change(range);
+                        void load(0, [], range);
+                      }}
+                    >
+                      {String(d.label)}
+                    </Button>
+                  ))}
+              </div>
+            )}
+            {!loaded && !busy && !error && (
+              <Card>
+                <Empty
+                  description={
+                    mode === "browse"
+                      ? "从左侧选择合约，立即查看历史行情"
+                      : "选择合约和日期范围，查询已同步的数据"
+                  }
+                />
+              </Card>
+            )}
+            {mode === "browse" && result?.total === 0 && (
+              <Card>
+                <p>
+                  所选合约和日期没有已发布记录。请从左侧“已有数据”选择一份，自动填入有记录的日期。
+                </p>
+                <Button
+                  onClick={() =>
+                    document
+                      .querySelector(".explorer-available")
+                      ?.scrollIntoView({ behavior: "smooth" })
+                  }
+                >
+                  选择已有数据
+                </Button>
+              </Card>
+            )}
+            {mode === "browse" && result && (
+              <DataPanel
+                key={result.view_id}
+                instrumentName={
+                  instrument?.scope === result.scope
+                    ? instrument.name
+                    : undefined
+                }
+                result={result}
+                exporting={exporting}
+                onExport={() => void exportRange()}
+                onPage={(offset) =>
+                  void load(offset, result.receipt_ids, loaded!)
+                }
+              />
+            )}
+          </div>
+          {mode === "quality" && coverage && (
+            <CoveragePanel coverage={coverage} linkRange={linkRange} />
+          )}
+          {mode === "versions" && loaded && (
+            <VersionsPanel
+              versions={versions}
+              linkRange={linkRange}
+              versionPage={versionPage}
+              versionTotal={versionTotal}
+              onPage={(offset) => void load(offset)}
+            />
+          )}
+        </div>
+      </ConfigProvider>
     </>
   );
 }

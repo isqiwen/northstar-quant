@@ -7,7 +7,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import Field, JsonValue
 from sqlalchemy import Engine
 
-from northstar_quant.data_management.exploration import catalog, discovery, quality, revisions, rows
+from northstar_quant.data_management.exploration import (
+    catalog,
+    discovery,
+    instruments,
+    quality,
+    revisions,
+    rows,
+)
 from northstar_quant.web.requests import ApiModel
 
 
@@ -70,6 +77,25 @@ class ExplorerQuery(ExplorerRange):
     limit: int = Field(ge=1, le=1000)
 
 
+class ChartQuery(ApiModel):
+    dataset: str = Field(max_length=16)
+    scope: str = Field(max_length=40)
+    start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    receipt_ids: list[str] = Field(min_length=1, max_length=32)
+
+
+class InstrumentSelection(ApiModel):
+    scope: str = Field(min_length=1, max_length=40)
+
+
+class ExplorerInstrument(ApiModel):
+    scope: str
+    name: str
+    exchange: str
+    periods: list[str]
+
+
 class ExplorerCoverage(ApiModel):
     days: list[dict[str, JsonValue]]
     jobs: list[dict[str, JsonValue]]
@@ -96,6 +122,19 @@ class ExplorerRows(ApiModel):
 
 
 def register(app: FastAPI, engine: Engine) -> None:
+    @app.post("/api/explorer/instrument", response_model=ExplorerInstrument)
+    def instrument(document: InstrumentSelection) -> dict[str, Any]:
+        return instruments.describe(engine, document.scope)
+
+    @app.post("/api/explorer/chart", response_model=ExplorerRows)
+    def chart(document: ChartQuery) -> dict[str, Any]:
+        return rows.read(
+            engine,
+            **document.model_dump(exclude={"receipt_ids"}),
+            receipt_ids=[UUID(v) for v in document.receipt_ids],
+            limit=20000,
+        )
+
     @app.post("/api/explorer/available", response_model=ExplorerList)
     def available(document: AvailableSearch) -> dict[str, Any]:
         return discovery.available(engine, **document.model_dump())

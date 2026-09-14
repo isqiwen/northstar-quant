@@ -1369,6 +1369,96 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.ChartQuery": {
+      "fields": {
+        "dataset": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "scope": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "receipt_ids": {
+          "id": 5,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.InstrumentSelection": {
+      "fields": {
+        "scope": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.ExplorerInstrument": {
+      "fields": {
+        "scope": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "name": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "exchange": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "periods": {
+          "id": 4,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.data_hub.ExplorerCoverage": {
       "fields": {
         "days": {
@@ -2316,6 +2406,20 @@
       "path": "/api/explorer/coverage",
       "input": "northstar.data_hub.ExplorerRange",
       "output": "northstar.data_hub.ExplorerCoverage",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/chart",
+      "input": "northstar.data_hub.ChartQuery",
+      "output": "northstar.data_hub.ExplorerRows",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/instrument",
+      "input": "northstar.data_hub.InstrumentSelection",
+      "output": "northstar.data_hub.ExplorerInstrument",
       "runtime": false
     },
     {

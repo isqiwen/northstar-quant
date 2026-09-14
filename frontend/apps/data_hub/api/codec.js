@@ -15872,6 +15872,1118 @@ export const northstar = $root.northstar = (() => {
             return ExplorerQuery;
         })();
 
+        data_hub.ChartQuery = (function() {
+
+            /**
+             * Properties of a ChartQuery.
+             * @typedef {Object} northstar.data_hub.ChartQuery.$Properties
+             * @property {string|null} [dataset] ChartQuery dataset
+             * @property {string|null} [scope] ChartQuery scope
+             * @property {string|null} [start] ChartQuery start
+             * @property {string|null} [end] ChartQuery end
+             * @property {Array.<string>|null} [receipt_ids] ChartQuery receipt_ids
+             * @property {"dataset"} [_dataset] ChartQuery _dataset
+             * @property {"scope"} [_scope] ChartQuery _scope
+             * @property {"start"} [_start] ChartQuery _start
+             * @property {"end"} [_end] ChartQuery _end
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ChartQuery.
+             * @memberof northstar.data_hub
+             * @interface IChartQuery
+             * @augments northstar.data_hub.ChartQuery.$Properties
+             * @deprecated Use northstar.data_hub.ChartQuery.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ChartQuery.
+             * @typedef {{
+             *   dataset?: string|null;
+             *   scope?: string|null;
+             *   start?: string|null;
+             *   end?: string|null;
+             *   receipt_ids?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * ) & (
+             *   ({ _start?: undefined; start?: null }|{ _start?: "start"; start: string })
+             * ) & (
+             *   ({ _end?: undefined; end?: null }|{ _end?: "end"; end: string })
+             * )} northstar.data_hub.ChartQuery.$Shape
+             */
+
+            /**
+             * Constructs a new ChartQuery.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a ChartQuery.
+             * @constructor
+             * @param {northstar.data_hub.ChartQuery.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ChartQuery = function (properties) {
+                this.receipt_ids = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ChartQuery dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             */
+            ChartQuery.prototype.dataset = null;
+
+            /**
+             * ChartQuery scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             */
+            ChartQuery.prototype.scope = null;
+
+            /**
+             * ChartQuery start.
+             * @member {string|null|undefined} start
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             */
+            ChartQuery.prototype.start = null;
+
+            /**
+             * ChartQuery end.
+             * @member {string|null|undefined} end
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             */
+            ChartQuery.prototype.end = null;
+
+            /**
+             * ChartQuery receipt_ids.
+             * @member {Array.<string>} receipt_ids
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             */
+            ChartQuery.prototype.receipt_ids = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ChartQuery _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             */
+            $Object.defineProperty(ChartQuery.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ChartQuery _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             */
+            $Object.defineProperty(ChartQuery.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ChartQuery _start.
+             * @member {"start"|undefined} _start
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             */
+            $Object.defineProperty(ChartQuery.prototype, "_start", {
+                get: $util.oneOfGetter($oneOfFields = ["start"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ChartQuery _end.
+             * @member {"end"|undefined} _end
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             */
+            $Object.defineProperty(ChartQuery.prototype, "_end", {
+                get: $util.oneOfGetter($oneOfFields = ["end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ChartQuery instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ChartQuery
+             * @static
+             * @param {northstar.data_hub.ChartQuery.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ChartQuery} ChartQuery instance
+             * @type {{
+             *   (properties: northstar.data_hub.ChartQuery.$Shape): northstar.data_hub.ChartQuery & northstar.data_hub.ChartQuery.$Shape;
+             *   (properties?: northstar.data_hub.ChartQuery.$Properties): northstar.data_hub.ChartQuery;
+             * }}
+             */
+            ChartQuery.create = function(properties) {
+                return new ChartQuery(properties);
+            };
+
+            /**
+             * Encodes the specified ChartQuery message. Does not implicitly {@link northstar.data_hub.ChartQuery.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ChartQuery
+             * @static
+             * @param {northstar.data_hub.ChartQuery.$Properties} message ChartQuery message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ChartQuery.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.dataset);
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.scope);
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.start);
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.end);
+                if (message.receipt_ids != null && message.receipt_ids.length)
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        writer.uint32(/* id 5, wireType 2 =*/42).string(message.receipt_ids[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ChartQuery message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ChartQuery
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ChartQuery & northstar.data_hub.ChartQuery.$Shape} ChartQuery
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ChartQuery.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ChartQuery();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.start = reader.stringVerify();
+                            message._start = "start";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.end = reader.stringVerify();
+                            message._end = "end";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.receipt_ids && message.receipt_ids.length))
+                                message.receipt_ids = [];
+                            message.receipt_ids.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ChartQuery message.
+             * @function verify
+             * @memberof northstar.data_hub.ChartQuery
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ChartQuery.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    properties._start = 1;
+                    if (!$util.isString(message.start))
+                        return "start: string expected";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    properties._end = 1;
+                    if (!$util.isString(message.end))
+                        return "end: string expected";
+                }
+                if (message.receipt_ids != null && $Object.hasOwnProperty.call(message, "receipt_ids")) {
+                    if (!$Array.isArray(message.receipt_ids))
+                        return "receipt_ids: array expected";
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        if (!$util.isString(message.receipt_ids[i]))
+                            return "receipt_ids: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ChartQuery message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ChartQuery
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ChartQuery} ChartQuery
+             */
+            ChartQuery.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ChartQuery)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ChartQuery: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ChartQuery();
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                if (object.start != null)
+                    message.start = $String(object.start);
+                if (object.end != null)
+                    message.end = $String(object.end);
+                if (object.receipt_ids) {
+                    if (!$Array.isArray(object.receipt_ids))
+                        throw $TypeError(".northstar.data_hub.ChartQuery.receipt_ids: array expected");
+                    message.receipt_ids = $Array(object.receipt_ids.length);
+                    for (let i = 0; i < object.receipt_ids.length; ++i)
+                        message.receipt_ids[i] = $String(object.receipt_ids[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ChartQuery message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ChartQuery
+             * @static
+             * @param {northstar.data_hub.ChartQuery} message ChartQuery
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ChartQuery.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.receipt_ids = [];
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    object.start = message.start;
+                    if (options.oneofs)
+                        object._start = "start";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    object.end = message.end;
+                    if (options.oneofs)
+                        object._end = "end";
+                }
+                if (message.receipt_ids && message.receipt_ids.length) {
+                    object.receipt_ids = $Array(message.receipt_ids.length);
+                    for (let j = 0; j < message.receipt_ids.length; ++j)
+                        object.receipt_ids[j] = message.receipt_ids[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ChartQuery to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ChartQuery
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ChartQuery.prototype.toJSON = function() {
+                return ChartQuery.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ChartQuery
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ChartQuery
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ChartQuery.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ChartQuery";
+            };
+
+            return ChartQuery;
+        })();
+
+        data_hub.InstrumentSelection = (function() {
+
+            /**
+             * Properties of an InstrumentSelection.
+             * @typedef {Object} northstar.data_hub.InstrumentSelection.$Properties
+             * @property {string|null} [scope] InstrumentSelection scope
+             * @property {"scope"} [_scope] InstrumentSelection _scope
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an InstrumentSelection.
+             * @memberof northstar.data_hub
+             * @interface IInstrumentSelection
+             * @augments northstar.data_hub.InstrumentSelection.$Properties
+             * @deprecated Use northstar.data_hub.InstrumentSelection.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an InstrumentSelection.
+             * @typedef {{
+             *   scope?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * )} northstar.data_hub.InstrumentSelection.$Shape
+             */
+
+            /**
+             * Constructs a new InstrumentSelection.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an InstrumentSelection.
+             * @constructor
+             * @param {northstar.data_hub.InstrumentSelection.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const InstrumentSelection = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * InstrumentSelection scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @instance
+             */
+            InstrumentSelection.prototype.scope = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * InstrumentSelection _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @instance
+             */
+            $Object.defineProperty(InstrumentSelection.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new InstrumentSelection instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @static
+             * @param {northstar.data_hub.InstrumentSelection.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.InstrumentSelection} InstrumentSelection instance
+             * @type {{
+             *   (properties: northstar.data_hub.InstrumentSelection.$Shape): northstar.data_hub.InstrumentSelection & northstar.data_hub.InstrumentSelection.$Shape;
+             *   (properties?: northstar.data_hub.InstrumentSelection.$Properties): northstar.data_hub.InstrumentSelection;
+             * }}
+             */
+            InstrumentSelection.create = function(properties) {
+                return new InstrumentSelection(properties);
+            };
+
+            /**
+             * Encodes the specified InstrumentSelection message. Does not implicitly {@link northstar.data_hub.InstrumentSelection.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @static
+             * @param {northstar.data_hub.InstrumentSelection.$Properties} message InstrumentSelection message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            InstrumentSelection.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.scope);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an InstrumentSelection message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.InstrumentSelection & northstar.data_hub.InstrumentSelection.$Shape} InstrumentSelection
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            InstrumentSelection.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.InstrumentSelection();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an InstrumentSelection message.
+             * @function verify
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            InstrumentSelection.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an InstrumentSelection message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.InstrumentSelection} InstrumentSelection
+             */
+            InstrumentSelection.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.InstrumentSelection)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.InstrumentSelection: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.InstrumentSelection();
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an InstrumentSelection message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @static
+             * @param {northstar.data_hub.InstrumentSelection} message InstrumentSelection
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            InstrumentSelection.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this InstrumentSelection to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            InstrumentSelection.prototype.toJSON = function() {
+                return InstrumentSelection.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for InstrumentSelection
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.InstrumentSelection
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            InstrumentSelection.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.InstrumentSelection";
+            };
+
+            return InstrumentSelection;
+        })();
+
+        data_hub.ExplorerInstrument = (function() {
+
+            /**
+             * Properties of an ExplorerInstrument.
+             * @typedef {Object} northstar.data_hub.ExplorerInstrument.$Properties
+             * @property {string|null} [scope] ExplorerInstrument scope
+             * @property {string|null} [name] ExplorerInstrument name
+             * @property {string|null} [exchange] ExplorerInstrument exchange
+             * @property {Array.<string>|null} [periods] ExplorerInstrument periods
+             * @property {"scope"} [_scope] ExplorerInstrument _scope
+             * @property {"name"} [_name] ExplorerInstrument _name
+             * @property {"exchange"} [_exchange] ExplorerInstrument _exchange
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExplorerInstrument.
+             * @memberof northstar.data_hub
+             * @interface IExplorerInstrument
+             * @augments northstar.data_hub.ExplorerInstrument.$Properties
+             * @deprecated Use northstar.data_hub.ExplorerInstrument.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an ExplorerInstrument.
+             * @typedef {{
+             *   scope?: string|null;
+             *   name?: string|null;
+             *   exchange?: string|null;
+             *   periods?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * ) & (
+             *   ({ _name?: undefined; name?: null }|{ _name?: "name"; name: string })
+             * ) & (
+             *   ({ _exchange?: undefined; exchange?: null }|{ _exchange?: "exchange"; exchange: string })
+             * )} northstar.data_hub.ExplorerInstrument.$Shape
+             */
+
+            /**
+             * Constructs a new ExplorerInstrument.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an ExplorerInstrument.
+             * @constructor
+             * @param {northstar.data_hub.ExplorerInstrument.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExplorerInstrument = function (properties) {
+                this.periods = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExplorerInstrument scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @instance
+             */
+            ExplorerInstrument.prototype.scope = null;
+
+            /**
+             * ExplorerInstrument name.
+             * @member {string|null|undefined} name
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @instance
+             */
+            ExplorerInstrument.prototype.name = null;
+
+            /**
+             * ExplorerInstrument exchange.
+             * @member {string|null|undefined} exchange
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @instance
+             */
+            ExplorerInstrument.prototype.exchange = null;
+
+            /**
+             * ExplorerInstrument periods.
+             * @member {Array.<string>} periods
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @instance
+             */
+            ExplorerInstrument.prototype.periods = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ExplorerInstrument _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @instance
+             */
+            $Object.defineProperty(ExplorerInstrument.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerInstrument _name.
+             * @member {"name"|undefined} _name
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @instance
+             */
+            $Object.defineProperty(ExplorerInstrument.prototype, "_name", {
+                get: $util.oneOfGetter($oneOfFields = ["name"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerInstrument _exchange.
+             * @member {"exchange"|undefined} _exchange
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @instance
+             */
+            $Object.defineProperty(ExplorerInstrument.prototype, "_exchange", {
+                get: $util.oneOfGetter($oneOfFields = ["exchange"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ExplorerInstrument instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @static
+             * @param {northstar.data_hub.ExplorerInstrument.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ExplorerInstrument} ExplorerInstrument instance
+             * @type {{
+             *   (properties: northstar.data_hub.ExplorerInstrument.$Shape): northstar.data_hub.ExplorerInstrument & northstar.data_hub.ExplorerInstrument.$Shape;
+             *   (properties?: northstar.data_hub.ExplorerInstrument.$Properties): northstar.data_hub.ExplorerInstrument;
+             * }}
+             */
+            ExplorerInstrument.create = function(properties) {
+                return new ExplorerInstrument(properties);
+            };
+
+            /**
+             * Encodes the specified ExplorerInstrument message. Does not implicitly {@link northstar.data_hub.ExplorerInstrument.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @static
+             * @param {northstar.data_hub.ExplorerInstrument.$Properties} message ExplorerInstrument message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExplorerInstrument.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.scope);
+                if (message.name != null && $Object.hasOwnProperty.call(message, "name"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.name);
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.exchange);
+                if (message.periods != null && message.periods.length)
+                    for (let i = 0; i < message.periods.length; ++i)
+                        writer.uint32(/* id 4, wireType 2 =*/34).string(message.periods[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExplorerInstrument message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ExplorerInstrument & northstar.data_hub.ExplorerInstrument.$Shape} ExplorerInstrument
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExplorerInstrument.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ExplorerInstrument();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.name = reader.stringVerify();
+                            message._name = "name";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.exchange = reader.stringVerify();
+                            message._exchange = "exchange";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.periods && message.periods.length))
+                                message.periods = [];
+                            message.periods.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExplorerInstrument message.
+             * @function verify
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExplorerInstrument.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                if (message.name != null && $Object.hasOwnProperty.call(message, "name")) {
+                    properties._name = 1;
+                    if (!$util.isString(message.name))
+                        return "name: string expected";
+                }
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    properties._exchange = 1;
+                    if (!$util.isString(message.exchange))
+                        return "exchange: string expected";
+                }
+                if (message.periods != null && $Object.hasOwnProperty.call(message, "periods")) {
+                    if (!$Array.isArray(message.periods))
+                        return "periods: array expected";
+                    for (let i = 0; i < message.periods.length; ++i)
+                        if (!$util.isString(message.periods[i]))
+                            return "periods: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExplorerInstrument message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ExplorerInstrument} ExplorerInstrument
+             */
+            ExplorerInstrument.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ExplorerInstrument)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ExplorerInstrument: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ExplorerInstrument();
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                if (object.name != null)
+                    message.name = $String(object.name);
+                if (object.exchange != null)
+                    message.exchange = $String(object.exchange);
+                if (object.periods) {
+                    if (!$Array.isArray(object.periods))
+                        throw $TypeError(".northstar.data_hub.ExplorerInstrument.periods: array expected");
+                    message.periods = $Array(object.periods.length);
+                    for (let i = 0; i < object.periods.length; ++i)
+                        message.periods[i] = $String(object.periods[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExplorerInstrument message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @static
+             * @param {northstar.data_hub.ExplorerInstrument} message ExplorerInstrument
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExplorerInstrument.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.periods = [];
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                if (message.name != null && $Object.hasOwnProperty.call(message, "name")) {
+                    object.name = message.name;
+                    if (options.oneofs)
+                        object._name = "name";
+                }
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    object.exchange = message.exchange;
+                    if (options.oneofs)
+                        object._exchange = "exchange";
+                }
+                if (message.periods && message.periods.length) {
+                    object.periods = $Array(message.periods.length);
+                    for (let j = 0; j < message.periods.length; ++j)
+                        object.periods[j] = message.periods[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExplorerInstrument to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExplorerInstrument.prototype.toJSON = function() {
+                return ExplorerInstrument.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExplorerInstrument
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ExplorerInstrument
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExplorerInstrument.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ExplorerInstrument";
+            };
+
+            return ExplorerInstrument;
+        })();
+
         data_hub.ExplorerCoverage = (function() {
 
             /**
