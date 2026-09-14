@@ -50,6 +50,8 @@ def release_rejected(engine: Engine, files: SourceFiles) -> int:
                     ON CONFLICT DO NOTHING"""),
                     dict(item),
                 )
+        if not candidates:
+            return 0
         protected = {str(item["content_hash"]) for item in manifest(ownership)}
         removed = 0
         for item in candidates:
