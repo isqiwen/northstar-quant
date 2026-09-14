@@ -315,3 +315,32 @@ def test_missing_daily_prices_are_not_excused_by_inconsistent_zero_volume(change
     row.update(change)
     with pytest.raises(InvalidResponse):
         normalize(encoded(row), job)
+
+
+def test_mixed_response_keeps_valid_rows_and_exclusion_identity():
+    row, job = market_response("daily")
+    job["end_at"] = "2026-09-02"
+    bad = dict(row, trade_date="20260902", close=None)
+    data = {
+        "code": 0,
+        "data": {"fields": list(row), "items": [list(row.values()), list(bad.values())]},
+    }
+    accepted, evidence = normalize(json.dumps(data).encode(), job)
+    assert len(accepted) == 1
+    assert accepted[0]["trade_date"] == "20260901"
+    assert evidence["excluded_rows"] == 1
+    assert evidence["issues"][0]["row_number"] == 2
+    _, clean = normalize(encoded(row), job)
+    assert evidence["content_hash"] != clean["content_hash"]
+
+
+def test_settlement_only_is_not_an_invented_close():
+    row, job = market_response("daily")
+    row.update(open=None, high=None, low=None, close=None, vol=0, amount=0, settle="2480")
+    accepted, _ = normalize(encoded(row), job)
+    assert accepted[0]["observation_status"] == "SETTLEMENT_ONLY"
+    assert accepted[0]["close"] is None
+    assert accepted[0]["settle"] == "2480"
+    row["vol"] = 600
+    with pytest.raises(InvalidResponse):
+        normalize(encoded(row), job)

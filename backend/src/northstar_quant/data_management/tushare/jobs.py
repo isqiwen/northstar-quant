@@ -309,12 +309,18 @@ def _commit(
                 ),
                 {"id": selected["request_id"], "hash": quality["content_hash"]},
             )
-        connection.execute(
-            text("""INSERT INTO data_sync_coverage(request_id,receipt_id)
-            VALUES(:id,:receipt) ON CONFLICT(request_id) DO UPDATE
-            SET receipt_id=EXCLUDED.receipt_id,checked_at=now()"""),
-            {"id": selected["request_id"], "receipt": receipt},
-        )
+        if quality.get("excluded_rows"):
+            connection.execute(
+                text("DELETE FROM data_sync_coverage WHERE request_id=:id"),
+                {"id": selected["request_id"]},
+            )
+        else:
+            connection.execute(
+                text("""INSERT INTO data_sync_coverage(request_id,receipt_id)
+                VALUES(:id,:receipt) ON CONFLICT(request_id) DO UPDATE
+                SET receipt_id=EXCLUDED.receipt_id,checked_at=now()"""),
+                {"id": selected["request_id"], "receipt": receipt},
+            )
         connection.execute(
             text(
                 "UPDATE data_sync_jobs SET receipt_id=:receipt,checked_at=CASE "
@@ -367,4 +373,20 @@ def _commit(
             text("UPDATE data_sync_attempts SET receipt_id=:receipt WHERE generation=:g"),
             {"receipt": receipt, "g": selected["generation"]},
         )
-        _finish(connection, selected, "VALIDATED")
+        if quality.get("excluded_rows"):
+            connection.execute(
+                text(
+                    "UPDATE data_sync_attempts SET quality=CAST(:quality AS jsonb) "
+                    "WHERE generation=:g"
+                ),
+                {"quality": json.dumps(quality), "g": selected["generation"]},
+            )
+            _finish(
+                connection,
+                selected,
+                "BLOCKED",
+                f"已发布 {len(rows)} 条合格记录，排除 {quality['excluded_rows']} 条异常；"
+                "区间不完整，不能直接用于回测",
+            )
+        else:
+            _finish(connection, selected, "VALIDATED")

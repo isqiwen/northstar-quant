@@ -145,8 +145,6 @@ def _session_rows(
     for row in rows:
         if row.get("ts_code") != symbol:
             raise ValueError("fixed receipt contains another contract")
-        if row.get("observation_status") == "ZERO_VOLUME":
-            raise ValueError("zero-volume observation is not an executable research bar")
         label = (
             datetime.strptime(row["trade_time"], "%Y-%m-%d %H:%M:%S")
             .replace(tzinfo=ZoneInfo("Asia/Shanghai"))
@@ -157,6 +155,8 @@ def _session_rows(
         start = label if convention == "BAR_START" else label - spec.duration
         if start >= spec.session_close or start + spec.duration <= spec.session_open:
             continue
+        if row.get("observation_status") in {"ZERO_VOLUME", "SETTLEMENT_ONLY"}:
+            raise ValueError("zero-volume observation is not an executable research bar")
         if start < spec.session_open or start + spec.duration > spec.session_close:
             raise ValueError("provider bar crosses the declared session boundary")
         if start in selected:

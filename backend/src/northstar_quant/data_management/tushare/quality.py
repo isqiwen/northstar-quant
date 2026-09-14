@@ -11,7 +11,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/9"
+RULE = "tushare-response/10"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -105,6 +105,8 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     positions: dict[tuple[str, ...], int] = {}
     issues: list[dict[str, Any]] = []
     failures = 0
+    structural_failure = False
+    rejected_keys: set[tuple[str, ...]] = set()
     for position, values in enumerate(data["items"], 1):
         try:
             key, row = _row(dict(zip(data["fields"], values, strict=True)), job)
@@ -118,10 +120,20 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
             positions.setdefault(key, position)
         except InvalidResponse as error:
             failures += 1
+            raw_row = dict(zip(data["fields"], values, strict=True))
+            rejected_keys.add(tuple(str(raw_row[field]) for field in definition.identity))
+            structural_failure |= bool(
+                set(error.report["issues"][0]["fields"]) & set(definition.identity)
+            )
             if len(issues) < 100:
                 issue = {**error.report["issues"][0], "row_number": position}
                 issues.append(issue)
-    if failures:
+    if failures and (
+        not rows
+        or definition.api not in _BAR_APIS
+        or structural_failure
+        or bool(rejected_keys & rows.keys())
+    ):
         raise InvalidResponse(issues[0]["reason"], issues=issues, count=failures)
     if job["dataset"] == "calendar":
         from datetime import timedelta
@@ -134,7 +146,21 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
         if {row["cal_date"] for row in rows.values()} != expected:
             raise Empty("交易日历缺少日期；等待完整日历，不猜测休市")
     ordered = [rows[key] for key in sorted(rows)]
-    return ordered, _evidence(ordered, len(data["items"]), job["dataset"])
+    evidence = _evidence(ordered, len(data["items"]) - failures, job["dataset"])
+    evidence["excluded_rows"] = failures
+    evidence["issues"] = issues
+    evidence["issue_count"] = failures
+    evidence["truncated"] = failures > 100
+    evidence["policy"] = "异常行不发布；原文行号从1开始，最多显示100项；部分发布不代表完整覆盖"
+    # Exclusion decisions participate in the immutable publication identity.
+    evidence["content_hash"] = hashlib.sha256(
+        json.dumps(
+            {"rows": evidence["content_hash"], "excluded_rows": failures, "issues": issues},
+            sort_keys=True,
+            ensure_ascii=False,
+        ).encode()
+    ).hexdigest()
+    return ordered, evidence
 
 
 def closed_interval_evidence(dataset: str) -> dict[str, Any]:
@@ -233,7 +259,10 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
             and missing_ohl
             and row.get("amount") in (None, "0")
         )
-        checked = ("close",) if reference_only else _OHLC
+        settlement_only = (
+            reference_only and row.get("close") is None and row.get("settle") is not None
+        )
+        checked = ("settle",) if settlement_only else ("close",) if reference_only else _OHLC
         try:
             prices = [number(row[field]) for field in checked]
         except InvalidResponse as error:
@@ -248,7 +277,9 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
                 raise InvalidResponse("OHLC 高低价关系不成立", fields=_OHLC)
         if definition.api in _BAR_APIS and row["vol"] is None:
             raise InvalidResponse("行情 vol 缺少成交量；不得填零", fields=("vol",))
-        row["observation_status"] = "ZERO_VOLUME" if zero_volume else "TRADED"
+        row["observation_status"] = (
+            "SETTLEMENT_ONLY" if settlement_only else "ZERO_VOLUME" if zero_volume else "TRADED"
+        )
     for field in ("vol", "oi", "amount"):
         if row.get(field) is not None:
             quantity = number(row[field])

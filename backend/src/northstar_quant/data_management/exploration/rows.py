@@ -17,7 +17,10 @@ from .parquet import ResponseScan
 
 _READERS = BoundedSemaphore(2)
 _FIELDS = {
-    "observation_status": ("行情状态", "ZERO_VOLUME：零成交，不可模拟成交；TRADED：有成交量"),
+    "observation_status": (
+        "行情状态",
+        "ZERO_VOLUME：零成交；SETTLEMENT_ONLY：仅结算；两者不可模拟成交；TRADED：有成交量",
+    ),
     "ts_code": ("合约代码", "供应商合约标识"),
     "trade_time": ("供应商时间", "Asia/Shanghai；未推断所属交易日或首次可得时间"),
     "trade_date": ("供应商日期", "供应商标签；周/月线需同时查看 end_date"),

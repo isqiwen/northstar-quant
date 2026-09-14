@@ -1138,3 +1138,26 @@ def test_zero_volume_blocked_source_reprocesses_without_downloading(automatic, m
     assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == raw
     snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
     assert snapshot["quality"]["zero_volume_rows"] == 1
+
+
+def test_partial_publication_never_claims_complete_coverage(automatic, monkeypatch):
+    pending(automatic, end="2026-09-02")
+    data = json.loads(response())
+    bad = list(data["data"]["items"][0])
+    bad[1] = "20260902"
+    bad[5] = None
+    data["data"]["items"].append(bad)
+    raw = json.dumps(data).encode()
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: raw)
+    result = jobs.process_next(automatic)
+    assert result["status"] == "BLOCKED"
+    assert result["receipt_id"]
+    assert "已发布 1 条" in result["error"]
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
+        receipt = c.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+    snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
+    assert snapshot["row_count"] == 1
+    assert snapshot["quality"]["excluded_rows"] == 1
+    assert snapshot["quality"]["missing_trading_days"] == ["20260902"]
+    assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == raw

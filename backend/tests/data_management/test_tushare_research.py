@@ -22,7 +22,7 @@ from tests.data_management import test_tushare
 automatic = test_tushare.automatic
 
 
-def _published(library, monkeypatch, *, opening_record=False):
+def _published(library, monkeypatch, *, opening_record=False, missing_price=False):
     with library._engine.begin() as connection:
         planning.enqueue(
             connection,
@@ -52,9 +52,13 @@ def _published(library, monkeypatch, *, opening_record=False):
             },
         }
     ).encode()
+    if missing_price:
+        data = json.loads(raw)
+        data["data"]["items"][1][5] = None
+        raw = json.dumps(data).encode()
     monkeypatch.setattr(acquisition, "fetch", lambda *args: raw)
     processed = jobs.process_next(library)
-    assert processed["status"] == "VALIDATED", processed
+    assert processed["status"] == ("BLOCKED" if missing_price else "VALIDATED"), processed
     monkeypatch.setattr(
         acquisition, "fetch", lambda *args: pytest.fail("research must not download")
     )
@@ -162,8 +166,39 @@ def test_zero_volume_observation_cannot_become_executable_bar():
 
     with pytest.raises(ValueError, match="not an executable"):
         _session_rows(
-            [{"ts_code": "RB2610.SHF", "observation_status": "ZERO_VOLUME"}],
+            [
+                {
+                    "ts_code": "RB2610.SHF",
+                    "observation_status": "ZERO_VOLUME",
+                    "trade_time": "2026-09-01 09:15:00",
+                }
+            ],
             _spec(),
             "RB2610.SHF",
             "BAR_END",
         )
+
+
+def test_partial_minute_receipt_cannot_start_research(automatic, monkeypatch):
+    receipt = _published(automatic, monkeypatch, missing_price=True)
+    assert receipt
+    with pytest.raises(ValueError, match="exactly the declared session bars"):
+        submit(
+            automatic,
+            receipt_id=receipt,
+            request_id=uuid4(),
+            specification=_spec(),
+            label_convention="BAR_END",
+            interpretation_reference="synthetic admission",
+        )
+
+    shorter = replace(_spec(), session_close=datetime(2026, 9, 1, 1, 15, tzinfo=UTC))
+    result = submit(
+        automatic,
+        receipt_id=receipt,
+        request_id=uuid4(),
+        specification=shorter,
+        label_convention="BAR_END",
+        interpretation_reference="complete first interval",
+    )
+    assert result["status"] == "PENDING"
