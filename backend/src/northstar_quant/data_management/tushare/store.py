@@ -14,9 +14,10 @@ def initialize(connection: Connection) -> None:
             revision bigint NOT NULL DEFAULT 1,
             enabled boolean NOT NULL DEFAULT false,
             lookback integer NOT NULL DEFAULT 5 CHECK(lookback BETWEEN 1 AND 30),
-            requests_per_minute integer NOT NULL DEFAULT 60 CHECK(requests_per_minute BETWEEN
+            requests_per_minute integer NOT NULL DEFAULT 500 CHECK(requests_per_minute BETWEEN
                 1 AND 500),
             next_request_at timestamptz NOT NULL DEFAULT now(),
+            api_next_at jsonb NOT NULL DEFAULT '{}'::jsonb,
             refresh_at timestamptz NOT NULL DEFAULT now(),
             planned_at timestamptz,
             error text,
@@ -108,7 +109,7 @@ def initialize(connection: Connection) -> None:
         "INSERT INTO data_sync_settings(singleton) VALUES(true) ON CONFLICT DO NOTHING"
     )
 
-    initialize_dispatch(connection)
+    initialize_runtime_storage(connection)
 
 
 def serial(row: Any) -> dict[str, Any]:
@@ -122,11 +123,11 @@ def serial(row: Any) -> dict[str, Any]:
     }
 
 
-def initialize_dispatch(connection: Connection) -> None:
+def initialize_runtime_storage(connection: Connection) -> None:
     """Idempotent physical indexes; no data or logical identities are rewritten."""
     from importlib.resources import files
 
-    sql = files(__package__).joinpath("dispatch_indexes.sql").read_text()
+    sql = files(__package__).joinpath("runtime_storage.sql").read_text()
     connection.execute(text(sql))
 
 

@@ -30,7 +30,7 @@ def published(postgres_engine, clean_database, tmp_path, monkeypatch):
     with engine.begin() as c:
         c.execute(
             text("""UPDATE data_sync_settings SET enabled=true,revision=1,
-            refresh_at=now()+interval '1 day',next_request_at=now()""")
+            refresh_at=now()+interval '1 day',api_next_at='{}',next_request_at=now()""")
         )
         c.execute(
             text("""INSERT INTO data_sync_contracts
@@ -83,7 +83,11 @@ def test_fixed_pages_and_revision_do_not_mix(published):
     response["data"]["items"][0][2] = "3100.20"
     with engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
-        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        c.execute(
+            text(
+                "UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"
+            )
+        )
     assert jobs.process_next(library)["status"] == "VALIDATED"
     latest = rows.read(engine, **args, receipt_ids=[])
     assert latest["view_id"] != first["view_id"]
@@ -168,7 +172,11 @@ def test_revision_comparison_pins_both_versions_and_distinguishes_null(published
     content["data"]["items"].append(added)
     with engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
-        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        c.execute(
+            text(
+                "UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"
+            )
+        )
     after = UUID(jobs.process_next(library)["receipt_id"])
     report = revisions.compare(engine, before_id=before, after_id=after)
     assert report["counts"] == dict(added=1, removed=1, changed=1, unchanged=4)
@@ -181,7 +189,11 @@ def test_revision_comparison_pins_both_versions_and_distinguishes_null(published
     content["data"]["items"][0][2] = "3100.30"
     with engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
-        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        c.execute(
+            text(
+                "UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"
+            )
+        )
     jobs.process_next(library)
     assert revisions.compare(engine, before_id=before, after_id=after) == report
     reverse = revisions.compare(engine, before_id=after, after_id=before)
@@ -247,7 +259,11 @@ def test_published_range_scan_reports_pruning_without_changing_values(published)
     ]
     with library._engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
-        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        c.execute(
+            text(
+                "UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"
+            )
+        )
     assert jobs.process_next(library)["status"] == "VALIDATED"
     whole = rows.read(
         library._engine, "1min", "RB2610.SHF", "2026-09-01", "2026-09-03", [], limit=1000

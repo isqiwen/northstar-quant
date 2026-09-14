@@ -14,9 +14,10 @@ ENDPOINT = "https://api.tushare.pro"
 
 
 class DownloadError(ValueError):
-    def __init__(self, reason: str, *, retry: bool = False) -> None:
+    def __init__(self, reason: str, *, retry: bool = False, rate_limited: bool = False) -> None:
         super().__init__(reason)
         self.retry = retry
+        self.rate_limited = rate_limited
 
 
 class ResponseLimit(DownloadError):
@@ -59,6 +60,7 @@ def fetch(
                     raise DownloadError(
                         f"Tushare HTTP {response.status_code}",
                         retry=response.status_code == 429 or response.status_code >= 500,
+                        rate_limited=response.status_code == 429,
                     )
                 if response.headers.get("content-encoding", "identity") != "identity":
                     raise DownloadError("Tushare 返回了不支持的压缩响应")
@@ -121,6 +123,7 @@ def decode(content: bytes) -> dict[str, Any]:
                 if unavailable
                 else f"Tushare 请求异常（代码 {document['code']}），原因未确认；仅暂停此分片",
                 retry=rate,
+                rate_limited=rate,
             )
         data = document["data"]
         fields, items = data["fields"], data["items"]

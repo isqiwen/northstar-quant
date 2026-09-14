@@ -93,3 +93,78 @@ def test_lane_progress_excludes_split_and_does_not_count_empty_or_blocked_as_com
     )
     assert history["oldest_pending"] == "2012-01-01"
     assert (daily["total"], daily["validated"]) == (1, 1)
+
+
+def test_api_cooldown_is_shared_by_native_periods_but_not_other_apis(automatic):
+    import json
+    from datetime import UTC, datetime, timedelta
+
+    with automatic._engine.begin() as c:
+        add(c, "1min", "2012-01-01")
+        add(c, "15min", "2012-01-01")
+        daily = add(c, "daily", "2012-01-01")
+        c.execute(
+            text("UPDATE data_sync_settings SET api_next_at=CAST(:state AS jsonb)"),
+            {
+                "state": json.dumps(
+                    {"ft_mins": (datetime.now(UTC) + timedelta(minutes=2)).isoformat()}
+                )
+            },
+        )
+    # Cooldown survives another transaction / worker, and cannot be bypassed by changing freq.
+    with automatic._engine.begin() as c:
+        assert scheduling.choose(c, download_ready=True)["request_id"] == daily
+        attempt(c, daily)
+        assert scheduling.choose(c, download_ready=True) is None
+        c.execute(text("UPDATE data_sync_settings SET api_next_at='{}'"))
+        assert scheduling.choose(c, download_ready=True)["dataset"] in ("1min", "15min")
+
+
+def test_large_native_request_preserves_children_and_truncation_can_recover(automatic):
+    from northstar_quant.data_management.tushare import batching
+
+    with automatic._engine.begin() as c:
+        for start, end in [("2012-01-01", "2012-01-31"), ("2012-02-01", "2012-02-29")]:
+            planning.enqueue(
+                c,
+                "15min",
+                "RB2610.SHF",
+                {
+                    "ts_code": "RB2610.SHF",
+                    "freq": "15min",
+                    "start_date": f"{start} 00:00:00",
+                    "end_date": f"{end} 23:59:59",
+                },
+                start,
+                end,
+            )
+        selected = scheduling.choose(c, download_ready=True)
+        combined = dict(batching.combine(c, selected))
+        assert (combined["start_at"], combined["end_at"]) == ("2012-01-01", "2012-02-29")
+        assert combined["parameters"]["freq"] == "15min"
+        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE status='SPLIT'")) == 2
+        # Rollback-safe ownership: all source windows still exist; no receipts were changed.
+        assert planning.split(c, combined)
+        c.execute(
+            text("UPDATE data_sync_jobs SET status='SPLIT',attempts=1 WHERE request_id=:id"),
+            {"id": combined["request_id"]},
+        )
+        child = scheduling.choose(c, download_ready=True)
+        assert child["start_at"] == "2012-01-01"
+        assert child["end_at"] < combined["end_at"]
+        assert batching.combine(c, child)["request_id"] == child["request_id"]
+
+
+def test_batching_does_not_absorb_a_downloaded_or_missing_interval(automatic):
+    from northstar_quant.data_management.tushare import batching
+
+    with automatic._engine.begin() as c:
+        first = add(c, "daily", "2012-01-01")
+        downloaded = add(c, "daily", "2012-01-02")
+        add(c, "daily", "2012-01-03")
+        c.execute(
+            text("UPDATE data_sync_jobs SET attempts=1 WHERE request_id=:id"), {"id": downloaded}
+        )
+        selected = scheduling.choose(c, download_ready=True)
+        assert batching.combine(c, selected)["request_id"] == first
+        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE status='SPLIT'")) == 0

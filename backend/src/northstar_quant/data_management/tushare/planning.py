@@ -23,10 +23,10 @@ def enqueue(
     parameters: dict[str, object],
     start: str,
     end: str,
-) -> None:
+) -> str | None:
     if start and end:
         if end < HISTORY_START.isoformat():
-            return
+            return None
         if start < HISTORY_START.isoformat():
             start = HISTORY_START.isoformat()
             parameters = dict(parameters)
@@ -40,6 +40,7 @@ def enqueue(
     if BY_KEY[dataset].fields:
         parameters = {**parameters, "fields": ",".join(BY_KEY[dataset].fields)}
     payload = json.dumps([dataset, scope, parameters], sort_keys=True)
+    identity = hashlib.sha256(payload.encode()).hexdigest()
     connection.execute(
         text("""INSERT INTO data_sync_jobs
         (request_id,identity,dataset,scope,parameters,start_at,end_at,code_revision)
@@ -47,7 +48,7 @@ def enqueue(
         ON CONFLICT(identity) DO NOTHING"""),
         {
             "id": uuid4(),
-            "identity": hashlib.sha256(payload.encode()).hexdigest(),
+            "identity": identity,
             "dataset": dataset,
             "scope": scope,
             "params": json.dumps(parameters),
@@ -56,6 +57,8 @@ def enqueue(
             "revision": code_revision(),
         },
     )
+
+    return identity
 
 
 def invalidate_catalog(connection: Connection) -> None:
@@ -294,5 +297,14 @@ def split(connection: Connection, job: dict[str, Any]) -> bool:
             params.update(start_week=a.strftime("%G%V"), end_week=b.strftime("%G%V"))
         else:
             params.update(start_date=a.strftime("%Y%m%d"), end_date=b.strftime("%Y%m%d"))
-        enqueue(connection, job["dataset"], job["scope"], params, a.isoformat(), b.isoformat())
+        child = enqueue(
+            connection, job["dataset"], job["scope"], params, a.isoformat(), b.isoformat()
+        )
+        connection.execute(
+            text("""UPDATE data_sync_jobs SET status='PENDING',
+            next_at=now(),error='截断后拆分，按此区间下载' WHERE identity=:id
+            AND status='SPLIT' AND attempts=0 AND error LIKE '合并下载%'
+            AND receipt_id IS NULL AND source_generation IS NULL"""),
+            {"id": child},
+        )
     return True

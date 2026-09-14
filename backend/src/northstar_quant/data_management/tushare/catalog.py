@@ -28,6 +28,7 @@ class Dataset:
     frequency: str = ""
     amount_multiplier: int = 1
     fields: tuple[str, ...] = ()
+    requests_per_minute: int = 500
 
     def public(self) -> dict[str, object]:
         return {"key": self.key, "label": self.label}

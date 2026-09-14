@@ -32,7 +32,7 @@ def run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
     return result.stdout.strip() if capture else ""
 
 
-def prepare_dispatch_indexes() -> None:
+def prepare_sync_storage() -> None:
     containers = run(
         "docker",
         "ps",
@@ -47,7 +47,7 @@ def prepare_dispatch_indexes() -> None:
     if len(containers) != 1:
         raise ValueError("Data Hub requires exactly one running Northstar database on this host")
     sql = (
-        ROOT / "backend/src/northstar_quant/data_management/tushare/dispatch_indexes.sql"
+        ROOT / "backend/src/northstar_quant/data_management/tushare/runtime_storage.sql"
     ).read_text()
     subprocess.run(
         [
@@ -224,7 +224,7 @@ def _manage(app: str, action: str, *, follow: bool, overrides: list[str]) -> Non
             api = "data-api" if app == "data-hub" else "research-api"
             run(*compose, "build", api, app)
             if app == "data-hub":
-                prepare_dispatch_indexes()
+                prepare_sync_storage()
             run(
                 *compose,
                 "up",

@@ -10,3 +10,7 @@ CREATE INDEX IF NOT EXISTS data_sync_created ON data_sync_jobs(created_at);
             WHERE status='BLOCKED' AND error LIKE 'Tushare 权限不足%';
         CREATE INDEX IF NOT EXISTS data_sync_attempt_request
             ON data_sync_attempts(request_id,started_at DESC,generation DESC);
+
+ALTER TABLE data_sync_settings ADD COLUMN IF NOT EXISTS api_next_at jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE data_sync_settings ALTER COLUMN requests_per_minute SET DEFAULT 500;
+UPDATE data_sync_settings SET requests_per_minute=500 WHERE requests_per_minute=60;

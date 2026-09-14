@@ -67,6 +67,12 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     package = repo / "backend/src/northstar_quant"
     package.mkdir(parents=True)
     shutil.copyfile(ROOT / "backend/src/northstar_quant/__init__.py", package / "__init__.py")
+    sync = package / "data_management/tushare"
+    sync.mkdir(parents=True)
+    shutil.copyfile(
+        ROOT / "backend/src/northstar_quant/data_management/tushare/runtime_storage.sql",
+        sync / "runtime_storage.sql",
+    )
     (package / "web").mkdir()
     shutil.copyfile(
         ROOT / "backend/src/northstar_quant/web/passwords.py", package / "web/passwords.py"
@@ -152,6 +158,12 @@ if name == 'ssh':
     if '-l' in sys.argv and sys.argv[sys.argv.index('-l') + 1] in ('root', 'bootstrap-admin'):
         sys.exit(int(os.environ.get('INIT_HOST_RESULT', '0')))
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
+if name == 'docker' and 'label=com.docker.compose.service=postgres' in sys.argv:
+    print('test-database')
+    sys.exit(0)
+if name == 'docker' and 'psql' in sys.argv:
+    assert 'ALTER TABLE data_sync_settings' in sys.stdin.read()
+    sys.exit(int(os.environ.get('DEPLOY_SQL_RESULT','0')))
 if name == 'docker' and sys.argv[1:] == ['info']:
     sys.exit(int(os.environ.get('DOCKER_INFO_RESULT', '0')))
 if name == 'docker' and 'config' in sys.argv and '--format' in sys.argv:
@@ -703,6 +715,13 @@ def test_deploy_preserves_workspace_credentials(app, monkeypatch):
 
     monkeypatch.setattr(Path, "unlink", refuse_delete)
     monkeypatch.setitem(manage.__globals__, "run", run)
+
+    def sql_run(args, **kwargs):
+        assert "psql" in args and "ALTER TABLE data_sync_settings" in kwargs["input"]
+        calls.append(tuple(args))
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(subprocess, "run", sql_run)
     monkeypatch.setattr(os, "environ", os.environ.copy())
     manage(app, "deploy", follow=False, overrides=[])
     assert any("up" in call for call in calls)

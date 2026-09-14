@@ -28,7 +28,11 @@ def prepare(library, response):
             "2026-09-01",
             "2026-09-01",
         )
-        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        c.execute(
+            text(
+                "UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"
+            )
+        )
     response["data"]["items"] = response["data"]["items"][:3]
     assert jobs.process_next(library)["status"] == "VALIDATED"
     args = dict(dataset="1min", scope="RB2610.SHF", start="2026-09-01", end="2026-09-03")
@@ -90,7 +94,11 @@ def test_interrupted_and_conflicting_merges_keep_originals(published):
     response["data"]["items"][0][2] = "3100.20"
     with engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='PENDING' WHERE start_at=end_at"))
-        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        c.execute(
+            text(
+                "UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"
+            )
+        )
     assert jobs.process_next(library)["status"] == "VALIDATED"
     args["receipt_ids"] = [
         UUID(v["receipt_id"])

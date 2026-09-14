@@ -30,7 +30,7 @@ def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
         initialize_sync(connection)
         connection.execute(
             text("""UPDATE data_sync_settings SET enabled=true,
-            refresh_at=now()+interval '1 day',next_request_at=now(),revision=1""")
+            refresh_at=now()+interval '1 day',api_next_at='{}',next_request_at=now(),revision=1""")
         )
     secret = tmp_path / "secrets"
     monkeypatch.setenv("NORTHSTAR_DATA_SECRET_DIR", str(secret))
@@ -102,7 +102,9 @@ def response(price=3100.1):
 
 def ready(library):
     with library._engine.begin() as connection:
-        connection.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        connection.execute(
+            text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()")
+        )
         connection.execute(
             text("UPDATE data_sync_jobs SET next_at=now() WHERE status IN ('WAITING','PENDING')")
         )
@@ -791,7 +793,9 @@ def test_retained_reprocessing_survives_pause_and_preserves_versions(automatic, 
     with library._engine.begin() as connection:
         connection.execute(
             text(
-                "UPDATE data_sync_settings SET enabled=true, next_request_at=now()+interval '1 day'"
+                "UPDATE data_sync_settings SET enabled=true, "
+                "api_next_at=jsonb_build_object('fut_daily',now()+interval '1 day'), "
+                "next_request_at=now()+interval '1 day'"
             )
         )
     # A new library/worker observes the durable request without the original Web caller.
@@ -1161,3 +1165,30 @@ def test_partial_publication_never_claims_complete_coverage(automatic, monkeypat
     assert snapshot["quality"]["excluded_rows"] == 1
     assert snapshot["quality"]["missing_trading_days"] == ["20260902"]
     assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == raw
+
+
+def test_provider_rate_reply_cools_whole_api_without_blocking_daily(automatic, monkeypatch):
+    with automatic._engine.begin() as c:
+        for dataset in ("1min", "15min"):
+            planning.enqueue(
+                c, dataset, "RB2610.SHF", {"freq": dataset}, "2012-01-01", "2012-01-01"
+            )
+    calls = []
+
+    def fetch(api, *_):
+        calls.append(api)
+        if api == "ft_mins":
+            raise acquisition.DownloadError(
+                "Tushare 限频，等待退避重试", retry=True, rate_limited=True
+            )
+        return response()
+
+    monkeypatch.setattr(acquisition, "fetch", fetch)
+    result = jobs.process_next(automatic)
+    assert result["status"] == "WAITING"
+    pending(automatic)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+    result = jobs.process_next(automatic)
+    assert result["dataset"] == "daily" and result["status"] == "VALIDATED"
+    assert calls == ["ft_mins", "fut_daily"]

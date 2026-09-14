@@ -10,7 +10,7 @@ export const states: Record<string, [string, string]> = {
   CLOSED: ["非交易日", "default"],
   NOT_APPLICABLE: ["合约不适用", "default"],
   VALIDATED: ["已校验并发布", "green"],
-  SPLIT: ["已拆分", "default"],
+  SPLIT: ["已重新分片", "default"],
 };
 export function scopeUrl(
   page: string,

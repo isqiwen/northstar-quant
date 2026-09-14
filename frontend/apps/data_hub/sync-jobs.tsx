@@ -16,7 +16,7 @@ const labels: Record<string, string> = {
   WAITING: "等待重试或源端发布",
   BLOCKED: "需处理",
   VALIDATED: "已校验并发布",
-  SPLIT: "已拆成更小区间",
+  SPLIT: "已重新分片",
 };
 
 export function SyncJobs({

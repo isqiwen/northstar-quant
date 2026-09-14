@@ -27,6 +27,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
         "boundary": boundary.isoformat() if boundary else target_day().isoformat(),
         "floor": HISTORY_START.isoformat(),
         "datasets": list(BY_KEY),
+        "apis": [item.api for item in BY_KEY.values()],
     }
     # Reprocessing always precedes downloads. Each indexed probe returns at most
     # one candidate per dataset/lane; only this bounded set participates in sorting.
@@ -38,11 +39,15 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
         for recent, direction in ((False, "ASC"), (True, "DESC")):
             relation = ">" if recent else "<="
             probes.append(f"""
-                SELECT candidate.* FROM unnest(CAST(:datasets AS text[])) AS d(dataset)
+                SELECT candidate.* FROM unnest(
+                    CAST(:datasets AS text[]),CAST(:apis AS text[])) AS d(dataset,api)
                 CROSS JOIN LATERAL (
                     SELECT request_id,dataset,start_at,end_at,created_at
                     FROM data_sync_jobs j
-                    WHERE j.dataset=d.dataset AND j.status IN ('PENDING','WAITING')
+                    WHERE ({str(retained).lower()} OR COALESCE(
+                        (SELECT (api_next_at->>d.api)::timestamptz FROM data_sync_settings),
+                        '-infinity'::timestamptz)<=now())
+                    AND j.dataset=d.dataset AND j.status IN ('PENDING','WAITING')
                     AND j.next_at<=now() AND j.source_generation {source}
                     AND (j.start_at='' OR j.start_at>=:floor)
                     AND j.end_at {relation} :boundary

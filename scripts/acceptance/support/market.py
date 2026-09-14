@@ -27,7 +27,7 @@ with engine.begin() as c:
     planning.enqueue(c,'settlement','RB2610.SHF',
         {'ts_code':'RB2610.SHF','start_date':'20260901','end_date':'20260904'},
         '2026-09-01','2026-09-04')
-    c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+    c.execute(text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"))
 fields=BY_KEY['settlement'].fields
 rows=[]
 for day,price in ((1,'3100.125'),(3,None),(4,'3102.375')):
@@ -41,7 +41,7 @@ for revised in (False, True):
         with engine.begin() as c:
             c.execute(text("UPDATE data_sync_jobs SET status='PENDING',next_at=now() "
                            "WHERE request_id=:id"), {'id':result['request_id']})
-            c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+            c.execute(text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"))
     content=json.dumps({'code':0,'data':{'fields':fields,
         'items':[[row[name] for name in fields] for row in rows]}}).encode()
     acquisition.fetch=lambda *args:content
@@ -76,7 +76,7 @@ with engine.begin() as c:
     c.execute(text("UPDATE data_sync_jobs SET next_at=now()+interval '365 days' "
         "WHERE status IN ('PENDING','WAITING')"))
     c.execute(text("UPDATE data_sync_settings SET enabled=true,revision=1,"
-        "refresh_at=now()+interval '1 day',next_request_at=now()"))
+        "refresh_at=now()+interval '1 day',api_next_at='{}',next_request_at=now()"))
     c.execute(text("INSERT INTO data_sync_contracts(ts_code,exchange,product,"
         "kind,details,planned_revision) "
         "VALUES ('RB2610.SHF','SHFE','RB','1','{}',1) ON CONFLICT DO NOTHING"))
@@ -111,7 +111,7 @@ for invalid in (True,False):
     with engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='PENDING',next_at=now() "
             "WHERE request_id=:id"), {'id':result['request_id']})
-        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        c.execute(text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"))
     result=jobs.process_next(library)
     assert result['status']==('BLOCKED' if invalid else 'VALIDATED'),result
 result['baseline_receipt_id']=baseline_receipt_id
@@ -125,7 +125,7 @@ parameters={'ts_code':'RB2610.SHF','start_date':'2026-09-03 00:00:00',
             'end_date':'2026-09-03 23:59:59'}
 with engine.begin() as c:
     planning.enqueue(c,'1min','RB2610.SHF',parameters,'2026-09-03','2026-09-03')
-    c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+    c.execute(text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"))
 document['data']['items']=[row for row in document['data']['items']
                          if row[1].startswith('2026-09-03')]
 acquisition.fetch=lambda *args:json.dumps(document).encode()

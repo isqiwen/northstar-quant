@@ -15,7 +15,16 @@ from northstar_quant import code_revision
 
 from ..library import DataLibrary
 from ..maintenance import library_write
-from . import acquisition, coverage, credentials, origins, planning, publication, scheduling
+from . import (
+    acquisition,
+    batching,
+    coverage,
+    credentials,
+    origins,
+    planning,
+    publication,
+    scheduling,
+)
 from .catalog import BY_KEY
 from .quality import (
     Empty,
@@ -70,7 +79,7 @@ def process_next(
             )
             if row is None:
                 return None
-            selected = serial(row)
+            selected = serial(batching.combine(connection, row))
             generation = uuid4()
             connection.execute(
                 text("""UPDATE data_sync_jobs SET status='RUNNING',generation=:g,
@@ -91,8 +100,16 @@ def process_next(
             )
             if not selected["source_generation"]:
                 connection.execute(
-                    text("UPDATE data_sync_settings SET next_request_at=now()+:delay"),
-                    {"delay": timedelta(seconds=60 / config["requests_per_minute"])},
+                    text("""UPDATE data_sync_settings SET next_request_at=now()+:delay,
+                    api_next_at=api_next_at || jsonb_build_object(
+                        CAST(:api AS text),now()+:api_delay)"""),
+                    {
+                        "delay": timedelta(seconds=60 / config["requests_per_minute"]),
+                        "api": BY_KEY[selected["dataset"]].api,
+                        "api_delay": timedelta(
+                            seconds=60 / BY_KEY[selected["dataset"]].requests_per_minute
+                        ),
+                    },
                 )
         elapsed("claim")
         selected["generation"] = generation
@@ -210,6 +227,19 @@ def process_next(
                 retry_after=timedelta(days=90 if leading else 7) if historical_empty else None,
             )
         except acquisition.DownloadError as error:
+            if error.rate_limited:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text("""UPDATE data_sync_settings SET
+                        api_next_at=api_next_at || jsonb_build_object(CAST(:api AS text),
+                            now()+:delay)"""),
+                        {
+                            "api": BY_KEY[selected["dataset"]].api,
+                            "delay": timedelta(
+                                seconds=min(3600, 60 * 2 ** min(selected["attempts"], 6))
+                            ),
+                        },
+                    )
             _fail(engine, selected, str(error), retry=error.retry)
         except InvalidResponse as error:
             _fail(engine, selected, f"{error}；原文已留存", retry=False, quality=error.report)
