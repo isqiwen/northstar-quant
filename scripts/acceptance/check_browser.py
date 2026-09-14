@@ -301,7 +301,7 @@ def main() -> None:
                     page.locator("summary").filter(has_text="查询读取统计").click()
                     expect(page.get_by_text("文件身份仍完整核验", exact=False)).to_be_visible()
                     screenshot("range-cost")
-                    page.locator(".ant-drawer-close").click()
+                    page.locator(".ant-drawer-open .ant-drawer-close").click()
                     expect(
                         page.get_by_role("img", name="固定数据 K 线、成交量与持仓量")
                     ).to_be_visible()
@@ -333,7 +333,7 @@ def main() -> None:
                     page.locator(".ant-pagination-item-2").first.click()
                     expect(page.get_by_text("明细第 201–400 条", exact=True)).to_be_visible()
                     expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
-                    page.locator(".ant-drawer-close").click()
+                    page.locator(".ant-drawer-open .ant-drawer-close").click()
                     page.get_by_role("checkbox", name="MACD", exact=True).check()
                     page.get_by_role("button", name="全屏看图", exact=True).click()
                     expect(page.locator(":fullscreen")).to_have_count(1)
