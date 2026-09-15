@@ -384,6 +384,14 @@ def main() -> None:
                             "cell", name="成交量、持仓量或金额无效", exact=True
                         )
                     ).to_be_visible()
+                    expect(
+                        page.get_by_role("dialog").get_by_text("vol: -1", exact=True)
+                    ).to_be_visible()
+                    expect(
+                        page.get_by_role("dialog").get_by_text(
+                            "trade_time: 2026-09-01 09:00:00", exact=True
+                        )
+                    ).to_be_visible()
                     screenshot("quality-issues")
                     page.get_by_role("button", name="重处理已留存响应", exact=True).click()
                     expect(page.get_by_text("已排队重处理留存响应", exact=True)).to_be_visible()

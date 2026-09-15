@@ -10,7 +10,7 @@ def process_next(engine: Engine) -> str | None:
     with library_write(engine), engine.begin() as c:
         scope = c.scalar(
             text("""SELECT scope FROM data_contract_collections
-            WHERE status='VERIFYING' AND updated_at<now()-interval '1 minute'
+            WHERE status IN ('VERIFYING','REJECTED') AND updated_at<now()-interval '1 minute'
             ORDER BY updated_at,scope LIMIT 1 FOR UPDATE SKIP LOCKED""")
         )
         if scope is None:

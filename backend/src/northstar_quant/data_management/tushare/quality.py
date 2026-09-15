@@ -11,7 +11,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/11"
+RULE = "tushare-response/12"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -82,6 +82,25 @@ def _minute(value: Any) -> datetime:
         raise InvalidResponse("分钟 trade_time 无效") from error
 
 
+def _observed(raw: dict[str, Any]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name in ("trade_time", "trade_date", "end_date"):
+        value = raw.get(name)
+        if isinstance(value, str) and re.fullmatch(r"[0-9 :\-]{8,19}", value):
+            result[name] = value
+    for name in (*_OHLC, "vol", "amount", "oi", "settle"):
+        if name not in raw:
+            continue
+        value = raw[name]
+        if value is None:
+            result[name] = None
+        elif not isinstance(value, bool) and re.fullmatch(
+            r"[+-]?[0-9]{1,30}(?:\.[0-9]{1,18})?(?:[eE][+-]?[0-9]{1,3})?", str(value)
+        ):
+            result[name] = str(value)
+    return result
+
+
 def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     data = decode(content)
     definition = BY_KEY[job["dataset"]]
@@ -107,7 +126,8 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     failures = 0
     for position, values in enumerate(data["items"], 1):
         try:
-            key, row = _row(dict(zip(data["fields"], values, strict=True)), job)
+            raw = dict(zip(data["fields"], values, strict=True))
+            key, row = _row(dict(raw), job)
             if key in rows and rows[key] != row:
                 conflict = InvalidResponse(
                     "同一记录身份返回冲突内容；隔离该区间", fields=definition.identity
@@ -120,6 +140,9 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
             failures += 1
             if len(issues) < 100:
                 issue = {**error.report["issues"][0], "row_number": position}
+                # Preserve bounded, typed evidence even when rejected raw files are released.
+                # Never copy arbitrary supplier text or unrecognized fields into diagnostics.
+                issue["observed"] = _observed(raw)
                 issues.append(issue)
     if failures:
         raise InvalidResponse(issues[0]["reason"], issues=issues, count=failures)
@@ -260,7 +283,9 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
                 "行情价格缺失或无效；仅零成交日/周/月线可保留空开高低价", fields=checked
             ) from error
         if any(not p.is_finite() or p <= 0 for p in prices):
-            raise InvalidResponse("OHLC 价格无效", fields=checked)
+            raise InvalidResponse(
+                "源响应价格为零、负数或非有限值；不能作为成交价格", fields=checked
+            )
         if not reference_only:
             o, h, low, c = prices
             if not low <= min(o, c) <= max(o, c) <= h:

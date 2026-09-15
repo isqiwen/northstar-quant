@@ -119,3 +119,12 @@ and contract request diagnostics for owner-linked product requests (job scope ma
 be a product, not the contract). A validated response must never display as a complete
 contract publication. Token configuration is under the collapsed collection settings;
 reopen it after reload before checking that the token field is empty.
+
+
+When investigating rejected Tushare bars, compare the response's fields/items with
+pre-normalization diagnostic values. A successful HTTP request or nonempty response
+is not valid OHLC. Use the recorded source-release audit before claiming a missing
+raw file is corruption; rejected unreferenced originals may have been intentionally
+released. New reports retain bounded numeric/time samples, not arbitrary provider text.
+Do not present a fresh supplier probe as the original historical response. Distinguish
+response rejection, collection gaps and unresolved session evidence in contract reasons.

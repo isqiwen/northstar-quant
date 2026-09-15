@@ -172,7 +172,10 @@ def job(engine: Engine, request_id: UUID) -> dict[str, Any]:
             serial(value)
             for value in connection.execute(
                 text("""
-            SELECT * FROM data_sync_attempts WHERE request_id=:id ORDER BY started_at DESC LIMIT 50
+            SELECT a.*,x.reason AS source_release_reason
+            FROM data_sync_attempts a LEFT JOIN data_contract_source_releases x
+            ON x.source_id=a.generation
+            WHERE a.request_id=:id ORDER BY a.started_at DESC LIMIT 50
         """),
                 {"id": request_id},
             ).mappings()

@@ -71,6 +71,23 @@ def test_bad_response_marks_contract_invalid_but_network_failure_does_not(automa
     result = review(automatic._engine, "RB2610.SHF")
     assert result["status"] == "INVALID"
     assert result["admitted"] is False
+    assert result["reasons"][0].startswith("日线：RB2610.SHF")
+    assert "2026-09-01" in result["reasons"][0]
+    assert "异常 1 行" in result["reasons"][0]
+    from northstar_quant.data_management.tushare.store import job
+
+    with automatic._engine.begin() as c:
+        request = c.scalar(text("SELECT request_id FROM data_sync_jobs LIMIT 1"))
+        generation = c.scalar(text("SELECT generation FROM data_sync_jobs LIMIT 1"))
+        c.execute(
+            text("""INSERT INTO data_contract_source_releases(source_id,scope,reason)
+            VALUES(:g,'RB2610.SHF','已按拒绝合约清理')"""),
+            {"g": generation},
+        )
+    detail = job(automatic._engine, request)
+    assert detail["attempts_detail"][0]["source_release_reason"] == "已按拒绝合约清理"
+    assert detail["attempts_detail"][0]["quality"]["issues"][0]["observed"]
+    assert detail["reprocess_source"] is None
     with automatic._engine.begin() as c:
         # A subsequent network attempt has no quality evidence. Old failure does not
         # become evidence of the latest supplier response, nor proof of a missing day.

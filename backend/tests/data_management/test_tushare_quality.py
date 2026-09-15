@@ -360,3 +360,27 @@ def test_pooled_provider_session_keeps_request_credentials_scoped_and_bounds():
             assert not client.is_closed
         assert [r["token"] for r in received] == ["a" * 40, "b" * 40]
     assert client.is_closed
+
+
+def test_minute_zero_prices_preserve_supplier_values_in_returned_field_order():
+    row, job = market_response("1min")
+    row.update(open=0, high=0, low=0, close=0, vol=14, amount=661080)
+    row["untrusted"] = "must not enter diagnostics"
+    # Provider fields need not match request order.
+    reordered = dict(reversed(list(row.items())))
+    with pytest.raises(InvalidResponse) as caught:
+        normalize(encoded(reordered), job)
+    issue = caught.value.report["issues"][0]
+    assert issue["row_number"] == 1
+    assert issue["observed"]["trade_time"] == row["trade_time"]
+    assert issue["observed"]["open"] == "0"
+    assert issue["observed"]["vol"] == "14"
+    assert issue["observed"]["amount"] == "661080"
+    assert "untrusted" not in issue["observed"]
+    assert "源响应价格" in issue["reason"]
+
+
+def test_permission_code_does_not_depend_on_provider_message():
+    with pytest.raises(DownloadError, match="权限不足") as caught:
+        decode(json.dumps({"code": 2002, "msg": None}).encode())
+    assert not caught.value.retry

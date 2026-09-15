@@ -94,7 +94,7 @@ def decode(content: bytes) -> dict[str, Any]:
             rate = any(
                 word in msg for word in ("频次", "每分钟", "每小时", "每秒", "每天最多", "每日上限")
             )
-            permission = any(
+            permission = document["code"] == 2002 or any(
                 word in msg
                 for word in (
                     "没有访问该接口的权限",

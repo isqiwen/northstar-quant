@@ -96,6 +96,12 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
         ]
     )
     invalid = any(r["status"] == "INVALID" for r in requirements)
+    # Lead with observed failures/unfinished collection, not a universal rule disclaimer.
+    reasons = [
+        f"{r['label']}：{r['reason']}"
+        for r in requirements
+        if r["status"] == ("INVALID" if invalid else "COLLECTING")
+    ] + reasons
     return {
         "scope": scope,
         "display_name": display_name(
@@ -153,7 +159,7 @@ def _requirement(
     records = (
         c.execute(
             text("""SELECT j.scope,j.start_at,j.end_at,j.status,
-        r.receipt_id,v.receipt_id AS covered_receipt,
+        r.receipt_id,v.receipt_id AS covered_receipt,j.error,a.quality AS attempt_quality,
         coalesce((r.quality->>'excluded_rows')::integer,0)>0 AS has_exclusions,
         coalesce((a.quality->>'issue_count')::integer,0)>0 AS has_failures
         FROM data_sync_jobs j LEFT JOIN data_sync_receipts r ON r.receipt_id=j.receipt_id
@@ -168,11 +174,18 @@ def _requirement(
         .all()
     )
     result["received"] = sum(r["receipt_id"] is not None for r in records)
-    if any(
-        r["has_exclusions"] or (r["status"] == "BLOCKED" and r["has_failures"]) for r in records
-    ):
-        result.update(status="INVALID", reason="当前响应存在异常行或旧部分发布，不能通过整合约验收")
-        return result
+    for record in records:
+        if record["has_exclusions"] or (record["status"] == "BLOCKED" and record["has_failures"]):
+            quality = record["attempt_quality"] or {}
+            issues = quality.get("issues") or []
+            detail = issues[0]["reason"] if issues else "响应存在被排除的异常行"
+            result.update(
+                status="INVALID",
+                reason=f"{record['scope']} {record['start_at']} 至 {record['end_at']}："
+                f"{detail}；异常 {quality.get('issue_count', '未知')} 行；"
+                "响应已收到但未通过校验，不代表源端缺少行情",
+            )
+            return result
     if dataset.scope in {"catalog", "calendar"}:
         return result
     for scope in scopes:
