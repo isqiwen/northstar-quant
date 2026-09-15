@@ -9,7 +9,13 @@ from typing import Any
 
 from sqlalchemy import Connection, Engine, text
 
-from ..contract_data import minute_review, record_review, reference_review, weekly_review
+from ..contract_data import (
+    minute_policy,
+    minute_review,
+    record_review,
+    reference_review,
+    weekly_review,
+)
 from ..contract_data.lifecycle import completed, describe
 from ..contract_data.requirements import CORE_DATASETS, RULE, classify, record_checks, requirement
 from ..exploration.instruments import display_name
@@ -150,6 +156,7 @@ def review_connection(c: Connection, scope: str, *, core_only: bool = False) -> 
         if dataset.key in {"contracts", "calendar"} and item["status"] == "VERIFIED":
             item.update(reference_review.verify(c, contract, dataset.key, start, end))
         if dataset.key.endswith("min"):
+            item.setdefault("evidence", {})["supplier_policy"] = minute_policy.evidence()
             item["diagnosis"] = minute_review.diagnosis(item)
         requirements.append(item)
     if profile.category == "UNKNOWN":

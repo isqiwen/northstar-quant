@@ -298,6 +298,16 @@ def main() -> None:
                     expect(
                         minute_row.get_by_text("区分未请求、重试、权限和空响应", exact=False)
                     ).to_be_visible()
+                    minute_row.get_by_text("分钟生成规则与剩余核验项", exact=True).click()
+                    expect(
+                        minute_row.get_by_text(
+                            "Tushare 客服回复（用户转述，2026-09-16）", exact=True
+                        )
+                    ).to_be_visible()
+                    expect(
+                        minute_row.get_by_text("结束标签不等于归集截止或首次可得时间", exact=False)
+                    ).to_be_visible()
+                    expect(minute_row.get_by_text("请求覆盖待完成", exact=True)).to_be_visible()
                     # This fixture has no speculative margin values. Actual row
                     # review must explain that failure instead of a placeholder.
                     settlement_row = review.get_by_role("row").filter(has_text="每日结算参数")

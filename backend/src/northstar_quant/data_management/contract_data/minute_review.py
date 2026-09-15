@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import Connection, text
 
 from ..files import SourceFiles
+from . import minute_policy
 from .record_review import EvidenceUnavailable, fixed_rows
 
 REFERENCE = "https://www.shfe.com.cn/docview/docview_35218417.htm"
@@ -18,17 +19,22 @@ def inspect(
     c: Connection, scope: str, exchange: str, dataset: str, start: date, end: date
 ) -> dict[str, Any]:
     evidence: dict[str, Any] = dict(
-        rule="minute-diagnostics/3",
+        rule="minute-diagnostics/4",
         grid_verified=False,
         classification="RULE_UNCONFIRMED",
-        rules_pending=["历史交易时段", "分钟时间标签", "无成交分钟政策"],
+        rules_pending=minute_policy.evidence()["pending"],
+        supplier_policy=minute_policy.evidence(),
         volume_basis="SUPPLIER_REPORTED_NOT_SIDE_ADJUSTED",
     )
     unresolved: dict[str, Any] = dict(
         status="RECEIVED",
-        reason="尚缺供应商历史分钟标签、无成交分钟政策和逐时段规则；不能判定全部分钟完整",
+        reason=(
+            "已取得客服结束标签、集合竞价和延长归集规则；"
+            "尚缺历史时段及各周期完整标签表，不能判定全部分钟完整"
+        ),
         evidence=evidence,
     )
+    day_assignment_verified = True
     if exchange == "SHFE" and end < date(2013, 7, 5):
         evidence["reference"] = REFERENCE
     elif exchange == "DCE" and end < date(2014, 7, 1):
@@ -36,7 +42,8 @@ def inspect(
         # July 2014. Use the conservative month boundary, not a guessed first day.
         evidence["reference"] = DCE_REFERENCE
     else:
-        return unresolved
+        day_assignment_verified = False
+    evidence["trading_day_assignment_verified"] = day_assignment_verified
     inputs = (
         c.execute(
             text("""SELECT DISTINCT r.*,j.dataset,j.scope,j.parameters,j.start_at,j.end_at
@@ -63,6 +70,7 @@ def inspect(
     daily_volume: dict[date, Decimal] = {}
     conflicts: set[str] = set()
     labels: dict[date, set[str]] = {}
+    clock_counts: dict[str, int] = defaultdict(int)
     try:
         files = SourceFiles.from_environment()
         with localcontext() as precision:
@@ -96,13 +104,14 @@ def inspect(
                                     conflicts.add(label)
                                 continue
                             minute_values[label] = values
+                            clock_counts[datetime.fromisoformat(label).strftime("%H:%M:%S")] += 1
                             volume = Decimal(str(row["vol"]))
                             minute_volume[day] += volume
                             zero_volume_records += volume == 0
     except (ValueError, KeyError, OSError) as error:
         evidence["classification"] = "EVIDENCE_UNAVAILABLE"
         return dict(status="UNKNOWN", reason=f"分钟覆盖证据不可读取：{error}", evidence=evidence)
-    missing = sorted(traded - minute_days)
+    missing = sorted(traded - minute_days) if day_assignment_verified else []
     differences = [
         dict(
             date=day.isoformat(),
@@ -110,7 +119,7 @@ def inspect(
             daily_volume=_quantity(daily_volume[day]),
         )
         for day in sorted(minute_days & daily_volume.keys())
-        if minute_volume[day] != daily_volume[day] and not conflicts
+        if day_assignment_verified and minute_volume[day] != daily_volume[day] and not conflicts
     ]
     evidence.update(
         observed_records=records,
@@ -120,7 +129,14 @@ def inspect(
         conflict_samples=sorted(conflicts)[:20],
         volume_difference_count=len(differences),
         volume_differences=differences[:20],
-        volume_comparison="DIAGNOSTIC_ONLY_NOT_A_COMPLETENESS_PROOF",
+        volume_comparison=(
+            "DIAGNOSTIC_ONLY_NOT_A_COMPLETENESS_PROOF"
+            if day_assignment_verified
+            else "NOT_COMPARED_TRADING_DAY_UNVERIFIED"
+        ),
+        observed_label_clocks=[
+            dict(clock=clock, records=count) for clock, count in sorted(clock_counts.items())
+        ],
         daily_traded_days=len(traded),
         minute_days=len(minute_days),
         distinct_records=sum(len(values) for values in labels.values()),
@@ -157,8 +173,10 @@ def inspect(
             "不据此缩放、补值或认定源端缺失。" + unresolved["reason"]
         )
     unresolved["reason"] = (
-        f"已核对 {len(traded)} 个日线有成交日期，分钟记录 {records} 条；" + unresolved["reason"]
-    )
+        f"已核对 {len(traded)} 个日线有成交日期，分钟记录 {records} 条；"
+        if day_assignment_verified
+        else f"已读取 {records} 条分钟记录；历史夜盘归属未核实，未按自然日比较成交量；"
+    ) + unresolved["reason"]
     return unresolved
 
 
@@ -180,7 +198,7 @@ def diagnosis(item: dict[str, Any]) -> dict[str, Any]:
         "RECORD_CONFLICT": "固定来源冲突",
         "REQUEST_COVERAGE_PENDING": "请求覆盖待完成",
         "EVIDENCE_UNAVAILABLE": "核验证据不可读取",
-        "RULE_UNCONFIRMED": "分钟规则待确认",
+        "RULE_UNCONFIRMED": "历史时段与完整标签待核实",
     }
     actions = {
         "VERIFIED": "按固定发布身份浏览实际记录",
@@ -190,7 +208,7 @@ def diagnosis(item: dict[str, Any]) -> dict[str, Any]:
         "RECORD_CONFLICT": "核实冲突来源版本，保留全部证据",
         "REQUEST_COVERAGE_PENDING": "查看请求诊断，区分未请求、重试、权限和空响应",
         "EVIDENCE_UNAVAILABLE": "恢复或核实固定文件与回执，不能据此认定源端缺失",
-        "RULE_UNCONFIRMED": "核实历史时段、时间标签和无成交政策；重复下载不解决规则缺口",
+        "RULE_UNCONFIRMED": "客服生成规则已收录；补齐品种历史时段与周期标签后核验，不重复全量下载",
     }
     return dict(
         category=category,

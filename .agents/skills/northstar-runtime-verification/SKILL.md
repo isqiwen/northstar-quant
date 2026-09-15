@@ -270,3 +270,14 @@ real HTTP bounds in row validation, and split/merge edge preservation. Exchange 
 select query dates, not historical intraday schedules. Do not declare minute grid completeness
 from this change. Search-floor changes must also exclude already queued older contracts and
 independent-series work while preserving immutable receipts and full eligible lifetimes.
+
+
+When a user supplies supplier support's minute aggregation explanation, inspect
+`requirements[].evidence.supplier_policy`. Preserve its source category and recorded
+date; a relayed reply is not a dated exchange session table. BAR_END labels, actual
+aggregation cutoffs and availability are separate: an end-of-session grace period
+is neither an extra bar nor proof the bar was usable at its label. Check pinned-row
+conflicts even while session mapping is unresolved. Read `volume_comparison` before
+interpreting an empty `volume_differences`: NOT_COMPARED_TRADING_DAY_UNVERIFIED means
+no day assignment or comparison was made. Do not replace missing historical session
+rules with current fut_basic hours or infer them from observed gaps.

@@ -410,6 +410,9 @@ def test_minute_diagnostics_distinguish_observation_from_admission(automatic, mo
     assert (item["status"], item["diagnosis"]["category"]) == expected[case]
     assert item["diagnosis"]["source_missing_confirmed"] is False
     evidence = item["evidence"]
+    assert evidence["supplier_policy"]["timestamp_convention"] == "BAR_END"
+    assert evidence["supplier_policy"]["available_at"] is None
+    assert evidence["supplier_policy"]["historical_applicability_verified"] is False
     assert evidence["grid_verified"] is False
     assert evidence["missing_dates"] == (["2012-01-19"] if case == "missing" else [])
     if case == "different":
@@ -435,4 +438,23 @@ def test_unverified_night_mapping_does_not_assign_minutes_to_natural_day(automat
         )
     assert result["status"] == "RECEIVED"
     assert result["evidence"]["classification"] == "RULE_UNCONFIRMED"
-    assert "volume_differences" not in result["evidence"]
+    assert result["evidence"]["volume_comparison"] == "NOT_COMPARED_TRADING_DAY_UNVERIFIED"
+    assert result["evidence"]["volume_differences"] == []
+    assert result["evidence"]["observed_records"] == 2
+    assert result["evidence"]["observed_label_clocks"] == [dict(clock="15:00:00", records=2)]
+
+
+def test_night_rule_unknown_does_not_hide_fixed_record_conflicts(automatic, monkeypatch):
+    historical_minutes(automatic, monkeypatch, "conflict")
+    from datetime import date
+
+    from northstar_quant.data_management.contract_data import minute_review
+
+    with automatic._engine.connect() as c:
+        result = minute_review.inspect(
+            c, "RB2610.SHF", "SHFE", "30min", date(2012, 1, 18), date(2013, 7, 5)
+        )
+    assert result["status"] == "UNKNOWN"
+    assert result["evidence"]["classification"] == "RECORD_CONFLICT"
+    assert result["evidence"]["conflicting_records"] == 1
+    assert result["evidence"]["grid_verified"] is False

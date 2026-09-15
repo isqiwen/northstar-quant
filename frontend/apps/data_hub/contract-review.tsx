@@ -5,6 +5,7 @@ import { mutate } from "./api/client";
 import type { ContractReview as Review } from "./api/generated";
 import { Failure } from "../../shared/ui";
 import { exchangeName } from "./exploration/instrument-labels";
+import { MinutePolicy } from "./minute-policy";
 
 const labels: Record<string, string> = {
   NOT_ELIGIBLE: "不在下载范围",
@@ -175,6 +176,7 @@ export function ContractReview({
                       </div>
                     )}
                     <div>{String(row.reason ?? "")}</div>
+                    <MinutePolicy evidence={row.evidence} />
                     {Array.isArray(
                       (row.evidence as Record<string, unknown> | undefined)
                         ?.volume_differences,
