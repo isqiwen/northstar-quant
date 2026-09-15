@@ -14,6 +14,8 @@ from northstar_quant import code_revision
 from ..contract_data.lifecycle import SEARCH_START, completed
 from ..contract_data.requirements import classify, requirement
 from .catalog import BY_KEY, DATASETS, EXCHANGES
+from .request_calendar import RequestCalendar
+from .request_calendar import load as load_calendar
 from .store import settings
 
 
@@ -184,7 +186,7 @@ def plan(engine: Engine) -> None:
                 WHERE dataset='contracts' AND scope=:exchange ON CONFLICT DO NOTHING"""),
                 dict(owner=contract["ts_code"], exchange=contract["exchange"]),
             )
-            for year in range(start.year, end.year + 1):
+            for year in range(start.year - 1, end.year + 1):
                 a, b = date(year, 1, 1), date(year, 12, 31)
                 identity = enqueue(
                     connection,
@@ -199,6 +201,10 @@ def plan(engine: Engine) -> None:
                     b.isoformat(),
                 )
                 _link(connection, contract["ts_code"], identity)
+            calendar = load_calendar(connection, contract["exchange"], start, end)
+            if calendar is None:
+                # Keep planned_revision unchanged so the next calendar arrival resumes planning.
+                return
             for dataset in DATASETS:
                 if not requirement(classify(contract), dataset.key).collect:
                     continue
@@ -228,12 +234,24 @@ def plan(engine: Engine) -> None:
                     a = max(window_start, cursor)
                     if next_month <= target.replace(day=1):
                         _window(
-                            connection, dataset.key, contract, a, stop, owner=contract["ts_code"]
+                            connection,
+                            dataset.key,
+                            contract,
+                            a,
+                            stop,
+                            owner=contract["ts_code"],
+                            calendar=calendar,
                         )
                     else:
                         while a <= stop:
                             _window(
-                                connection, dataset.key, contract, a, a, owner=contract["ts_code"]
+                                connection,
+                                dataset.key,
+                                contract,
+                                a,
+                                a,
+                                owner=contract["ts_code"],
+                                calendar=calendar,
                             )
                             a += timedelta(days=1)
                     cursor = next_month
@@ -251,7 +269,14 @@ def plan(engine: Engine) -> None:
 
 
 def _window(
-    connection: Connection, key: str, contract: Any, start: date, end: date, *, owner: str
+    connection: Connection,
+    key: str,
+    contract: Any,
+    start: date,
+    end: date,
+    *,
+    owner: str,
+    calendar: RequestCalendar | None = None,
 ) -> None:
     if end < start:
         return
@@ -262,10 +287,16 @@ def _window(
         from ..contract_data.record_review import period
 
         end = max(end, period(end, key))
+    request_start, request_end = start, end
+    if calendar is not None and key not in {"week", "month", "weekly_detail"}:
+        bounds = calendar.bounds(start, end, minute=dataset.api == "ft_mins")
+        if bounds is None:
+            return
+        request_start, request_end = bounds
     scope = contract["ts_code"]
     params: dict[str, object] = {
-        "start_date": start.strftime("%Y%m%d"),
-        "end_date": end.strftime("%Y%m%d"),
+        "start_date": request_start.strftime("%Y%m%d"),
+        "end_date": request_end.strftime("%Y%m%d"),
     }
     if dataset.scope in ("contract", "continuous"):
         params["ts_code"] = contract["ts_code"]
@@ -278,7 +309,8 @@ def _window(
         params["freq"] = dataset.frequency
     if dataset.api == "ft_mins":
         params.update(
-            start_date=f"{start.isoformat()} 00:00:00", end_date=f"{end.isoformat()} 23:59:59"
+            start_date=f"{request_start.isoformat()} 00:00:00",
+            end_date=f"{request_end.isoformat()} 23:59:59",
         )
     if dataset.api == "fut_weekly_detail":
         params = {
@@ -310,13 +342,33 @@ def split(connection: Connection, job: dict[str, Any]) -> bool:
     start, end = date.fromisoformat(job["start_at"]), date.fromisoformat(job["end_at"])
     if start >= end:
         return False
+    exchange = connection.scalar(
+        text("SELECT exchange FROM data_sync_contracts WHERE ts_code=:scope"),
+        dict(scope=job["scope"]),
+    )
+    if exchange is None and ":" in job["scope"]:
+        exchange = job["scope"].split(":", 1)[0]
+    calendar = load_calendar(connection, exchange, start, end) if exchange else None
     middle = start + (end - start) // 2
     for a, b in ((start, middle), (middle + timedelta(days=1), end)):
         params = dict(job["parameters"])
-        if BY_KEY[job["dataset"]].api == "ft_mins":
-            params.update(start_date=f"{a} 00:00:00", end_date=f"{b} 23:59:59")
+        minute = BY_KEY[job["dataset"]].api == "ft_mins"
+        bounds: tuple[date, date] | None = (a, b)
+        if calendar is not None and job["dataset"] not in {"week", "month", "calendar"}:
+            bounds = calendar.bounds(a, b, minute=minute)
+        if bounds is None:
+            continue
+        left, right = bounds
+        if minute:
+            params.update(start_date=f"{left} 00:00:00", end_date=f"{right} 23:59:59")
+            # Retain parent edge coverage even when recovering a previously
+            # downloaded request without enough calendar projection to replan.
+            if a == start:
+                params["start_date"] = job["parameters"].get("start_date", params["start_date"])
+            if b == end:
+                params["end_date"] = job["parameters"].get("end_date", params["end_date"])
         else:
-            params.update(start_date=a.strftime("%Y%m%d"), end_date=b.strftime("%Y%m%d"))
+            params.update(start_date=left.strftime("%Y%m%d"), end_date=right.strftime("%Y%m%d"))
         child = enqueue(
             connection, job["dataset"], job["scope"], params, a.isoformat(), b.isoformat()
         )

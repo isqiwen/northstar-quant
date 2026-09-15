@@ -78,6 +78,7 @@ def combine(connection: Connection, selected: Any) -> Any:
     def identity(parameters: Any) -> dict[str, Any]:
         return {k: v for k, v in parameters.items() if k not in ("start_date", "end_date")}
 
+    request_end = selected["parameters"].get("end_date")
     children = [selected["request_id"]]
     for candidate in candidates:
         if date.fromisoformat(candidate["start_at"]) != end + timedelta(days=1):
@@ -85,11 +86,12 @@ def combine(connection: Connection, selected: Any) -> Any:
         if identity(candidate["parameters"]) != identity(selected["parameters"]):
             break
         end = date.fromisoformat(candidate["end_at"])
+        request_end = candidate["parameters"].get("end_date")
         children.append(candidate["request_id"])
     if len(children) == 1:
         return selected
     parameters = dict(selected["parameters"])
-    parameters["end_date"] = (
+    parameters["end_date"] = request_end or (
         f"{end} 23:59:59" if dataset.api == "ft_mins" else end.strftime("%Y%m%d")
     )
     identity_key = enqueue(

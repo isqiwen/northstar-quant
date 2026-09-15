@@ -5,7 +5,7 @@ from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-SEARCH_START = date(2012, 1, 1)
+SEARCH_START = date(2015, 1, 1)
 
 
 def local_today() -> date:

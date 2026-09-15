@@ -215,6 +215,7 @@ def test_last_month_request_includes_period_label_after_contract_expiry(automati
     lifetime(automatic)
     with automatic._engine.begin() as c:
         c.execute(text("UPDATE data_sync_contracts SET planned_revision=0"))
+    test_tushare.calendar_for_planning(automatic)
     planning.plan(automatic._engine)
     with automatic._engine.begin() as c:
         c.execute(
@@ -320,6 +321,13 @@ def test_complete_daily_terms_require_actual_values(
 
 
 def historical_minutes(automatic, monkeypatch, case):
+    from datetime import date
+
+    from northstar_quant.data_management.tushare import scheduling
+
+    # Replay retained pre-floor evidence to test the historical verifier;
+    # production discovery/claiming is independently tested at the 2015 floor.
+    monkeypatch.setattr(scheduling, "SEARCH_START", date(2012, 1, 1))
     from northstar_quant.data_management.tushare import planning
 
     lifetime(automatic, start="20120118", end="20120119")

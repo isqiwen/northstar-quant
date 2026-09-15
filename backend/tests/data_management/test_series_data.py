@@ -112,6 +112,7 @@ def test_series_plan_uses_discovered_identity_and_oldest_dates(automatic):
             text("""INSERT INTO data_sync_contracts VALUES
         ('RB.SHF','SHFE','RB','2','{"list_date":"20090101"}',NULL,1)""")
         )
+    test_tushare.calendar_for_planning(automatic, start="2014-01-01", end="2015-12-31")
     for _ in range(4):
         planning.plan(automatic._engine)
     with automatic._engine.connect() as c:
@@ -121,13 +122,13 @@ def test_series_plan_uses_discovered_identity_and_oldest_dates(automatic):
             ("mapping", "RB.SHF"),
             ("adjusted", "RB.SHF"),
         }
-        assert {str(r["start_date"]) for r in rows} == {"2012-01-01"}
+        assert {str(r["start_date"]) for r in rows} == {"2015-01-01"}
         jobs = (
             c.execute(text("SELECT * FROM data_sync_jobs WHERE dataset<>'calendar'"))
             .mappings()
             .all()
         )
-        assert {r["start_at"] for r in jobs} == {"2012-01-01"}
+        assert {r["start_at"] for r in jobs} == {"2015-01-01"}
         assert all(r["parameters"].get("ts_code") == r["scope"] for r in jobs)
         assert "CU.NH" in {r["scope"] for r in rows if r["dataset"] == "index"}
         assert c.scalar(text("SELECT count(*) FROM data_contract_requests")) == 0

@@ -7,6 +7,7 @@ from sqlalchemy import Connection, Engine, text
 from ..contract_data.lifecycle import SEARCH_START, metadata_date
 from ..tushare.nanhua import INDEX_NAMES
 from ..tushare.planning import enqueue, target_day
+from ..tushare.request_calendar import load as load_calendar
 
 DATASETS = ("continuous", "mapping", "adjusted", "index")
 
@@ -27,6 +28,13 @@ def plan(engine: Engine) -> None:
             return
         if not c.scalar(text("SELECT EXISTS(SELECT 1 FROM data_sync_contracts WHERE kind='2')")):
             return
+        c.execute(
+            text("""UPDATE data_series_collections SET start_date=:floor,
+            planned_through=CASE WHEN planned_through<:floor
+                THEN CAST(:floor AS date) - 1 ELSE planned_through END
+            WHERE start_date<:floor"""),
+            dict(floor=SEARCH_START),
+        )
         # Discovery metadata supplies series identity; never synthesize continuous
         # symbols from an expiring month's contract code.
         for r in c.execute(
@@ -67,8 +75,10 @@ def plan(engine: Engine) -> None:
         if (
             c.scalar(
                 text("""SELECT count(*) FROM data_sync_jobs j WHERE
-            j.status IN ('PENDING','RUNNING') AND EXISTS
-            (SELECT 1 FROM data_series_requests s WHERE s.request_id=j.request_id)""")
+            j.status IN ('PENDING','RUNNING')
+            AND (j.dataset='calendar' OR j.end_at>=:floor) AND EXISTS
+            (SELECT 1 FROM data_series_requests s WHERE s.request_id=j.request_id)"""),
+                dict(floor=SEARCH_START.isoformat()),
             )
             >= 64
         ):
@@ -95,7 +105,7 @@ def plan(engine: Engine) -> None:
         end = min(following - timedelta(days=1), target)
         dataset, scope = row["dataset"], row["scope"]
         if row["exchange"]:
-            for year in range(start.year, end.year + 1):
+            for year in range(start.year - 1, end.year + 1):
                 a, b = date(year, 1, 1), date(year, 12, 31)
                 identity = enqueue(
                     c,
@@ -110,8 +120,21 @@ def plan(engine: Engine) -> None:
                     b.isoformat(),
                 )
                 link(c, dataset, scope, identity)
+        bounds: tuple[date, date] | None = (start, end)
+        if row["exchange"]:
+            calendar = load_calendar(c, row["exchange"], start, end)
+            if calendar is None:
+                return
+            bounds = calendar.bounds(start, end)
+        if bounds is None:
+            c.execute(
+                text("""UPDATE data_series_collections SET planned_through=:end
+                WHERE dataset=:dataset AND scope=:scope"""),
+                dict(end=end, dataset=dataset, scope=scope),
+            )
+            return
         parameters: dict[str, object] = dict(
-            start_date=start.strftime("%Y%m%d"), end_date=end.strftime("%Y%m%d")
+            start_date=bounds[0].strftime("%Y%m%d"), end_date=bounds[1].strftime("%Y%m%d")
         )
         parameters["ts_code"] = scope
         identity = enqueue(c, dataset, scope, parameters, start.isoformat(), end.isoformat())

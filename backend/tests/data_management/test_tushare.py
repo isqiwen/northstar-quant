@@ -63,6 +63,18 @@ def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
     return library
 
 
+def calendar_for_planning(library, exchange="SHFE", start="2025-01-01", end="2026-12-31"):
+    """Synthetic exchange calendar for planning tests, not historical session evidence."""
+    with library._engine.begin() as c:
+        c.execute(
+            text("""INSERT INTO data_sync_calendar(exchange,cal_date,is_open)
+            SELECT :exchange,day::date,extract(isodow from day)<6
+            FROM generate_series(CAST(:start AS date),CAST(:end AS date),interval '1 day') day
+            ON CONFLICT DO NOTHING"""),
+            dict(exchange=exchange, start=start, end=end),
+        )
+
+
 def pending(library, *, start="2026-09-01", end="2026-09-01"):
     with library._engine.begin() as connection:
         planning.enqueue(
@@ -443,6 +455,8 @@ def test_planning_applicable_data_is_idempotent_and_stops_at_expiry(automatic, m
                     ),
                 },
             )
+    calendar_for_planning(automatic)
+    calendar_for_planning(automatic, exchange="DCE")
     planning.plan(automatic._engine)
     with automatic._engine.connect() as connection:
         rows = connection.execute(text("SELECT * FROM data_sync_jobs")).mappings().all()
@@ -1011,6 +1025,8 @@ def test_catalog_arrival_keeps_real_and_series_request_ownership_separate(automa
         c.execute(
             text("INSERT INTO data_sync_contracts VALUES ('A.DCE','DCE','A','2','{}',NULL,0)")
         )
+    calendar_for_planning(automatic)
+    calendar_for_planning(automatic, exchange="DCE")
     planning.plan(automatic._engine)
     with automatic._engine.begin() as c:
         assert c.scalar(text("SELECT count(*) FROM data_sync_jobs")) == 0
@@ -1093,15 +1109,15 @@ def test_observed_provider_rejections_are_classified_without_raw_message(message
 def test_only_expired_contracts_are_planned_without_truncating_lifetime(automatic, monkeypatch):
     from datetime import date
 
-    monkeypatch.setattr(planning, "target_day", lambda: date(2012, 2, 2))
+    monkeypatch.setattr(planning, "target_day", lambda: date(2015, 2, 2))
     with automatic._engine.begin() as c:
         c.execute(text("DELETE FROM data_contract_collections"))
         c.execute(text("DELETE FROM data_sync_contracts"))
         for code, kind, begin, end in [
-            ("AL1112.SHF", "1", "20100101", "20111215"),
-            ("AL1201.SHF", "1", "20100101", "20120115"),
-            ("AL1202.SHF", "1", "20110101", "20120215"),
-            ("AL.SHF", "2", "20100101", ""),
+            ("AL1412.SHF", "1", "20130101", "20141215"),
+            ("AL1501.SHF", "1", "20130101", "20150115"),
+            ("AL1502.SHF", "1", "20140101", "20150215"),
+            ("AL.SHF", "2", "20130101", ""),
         ]:
             c.execute(
                 text(
@@ -1121,6 +1137,7 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
                     ),
                 },
             )
+    calendar_for_planning(automatic, start="2012-01-01", end="2015-12-31")
     planning.plan(automatic._engine)
     with automatic._engine.connect() as c:
         rows = (
@@ -1129,10 +1146,10 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
             .all()
         )
         assert rows
-        assert min(r["start_at"] for r in rows) == "2010-01-01"
-        assert any(r["scope"] == "AL1201.SHF" for r in rows)
-        assert not any(r["scope"] == "AL1112.SHF" for r in rows)
-        assert not any(r["scope"] == "AL1202.SHF" for r in rows)
+        assert min(r["start_at"] for r in rows if r["dataset"] != "calendar") == "2013-01-01"
+        assert any(r["scope"] == "AL1501.SHF" for r in rows)
+        assert not any(r["scope"] == "AL1412.SHF" for r in rows)
+        assert not any(r["scope"] == "AL1502.SHF" for r in rows)
         assert {"calendar", "daily", "1min", "holdings", "warehouse"} <= {
             r["dataset"] for r in rows
         }
@@ -1235,7 +1252,7 @@ def test_historical_candidate_preempts_existing_newer_collection(automatic, monk
     monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 14))
     pending(automatic)
     with automatic._engine.begin() as c:
-        for code, last in [("AL1202.SHF", "20120215"), ("AL1201.SHF", "20120115")]:
+        for code, last in [("AL1502.SHF", "20150215"), ("AL1501.SHF", "20150115")]:
             c.execute(
                 text("""INSERT INTO data_sync_contracts
                 (ts_code,exchange,product,kind,details) VALUES(:code,'SHFE','AL','1',
@@ -1243,7 +1260,7 @@ def test_historical_candidate_preempts_existing_newer_collection(automatic, monk
                 dict(
                     code=code,
                     details=json.dumps(
-                        dict(list_date="20110101", delist_date=last, last_ddate=last)
+                        dict(list_date="20140101", delist_date=last, last_ddate=last)
                     ),
                 ),
             )
@@ -1252,7 +1269,7 @@ def test_historical_candidate_preempts_existing_newer_collection(automatic, monk
     planning.plan(automatic._engine)
     with automatic._engine.begin() as c:
         assert c.scalar(text("SELECT min(end_date) FROM data_contract_collections")) == date(
-            2012, 1, 15
+            2015, 1, 15
         )
         row = choose(c, download_ready=True)
         owners = list(
@@ -1261,7 +1278,7 @@ def test_historical_candidate_preempts_existing_newer_collection(automatic, monk
                 dict(id=row["request_id"]),
             )
         )
-        assert "AL1201.SHF" in owners
+        assert "AL1501.SHF" in owners
         # Planning another candidate cannot create a flood before the oldest is collected.
     planning.plan(automatic._engine)
     with automatic._engine.connect() as c:

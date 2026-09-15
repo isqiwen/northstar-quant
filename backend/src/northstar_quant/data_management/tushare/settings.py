@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy import Engine, text
 
+from ..contract_data.lifecycle import SEARCH_START
 from ..maintenance import library_write
 from . import credentials, job_query, scheduling
 from .catalog import DATASETS
@@ -52,11 +53,11 @@ def status(engine: Engine) -> dict[str, Any]:
         unplanned = connection.scalar(
             text(
                 "SELECT count(*) FROM data_sync_contracts WHERE kind='1' "
-                "AND details->>'delist_date'>='20120101' "
+                "AND details->>'delist_date'>=:floor "
                 "AND details->>'last_ddate'<to_char(CURRENT_DATE,'YYYYMMDD') "
                 "AND (planned_revision<>:r OR planning_error IS NOT NULL)"
             ),
-            {"r": config["revision"]},
+            {"r": config["revision"], "floor": SEARCH_START.strftime("%Y%m%d")},
         )
         config["catalog_ready"] = connection.scalar(
             text("""SELECT coalesce(bool_and(status='VALIDATED'),false)

@@ -12,7 +12,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/14"
+RULE = "tushare-response/15"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -257,7 +257,20 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
             # Retrospective calculations can have end_date years after the bar.
             # Keep both source dates; this is a range key, NOT first availability.
             day = min(day, cutoff)
-        if job["start_at"] and not job["start_at"] <= day.isoformat() <= job["end_at"]:
+        if "trade_time" in row:
+            # Request dates are trading-calendar coverage; minute supplier bounds
+            # can include the previous open date and its cross-midnight session.
+            lower = str(parameters.get("start_date", job["start_at"]))
+            upper = str(parameters.get("end_date", job["end_at"]))
+            if len(lower) == 10:
+                lower += " 00:00:00"
+            if len(upper) == 10:
+                upper += " 23:59:59"
+            if lower and not datetime.fromisoformat(lower) <= _minute(
+                clock
+            ) <= datetime.fromisoformat(upper):
+                raise InvalidResponse("行情时间超出请求窗口", fields=(clock_field,))
+        elif job["start_at"] and not job["start_at"] <= day.isoformat() <= job["end_at"]:
             raise InvalidResponse("行情时间超出请求窗口", fields=(clock_field,))
     try:
         normalization.normalize(row, job["dataset"])

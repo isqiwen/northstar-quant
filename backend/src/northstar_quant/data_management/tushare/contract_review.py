@@ -283,8 +283,18 @@ def _requirement(
             return result
     if dataset.scope in {"catalog", "calendar"}:
         return result
+    expected = {start + timedelta(days=i) for i in range((end - start).days + 1)}
+    if dataset.key not in {"week", "month", "weekly_detail"}:
+        calendar = c.execute(
+            text("""SELECT cal_date,is_open FROM data_sync_calendar
+            WHERE exchange=(SELECT exchange FROM data_sync_contracts WHERE ts_code=:owner)
+            AND cal_date BETWEEN :start AND :end"""),
+            dict(owner=owner, start=start, end=end),
+        ).all()
+        if len(calendar) == len(expected):
+            expected = {row.cal_date for row in calendar if row.is_open}
     for scope in scopes:
-        cursor = start
+        remaining = set(expected)
         for r in records:
             if (
                 r["scope"] != scope
@@ -294,9 +304,9 @@ def _requirement(
             ):
                 continue
             left, right = date.fromisoformat(r["start_at"]), date.fromisoformat(r["end_at"])
-            if left <= cursor:
-                cursor = max(cursor, right + timedelta(days=1))
-        if cursor <= end:
+            remaining.difference_update(day for day in expected if left <= day <= right)
+        if remaining:
+            cursor = min(remaining)
             result.update(
                 status="COLLECTING",
                 reason=(

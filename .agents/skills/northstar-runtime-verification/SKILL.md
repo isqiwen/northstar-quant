@@ -77,7 +77,7 @@ while clearing it when the owning artifact identity changes.
 `POST /api/sync/contracts/review` reports a real contract's listing-to-expiry
 requirements. Check actual listing, last trading and last delivery dates separately.
 Active or delivery-in-progress contracts are ineligible; missing/conflicting metadata stays unknown.
-Search last trading dates from 2012-01-01 ascending, preserving pre-2012 listing history.
+Search last trading dates from 2015-01-01 ascending, preserving pre-2015 listing history.
 Exercise both planning and claiming against an existing newer queue; changing only SQL planning
 order leaves already queued downloads ahead of historical candidates. Unknown lifecycle metadata
 must also block rejected-source cleanup, not just new planning.
@@ -261,3 +261,12 @@ valid inside the explicitly supported historical no-night-session boundary. A di
 not supplier-missing proof and an equal sum is not grid completeness. Recheck a bounded example
 against retained raw JSON before blaming normalization; keep all period/source identities and
 never rescale values or delete evidence to reconcile the totals.
+
+
+For calendar-driven requests, use test_request_calendar.py with PostgreSQL. An incomplete
+exchange calendar must enqueue calendar work only; add closed days explicitly instead of
+guessing weekdays. Verify previous-open-date minute envelopes across weekends/year edges,
+real HTTP bounds in row validation, and split/merge edge preservation. Exchange calendars
+select query dates, not historical intraday schedules. Do not declare minute grid completeness
+from this change. Search-floor changes must also exclude already queued older contracts and
+independent-series work while preserving immutable receipts and full eligible lifetimes.

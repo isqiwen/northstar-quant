@@ -63,6 +63,7 @@ def test_monthly_average_planning_and_review_use_same_policy(automatic):
             {"d": json.dumps(details)},
         )
         c.execute(text("UPDATE data_sync_settings SET enabled=true"))
+    test_contract_review.test_tushare.calendar_for_planning(automatic, exchange="DCE")
     planning.plan(automatic._engine)
     with automatic._engine.connect() as c:
         datasets = set(c.scalars(text("SELECT DISTINCT dataset FROM data_sync_jobs")))

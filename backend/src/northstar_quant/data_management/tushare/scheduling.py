@@ -40,6 +40,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
         "apis": [d.api for d in BY_KEY.values()],
         "download_ready": download_ready,
         "core": list(CORE_DATASETS),
+        "floor": SEARCH_START.isoformat(),
     }
     # Catalog refresh discovers newly retired contracts and never represents a
     # collection/publication itself. All price/product requests require an owner.
@@ -58,6 +59,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
             JOIN unnest(CAST(:datasets AS text[]),CAST(:apis AS text[])) d(dataset,api)
                 ON j.dataset=d.dataset
             LEFT JOIN data_series_requests sr ON sr.request_id=j.request_id
+                AND (j.dataset='calendar' OR j.end_at>=:floor)
             LEFT JOIN data_contract_requests cr ON cr.request_id=j.request_id
             LEFT JOIN data_contract_collections w ON w.scope=cr.scope
                 AND w.status IN ('COLLECTING','VERIFYING','PUBLISHED')
