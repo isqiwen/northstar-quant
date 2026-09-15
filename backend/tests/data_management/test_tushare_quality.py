@@ -281,7 +281,7 @@ def test_historical_period_recalculation_preserves_both_dates(dataset):
         normalize(encoded(row), job)
 
 
-@pytest.mark.parametrize("dataset", ["daily", "adjusted", "week", "month"])
+@pytest.mark.parametrize("dataset", ["daily", "continuous", "adjusted", "week", "month"])
 def test_zero_volume_reference_close_keeps_null_prices_and_exact_status(dataset):
     from northstar_quant.data_management.tushare.publication import response_table
 

@@ -267,7 +267,7 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
         # Observed daily supplier records may retain a reference close on zero-volume
         # days. Preserve nulls; neither that close nor settlement proves an execution.
         reference_only = (
-            job["dataset"] in {"daily", "adjusted", "week", "month"}
+            job["dataset"] in {"daily", "continuous", "adjusted", "week", "month"}
             and zero_volume
             and missing_ohl
             and row.get("amount") in (None, "0")
