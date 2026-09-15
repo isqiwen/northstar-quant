@@ -115,7 +115,7 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     )
     if definition.frequency in ("week", "month"):
         required = (*required, "freq")
-    if definition.fields:
+    if definition.fields and definition.scope != "catalog":
         required = (*required, *definition.fields)
     missing = sorted(set(required) - set(data["fields"]))
     if missing:

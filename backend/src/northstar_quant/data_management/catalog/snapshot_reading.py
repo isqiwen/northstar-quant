@@ -15,6 +15,7 @@ def query(
     *,
     domain: str,
     contract: str = "",
+    series: str = "",
     start: str = "",
     end: str = "",
     offset: int = 0,
@@ -30,8 +31,12 @@ def query(
     import pyarrow.parquet as pq  # type: ignore[import-untyped]
 
     manifest = load(root, snapshot_id)
-    if contract and contract != manifest["scope"].split(".")[0]:
+    if contract and (
+        manifest["entity_type"] != "REAL_CONTRACT" or contract != manifest["scope"].split(".")[0]
+    ):
         raise ValueError("合约不属于所选固定快照")
+    if series and (manifest["entity_type"] == "REAL_CONTRACT" or series != manifest["scope"]):
+        raise ValueError("序列不属于所选固定快照")
     if domain not in {entry["domain"] for entry in manifest["files"]}:
         raise ValueError("数据类型不属于所选固定快照")
     rows = []
@@ -45,6 +50,8 @@ def query(
         for batch in table.iter_batches(batch_size=512):
             for row in batch.to_pylist():
                 if contract and row.get("contract", contract) != contract:
+                    continue
+                if series and row.get("series") != series:
                     continue
                 day = (
                     row.get("period_end")

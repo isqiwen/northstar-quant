@@ -1308,7 +1308,7 @@ Data Hub 列表每个供应商合约只出现一次，展示中文名、代码�
 保存主数据和相关资料；`market/futures/contracts/{daily,weekly,monthly,minute/interval=...}`
 保存真实合约行情，品种报表归 `market/futures/products/`。按 exchange/product/year 分区，分钟增加
 month；合约是行内实体及验收单位，不是文件边界。分区编码可合并多合约；本轮自动发布仍逐合约
-形成清单，没有新增全库跨合约压实调度。连续、复权、指数不进入真实合约快照，也未接通独立采集。
+形成清单，没有新增全库跨合约压实调度。连续、复权、指数不进入真实合约快照，独立采集与区间发布由 `series_data` 拥有。
 
 2026-09-15 查阅 [Arrow 25.0.1 Parquet 文档](https://arrow.apache.org/docs/python/parquet.html)
 及 [Nautilus Data latest](https://nautilustrader.io/docs/latest/concepts/data/)。采用领域实体与物理
@@ -1321,7 +1321,7 @@ open_interest 等字段。数值用 Decimal(38,12)，缺值保留空，不补造
 到 Research 只读 NFS。临时 SQLite 仅负责有界排序及冲突检查，不是目录权威。分区以内容哈希命名，
 拒绝路径穿越、符号链接、同记录冲突和非精确数值；先落盘、再固定清单、最后登记发布。
 普通发现及原始行情图表仍要求完整合约发布成员身份；新增标准数据抽屉/API 按固定快照读取领域字段。
-Research 可用 PublishedDatasets.contract_rows 从只读文件读取，无须供应商连接或 Data Hub 数据库。
+Research 可用 PublishedDatasets.catalog_rows 从只读文件读取，无须供应商连接或 Data Hub 数据库。
 研究执行仍须原有固定输入/有效条款准入，不直接执行这些未经语义认证的字段。
 
 发现最新版本与读取固定版本分离，不提供 wildcard/latest 研究输入。新文件不覆盖旧清单引用。
@@ -1394,7 +1394,7 @@ CPU/总内存不添加人为比例限制，也不通过扩大共享内存掩盖�
 
 用户确认清空 Data Hub 数据后按类型重新采集。`contract_data.requirements` 是下载规划、
 验收报告与包输入选择共同使用的唯一策略，版本 `contract-requirements/1`；不再为每个合约
-下载所有南华指数、主力/连续及复权序列。这些资料保持独立研究身份，本轮不另建独立采集器。
+下载所有南华指数、主力/连续及复权序列。这些资料保持独立研究身份，通过独立序列队列采集，不作为逐真实合约验收前提。
 
 分类分别表达真实合约/序列、品种类型和交割方式，依据交易所、供应商品种代码、名称和
 `d_mode_desc` 元数据交叉核对。DCE 的 L_F/V_F/PP_F 要求月均价名称和现金交割一致；
@@ -1423,3 +1423,29 @@ REQUIRED、NOT_APPLICABLE、RELATED、UNKNOWN 是适用关系，不是响应质�
 不将接口起始年份当作所有品种完整覆盖。国债的证券交割不适用商品仓单接口；现金交割无商品仓单义务。
 [能源中心交割细则](https://www.shfe.cn/regulation/ineregulation/businessmethods/delivery/202606/t20260626_832297.html)
 确认 EC 现金交割；当前规则不倒推认证历史时段、费率或最终结算算法。
+
+
+### 2026-09-15 独立研究序列与字段边界
+
+在真实合约主路径之外接通供应商连续日线、连续到真实合约映射、复权日线和南华指数。
+`series_data` 拥有发现、持久请求归属、区间发布及版本历史；共用原有下载工作进程、
+限频、私有来源归档和 `catalog` 文件读写，不产生第二个采集运行时。真实合约仍以完整
+生命周期验收；独立序列只发布已通过响应校验的区间，明确不承诺全生命周期、首次可得
+时间或执行价格。映射目标必须是同交易所、同品种且已发现的真实合约。
+
+2026-09-15 复核 Tushare [合约信息](https://tushare.pro/document/2?doc_id=135)、
+[映射](https://tushare.pro/document/2?doc_id=189)、
+[复权日线](https://tushare.pro/document/2?doc_id=492)、
+[南华指数](https://tushare.pro/document/2?doc_id=468)，以及上述 Nautilus Data latest。
+连续身份取实际 fut_type=2 目录，指数身份从实际响应枚举，不从月合约猜代码。
+以 2012-01-01 为检索下界，连续序列同时遵守元数据上市日，逐月从旧到新展开；
+内部请求遇上限继续拆分且继承序列归属。真实合约和研究序列交替获得请求机会，
+按最新尝试索引判断轮次，避免每次领取扫描全部尝试历史。失败保留独立诊断和重处理入口。
+
+标准数据分别落入 `market/futures/{continuous,adjusted,indices}/daily` 和
+`market/futures/mappings/continuous_to_contract`。清单固定实体类型、范围、供应商凭据、
+处理代码身份和精确分区字节；共享不可变读取与联合恢复。复权价只保留供应商口径，
+不虚构未提供的复权因子；指数不推断交易日覆盖。发布区间历史可浏览，不能直接替代
+Research 执行输入准入。主数据显式请求字段白名单，不请求或建模 `settle_date`；
+每日 `settle` 结算价、费用及保证金保留原职责，最后交割日仍来自 `last_ddate`。
+无新增依赖。真实供应商序列发布和主机验收以本轮 Issue 证据为准。

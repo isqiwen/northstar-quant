@@ -76,6 +76,10 @@ def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, o
 
             if connection.scalar(text("SELECT EXISTS(SELECT 1 FROM data_contract_publications)")):
                 verify_snapshots(connection, PublishedDatasets.from_environment().root)
+            from .series_data.retention import verify_all as verify_series
+
+            if connection.scalar(text("SELECT EXISTS(SELECT 1 FROM data_series_publications)")):
+                verify_series(connection, PublishedDatasets.from_environment().root)
             references = manifest(connection)
             archived = SourceFiles(
                 target / "sources",

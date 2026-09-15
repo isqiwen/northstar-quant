@@ -13,6 +13,9 @@ from sqlalchemy import Connection, Engine, create_engine, inspect
 from sqlalchemy.engine import make_url
 
 _REQUIRED = {
+    "data_series_collections",
+    "data_series_requests",
+    "data_series_publications",
     "data_sources",
     "data_processing_attempts",
     "data_admission_rejections",

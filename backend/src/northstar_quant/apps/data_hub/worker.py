@@ -11,6 +11,7 @@ from northstar_quant.data_management.contract_data.processing import process_nex
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
+from northstar_quant.data_management.series_data.processing import process_next as series_next
 from northstar_quant.data_management.tushare.claiming import prepare
 from northstar_quant.logging_ import configure
 
@@ -35,6 +36,7 @@ def run(*, initializer: Callable[[], None] | None = None) -> None:
             retention.maintain()
             prepare(engine)
             contract_next(engine)
+            series_next(engine, library._files)
             result = process_attempt(library)
             compacted = compact_next(engine, library._files)
             if compacted is not None:

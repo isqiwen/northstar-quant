@@ -355,6 +355,8 @@ export type CatalogSnapshot = {
   reference: Record<string, JsonValue>;
   time_basis: string;
   fee_basis: string;
+  series: string;
+  entity_type: string;
 };
 export type CatalogQuery = {
   domain: string;
@@ -363,6 +365,7 @@ export type CatalogQuery = {
   end: string;
   offset: number;
   limit: number;
+  series?: string;
 };
 export type CatalogRows = {
   snapshot_id: string;
@@ -371,6 +374,27 @@ export type CatalogRows = {
   total: number;
   offset: number;
   limit: number;
+};
+export type SeriesQuery = {
+  dataset: string;
+  search: string;
+  offset: number;
+};
+export type SeriesVersions = {
+  dataset: string;
+  scope: string;
+  offset: number;
+};
+export type SeriesIdentity = {
+  dataset: string;
+  scope: string;
+};
+export type SeriesRows = {
+  rows?: (Record<string, JsonValue>)[];
+  total: number;
+};
+export type SeriesRetry = {
+  retried: number;
 };
 export type Empty = {
 };

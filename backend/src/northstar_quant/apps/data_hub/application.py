@@ -17,6 +17,7 @@ from . import (
     processing_api,
     publication_api,
     research_api,
+    series_api,
     source_api,
     sync_api,
 )
@@ -30,6 +31,7 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
         allow_ip_hosts=True,
     )
     catalog_api.register(app, app.state.workspace_access, engine)
+    series_api.register(app, app.state.workspace_access, engine)
     compaction_api.register(app, engine)
     exploration_api.register(app, engine)
     publication_api.register(app, library)

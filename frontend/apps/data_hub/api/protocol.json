@@ -2262,6 +2262,20 @@
           "type": "string",
           "required": true,
           "nullable": false
+        },
+        "series": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "entity_type": {
+          "id": 10,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
         }
       },
       "array": false,
@@ -2310,6 +2324,13 @@
           "type": "int64",
           "required": true,
           "nullable": false
+        },
+        "series": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
         }
       },
       "array": false,
@@ -2355,6 +2376,114 @@
         },
         "limit": {
           "id": 6,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.SeriesQuery": {
+      "fields": {
+        "dataset": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "search": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.SeriesVersions": {
+      "fields": {
+        "dataset": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "scope": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.SeriesIdentity": {
+      "fields": {
+        "dataset": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "scope": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.SeriesRows": {
+      "fields": {
+        "rows": {
+          "id": 1,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "total": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.SeriesRetry": {
+      "fields": {
+        "retried": {
+          "id": 1,
           "presence": true,
           "type": "int64",
           "required": true,
@@ -2744,6 +2873,27 @@
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/series/query",
+      "input": "northstar.data_hub.SeriesQuery",
+      "output": "northstar.data_hub.SeriesRows",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/series/versions",
+      "input": "northstar.data_hub.SeriesVersions",
+      "output": "northstar.data_hub.SeriesRows",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/series/retry",
+      "input": "northstar.data_hub.SeriesIdentity",
+      "output": "northstar.data_hub.SeriesRetry",
+      "runtime": false
+    },
     {
       "method": "GET",
       "path": "/api/catalog/snapshots/{snapshot_id}",

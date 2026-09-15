@@ -44,17 +44,24 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
     return (
         connection.execute(
             text("""
-        WITH ready AS MATERIALIZED (
-            SELECT j.*,min(w.end_date) AS owner_end,min(w.scope) AS owner_scope
+        WITH last_lane AS MATERIALIZED (
+            SELECT EXISTS(SELECT 1 FROM data_series_requests sr WHERE sr.request_id=a.request_id)
+                AS research_series FROM data_sync_attempts a
+            ORDER BY a.started_at DESC,a.generation DESC LIMIT 1
+        ), ready AS MATERIALIZED (
+            SELECT j.*,COALESCE(min(w.end_date),min(NULLIF(j.end_at,''))::date) AS owner_end,
+                COALESCE(min(w.scope),min(sr.scope)) AS owner_scope,
+                bool_or(sr.scope IS NOT NULL) AS research_series
             FROM data_sync_jobs j
             JOIN unnest(CAST(:datasets AS text[]),CAST(:apis AS text[])) d(dataset,api)
                 ON j.dataset=d.dataset
+            LEFT JOIN data_series_requests sr ON sr.request_id=j.request_id
             LEFT JOIN data_contract_requests cr ON cr.request_id=j.request_id
             LEFT JOIN data_contract_collections w ON w.scope=cr.scope
                 AND w.status IN ('COLLECTING','VERIFYING')
                 AND w.scope=ANY(CAST(:eligible AS text[]))
             WHERE j.status IN ('PENDING','WAITING') AND j.next_at<=now()
-            AND (j.dataset='contracts' OR w.scope IS NOT NULL)
+            AND (j.dataset='contracts' OR w.scope IS NOT NULL OR sr.scope IS NOT NULL)
             AND (j.source_generation IS NOT NULL OR (:download_ready AND COALESCE(
                 (SELECT (api_next_at->>d.api)::timestamptz FROM data_sync_settings),
                 '-infinity'::timestamptz)<=now()))
@@ -64,9 +71,10 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
             GROUP BY j.request_id
         ), selected AS (
             SELECT r.request_id FROM ready r
-            ORDER BY (r.dataset='contracts') DESC, r.owner_end, r.owner_scope,
+            ORDER BY (r.dataset='contracts') DESC,
+                COALESCE(r.research_series=(SELECT research_series FROM last_lane),false),
+                (r.dataset='calendar') DESC,r.owner_end,r.owner_scope,
                 (r.source_generation IS NOT NULL) DESC,
-                (r.dataset='calendar') DESC,
                 (SELECT max(a.started_at) FROM data_sync_attempts a
                     JOIN data_sync_jobs s USING(request_id)
                     WHERE s.dataset=r.dataset AND s.scope=r.scope) ASC NULLS FIRST,

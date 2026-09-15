@@ -25,7 +25,7 @@ P extends `/api/attempts` ? messages.GetApiAttemptsResponse :
 P extends `/api/datasets` ? messages.GetApiDatasetsResponse :
 P extends `/api/sources` ? messages.GetApiSourcesResponse :
 P extends `/api/sync` ? messages.SyncStatus : never;
-export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/catalog/snapshots/${string}/query` | `/api/research-inputs/assemble` | `/api/sync/contracts/review` | `/api/explorer/compactions` | `/api/sync/contracts/query` | `/api/explorer/instrument` | `/api/explorer/available` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/research-inputs` | `/api/explorer/export` | `/api/explorer/select` | `/api/sync/jobs/query` | `/api/explorer/query` | `/api/explorer/chart` | `/api/sync/reprocess` | `/api/explorer/open` | `/api/sync/settings` | `/api/sync/token` | `/api/logout` | `/api/setup` | `/api/login`;
+export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/catalog/snapshots/${string}/query` | `/api/research-inputs/assemble` | `/api/sync/contracts/review` | `/api/explorer/compactions` | `/api/sync/contracts/query` | `/api/explorer/instrument` | `/api/explorer/available` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/series/versions` | `/api/research-inputs` | `/api/explorer/export` | `/api/explorer/select` | `/api/sync/jobs/query` | `/api/explorer/query` | `/api/explorer/chart` | `/api/sync/reprocess` | `/api/explorer/open` | `/api/sync/settings` | `/api/series/query` | `/api/series/retry` | `/api/sync/token` | `/api/logout` | `/api/setup` | `/api/login`;
 export type CommandResponse<P> = P extends `/api/explorer/compactions/${string}/export` ? messages.ExplorerRows :
 P extends `/api/explorer/compactions/${string}/query` ? messages.ExplorerRows :
 P extends `/api/catalog/snapshots/${string}/query` ? messages.CatalogRows :
@@ -39,6 +39,7 @@ P extends `/api/explorer/contracts` ? messages.ExplorerList :
 P extends `/api/explorer/versions` ? messages.ExplorerList :
 P extends `/api/explorer/coverage` ? messages.ExplorerCoverage :
 P extends `/api/explorer/compare` ? messages.RevisionComparison :
+P extends `/api/series/versions` ? messages.SeriesRows :
 P extends `/api/research-inputs` ? messages.ProcessingAttempt :
 P extends `/api/explorer/export` ? messages.ExplorerRows :
 P extends `/api/explorer/select` ? messages.ExplorerRows :
@@ -48,6 +49,8 @@ P extends `/api/explorer/chart` ? messages.ExplorerRows :
 P extends `/api/sync/reprocess` ? messages.SyncEvidence :
 P extends `/api/explorer/open` ? messages.ExplorerRows :
 P extends `/api/sync/settings` ? messages.SyncStatus :
+P extends `/api/series/query` ? messages.SeriesRows :
+P extends `/api/series/retry` ? messages.SeriesRetry :
 P extends `/api/sync/token` ? messages.SyncStatus :
 P extends `/api/logout` ? messages.BrowserSession :
 P extends `/api/setup` ? messages.BrowserSession :
@@ -65,6 +68,7 @@ P extends `/api/explorer/contracts` ? messages.ContractSearch :
 P extends `/api/explorer/versions` ? messages.ExplorerRange :
 P extends `/api/explorer/coverage` ? messages.ExplorerRange :
 P extends `/api/explorer/compare` ? messages.RevisionRequest :
+P extends `/api/series/versions` ? messages.SeriesVersions :
 P extends `/api/research-inputs` ? messages.PrepareResearchRequest :
 P extends `/api/explorer/export` ? messages.ExplorerQuery :
 P extends `/api/explorer/select` ? messages.InstrumentOpen :
@@ -74,6 +78,8 @@ P extends `/api/explorer/chart` ? messages.ChartQuery :
 P extends `/api/sync/reprocess` ? messages.SyncReprocessRequest :
 P extends `/api/explorer/open` ? messages.PublishedSelection :
 P extends `/api/sync/settings` ? messages.SyncSettingsRequest :
+P extends `/api/series/query` ? messages.SeriesQuery :
+P extends `/api/series/retry` ? messages.SeriesIdentity :
 P extends `/api/sync/token` ? messages.SyncTokenRequest :
 P extends `/api/logout` ? messages.Empty :
 P extends `/api/setup` ? messages.LoginRequest :

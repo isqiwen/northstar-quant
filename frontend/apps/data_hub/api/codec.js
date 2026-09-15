@@ -24624,6 +24624,8 @@ export const northstar = $root.northstar = (() => {
              * @property {google.protobuf.Struct.$Properties|null} [reference] CatalogSnapshot reference
              * @property {string|null} [time_basis] CatalogSnapshot time_basis
              * @property {string|null} [fee_basis] CatalogSnapshot fee_basis
+             * @property {string|null} [series] CatalogSnapshot series
+             * @property {string|null} [entity_type] CatalogSnapshot entity_type
              * @property {"snapshot_id"} [_snapshot_id] CatalogSnapshot _snapshot_id
              * @property {"exchange"} [_exchange] CatalogSnapshot _exchange
              * @property {"product"} [_product] CatalogSnapshot _product
@@ -24631,6 +24633,8 @@ export const northstar = $root.northstar = (() => {
              * @property {"reference"} [_reference] CatalogSnapshot _reference
              * @property {"time_basis"} [_time_basis] CatalogSnapshot _time_basis
              * @property {"fee_basis"} [_fee_basis] CatalogSnapshot _fee_basis
+             * @property {"series"} [_series] CatalogSnapshot _series
+             * @property {"entity_type"} [_entity_type] CatalogSnapshot _entity_type
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -24653,6 +24657,8 @@ export const northstar = $root.northstar = (() => {
              *   reference?: google.protobuf.Struct.$Shape|null;
              *   time_basis?: string|null;
              *   fee_basis?: string|null;
+             *   series?: string|null;
+             *   entity_type?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
@@ -24668,6 +24674,10 @@ export const northstar = $root.northstar = (() => {
              *   ({ _time_basis?: undefined; time_basis?: null }|{ _time_basis?: "time_basis"; time_basis: string })
              * ) & (
              *   ({ _fee_basis?: undefined; fee_basis?: null }|{ _fee_basis?: "fee_basis"; fee_basis: string })
+             * ) & (
+             *   ({ _series?: undefined; series?: null }|{ _series?: "series"; series: string })
+             * ) & (
+             *   ({ _entity_type?: undefined; entity_type?: null }|{ _entity_type?: "entity_type"; entity_type: string })
              * )} northstar.data_hub.CatalogSnapshot.$Shape
              */
 
@@ -24751,6 +24761,22 @@ export const northstar = $root.northstar = (() => {
              */
             CatalogSnapshot.prototype.fee_basis = null;
 
+            /**
+             * CatalogSnapshot series.
+             * @member {string|null|undefined} series
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.series = null;
+
+            /**
+             * CatalogSnapshot entity_type.
+             * @member {string|null|undefined} entity_type
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.entity_type = null;
+
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
 
@@ -24832,6 +24858,28 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * CatalogSnapshot _series.
+             * @member {"series"|undefined} _series
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            $Object.defineProperty(CatalogSnapshot.prototype, "_series", {
+                get: $util.oneOfGetter($oneOfFields = ["series"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogSnapshot _entity_type.
+             * @member {"entity_type"|undefined} _entity_type
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            $Object.defineProperty(CatalogSnapshot.prototype, "_entity_type", {
+                get: $util.oneOfGetter($oneOfFields = ["entity_type"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new CatalogSnapshot instance using the specified properties.
              * @function create
              * @memberof northstar.data_hub.CatalogSnapshot
@@ -24880,6 +24928,10 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 7, wireType 2 =*/58).string(message.time_basis);
                 if (message.fee_basis != null && $Object.hasOwnProperty.call(message, "fee_basis"))
                     writer.uint32(/* id 8, wireType 2 =*/66).string(message.fee_basis);
+                if (message.series != null && $Object.hasOwnProperty.call(message, "series"))
+                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.series);
+                if (message.entity_type != null && $Object.hasOwnProperty.call(message, "entity_type"))
+                    writer.uint32(/* id 10, wireType 2 =*/82).string(message.entity_type);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -24981,6 +25033,20 @@ export const northstar = $root.northstar = (() => {
                             message._fee_basis = "fee_basis";
                             continue;
                         }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.series = reader.stringVerify();
+                            message._series = "series";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            message.entity_type = reader.stringVerify();
+                            message._entity_type = "entity_type";
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -25061,6 +25127,16 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.fee_basis))
                         return "fee_basis: string expected";
                 }
+                if (message.series != null && $Object.hasOwnProperty.call(message, "series")) {
+                    properties._series = 1;
+                    if (!$util.isString(message.series))
+                        return "series: string expected";
+                }
+                if (message.entity_type != null && $Object.hasOwnProperty.call(message, "entity_type")) {
+                    properties._entity_type = 1;
+                    if (!$util.isString(message.entity_type))
+                        return "entity_type: string expected";
+                }
                 return null;
             };
 
@@ -25109,6 +25185,10 @@ export const northstar = $root.northstar = (() => {
                     message.time_basis = $String(object.time_basis);
                 if (object.fee_basis != null)
                     message.fee_basis = $String(object.fee_basis);
+                if (object.series != null)
+                    message.series = $String(object.series);
+                if (object.entity_type != null)
+                    message.entity_type = $String(object.entity_type);
                 return message;
             };
 
@@ -25171,6 +25251,16 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._fee_basis = "fee_basis";
                 }
+                if (message.series != null && $Object.hasOwnProperty.call(message, "series")) {
+                    object.series = message.series;
+                    if (options.oneofs)
+                        object._series = "series";
+                }
+                if (message.entity_type != null && $Object.hasOwnProperty.call(message, "entity_type")) {
+                    object.entity_type = message.entity_type;
+                    if (options.oneofs)
+                        object._entity_type = "entity_type";
+                }
                 return object;
             };
 
@@ -25213,12 +25303,14 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [end] CatalogQuery end
              * @property {number|Long|null} [offset] CatalogQuery offset
              * @property {number|Long|null} [limit] CatalogQuery limit
+             * @property {string|null} [series] CatalogQuery series
              * @property {"domain"} [_domain] CatalogQuery _domain
              * @property {"contract"} [_contract] CatalogQuery _contract
              * @property {"start"} [_start] CatalogQuery _start
              * @property {"end"} [_end] CatalogQuery _end
              * @property {"offset"} [_offset] CatalogQuery _offset
              * @property {"limit"} [_limit] CatalogQuery _limit
+             * @property {"series"} [_series] CatalogQuery _series
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -25239,6 +25331,7 @@ export const northstar = $root.northstar = (() => {
              *   end?: string|null;
              *   offset?: number|Long|null;
              *   limit?: number|Long|null;
+             *   series?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _domain?: undefined; domain?: null }|{ _domain?: "domain"; domain: string })
@@ -25252,6 +25345,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
              * ) & (
              *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
+             * ) & (
+             *   ({ _series?: undefined; series?: null }|{ _series?: "series"; series: string })
              * )} northstar.data_hub.CatalogQuery.$Shape
              */
 
@@ -25317,6 +25412,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             CatalogQuery.prototype.limit = null;
+
+            /**
+             * CatalogQuery series.
+             * @member {string|null|undefined} series
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            CatalogQuery.prototype.series = null;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -25388,6 +25491,17 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * CatalogQuery _series.
+             * @member {"series"|undefined} _series
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            $Object.defineProperty(CatalogQuery.prototype, "_series", {
+                get: $util.oneOfGetter($oneOfFields = ["series"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new CatalogQuery instance using the specified properties.
              * @function create
              * @memberof northstar.data_hub.CatalogQuery
@@ -25431,6 +25545,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 5, wireType 0 =*/40).int64(message.offset);
                 if (message.limit != null && $Object.hasOwnProperty.call(message, "limit"))
                     writer.uint32(/* id 6, wireType 0 =*/48).int64(message.limit);
+                if (message.series != null && $Object.hasOwnProperty.call(message, "series"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.series);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -25517,6 +25633,13 @@ export const northstar = $root.northstar = (() => {
                             message._limit = "limit";
                             continue;
                         }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.series = reader.stringVerify();
+                            message._series = "series";
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -25580,6 +25703,11 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isInteger(message.limit) && !(message.limit && $util.isInteger(message.limit.low) && $util.isInteger(message.limit.high)))
                         return "limit: integer|Long expected";
                 }
+                if (message.series != null && $Object.hasOwnProperty.call(message, "series")) {
+                    properties._series = 1;
+                    if (!$util.isString(message.series))
+                        return "series: string expected";
+                }
                 return null;
             };
 
@@ -25627,6 +25755,8 @@ export const northstar = $root.northstar = (() => {
                         message.limit = object.limit;
                     else if (typeof object.limit === "object")
                         message.limit = new $util.LongBits(object.limit.low >>> 0, object.limit.high >>> 0).toNumber();
+                if (object.series != null)
+                    message.series = $String(object.series);
                 return message;
             };
 
@@ -25686,6 +25816,11 @@ export const northstar = $root.northstar = (() => {
                         object.limit = options.longs === $String ? $util.Long.prototype.toString.call(message.limit) : options.longs === $Number ? new $util.LongBits(message.limit.low >>> 0, message.limit.high >>> 0).toNumber() : message.limit;
                     if (options.oneofs)
                         object._limit = "limit";
+                }
+                if (message.series != null && $Object.hasOwnProperty.call(message, "series")) {
+                    object.series = message.series;
+                    if (options.oneofs)
+                        object._series = "series";
                 }
                 return object;
             };
@@ -26247,6 +26382,1662 @@ export const northstar = $root.northstar = (() => {
             };
 
             return CatalogRows;
+        })();
+
+        data_hub.SeriesQuery = (function() {
+
+            /**
+             * Properties of a SeriesQuery.
+             * @typedef {Object} northstar.data_hub.SeriesQuery.$Properties
+             * @property {string|null} [dataset] SeriesQuery dataset
+             * @property {string|null} [search] SeriesQuery search
+             * @property {number|Long|null} [offset] SeriesQuery offset
+             * @property {"dataset"} [_dataset] SeriesQuery _dataset
+             * @property {"search"} [_search] SeriesQuery _search
+             * @property {"offset"} [_offset] SeriesQuery _offset
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SeriesQuery.
+             * @memberof northstar.data_hub
+             * @interface ISeriesQuery
+             * @augments northstar.data_hub.SeriesQuery.$Properties
+             * @deprecated Use northstar.data_hub.SeriesQuery.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SeriesQuery.
+             * @typedef {{
+             *   dataset?: string|null;
+             *   search?: string|null;
+             *   offset?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _search?: undefined; search?: null }|{ _search?: "search"; search: string })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * )} northstar.data_hub.SeriesQuery.$Shape
+             */
+
+            /**
+             * Constructs a new SeriesQuery.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SeriesQuery.
+             * @constructor
+             * @param {northstar.data_hub.SeriesQuery.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SeriesQuery = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SeriesQuery dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.SeriesQuery
+             * @instance
+             */
+            SeriesQuery.prototype.dataset = null;
+
+            /**
+             * SeriesQuery search.
+             * @member {string|null|undefined} search
+             * @memberof northstar.data_hub.SeriesQuery
+             * @instance
+             */
+            SeriesQuery.prototype.search = null;
+
+            /**
+             * SeriesQuery offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.SeriesQuery
+             * @instance
+             */
+            SeriesQuery.prototype.offset = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SeriesQuery _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.SeriesQuery
+             * @instance
+             */
+            $Object.defineProperty(SeriesQuery.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SeriesQuery _search.
+             * @member {"search"|undefined} _search
+             * @memberof northstar.data_hub.SeriesQuery
+             * @instance
+             */
+            $Object.defineProperty(SeriesQuery.prototype, "_search", {
+                get: $util.oneOfGetter($oneOfFields = ["search"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SeriesQuery _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.SeriesQuery
+             * @instance
+             */
+            $Object.defineProperty(SeriesQuery.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SeriesQuery instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SeriesQuery
+             * @static
+             * @param {northstar.data_hub.SeriesQuery.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SeriesQuery} SeriesQuery instance
+             * @type {{
+             *   (properties: northstar.data_hub.SeriesQuery.$Shape): northstar.data_hub.SeriesQuery & northstar.data_hub.SeriesQuery.$Shape;
+             *   (properties?: northstar.data_hub.SeriesQuery.$Properties): northstar.data_hub.SeriesQuery;
+             * }}
+             */
+            SeriesQuery.create = function(properties) {
+                return new SeriesQuery(properties);
+            };
+
+            /**
+             * Encodes the specified SeriesQuery message. Does not implicitly {@link northstar.data_hub.SeriesQuery.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SeriesQuery
+             * @static
+             * @param {northstar.data_hub.SeriesQuery.$Properties} message SeriesQuery message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SeriesQuery.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.dataset);
+                if (message.search != null && $Object.hasOwnProperty.call(message, "search"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.search);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.offset);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SeriesQuery message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SeriesQuery
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SeriesQuery & northstar.data_hub.SeriesQuery.$Shape} SeriesQuery
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SeriesQuery.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SeriesQuery();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.search = reader.stringVerify();
+                            message._search = "search";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SeriesQuery message.
+             * @function verify
+             * @memberof northstar.data_hub.SeriesQuery
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SeriesQuery.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.search != null && $Object.hasOwnProperty.call(message, "search")) {
+                    properties._search = 1;
+                    if (!$util.isString(message.search))
+                        return "search: string expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SeriesQuery message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SeriesQuery
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SeriesQuery} SeriesQuery
+             */
+            SeriesQuery.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SeriesQuery)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SeriesQuery: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SeriesQuery();
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.search != null)
+                    message.search = $String(object.search);
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SeriesQuery message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SeriesQuery
+             * @static
+             * @param {northstar.data_hub.SeriesQuery} message SeriesQuery
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SeriesQuery.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.search != null && $Object.hasOwnProperty.call(message, "search")) {
+                    object.search = message.search;
+                    if (options.oneofs)
+                        object._search = "search";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SeriesQuery to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SeriesQuery
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SeriesQuery.prototype.toJSON = function() {
+                return SeriesQuery.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SeriesQuery
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SeriesQuery
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SeriesQuery.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SeriesQuery";
+            };
+
+            return SeriesQuery;
+        })();
+
+        data_hub.SeriesVersions = (function() {
+
+            /**
+             * Properties of a SeriesVersions.
+             * @typedef {Object} northstar.data_hub.SeriesVersions.$Properties
+             * @property {string|null} [dataset] SeriesVersions dataset
+             * @property {string|null} [scope] SeriesVersions scope
+             * @property {number|Long|null} [offset] SeriesVersions offset
+             * @property {"dataset"} [_dataset] SeriesVersions _dataset
+             * @property {"scope"} [_scope] SeriesVersions _scope
+             * @property {"offset"} [_offset] SeriesVersions _offset
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SeriesVersions.
+             * @memberof northstar.data_hub
+             * @interface ISeriesVersions
+             * @augments northstar.data_hub.SeriesVersions.$Properties
+             * @deprecated Use northstar.data_hub.SeriesVersions.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SeriesVersions.
+             * @typedef {{
+             *   dataset?: string|null;
+             *   scope?: string|null;
+             *   offset?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * )} northstar.data_hub.SeriesVersions.$Shape
+             */
+
+            /**
+             * Constructs a new SeriesVersions.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SeriesVersions.
+             * @constructor
+             * @param {northstar.data_hub.SeriesVersions.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SeriesVersions = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SeriesVersions dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.SeriesVersions
+             * @instance
+             */
+            SeriesVersions.prototype.dataset = null;
+
+            /**
+             * SeriesVersions scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.SeriesVersions
+             * @instance
+             */
+            SeriesVersions.prototype.scope = null;
+
+            /**
+             * SeriesVersions offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.SeriesVersions
+             * @instance
+             */
+            SeriesVersions.prototype.offset = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SeriesVersions _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.SeriesVersions
+             * @instance
+             */
+            $Object.defineProperty(SeriesVersions.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SeriesVersions _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.SeriesVersions
+             * @instance
+             */
+            $Object.defineProperty(SeriesVersions.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SeriesVersions _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.SeriesVersions
+             * @instance
+             */
+            $Object.defineProperty(SeriesVersions.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SeriesVersions instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SeriesVersions
+             * @static
+             * @param {northstar.data_hub.SeriesVersions.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SeriesVersions} SeriesVersions instance
+             * @type {{
+             *   (properties: northstar.data_hub.SeriesVersions.$Shape): northstar.data_hub.SeriesVersions & northstar.data_hub.SeriesVersions.$Shape;
+             *   (properties?: northstar.data_hub.SeriesVersions.$Properties): northstar.data_hub.SeriesVersions;
+             * }}
+             */
+            SeriesVersions.create = function(properties) {
+                return new SeriesVersions(properties);
+            };
+
+            /**
+             * Encodes the specified SeriesVersions message. Does not implicitly {@link northstar.data_hub.SeriesVersions.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SeriesVersions
+             * @static
+             * @param {northstar.data_hub.SeriesVersions.$Properties} message SeriesVersions message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SeriesVersions.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.dataset);
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.scope);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.offset);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SeriesVersions message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SeriesVersions
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SeriesVersions & northstar.data_hub.SeriesVersions.$Shape} SeriesVersions
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SeriesVersions.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SeriesVersions();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SeriesVersions message.
+             * @function verify
+             * @memberof northstar.data_hub.SeriesVersions
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SeriesVersions.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SeriesVersions message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SeriesVersions
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SeriesVersions} SeriesVersions
+             */
+            SeriesVersions.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SeriesVersions)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SeriesVersions: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SeriesVersions();
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SeriesVersions message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SeriesVersions
+             * @static
+             * @param {northstar.data_hub.SeriesVersions} message SeriesVersions
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SeriesVersions.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SeriesVersions to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SeriesVersions
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SeriesVersions.prototype.toJSON = function() {
+                return SeriesVersions.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SeriesVersions
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SeriesVersions
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SeriesVersions.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SeriesVersions";
+            };
+
+            return SeriesVersions;
+        })();
+
+        data_hub.SeriesIdentity = (function() {
+
+            /**
+             * Properties of a SeriesIdentity.
+             * @typedef {Object} northstar.data_hub.SeriesIdentity.$Properties
+             * @property {string|null} [dataset] SeriesIdentity dataset
+             * @property {string|null} [scope] SeriesIdentity scope
+             * @property {"dataset"} [_dataset] SeriesIdentity _dataset
+             * @property {"scope"} [_scope] SeriesIdentity _scope
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SeriesIdentity.
+             * @memberof northstar.data_hub
+             * @interface ISeriesIdentity
+             * @augments northstar.data_hub.SeriesIdentity.$Properties
+             * @deprecated Use northstar.data_hub.SeriesIdentity.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SeriesIdentity.
+             * @typedef {{
+             *   dataset?: string|null;
+             *   scope?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * )} northstar.data_hub.SeriesIdentity.$Shape
+             */
+
+            /**
+             * Constructs a new SeriesIdentity.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SeriesIdentity.
+             * @constructor
+             * @param {northstar.data_hub.SeriesIdentity.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SeriesIdentity = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SeriesIdentity dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @instance
+             */
+            SeriesIdentity.prototype.dataset = null;
+
+            /**
+             * SeriesIdentity scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @instance
+             */
+            SeriesIdentity.prototype.scope = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SeriesIdentity _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @instance
+             */
+            $Object.defineProperty(SeriesIdentity.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SeriesIdentity _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @instance
+             */
+            $Object.defineProperty(SeriesIdentity.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SeriesIdentity instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @static
+             * @param {northstar.data_hub.SeriesIdentity.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SeriesIdentity} SeriesIdentity instance
+             * @type {{
+             *   (properties: northstar.data_hub.SeriesIdentity.$Shape): northstar.data_hub.SeriesIdentity & northstar.data_hub.SeriesIdentity.$Shape;
+             *   (properties?: northstar.data_hub.SeriesIdentity.$Properties): northstar.data_hub.SeriesIdentity;
+             * }}
+             */
+            SeriesIdentity.create = function(properties) {
+                return new SeriesIdentity(properties);
+            };
+
+            /**
+             * Encodes the specified SeriesIdentity message. Does not implicitly {@link northstar.data_hub.SeriesIdentity.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @static
+             * @param {northstar.data_hub.SeriesIdentity.$Properties} message SeriesIdentity message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SeriesIdentity.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.dataset);
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.scope);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SeriesIdentity message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SeriesIdentity & northstar.data_hub.SeriesIdentity.$Shape} SeriesIdentity
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SeriesIdentity.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SeriesIdentity();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SeriesIdentity message.
+             * @function verify
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SeriesIdentity.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SeriesIdentity message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SeriesIdentity} SeriesIdentity
+             */
+            SeriesIdentity.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SeriesIdentity)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SeriesIdentity: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SeriesIdentity();
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SeriesIdentity message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @static
+             * @param {northstar.data_hub.SeriesIdentity} message SeriesIdentity
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SeriesIdentity.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SeriesIdentity to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SeriesIdentity.prototype.toJSON = function() {
+                return SeriesIdentity.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SeriesIdentity
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SeriesIdentity
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SeriesIdentity.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SeriesIdentity";
+            };
+
+            return SeriesIdentity;
+        })();
+
+        data_hub.SeriesRows = (function() {
+
+            /**
+             * Properties of a SeriesRows.
+             * @typedef {Object} northstar.data_hub.SeriesRows.$Properties
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [rows] SeriesRows rows
+             * @property {number|Long|null} [total] SeriesRows total
+             * @property {"total"} [_total] SeriesRows _total
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SeriesRows.
+             * @memberof northstar.data_hub
+             * @interface ISeriesRows
+             * @augments northstar.data_hub.SeriesRows.$Properties
+             * @deprecated Use northstar.data_hub.SeriesRows.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SeriesRows.
+             * @typedef {{
+             *   rows?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   total?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * )} northstar.data_hub.SeriesRows.$Shape
+             */
+
+            /**
+             * Constructs a new SeriesRows.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SeriesRows.
+             * @constructor
+             * @param {northstar.data_hub.SeriesRows.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SeriesRows = function (properties) {
+                this.rows = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SeriesRows rows.
+             * @member {Array.<google.protobuf.Struct.$Properties>} rows
+             * @memberof northstar.data_hub.SeriesRows
+             * @instance
+             */
+            SeriesRows.prototype.rows = $util.emptyArray;
+
+            /**
+             * SeriesRows total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.data_hub.SeriesRows
+             * @instance
+             */
+            SeriesRows.prototype.total = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SeriesRows _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.data_hub.SeriesRows
+             * @instance
+             */
+            $Object.defineProperty(SeriesRows.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SeriesRows instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SeriesRows
+             * @static
+             * @param {northstar.data_hub.SeriesRows.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SeriesRows} SeriesRows instance
+             * @type {{
+             *   (properties: northstar.data_hub.SeriesRows.$Shape): northstar.data_hub.SeriesRows & northstar.data_hub.SeriesRows.$Shape;
+             *   (properties?: northstar.data_hub.SeriesRows.$Properties): northstar.data_hub.SeriesRows;
+             * }}
+             */
+            SeriesRows.create = function(properties) {
+                return new SeriesRows(properties);
+            };
+
+            /**
+             * Encodes the specified SeriesRows message. Does not implicitly {@link northstar.data_hub.SeriesRows.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SeriesRows
+             * @static
+             * @param {northstar.data_hub.SeriesRows.$Properties} message SeriesRows message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SeriesRows.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.rows != null && message.rows.length)
+                    for (let i = 0; i < message.rows.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.rows[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.total);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SeriesRows message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SeriesRows
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SeriesRows & northstar.data_hub.SeriesRows.$Shape} SeriesRows
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SeriesRows.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SeriesRows();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.rows && message.rows.length))
+                                message.rows = [];
+                            message.rows.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SeriesRows message.
+             * @function verify
+             * @memberof northstar.data_hub.SeriesRows
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SeriesRows.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.rows != null && $Object.hasOwnProperty.call(message, "rows")) {
+                    if (!$Array.isArray(message.rows))
+                        return "rows: array expected";
+                    for (let i = 0; i < message.rows.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.rows[i], _depth + 1);
+                        if (error)
+                            return "rows." + error;
+                    }
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SeriesRows message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SeriesRows
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SeriesRows} SeriesRows
+             */
+            SeriesRows.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SeriesRows)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SeriesRows: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SeriesRows();
+                if (object.rows) {
+                    if (!$Array.isArray(object.rows))
+                        throw $TypeError(".northstar.data_hub.SeriesRows.rows: array expected");
+                    message.rows = $Array(object.rows.length);
+                    for (let i = 0; i < object.rows.length; ++i) {
+                        if (!$util.isObject(object.rows[i]))
+                            throw $TypeError(".northstar.data_hub.SeriesRows.rows: object expected");
+                        message.rows[i] = $root.google.protobuf.Struct.fromObject(object.rows[i], _depth + 1);
+                    }
+                }
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SeriesRows message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SeriesRows
+             * @static
+             * @param {northstar.data_hub.SeriesRows} message SeriesRows
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SeriesRows.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.rows = [];
+                if (message.rows && message.rows.length) {
+                    object.rows = $Array(message.rows.length);
+                    for (let j = 0; j < message.rows.length; ++j)
+                        object.rows[j] = $root.google.protobuf.Struct.toObject(message.rows[j], options, _depth + 1);
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SeriesRows to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SeriesRows
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SeriesRows.prototype.toJSON = function() {
+                return SeriesRows.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SeriesRows
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SeriesRows
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SeriesRows.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SeriesRows";
+            };
+
+            return SeriesRows;
+        })();
+
+        data_hub.SeriesRetry = (function() {
+
+            /**
+             * Properties of a SeriesRetry.
+             * @typedef {Object} northstar.data_hub.SeriesRetry.$Properties
+             * @property {number|Long|null} [retried] SeriesRetry retried
+             * @property {"retried"} [_retried] SeriesRetry _retried
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SeriesRetry.
+             * @memberof northstar.data_hub
+             * @interface ISeriesRetry
+             * @augments northstar.data_hub.SeriesRetry.$Properties
+             * @deprecated Use northstar.data_hub.SeriesRetry.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SeriesRetry.
+             * @typedef {{
+             *   retried?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _retried?: undefined; retried?: null }|{ _retried?: "retried"; retried: number|Long })
+             * )} northstar.data_hub.SeriesRetry.$Shape
+             */
+
+            /**
+             * Constructs a new SeriesRetry.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SeriesRetry.
+             * @constructor
+             * @param {northstar.data_hub.SeriesRetry.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SeriesRetry = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SeriesRetry retried.
+             * @member {number|Long|null|undefined} retried
+             * @memberof northstar.data_hub.SeriesRetry
+             * @instance
+             */
+            SeriesRetry.prototype.retried = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SeriesRetry _retried.
+             * @member {"retried"|undefined} _retried
+             * @memberof northstar.data_hub.SeriesRetry
+             * @instance
+             */
+            $Object.defineProperty(SeriesRetry.prototype, "_retried", {
+                get: $util.oneOfGetter($oneOfFields = ["retried"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SeriesRetry instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SeriesRetry
+             * @static
+             * @param {northstar.data_hub.SeriesRetry.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SeriesRetry} SeriesRetry instance
+             * @type {{
+             *   (properties: northstar.data_hub.SeriesRetry.$Shape): northstar.data_hub.SeriesRetry & northstar.data_hub.SeriesRetry.$Shape;
+             *   (properties?: northstar.data_hub.SeriesRetry.$Properties): northstar.data_hub.SeriesRetry;
+             * }}
+             */
+            SeriesRetry.create = function(properties) {
+                return new SeriesRetry(properties);
+            };
+
+            /**
+             * Encodes the specified SeriesRetry message. Does not implicitly {@link northstar.data_hub.SeriesRetry.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SeriesRetry
+             * @static
+             * @param {northstar.data_hub.SeriesRetry.$Properties} message SeriesRetry message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SeriesRetry.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.retried != null && $Object.hasOwnProperty.call(message, "retried"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.retried);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SeriesRetry message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SeriesRetry
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SeriesRetry & northstar.data_hub.SeriesRetry.$Shape} SeriesRetry
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SeriesRetry.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SeriesRetry();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 0)
+                                break;
+                            message.retried = reader.int64();
+                            message._retried = "retried";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SeriesRetry message.
+             * @function verify
+             * @memberof northstar.data_hub.SeriesRetry
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SeriesRetry.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.retried != null && $Object.hasOwnProperty.call(message, "retried")) {
+                    properties._retried = 1;
+                    if (!$util.isInteger(message.retried) && !(message.retried && $util.isInteger(message.retried.low) && $util.isInteger(message.retried.high)))
+                        return "retried: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SeriesRetry message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SeriesRetry
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SeriesRetry} SeriesRetry
+             */
+            SeriesRetry.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SeriesRetry)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SeriesRetry: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SeriesRetry();
+                if (object.retried != null)
+                    if ($util.Long)
+                        message.retried = $util.Long.fromValue(object.retried, false);
+                    else if (typeof object.retried === "string")
+                        message.retried = $parseInt(object.retried, 10);
+                    else if (typeof object.retried === "number")
+                        message.retried = object.retried;
+                    else if (typeof object.retried === "object")
+                        message.retried = new $util.LongBits(object.retried.low >>> 0, object.retried.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SeriesRetry message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SeriesRetry
+             * @static
+             * @param {northstar.data_hub.SeriesRetry} message SeriesRetry
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SeriesRetry.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.retried != null && $Object.hasOwnProperty.call(message, "retried")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.retried = typeof message.retried === "number" ? $BigInt(message.retried) : $util.Long.fromBits(message.retried.low >>> 0, message.retried.high >>> 0, false).toBigInt();
+                    else if (typeof message.retried === "number")
+                        object.retried = options.longs === $String ? $String(message.retried) : message.retried;
+                    else
+                        object.retried = options.longs === $String ? $util.Long.prototype.toString.call(message.retried) : options.longs === $Number ? new $util.LongBits(message.retried.low >>> 0, message.retried.high >>> 0).toNumber() : message.retried;
+                    if (options.oneofs)
+                        object._retried = "retried";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SeriesRetry to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SeriesRetry
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SeriesRetry.prototype.toJSON = function() {
+                return SeriesRetry.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SeriesRetry
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SeriesRetry
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SeriesRetry.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SeriesRetry";
+            };
+
+            return SeriesRetry;
         })();
 
         return data_hub;

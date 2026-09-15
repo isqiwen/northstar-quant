@@ -357,7 +357,9 @@ def _commit(
                         "exchange": row["exchange"],
                         "product": row["fut_code"],
                         "kind": selected["parameters"]["fut_type"],
-                        "details": json.dumps(row),
+                        "details": json.dumps(
+                            {k: v for k, v in row.items() if k in BY_KEY["contracts"].fields}
+                        ),
                     },
                 )
                 changed = updated.scalar_one_or_none() is not None or changed

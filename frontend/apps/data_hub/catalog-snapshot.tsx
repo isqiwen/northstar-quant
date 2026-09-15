@@ -12,6 +12,7 @@ const labels: Record<string, string> = {
   contracts: "合约主数据",
   trading_calendar: "交易日历",
   daily: "日线",
+  continuous_to_contract: "连续合约映射",
   weekly: "周线",
   monthly: "月线",
   settlement: "结算参数",
@@ -21,6 +22,10 @@ const labels: Record<string, string> = {
   weekly_statistics: "品种交易周报",
 };
 const fields: Record<string, string> = {
+  series: "研究序列",
+  mapped_contract: "对应真实合约",
+  publisher: "发布机构",
+  price_basis: "价格口径",
   exchange: "交易所",
   product: "品种",
   contract: "合约",
@@ -75,9 +80,10 @@ export function CatalogSnapshot({
     domain ||
     domains.find((d) => d.startsWith("market/futures/contracts/")) ||
     domains[0];
-  const contract = detail.data?.contract;
+  const contract = detail.data?.contract || "";
+  const series = detail.data?.series || "";
   useEffect(() => {
-    if (!id || !selected || !contract) return;
+    if (!id || !selected || (!contract && !series)) return;
     let active = true;
     setBusy(true);
     setData(undefined);
@@ -85,6 +91,7 @@ export function CatalogSnapshot({
     void mutate(`/api/catalog/snapshots/${id}/query`, {
       domain: selected,
       contract,
+      series,
       start: "",
       end: "",
       offset,
@@ -102,12 +109,36 @@ export function CatalogSnapshot({
     return () => {
       active = false;
     };
-  }, [id, selected, contract, offset]);
+  }, [id, selected, contract, series, offset]);
   const columns = [
     ...new Set((data?.rows || []).flatMap((r) => Object.keys(r))),
   ];
+  const order = [
+    "contract",
+    "series",
+    "timestamp_label",
+    "trading_day",
+    "period_end",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "open_interest",
+    "mapped_contract",
+  ];
+  columns.sort(
+    (a, b) =>
+      (order.includes(a) ? order.indexOf(a) : 100) -
+        (order.includes(b) ? order.indexOf(b) : 100) || a.localeCompare(b),
+  );
   return (
-    <Drawer title="合约标准数据" open={!!id} onClose={onClose} size="large">
+    <Drawer
+      title={series ? "研究序列标准数据" : "合约标准数据"}
+      open={!!id}
+      onClose={onClose}
+      size="large"
+    >
       <Failure error={detail.error || error} />
       {detail.loading && <Spin />}
       {detail.data && (
@@ -117,8 +148,10 @@ export function CatalogSnapshot({
             items={[
               {
                 key: "contract",
-                label: "交易所 → 品种 → 合约",
-                children: `${detail.data.exchange} → ${detail.data.product} → ${detail.data.contract}`,
+                label: series ? "研究序列" : "交易所 → 品种 → 合约",
+                children:
+                  series ||
+                  `${detail.data.exchange} → ${detail.data.product} → ${detail.data.contract}`,
               },
               {
                 key: "identity",
@@ -129,6 +162,11 @@ export function CatalogSnapshot({
               },
             ]}
           />
+          {series && (
+            <p className="muted">
+              供应商派生研究数据；不代表可交易合约，不能作为实际成交价格。
+            </p>
+          )}
           <p className="muted">
             查看此固定版本的标准字段。未知值显示为“—”；供应商时间标签和原始费用字段仍需语义核验。
           </p>
@@ -156,7 +194,11 @@ export function CatalogSnapshot({
               dataIndex: key,
               title: fields[key] || key,
               render: (value) =>
-                value === null || value === undefined ? "—" : String(value),
+                value === null || value === undefined
+                  ? "—"
+                  : typeof value === "string" && /^-?\d+\.\d+$/.test(value)
+                    ? value.replace(/0+$/, "").replace(/\.$/, "")
+                    : String(value),
             }))}
             pagination={{
               current: offset / 50 + 1,

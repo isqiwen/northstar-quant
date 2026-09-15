@@ -7,7 +7,7 @@ from pydantic import Field, JsonValue
 from sqlalchemy import Engine
 from starlette.concurrency import run_in_threadpool
 
-from northstar_quant.data_management.contract_data import catalog
+from northstar_quant.data_management.catalog import browsing as catalog
 from northstar_quant.web.access import WorkspaceAccess
 from northstar_quant.web.requests import ApiModel
 
@@ -17,6 +17,8 @@ class CatalogSnapshot(ApiModel):
     exchange: str
     product: str
     contract: str
+    series: str
+    entity_type: str
     files: list[dict[str, JsonValue]]
     reference: dict[str, JsonValue]
     time_basis: str
@@ -26,6 +28,7 @@ class CatalogSnapshot(ApiModel):
 class CatalogQuery(ApiModel):
     domain: str = Field(min_length=1, max_length=160)
     contract: str = ""
+    series: str = ""
     start: str = ""
     end: str = ""
     offset: int = Field(default=0, ge=0)

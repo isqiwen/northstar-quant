@@ -766,7 +766,7 @@ class AssembleResearchRequest(_message.Message):
     def __init__(self, snapshot_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CatalogSnapshot(_message.Message):
-    __slots__ = ("snapshot_id", "exchange", "product", "contract", "files", "reference", "time_basis", "fee_basis")
+    __slots__ = ("snapshot_id", "exchange", "product", "contract", "files", "reference", "time_basis", "fee_basis", "series", "entity_type")
     SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     EXCHANGE_FIELD_NUMBER: _ClassVar[int]
     PRODUCT_FIELD_NUMBER: _ClassVar[int]
@@ -775,6 +775,8 @@ class CatalogSnapshot(_message.Message):
     REFERENCE_FIELD_NUMBER: _ClassVar[int]
     TIME_BASIS_FIELD_NUMBER: _ClassVar[int]
     FEE_BASIS_FIELD_NUMBER: _ClassVar[int]
+    SERIES_FIELD_NUMBER: _ClassVar[int]
+    ENTITY_TYPE_FIELD_NUMBER: _ClassVar[int]
     snapshot_id: str
     exchange: str
     product: str
@@ -783,23 +785,27 @@ class CatalogSnapshot(_message.Message):
     reference: _struct_pb2.Struct
     time_basis: str
     fee_basis: str
-    def __init__(self, snapshot_id: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., contract: _Optional[str] = ..., files: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reference: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., time_basis: _Optional[str] = ..., fee_basis: _Optional[str] = ...) -> None: ...
+    series: str
+    entity_type: str
+    def __init__(self, snapshot_id: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., contract: _Optional[str] = ..., files: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reference: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., time_basis: _Optional[str] = ..., fee_basis: _Optional[str] = ..., series: _Optional[str] = ..., entity_type: _Optional[str] = ...) -> None: ...
 
 class CatalogQuery(_message.Message):
-    __slots__ = ("domain", "contract", "start", "end", "offset", "limit")
+    __slots__ = ("domain", "contract", "start", "end", "offset", "limit", "series")
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
     CONTRACT_FIELD_NUMBER: _ClassVar[int]
     START_FIELD_NUMBER: _ClassVar[int]
     END_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    SERIES_FIELD_NUMBER: _ClassVar[int]
     domain: str
     contract: str
     start: str
     end: str
     offset: int
     limit: int
-    def __init__(self, domain: _Optional[str] = ..., contract: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+    series: str
+    def __init__(self, domain: _Optional[str] = ..., contract: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., series: _Optional[str] = ...) -> None: ...
 
 class CatalogRows(_message.Message):
     __slots__ = ("snapshot_id", "domain", "rows", "total", "offset", "limit")
@@ -816,3 +822,45 @@ class CatalogRows(_message.Message):
     offset: int
     limit: int
     def __init__(self, snapshot_id: _Optional[str] = ..., domain: _Optional[str] = ..., rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class SeriesQuery(_message.Message):
+    __slots__ = ("dataset", "search", "offset")
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    dataset: str
+    search: str
+    offset: int
+    def __init__(self, dataset: _Optional[str] = ..., search: _Optional[str] = ..., offset: _Optional[int] = ...) -> None: ...
+
+class SeriesVersions(_message.Message):
+    __slots__ = ("dataset", "scope", "offset")
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    dataset: str
+    scope: str
+    offset: int
+    def __init__(self, dataset: _Optional[str] = ..., scope: _Optional[str] = ..., offset: _Optional[int] = ...) -> None: ...
+
+class SeriesIdentity(_message.Message):
+    __slots__ = ("dataset", "scope")
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    dataset: str
+    scope: str
+    def __init__(self, dataset: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
+
+class SeriesRows(_message.Message):
+    __slots__ = ("rows", "total")
+    ROWS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    rows: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    total: int
+    def __init__(self, rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ...) -> None: ...
+
+class SeriesRetry(_message.Message):
+    __slots__ = ("retried",)
+    RETRIED_FIELD_NUMBER: _ClassVar[int]
+    retried: int
+    def __init__(self, retried: _Optional[int] = ...) -> None: ...

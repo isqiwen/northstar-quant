@@ -1,7 +1,6 @@
 """Immutable contract snapshots over shared domain partitions, with private source pins."""
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -9,12 +8,12 @@ from sqlalchemy import Engine, text
 
 from northstar_quant import code_revision
 
+from ..catalog.snapshots import verify as verify_snapshot
 from ..files import SourceFiles
 from ..maintenance import library_write
 from ..publications import PublishedDatasets
 from ..tushare.contract_review import review_connection
 from .lifecycle import completed
-from .partitioned import checked, json_bytes, materialize, put
 from .requirements import classify, requirement
 
 
@@ -107,71 +106,11 @@ def publish(engine: Engine, scope: str) -> dict[str, Any]:
 
 
 def write_snapshot(root: Path, manifest: dict[str, Any], source: SourceFiles) -> dict[str, Any]:
-    for key in ("exchange", "product", "scope"):
-        value = manifest[key]
-        if (
-            not isinstance(value, str)
-            or not re.fullmatch(r"[A-Za-z0-9_.-]{1,40}", value)
-            or value in {".", ".."}
-        ):
-            raise ValueError("合约元数据包含非法路径")
-    if "files" not in manifest:
-        from ..tushare.standard_rows import records
+    from ..catalog.snapshots import write
+    from ..tushare.standard_rows import records
 
-        manifest = {
-            **manifest,
-            "layout": "northstar-domain-catalog/1",
-            "time_basis": "SUPPLIER_HISTORICAL_LABEL",
-            "fee_basis": "PROVIDER_RAW_UNITS_NOT_EXECUTION_TERMS",
-            "files": materialize(root, source, records(manifest, source)),
-        }
-    else:
-        if manifest["layout"] != "northstar-domain-catalog/1":
-            raise ValueError("未知领域目录格式")
-        for entry in manifest["files"]:
-            put(root, entry["path"], source.read(entry["sha256"], entry["bytes"]))
-    content = json_bytes(manifest)
-    saved = source.store(content)
-    relative = f"published/snapshots/{saved.content_hash}.json"
-    put(root, relative, content)
-    return dict(
-        publication_id=saved.content_hash,
-        sha256=saved.content_hash,
-        bytes=saved.byte_count,
-        path=relative,
-        manifest=manifest,
-    )
-
-
-def load(root: Path, snapshot_id: str) -> dict[str, Any]:
-    if not re.fullmatch(r"[0-9a-f]{64}", snapshot_id):
-        raise ValueError("无效快照身份")
-    from .partitioned import safe_path
-
-    relative = f"published/snapshots/{snapshot_id}.json"
-    path = safe_path(root, relative)
-    try:
-        size = path.stat().st_size
-    except FileNotFoundError:
-        raise ValueError("快照目录文件丢失") from None
-    raw = checked(root, dict(path=relative, sha256=snapshot_id, bytes=size))
-    manifest: dict[str, Any] = json.loads(raw)
-    if manifest.get("layout") != "northstar-domain-catalog/1":
-        raise ValueError("未知领域目录格式")
-    for entry in manifest["files"]:
-        checked(root, entry)
-    return manifest
-
-
-def verify_snapshot(root: Path, item: Any) -> None:
-    raw = checked(
-        root, dict(path=item["path"], sha256=item["manifest_hash"], bytes=item["manifest_bytes"])
-    )
-    manifest: dict[str, Any] = json.loads(raw)
-    if manifest.get("layout") != "northstar-domain-catalog/1":
-        raise ValueError("未知领域目录格式")
-    for entry in manifest["files"]:
-        checked(root, entry)
+    manifest = {"entity_type": "REAL_CONTRACT", **manifest}
+    return write(root, manifest, source, None if "files" in manifest else records(manifest, source))
 
 
 def verify_snapshots(connection: Any, root: Path) -> None:

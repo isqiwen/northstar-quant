@@ -19,6 +19,9 @@ def references(
     from ..contract_data.snapshots import references as snapshot_references
 
     result.extend(snapshot_references(connection, content_hashes))
+    from ..series_data.retention import references as series_references
+
+    result.extend(series_references(connection, content_hashes))
     query = "SELECT * FROM data_sync_receipts"
     if content_hashes is not None:
         query += " WHERE manifest_hash=ANY(:hashes) OR parquet_hash=ANY(:hashes)"
@@ -43,6 +46,10 @@ def restore_publications(engine: Engine, files: SourceFiles) -> None:
 
         if connection.scalar(text("SELECT EXISTS(SELECT 1 FROM data_contract_publications)")):
             restore_snapshots(connection, PublishedDatasets.from_environment().root, files)
+        from ..series_data.retention import restore as restore_series
+
+        if connection.scalar(text("SELECT EXISTS(SELECT 1 FROM data_series_publications)")):
+            restore_series(connection, PublishedDatasets.from_environment().root, files)
         from ..compaction import references as compacted_references
 
         for item in compacted_references(connection):

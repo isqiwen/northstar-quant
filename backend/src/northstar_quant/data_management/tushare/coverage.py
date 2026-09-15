@@ -7,7 +7,7 @@ from sqlalchemy import Engine, text
 
 from .quality import Empty
 
-_DAILY = {"daily", "settlement", "limits", "mapping", "adjusted"}
+_DAILY = {"daily", "continuous", "settlement", "limits", "mapping", "adjusted"}
 
 
 def expected_days(engine: Engine, job: dict[str, Any]) -> set[str]:
@@ -50,7 +50,11 @@ def verify(
     if actual - expected:
         raise ValueError("返回日线位于日历休市日期")
     quality["missing_trading_days"] = sorted(expected - actual)
-    quality["coverage_basis"] = "CONTRACT_LIFETIME_AND_TRADING_CALENDAR"
+    quality["coverage_basis"] = (
+        "SERIES_REQUEST_AND_TRADING_CALENDAR"
+        if job["dataset"] in {"continuous", "mapping", "adjusted"}
+        else "CONTRACT_LIFETIME_AND_TRADING_CALENDAR"
+    )
     quality["expected_trading_days"] = len(expected)
 
 

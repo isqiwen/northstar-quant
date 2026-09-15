@@ -77,7 +77,7 @@ class Requirement:
 
 
 def requirement(profile: ContractType, dataset: str) -> Requirement:
-    if dataset in {"mapping", "adjusted", "index"}:
+    if dataset in {"continuous", "mapping", "adjusted", "index"}:
         return Requirement(
             "RELATED",
             "独立研究序列；不作为具体月份合约完整性的前提",

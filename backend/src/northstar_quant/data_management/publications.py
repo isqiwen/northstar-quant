@@ -54,13 +54,13 @@ class PublishedDatasets:
             raise ValueError("restore is incomplete; refuse application startup")
         return cls(root, usages=usages)
 
-    def contract_snapshot(self, snapshot_id: str) -> dict[str, Any]:
-        from .contract_data.snapshots import load
+    def catalog_snapshot(self, snapshot_id: str) -> dict[str, Any]:
+        from .catalog.snapshots import load
 
         return load(self.root, snapshot_id)
 
-    def contract_rows(self, snapshot_id: str, **query: Any) -> dict[str, Any]:
-        from .contract_data.snapshot_reading import query as read
+    def catalog_rows(self, snapshot_id: str, **query: Any) -> dict[str, Any]:
+        from .catalog.snapshot_reading import query as read
 
         return read(self.root, snapshot_id, **query)
 

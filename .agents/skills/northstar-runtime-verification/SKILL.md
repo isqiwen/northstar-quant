@@ -178,3 +178,12 @@ Configured storage may use a platform ancestor alias such as macOS /tmp. Resolve
 the bound root once in PublishedDatasets, reject a symlink root itself, and continue
 to reject links inside the catalog. Exercise this through the installed browser
 fixture; pytest temporary paths may already be canonical and miss this failure.
+
+
+For independent research series, run test_series_data.py and the installed `/series`
+browser path. Verify actual response identities, same-product real mapping targets,
+fixed interval history and exact archive restoration; no series may increment complete
+contract publications. Test source retry without another supplier request. Catalog
+metadata requests exclude settle_date; do not remove daily settlement prices or fee
+terms along with that unrelated field. New owner tables require an additive baseline
+transition under stopped Data Hub writers; preserve current downloads and account identity.

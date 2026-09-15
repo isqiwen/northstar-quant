@@ -28,6 +28,9 @@ def prepare(engine: Engine) -> None:
         if connection.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": _CATALOG}):
             planning.refresh(engine)
             planning.plan(engine)
+            from ..series_data.planning import plan as plan_series
+
+            plan_series(engine)
 
 
 def _own(connection: Connection, request_id: Any) -> bool:

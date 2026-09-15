@@ -112,6 +112,9 @@ def initialize(connection: Connection) -> None:
     from ..contract_data.storage import initialize as initialize_contracts
 
     initialize_contracts(connection)
+    from ..series_data.storage import initialize as initialize_series
+
+    initialize_series(connection)
     initialize_runtime_storage(connection)
 
 

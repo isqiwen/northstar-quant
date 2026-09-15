@@ -35,7 +35,32 @@ class Dataset:
 
 
 DATASETS = (
-    Dataset("contracts", "合约信息", "fut_basic", "catalog", 10000, ("ts_code",)),
+    Dataset(
+        "contracts",
+        "合约信息",
+        "fut_basic",
+        "catalog",
+        10000,
+        ("ts_code",),
+        fields=(
+            "ts_code",
+            "symbol",
+            "exchange",
+            "name",
+            "fut_code",
+            "multiplier",
+            "trade_unit",
+            "per_unit",
+            "quote_unit",
+            "quote_unit_desc",
+            "d_mode_desc",
+            "list_date",
+            "delist_date",
+            "d_month",
+            "last_ddate",
+            "trade_time_desc",
+        ),
+    ),
     Dataset("calendar", "交易日历", "fut_trade_cal", "calendar", 10000, ("exchange", "cal_date")),
     *(
         Dataset(
@@ -101,6 +126,15 @@ DATASETS = (
     ),
     Dataset(
         "warehouse", "仓单日报", "fut_wsr", "product", 1000, ("trade_date", "symbol", "warehouse")
+    ),
+    Dataset(
+        "continuous",
+        "连续日线",
+        "fut_daily",
+        "continuous",
+        2000,
+        ("ts_code", "trade_date"),
+        amount_multiplier=10000,
     ),
     Dataset(
         "mapping",

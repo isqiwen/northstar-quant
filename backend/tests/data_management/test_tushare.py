@@ -450,6 +450,7 @@ def test_planning_applicable_data_is_idempotent_and_stops_at_expiry(automatic, m
         count = len(rows)
         assert {row["dataset"] for row in rows} == set(BY_KEY) - {
             "contracts",
+            "continuous",
             "mapping",
             "adjusted",
             "index",
@@ -1000,7 +1001,7 @@ def test_historical_empty_remains_uncovered_with_slow_automatic_recheck(automati
     assert jobs.process_next(automatic) is None
 
 
-def test_catalog_arrival_plans_real_contract_without_continuous_downloads(automatic, monkeypatch):
+def test_catalog_arrival_keeps_real_and_series_request_ownership_separate(automatic, monkeypatch):
     from datetime import date
 
     monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
@@ -1034,7 +1035,10 @@ def test_catalog_arrival_plans_real_contract_without_continuous_downloads(automa
             c.scalar(text("SELECT planning_error FROM data_sync_contracts WHERE ts_code='A.DCE'"))
             is None
         )
-        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A.DCE'")) == 0
+        assert (
+            c.scalar(text("SELECT count(*) FROM data_contract_requests WHERE scope='A.DCE'")) == 0
+        )
+        assert c.scalar(text("SELECT count(*) FROM data_series_requests WHERE scope='A.DCE'")) > 0
         count = c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A2609.DCE'"))
         assert count > 0
     planning.plan(automatic._engine)

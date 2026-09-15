@@ -25,6 +25,7 @@ from support.market import seed_market, seed_settlement
 from support.opening_order_browser import check_opening_order
 from support.order_browser import check_order_cancel
 from support.processes import InstalledApplication
+from support.series import seed_series
 from support.session_schedule_browser import check_session_schedule
 from support.studies import seed_learning
 from support.workspace_browser import check_workspace
@@ -224,6 +225,7 @@ def main() -> None:
                         assert processor.poll() is None
                 market = seed_market(app)
                 seed_settlement(app)
+                seed_series(app)
                 with app.web("data-api") as data_url:
                     visit(data_url)
                     expect(page.get_by_role("heading", name="期货数据工作台")).to_be_visible()
@@ -523,6 +525,20 @@ def main() -> None:
                     ).to_be_visible()
                     expect(page.get_by_text("后台自动同步已启用", exact=False)).to_be_visible()
                     screenshot("data")
+                    visit(data_url + "/series")
+                    expect(page.get_by_role("heading", name="研究序列", exact=True)).to_be_visible()
+                    row = page.get_by_role("row").filter(has_text="CU.NH")
+                    expect(row.get_by_text("有已校验记录", exact=True)).to_be_visible()
+                    row.get_by_role("button", name="历史版本", exact=True).click()
+                    history = page.get_by_role("dialog")
+                    expect(history.get_by_role("button", name="打开固定版本")).to_have_count(2)
+                    history.get_by_role("button", name="打开固定版本").last.click()
+                    standard = page.get_by_role("dialog").last
+                    expect(standard.get_by_role("cell", name="CU.NH", exact=True)).to_be_visible()
+                    expect(standard.get_by_role("cell", name="2000", exact=True)).to_be_visible()
+                    screenshot("research-series")
+                    standard.locator(".ant-drawer-close").click()
+                    history.locator(".ant-drawer-close").click()
                     seed_market(app, compact=True)
                     visit(
                         data_url

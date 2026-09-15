@@ -12,6 +12,11 @@ from .scheduling import history_end
 
 def combine(connection: Connection, selected: Any) -> Any:
     dataset = BY_KEY[selected["dataset"]]
+    if connection.scalar(
+        text("SELECT EXISTS(SELECT 1 FROM data_series_requests WHERE request_id=:id)"),
+        dict(id=selected["request_id"]),
+    ):
+        return selected
     if (
         selected["attempts"]
         or selected["source_generation"]

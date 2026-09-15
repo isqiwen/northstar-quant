@@ -20,6 +20,7 @@ export default function Workspace({ children }: { children: ReactNode }) {
         items={[
           { key: "/", label: "数据概览", icon: <DashboardOutlined /> },
           { key: "/browse", label: "数据浏览", icon: <LineChartOutlined /> },
+          { key: "/series", label: "研究序列", icon: <LineChartOutlined /> },
           {
             key: "/quality",
             label: "覆盖与质量",

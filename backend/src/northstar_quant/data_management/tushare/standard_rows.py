@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from datetime import datetime
 from typing import Any
 
-from ..contract_data.partitioned import NUMERIC
+from ..catalog.partitioned import NUMERIC
 from ..files import SourceFiles
 from .normalization import decimal_text
 

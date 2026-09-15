@@ -304,6 +304,13 @@ def split(connection: Connection, job: dict[str, Any]) -> bool:
             dict(parent=job["request_id"], child=child),
         )
         connection.execute(
+            text("""INSERT INTO data_series_requests(dataset,scope,request_id)
+            SELECT parent.dataset,parent.scope,j.request_id FROM data_series_requests parent
+            CROSS JOIN data_sync_jobs j WHERE parent.request_id=:parent AND j.identity=:child
+            ON CONFLICT DO NOTHING"""),
+            dict(parent=job["request_id"], child=child),
+        )
+        connection.execute(
             text("""UPDATE data_sync_jobs SET status='PENDING',
             next_at=now(),error='截断后拆分，按此区间下载' WHERE identity=:id
             AND status='SPLIT' AND attempts=0 AND error LIKE '合并下载%'

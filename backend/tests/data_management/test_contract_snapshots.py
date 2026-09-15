@@ -60,7 +60,7 @@ def test_shared_partitions_and_fixed_snapshot_survive_private_source_removal(tmp
     source = SourceFiles(tmp_path / "private")
     import pyarrow.parquet as pq
 
-    from northstar_quant.data_management.contract_data.snapshot_reading import query
+    from northstar_quant.data_management.catalog.snapshot_reading import query
     from northstar_quant.data_management.tushare.publication import response_table
 
     raw = dict(
@@ -145,7 +145,7 @@ def test_bound_storage_resolves_system_parent_alias_but_not_catalog_links(tmp_pa
     artifact = write_snapshot(
         catalog.root, dict(exchange="SHFE", product="RB", scope="RB2501.SHF", inputs=[]), source
     )
-    assert catalog.contract_snapshot(artifact["publication_id"])["scope"] == "RB2501.SHF"
+    assert catalog.catalog_snapshot(artifact["publication_id"])["scope"] == "RB2501.SHF"
     link = tmp_path / "linked-root"
     link.symlink_to(root, target_is_directory=True)
     with pytest.raises(ValueError, match="符号链接"):
@@ -312,7 +312,7 @@ def test_filtered_manifest_preserves_source_and_receipt_aliases(automatic, monke
 def test_multiple_contracts_share_a_partition_without_overwrite(tmp_path):
     import pyarrow.parquet as pq
 
-    from northstar_quant.data_management.contract_data.partitioned import materialize
+    from northstar_quant.data_management.catalog.partitioned import materialize
 
     source = SourceFiles(tmp_path / "source")
     root = tmp_path / "market"
