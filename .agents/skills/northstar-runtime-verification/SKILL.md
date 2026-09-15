@@ -187,3 +187,7 @@ contract publications. Test source retry without another supplier request. Catal
 metadata requests exclude settle_date; do not remove daily settlement prices or fee
 terms along with that unrelated field. New owner tables require an additive baseline
 transition under stopped Data Hub writers; preserve current downloads and account identity.
+
+Tushare fut_index_daily lists ts_code as optional, but the live range request without
+a code returned a parameter refusal. Use the documented Nanhua identities per request;
+do not infer index symbols from commodity codes or classify this refusal as missing history.

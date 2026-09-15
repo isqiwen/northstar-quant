@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from sqlalchemy import Connection, Engine, text
 
 from ..contract_data.lifecycle import SEARCH_START, metadata_date
+from ..tushare.nanhua import INDEX_NAMES
 from ..tushare.planning import enqueue, target_day
 
 DATASETS = ("continuous", "mapping", "adjusted", "index")
@@ -49,14 +50,20 @@ def plan(engine: Engine) -> None:
                         start=start,
                     ),
                 )
-        # Index enumeration comes from actual publisher responses. ALL is an
-        # internal discovery request, never an invented tradable instrument.
-        c.execute(
-            text("""INSERT INTO data_series_collections
-            (dataset,scope,exchange,product,name,start_date)
-            VALUES('index','ALL','','','南华指数',:start) ON CONFLICT DO NOTHING"""),
-            dict(start=SEARCH_START),
+        # Range requests require an explicit index in the live supplier API.
+        # Use its documented identities; empty historical responses remain gaps.
+        known_indices = set(
+            c.scalars(text("SELECT scope FROM data_series_collections WHERE dataset='index'"))
         )
+        for scope, name in INDEX_NAMES.items():
+            if scope in known_indices:
+                continue
+            c.execute(
+                text("""INSERT INTO data_series_collections
+                (dataset,scope,exchange,product,name,start_date)
+                VALUES('index',:scope,'','',:name,:start) ON CONFLICT DO NOTHING"""),
+                dict(scope=scope, name=name, start=SEARCH_START),
+            )
         if (
             c.scalar(
                 text("""SELECT count(*) FROM data_sync_jobs j WHERE
@@ -106,8 +113,7 @@ def plan(engine: Engine) -> None:
         parameters: dict[str, object] = dict(
             start_date=start.strftime("%Y%m%d"), end_date=end.strftime("%Y%m%d")
         )
-        if scope != "ALL":
-            parameters["ts_code"] = scope
+        parameters["ts_code"] = scope
         identity = enqueue(c, dataset, scope, parameters, start.isoformat(), end.isoformat())
         link(c, dataset, scope, identity)
         c.execute(

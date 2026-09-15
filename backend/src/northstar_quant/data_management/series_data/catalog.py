@@ -38,18 +38,7 @@ def query(
                 COALESCE(g.received,0) AS received,COALESCE(g.collecting,0) AS collecting,
                 COALESCE(g.waiting,0) AS waiting,COALESCE(g.blocked,0) AS blocked,g.error
             FROM data_series_collections s LEFT JOIN published p USING(dataset,scope)
-            LEFT JOIN progress g USING(dataset,scope) WHERE s.dataset<>'index'
-            UNION ALL
-            SELECT p.dataset,p.scope,p.name,'','',s.planned_through,
-                p.snapshot_id,p.start_date,p.end_date,p.created_at,
-                COALESCE(g.received,0),COALESCE(g.collecting,0),COALESCE(g.waiting,0),COALESCE(g.blocked,0),g.error
-            FROM published p JOIN data_series_collections s ON s.dataset='index' AND s.scope='ALL'
-            LEFT JOIN progress g ON g.dataset='index' AND g.scope='ALL' WHERE p.dataset='index'
-            UNION ALL
-            SELECT s.dataset,s.scope,s.name,'','',s.planned_through,NULL,NULL,NULL,NULL,
-                COALESCE(g.received,0),COALESCE(g.collecting,0),COALESCE(g.waiting,0),COALESCE(g.blocked,0),g.error
-            FROM data_series_collections s LEFT JOIN progress g USING(dataset,scope)
-            WHERE s.dataset='index' AND NOT EXISTS(SELECT 1 FROM published WHERE dataset='index')
+            LEFT JOIN progress g USING(dataset,scope)
         ) SELECT *,count(*) OVER() AS total FROM items
         WHERE (:dataset='' OR dataset=:dataset)
         AND (:search='' OR position(lower(:search) in lower(scope||' '||name))>0)
@@ -88,6 +77,6 @@ def retry(engine: Engine, *, dataset: str, scope: str) -> dict[str, Any]:
             text("""UPDATE data_series_requests SET processed_receipt_id=NULL,
             publication_error=NULL WHERE dataset=:dataset AND scope=:scope
             AND publication_error IS NOT NULL"""),
-            dict(dataset=dataset, scope="ALL" if dataset == "index" else scope),
+            dict(dataset=dataset, scope=scope),
         )
     return dict(retried=result.rowcount)

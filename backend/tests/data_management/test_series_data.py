@@ -25,8 +25,7 @@ def enqueue(library, dataset, scope, *, day="2026-09-01", exchange="", product="
             dict(dataset=dataset, scope=scope, exchange=exchange, product=product, day=day),
         )
         params = dict(start_date=day.replace("-", ""), end_date=day.replace("-", ""))
-        if scope != "ALL":
-            params["ts_code"] = scope
+        params["ts_code"] = scope
         identity = requests.enqueue(c, dataset, scope, params, day, day)
         planning.link(c, dataset, scope, identity)
 
@@ -39,18 +38,20 @@ def fetch_rows(monkeypatch, rows):
 
 
 def test_index_identity_fixed_read_and_exact_archive_restore(automatic, monkeypatch, tmp_path):
-    enqueue(automatic, "index", "ALL")
     rows = [
         dict(
             ts_code=code, trade_date="20260901", open=12, high=13, low=11, close=12, vol=3, amount=2
         )
         for code in ("CU.NH", "AL.NH")
     ]
-    fetch_rows(monkeypatch, rows)
-    result = jobs.process_next(automatic, plan=False)
-    assert result["status"] == "VALIDATED", result
-    processed = processing.process_next(automatic._engine, automatic._files)
-    assert processed["published"] == 2, processed
+    for row in rows:
+        enqueue(automatic, "index", row["ts_code"])
+        fetch_rows(monkeypatch, [row])
+        test_tushare.ready(automatic)
+        result = jobs.process_next(automatic, plan=False)
+        assert result["status"] == "VALIDATED", result
+        processed = processing.process_next(automatic._engine, automatic._files)
+        assert processed["published"] == 1, processed
     assert processing.process_next(automatic._engine, automatic._files) is None
     items = catalog.query(automatic._engine, dataset="index")
     assert {r["scope"] for r in items["rows"]} == {"AL.NH", "CU.NH"}
@@ -69,7 +70,7 @@ def test_index_identity_fixed_read_and_exact_archive_restore(automatic, monkeypa
         retention.verify_all(c, tmp_path / "restored")
     assert query(tmp_path / "restored", version["snapshot_id"], domain=domain) == fixed
     # Later supplier dates create a separate fixed version, never replace the old one.
-    enqueue(automatic, "index", "ALL", day="2026-09-02")
+    enqueue(automatic, "index", "CU.NH", day="2026-09-02")
     fetch_rows(monkeypatch, [{**rows[0], "trade_date": "20260902", "close": 13}])
     test_tushare.ready(automatic)
     assert jobs.process_next(automatic, plan=False)["status"] == "VALIDATED"
@@ -115,11 +116,10 @@ def test_series_plan_uses_discovered_identity_and_oldest_dates(automatic):
         planning.plan(automatic._engine)
     with automatic._engine.connect() as c:
         rows = c.execute(text("SELECT * FROM data_series_collections")).mappings().all()
-        assert {(r["dataset"], r["scope"]) for r in rows} == {
+        assert {(r["dataset"], r["scope"]) for r in rows if r["dataset"] != "index"} == {
             ("continuous", "RB.SHF"),
             ("mapping", "RB.SHF"),
             ("adjusted", "RB.SHF"),
-            ("index", "ALL"),
         }
         assert {str(r["start_date"]) for r in rows} == {"2012-01-01"}
         jobs = (
@@ -128,6 +128,8 @@ def test_series_plan_uses_discovered_identity_and_oldest_dates(automatic):
             .all()
         )
         assert {r["start_at"] for r in jobs} == {"2012-01-01"}
+        assert all(r["parameters"].get("ts_code") == r["scope"] for r in jobs)
+        assert "CU.NH" in {r["scope"] for r in rows if r["dataset"] == "index"}
         assert c.scalar(text("SELECT count(*) FROM data_contract_requests")) == 0
 
 
@@ -135,7 +137,7 @@ def test_request_lanes_alternate_and_split_preserves_series_owner(automatic):
     from northstar_quant.data_management.tushare.scheduling import choose
 
     test_tushare.pending(automatic)
-    enqueue(automatic, "index", "ALL")
+    enqueue(automatic, "index", "CU.NH")
     with automatic._engine.begin() as c:
         first = choose(c, download_ready=True)
         c.execute(
@@ -147,12 +149,12 @@ def test_request_lanes_alternate_and_split_preserves_series_owner(automatic):
         identity = requests.enqueue(
             c,
             "index",
-            "ALL",
-            dict(start_date="20260902", end_date="20260905"),
+            "CU.NH",
+            dict(ts_code="CU.NH", start_date="20260902", end_date="20260905"),
             "2026-09-02",
             "2026-09-05",
         )
-        planning.link(c, "index", "ALL", identity)
+        planning.link(c, "index", "CU.NH", identity)
         parent = (
             c.execute(
                 text("SELECT * FROM data_sync_jobs WHERE identity=:identity"),

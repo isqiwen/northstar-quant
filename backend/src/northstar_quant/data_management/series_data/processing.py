@@ -48,7 +48,7 @@ def process_next(engine: Engine, source: SourceFiles) -> dict[str, Any] | None:
             if len(rows) != r["row_count"]:
                 raise ValueError("序列响应行数与固定凭据不一致")
             scopes = sorted({row["ts_code"] for row in rows})
-            if r["scope"] != "ALL" and scopes and scopes != [r["scope"]]:
+            if scopes and scopes != [r["scope"]]:
                 raise ValueError("序列响应身份不一致")
             targets = {}
             if r["dataset"] == "mapping":
@@ -69,7 +69,7 @@ def process_next(engine: Engine, source: SourceFiles) -> dict[str, Any] | None:
                     series=scope,
                     exchange=r["exchange"],
                     product=r["product"],
-                    name=r["name"] if r["scope"] != "ALL" else scope,
+                    name=r["name"],
                     start=r["start_at"],
                     end=r["end_at"],
                     available_at=r["created_at"].isoformat(),
