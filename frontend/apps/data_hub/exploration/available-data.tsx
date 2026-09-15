@@ -66,7 +66,9 @@ export function AvailableData({
     String(catalog?.datasets.find((d) => d.key === key)?.label || key);
   return (
     <Card title="已发布 · 完整合约" className="explorer-available">
-      <p className="muted">仅展示已结束且整体验收通过的合约</p>
+      <p className="muted">
+        仅展示已结束且核心数据已接纳的合约；可用周期独立核验
+      </p>
       <Space wrap className="instrument-search">
         <Select
           aria-label="已有数据类型"

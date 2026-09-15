@@ -240,3 +240,15 @@ history or contract publication evidence. Data Hub collection continues through
 its owned durable queue, quota control and retained source/receipt pipeline.
 The observed MCP ft_mins description did not establish historical bar labels or
 zero-volume rules. Do not treat another transport as evidence of complete data.
+
+
+## Core admission and auxiliary quality
+
+For whole-contract publication, check `requirements[].admission_role` and the pinned
+`completeness`/`quality` report separately. All five native minute intervals remain core.
+A received response, day-presence check or mocked minute verifier is not a verified
+historical intraday grid. Test missing each core interval independently. Auxiliary
+failures must not reject the contract or enter its published inputs. Subsequent auxiliary
+completion must create a new snapshot without changing existing identities. Before
+source cleanup, recheck core INVALID for every shared owner; stale REJECTED alone
+is insufficient. Preserve referenced evidence and keep UNKNOWN distinct from INVALID.

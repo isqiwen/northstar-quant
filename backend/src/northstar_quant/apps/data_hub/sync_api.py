@@ -44,6 +44,8 @@ class ContractReview(ApiModel):
     requirements: list[dict[str, JsonValue]]
     reasons: list[str]
     policy: str
+    completeness: dict[str, JsonValue]
+    quality: dict[str, JsonValue]
 
 
 class SyncSettingsRequest(ApiModel):

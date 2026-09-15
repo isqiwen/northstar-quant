@@ -806,6 +806,20 @@
     },
     "northstar.data_hub.ContractReview": {
       "fields": {
+        "completeness": {
+          "id": 19,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "quality": {
+          "id": 20,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
         "contract_type": {
           "id": 18,
           "presence": true,

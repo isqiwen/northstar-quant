@@ -9,9 +9,9 @@ import { exchangeName } from "./exploration/instrument-labels";
 
 const states: Record<string, string> = {
   COLLECTING: "待采集 / 采集中",
-  VERIFYING: "待完整性核验",
+  VERIFYING: "待核心接纳核验",
   REJECTED: "已拒绝",
-  PUBLISHED: "完整合约已发布",
+  PUBLISHED: "核心已接纳 / 已发布",
 };
 type Row = Record<string, unknown>;
 export function SyncContracts({
@@ -76,7 +76,7 @@ export function SyncContracts({
   return (
     <Card title="合约数据与进度">
       <p className="muted">
-        每行一个合约。完整性核验通过后发布；各周期行情和结算资料在合约详情中查看。
+        每行一个合约。核心数据通过后发布；辅助完整度、质量与各周期可用性在合约详情中查看。
       </p>
       <Space wrap style={{ marginBottom: 16 }}>
         <Select

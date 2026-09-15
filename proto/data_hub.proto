@@ -160,6 +160,8 @@ message ContractReviewRequest {
   optional string scope = 1 [(northstar.web.required_field) = true];
 }
 message ContractReview {
+  optional google.protobuf.Struct completeness = 19 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct quality = 20 [(northstar.web.required_field) = true];
   optional google.protobuf.Struct contract_type = 18 [(northstar.web.required_field) = true];
   optional string scope = 1 [(northstar.web.required_field) = true];
   optional string display_name = 2 [(northstar.web.required_field) = true];

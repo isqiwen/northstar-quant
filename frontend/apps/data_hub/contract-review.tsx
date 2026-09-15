@@ -98,12 +98,27 @@ export function ContractReview({
               },
               {
                 key: "status",
-                label: "整体验收",
+                label: "核心接纳",
                 children: (
-                  <Tag color={data.status === "INVALID" ? "red" : "orange"}>
-                    {labels[data.status] || data.status}
+                  <Tag
+                    color={
+                      data.admitted
+                        ? "green"
+                        : data.status === "INVALID"
+                          ? "red"
+                          : "orange"
+                    }
+                  >
+                    {data.admitted
+                      ? "核心已通过"
+                      : labels[data.status] || data.status}
                   </Tag>
                 ),
+              },
+              {
+                key: "completeness",
+                label: "完整度 / 质量",
+                children: `核心 ${data.completeness.core_verified}/${data.completeness.core_total}；辅助资料 ${data.completeness.auxiliary_verified ?? 0}/${data.completeness.auxiliary_total ?? 0}；${data.quality.status === "COMPLETE" ? "全部已核验" : data.quality.status === "GAPS" ? "存在辅助缺失或待核验项" : "核心尚未通过"}`,
               },
             ]}
           />
@@ -112,10 +127,10 @@ export function ContractReview({
             showIcon
             title={
               data.admitted
-                ? "适用数据已通过整体验收"
-                : "按合约类型核验必需数据"
+                ? "核心数据已接纳，辅助资料单独检查"
+                : "核心数据尚未通过接纳检查"
             }
-            description="不适用资料、独立研究序列不阻塞发布；规则待核实、采集中和数据异常分别处理。请求完成不代表记录完整。"
+            description="辅助历史缺失不拒绝整个合约。只有单项核验通过的数据进入发布；策略仍需检查所需周期、字段和有效条款。"
           />
           <Table<Record<string, unknown>>
             rowKey="dataset"
@@ -124,6 +139,13 @@ export function ContractReview({
             dataSource={data.requirements}
             columns={[
               { title: "数据集", dataIndex: "label", width: 130 },
+              {
+                title: "接纳作用",
+                dataIndex: "admission_role",
+                width: 90,
+                render: (value: string) =>
+                  value === "CORE" ? "核心必需" : "辅助资料",
+              },
               {
                 title: "核验",
                 dataIndex: "status",
@@ -139,6 +161,24 @@ export function ContractReview({
                 render: (_, row) => (
                   <>
                     <div>{String(row.reason ?? "")}</div>
+                    {!!(row.evidence as Record<string, unknown> | undefined)
+                      ?.optional_unknown_fields && (
+                      <div className="muted">
+                        辅助字段缺失：
+                        {Object.entries(
+                          (row.evidence as Record<string, unknown>)
+                            .optional_unknown_fields as Record<
+                            string,
+                            { count: number }
+                          >,
+                        )
+                          .map(
+                            ([field, detail]) =>
+                              `${field}（${detail.count}条）`,
+                          )
+                          .join("、") || "无"}
+                      </div>
+                    )}
                     {typeof row.reference === "string" && (
                       <a href={row.reference} target="_blank" rel="noreferrer">
                         规则参考
@@ -154,6 +194,20 @@ export function ContractReview({
               <li key={reason}>{reason}</li>
             ))}
           </ul>
+          {Array.isArray(data.quality.warnings) &&
+            data.quality.warnings.length > 0 && (
+              <Alert
+                type="warning"
+                title="完整度与质量提示（不等于合约被拒绝）"
+                description={
+                  <ul>
+                    {data.quality.warnings.map((warning, index) => (
+                      <li key={index}>{String(warning)}</li>
+                    ))}
+                  </ul>
+                }
+              />
+            )}
           <p className="muted">{data.policy}</p>
         </>
       )}

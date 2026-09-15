@@ -76,4 +76,5 @@ def test_monthly_average_planning_and_review_use_same_policy(automatic):
     assert found["index"]["status"] == "RELATED"
     assert result["admitted"] is False
     assert not any(reason.startswith("仓单日报：") for reason in result["reasons"])
-    assert any(reason.startswith("持仓排名：") for reason in result["reasons"])
+    assert not any(reason.startswith("持仓排名：") for reason in result["reasons"])
+    assert any(reason.startswith("持仓排名：") for reason in result["quality"]["warnings"])

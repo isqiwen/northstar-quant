@@ -19,7 +19,7 @@ export function DataOverview() {
     <>
       <Heading
         title="期货数据工作台"
-        description="交易所 → 品种 → 已结束合约 · 完整生命周期验收后发布"
+        description="交易所 → 品种 → 已结束合约 · 核心生命周期数据接纳后发布"
         actions={
           <Link href="/browse">
             <Button type="primary">浏览行情数据</Button>

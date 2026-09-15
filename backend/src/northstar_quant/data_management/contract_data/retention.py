@@ -8,6 +8,7 @@ from sqlalchemy import Connection, Engine, text
 from ..files import SourceFiles
 from ..library import manifest
 from ..maintenance import try_freeze_sources
+from ..tushare.contract_review import review_connection
 from .lifecycle import completed
 
 _CANDIDATES = """SELECT s.source_id,s.content_hash,s.byte_count,w.scope
@@ -60,9 +61,24 @@ def _candidates(c: Connection, ids: list[UUID] | None = None) -> list[dict[str, 
         eligible.append(contract["ts_code"])
     if not eligible:
         return []
-    return [
+    candidates = [
         dict(r) for r in c.execute(text(_CANDIDATES), dict(eligible=eligible, ids=ids)).mappings()
     ]
+    # Recheck every shared owner: old auxiliary-only rejections cannot delete raw data.
+    checked: dict[str, bool] = {}
+    retained = []
+    for candidate in candidates:
+        owners = c.scalars(
+            text("""SELECT DISTINCT cr.scope FROM data_contract_requests cr
+            JOIN data_sync_attempts a USING(request_id) WHERE a.generation=:source_id"""),
+            candidate,
+        ).all()
+        for owner in owners:
+            if owner not in checked:
+                checked[owner] = review_connection(c, owner, core_only=True)["status"] == "INVALID"
+        if owners and all(checked[owner] for owner in owners):
+            retained.append(candidate)
+    return retained
 
 
 def release_rejected(engine: Engine, files: SourceFiles) -> int:

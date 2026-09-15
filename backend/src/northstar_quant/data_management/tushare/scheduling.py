@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import Connection, text
 
 from ..contract_data.lifecycle import SEARCH_START, completed
+from ..contract_data.requirements import CORE_DATASETS
 from .catalog import BY_KEY
 
 
@@ -23,7 +24,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
     for contract in connection.execute(
         text("""SELECT d.* FROM data_sync_contracts d
         JOIN data_contract_collections w ON w.scope=d.ts_code
-        WHERE w.status IN ('COLLECTING','VERIFYING')
+        WHERE w.status IN ('COLLECTING','VERIFYING','PUBLISHED')
         AND d.planning_error IS NULL""")
     ).mappings():
         try:
@@ -38,6 +39,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
         "datasets": list(BY_KEY),
         "apis": [d.api for d in BY_KEY.values()],
         "download_ready": download_ready,
+        "core": list(CORE_DATASETS),
     }
     # Catalog refresh discovers newly retired contracts and never represents a
     # collection/publication itself. All price/product requests require an owner.
@@ -58,7 +60,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
             LEFT JOIN data_series_requests sr ON sr.request_id=j.request_id
             LEFT JOIN data_contract_requests cr ON cr.request_id=j.request_id
             LEFT JOIN data_contract_collections w ON w.scope=cr.scope
-                AND w.status IN ('COLLECTING','VERIFYING')
+                AND w.status IN ('COLLECTING','VERIFYING','PUBLISHED')
                 AND w.scope=ANY(CAST(:eligible AS text[]))
             WHERE j.status IN ('PENDING','WAITING') AND j.next_at<=now()
             AND (j.dataset='contracts' OR w.scope IS NOT NULL OR sr.scope IS NOT NULL)
@@ -74,6 +76,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
             ORDER BY (r.dataset='contracts') DESC,
                 COALESCE(r.research_series=(SELECT research_series FROM last_lane),false),
                 (r.dataset='calendar') DESC,r.owner_end,r.owner_scope,
+                (r.dataset=ANY(CAST(:core AS text[]))) DESC,
                 (r.source_generation IS NOT NULL) DESC,
                 (SELECT max(a.started_at) FROM data_sync_attempts a
                     JOIN data_sync_jobs s USING(request_id)

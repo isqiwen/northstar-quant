@@ -96,7 +96,7 @@ export function TushareSync() {
     <>
       <Heading
         title="Tushare 自动同步"
-        description="交易所 → 品种 → 合约。每个完整合约对应一次发布，行情和结算资料归入合约详情。"
+        description="交易所 → 品种 → 合约。核心接纳通过后按合约发布，行情和结算资料归入合约详情。"
       />
       <Failure error={current.error} />
       <StorageAlert capacity={config?.source_capacity} />
@@ -134,7 +134,7 @@ export function TushareSync() {
           const total = lane?.total ?? 0;
           const done = lane?.validated ?? 0;
           return (
-            <Card key={key} title="完整合约发布进度">
+            <Card key={key} title="合约接纳与发布进度">
               <p>
                 {lane && lane.start <= lane.end
                   ? `${lane.start} → ${lane.end}`
@@ -159,7 +159,7 @@ export function TushareSync() {
               </Space>
               <p>最早未完成区间：{lane?.oldest_pending ?? "暂无"}</p>
               <p className="muted">
-                只有全部必需数据完整通过才计为发布；待核验和异常合约不计完成。
+                核心数据通过即可发布；辅助缺失计入完整度与质量，不拒绝整个合约。
               </p>
             </Card>
           );

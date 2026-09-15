@@ -7,8 +7,38 @@ responses never establish either applicability or a completeness exemption.
 from dataclasses import asdict, dataclass
 from typing import Any
 
-RULE = "contract-requirements/1"
+RULE = "contract-requirements/2"
 BASIC_REFERENCE = "https://tushare.pro/document/2?doc_id=135"
+CORE_DATASETS = frozenset(
+    {
+        "contracts",
+        "calendar",
+        "daily",
+        "settlement",
+        "limits",
+        "1min",
+        "5min",
+        "15min",
+        "30min",
+        "60min",
+    }
+)
+
+
+def auxiliary_fields(dataset: str) -> frozenset[str]:
+    if dataset == "limits":
+        return frozenset({"m_ratio"})
+    if dataset == "settlement":
+        return frozenset(
+            {"delivery_fee", "b_hedging_margin_rate", "s_hedging_margin_rate", "offset_today_fee"}
+        )
+    if dataset.endswith("min"):
+        return frozenset({"amount", "oi"})
+    if dataset in {"daily", "week", "month", "continuous", "adjusted", "index"}:
+        return frozenset(
+            {"pre_close", "pre_settle", "settle", "change1", "change2", "oi", "oi_chg", "amount"}
+        )
+    return frozenset()
 
 
 @dataclass(frozen=True)
@@ -108,7 +138,9 @@ def requirement(profile: ContractType, dataset: str) -> Requirement:
                     else "https://tushare.pro/document/2?doc_id=216"
                 ),
             )
-    return Requirement("REQUIRED", "本类型的必需数据，须核验实际记录与适用区间", BASIC_REFERENCE)
+    return Requirement(
+        "REQUIRED", "本类型适用的采集资料；核心项决定接纳，辅助项单独记录质量", BASIC_REFERENCE
+    )
 
 
 def record_checks(dataset: str, profile: ContractType) -> str:

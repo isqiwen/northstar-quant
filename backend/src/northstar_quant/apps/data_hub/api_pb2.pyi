@@ -291,7 +291,9 @@ class ContractReviewRequest(_message.Message):
     def __init__(self, scope: _Optional[str] = ...) -> None: ...
 
 class ContractReview(_message.Message):
-    __slots__ = ("contract_type", "scope", "display_name", "exchange", "product", "listing_date", "last_trade_date", "required_end", "status", "admitted", "requirements", "reasons", "policy", "null_fields", "last_delivery_date", "first_delivery_date", "delivery_month", "lifecycle_status", "lifecycle_reason")
+    __slots__ = ("completeness", "quality", "contract_type", "scope", "display_name", "exchange", "product", "listing_date", "last_trade_date", "required_end", "status", "admitted", "requirements", "reasons", "policy", "null_fields", "last_delivery_date", "first_delivery_date", "delivery_month", "lifecycle_status", "lifecycle_reason")
+    COMPLETENESS_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_FIELD_NUMBER: _ClassVar[int]
     CONTRACT_TYPE_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -311,6 +313,8 @@ class ContractReview(_message.Message):
     DELIVERY_MONTH_FIELD_NUMBER: _ClassVar[int]
     LIFECYCLE_STATUS_FIELD_NUMBER: _ClassVar[int]
     LIFECYCLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    completeness: _struct_pb2.Struct
+    quality: _struct_pb2.Struct
     contract_type: _struct_pb2.Struct
     scope: str
     display_name: str
@@ -330,7 +334,7 @@ class ContractReview(_message.Message):
     delivery_month: str
     lifecycle_status: str
     lifecycle_reason: str
-    def __init__(self, contract_type: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., scope: _Optional[str] = ..., display_name: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., listing_date: _Optional[str] = ..., last_trade_date: _Optional[str] = ..., required_end: _Optional[str] = ..., status: _Optional[str] = ..., admitted: _Optional[bool] = ..., requirements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reasons: _Optional[_Iterable[str]] = ..., policy: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ..., last_delivery_date: _Optional[str] = ..., first_delivery_date: _Optional[str] = ..., delivery_month: _Optional[str] = ..., lifecycle_status: _Optional[str] = ..., lifecycle_reason: _Optional[str] = ...) -> None: ...
+    def __init__(self, completeness: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., contract_type: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., scope: _Optional[str] = ..., display_name: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., listing_date: _Optional[str] = ..., last_trade_date: _Optional[str] = ..., required_end: _Optional[str] = ..., status: _Optional[str] = ..., admitted: _Optional[bool] = ..., requirements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reasons: _Optional[_Iterable[str]] = ..., policy: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ..., last_delivery_date: _Optional[str] = ..., first_delivery_date: _Optional[str] = ..., delivery_month: _Optional[str] = ..., lifecycle_status: _Optional[str] = ..., lifecycle_reason: _Optional[str] = ...) -> None: ...
 
 class SyncSettingsRequest(_message.Message):
     __slots__ = ("revision", "enabled")

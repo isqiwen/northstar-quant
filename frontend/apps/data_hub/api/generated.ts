@@ -118,6 +118,8 @@ export type ContractReviewRequest = {
   scope: string;
 };
 export type ContractReview = {
+  completeness: Record<string, JsonValue>;
+  quality: Record<string, JsonValue>;
   contract_type: Record<string, JsonValue>;
   scope: string;
   display_name: string;

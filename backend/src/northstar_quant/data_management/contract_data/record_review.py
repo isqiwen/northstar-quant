@@ -15,8 +15,9 @@ from typing import Any
 from sqlalchemy import Connection, text
 
 from ..files import SourceFiles
+from .requirements import auxiliary_fields
 
-RULE = "contract-records/2"
+RULE = "contract-records/3"
 
 
 class EvidenceUnavailable(ValueError):
@@ -97,19 +98,21 @@ def verify(
                     raise ValueError(f"{label} 多份固定响应含冲突记录")
                 rows[key] = row
         missing = sorted(periods - rows.keys())
+        optional = auxiliary_fields(dataset)
+        gaps = {
+            field: {
+                "count": sum(row.get(field) is None for row in rows.values()),
+                "dates": [
+                    day.isoformat() for day, row in sorted(rows.items()) if row.get(field) is None
+                ][:20],
+            }
+            for field in sorted(optional)
+            if any(row.get(field) is None for row in rows.values())
+        }
         evidence.update(
             actual_records=len(rows),
             missing_dates=[d.isoformat() for d in missing[:20]],
-            optional_unknown_fields=(
-                {
-                    "m_ratio": {
-                        "count": len(unknown_margin_dates),
-                        "dates": [d.isoformat() for d in sorted(unknown_margin_dates)[:20]],
-                    }
-                }
-                if unknown_margin_dates
-                else {}
-            ),
+            optional_unknown_fields=gaps,
         )
         if missing:
             return dict(

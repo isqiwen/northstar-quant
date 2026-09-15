@@ -7,11 +7,12 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from ..contract_data.requirements import auxiliary_fields
 from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/13"
+RULE = "tushare-response/14"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -115,7 +116,7 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     )
     if definition.frequency in ("week", "month"):
         required = (*required, "freq")
-    if definition.fields and definition.scope != "catalog":
+    if definition.fields and definition.scope != "catalog" and job["dataset"] != "settlement":
         required = (*required, *definition.fields)
     missing = sorted(set(required) - set(data["fields"]))
     if missing:
@@ -159,6 +160,12 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     ordered = [rows[key] for key in sorted(rows)]
     evidence = _evidence(ordered, len(data["items"]) - failures, job["dataset"])
     evidence["excluded_rows"] = failures
+    optional = auxiliary_fields(job["dataset"])
+    evidence["optional_unknown_fields"] = {
+        field: {"count": sum(row.get(field) is None for row in ordered)}
+        for field in sorted(optional)
+        if any(row.get(field) is None for row in ordered)
+    }
     evidence["issues"] = issues
     evidence["issue_count"] = failures
     evidence["truncated"] = failures > 100

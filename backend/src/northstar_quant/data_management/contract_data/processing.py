@@ -9,8 +9,12 @@ from ..tushare.contract_review import review_connection
 def process_next(engine: Engine) -> str | None:
     with library_write(engine), engine.begin() as c:
         scope = c.scalar(
-            text("""SELECT scope FROM data_contract_collections
-            WHERE status IN ('VERIFYING','REJECTED') AND updated_at<now()-interval '1 minute'
+            text("""SELECT scope FROM data_contract_collections w
+            WHERE (status IN ('COLLECTING','VERIFYING','REJECTED') OR
+                (status='PUBLISHED' AND EXISTS (
+                    SELECT 1 FROM data_contract_requests cr JOIN data_sync_jobs j USING(request_id)
+                    WHERE cr.scope=w.scope AND j.updated_at>w.updated_at)))
+            AND updated_at<now()-interval '1 minute'
             ORDER BY updated_at,scope LIMIT 1 FOR UPDATE SKIP LOCKED""")
         )
         if scope is None:

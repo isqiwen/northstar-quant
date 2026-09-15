@@ -9,9 +9,9 @@ from typing import Any
 
 from sqlalchemy import Connection, Engine, text
 
-from ..contract_data import minute_review, record_review, weekly_review
+from ..contract_data import minute_review, record_review, reference_review, weekly_review
 from ..contract_data.lifecycle import completed, describe
-from ..contract_data.requirements import classify, record_checks, requirement
+from ..contract_data.requirements import CORE_DATASETS, RULE, classify, record_checks, requirement
 from ..exploration.instruments import display_name
 from .catalog import DATASETS, Dataset
 
@@ -21,7 +21,7 @@ def review(engine: Engine, scope: str) -> dict[str, Any]:
         return review_connection(c, scope)
 
 
-def review_connection(c: Connection, scope: str) -> dict[str, Any]:
+def review_connection(c: Connection, scope: str, *, core_only: bool = False) -> dict[str, Any]:
     contract = (
         c.execute(text("SELECT * FROM data_sync_contracts WHERE ts_code=:scope"), {"scope": scope})
         .mappings()
@@ -51,6 +51,10 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
             status="UNKNOWN" if facts["lifecycle_status"] == "UNKNOWN" else "NOT_ELIGIBLE",
             admitted=False,
             requirements=[],
+            completeness=dict(
+                rule=RULE, core_verified=0, core_total=len(CORE_DATASETS), fully_verified=False
+            ),
+            quality=dict(status="BLOCKED", warnings=[], execution_admission=False),
             reasons=[str(error)],
             policy="仅最后交易日和最后交割日均已完成的真实合约参与下载及发布",
         )
@@ -75,7 +79,7 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
             end = calendar["last_open"]
         else:
             reasons.append("生命周期内没有已确认交易日")
-    requirements = []
+    requirements: list[dict[str, Any]] = []
     for dataset in DATASETS:
         rule = requirement(profile, dataset.key)
         if not rule.collect:
@@ -90,12 +94,30 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
                     status=rule.applicability,
                     reason=rule.reason,
                     reference=rule.reference,
+                    admission_role="CORE" if dataset.key in CORE_DATASETS else "AUXILIARY",
+                )
+            )
+            continue
+        if core_only and dataset.key not in CORE_DATASETS:
+            requirements.append(
+                dict(
+                    dataset=dataset.key,
+                    label=dataset.label,
+                    status="UNKNOWN",
+                    admission_role="AUXILIARY",
+                    applicability=rule.applicability,
+                    reason="本次仅核验核心接纳条件",
+                    evidence={},
                 )
             )
             continue
         scopes = _scopes(c, dataset, contract)
         item = _requirement(c, dataset, scopes, start, end, scope)
-        item.update(applicability=rule.applicability, reference=rule.reference)
+        item.update(
+            applicability=rule.applicability,
+            reference=rule.reference,
+            admission_role="CORE" if dataset.key in CORE_DATASETS else "AUXILIARY",
+        )
         if item["status"] == "RECEIVED":
             if calendar_complete and dataset.key == "weekly_detail":
                 item.update(
@@ -125,19 +147,40 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
                 status="VERIFIED" if calendar_complete else "UNKNOWN",
                 reason="按交易所逐自然日核对日历，包括休市日",
             )
+        if dataset.key in {"contracts", "calendar"} and item["status"] == "VERIFIED":
+            item.update(reference_review.verify(c, contract, dataset.key, start, end))
         requirements.append(item)
     if profile.category == "UNKNOWN":
         reasons.append(profile.basis)
-    invalid = any(r["status"] == "INVALID" for r in requirements)
+    core = [r for r in requirements if r["admission_role"] == "CORE"]
+    auxiliary = [
+        r
+        for r in requirements
+        if r["admission_role"] == "AUXILIARY" and r["status"] not in {"NOT_APPLICABLE", "RELATED"}
+    ]
+    invalid = any(r["status"] == "INVALID" for r in core)
     # Lead with observed failures/unfinished collection, not a universal rule disclaimer.
     reasons = [
         f"{r['label']}：{r['reason']}"
-        for r in sorted(requirements, key=lambda r: r["status"] != "INVALID")
+        for r in sorted(core, key=lambda r: r["status"] != "INVALID")
         if r["status"] not in {"VERIFIED", "NOT_APPLICABLE", "RELATED"}
     ] + reasons
-    admitted = not reasons and all(
-        r["status"] in {"VERIFIED", "NOT_APPLICABLE", "RELATED"} for r in requirements
-    )
+    admitted = not reasons and all(r["status"] == "VERIFIED" for r in core)
+    warnings = [f"{r['label']}：{r['reason']}" for r in auxiliary if r["status"] != "VERIFIED"]
+    optional_unknown = {
+        r["dataset"]: r.get("evidence", {}).get("optional_unknown_fields", {})
+        for r in requirements
+        if r.get("evidence", {}).get("optional_unknown_fields")
+    }
+    warnings += [
+        f"{r['label']}：辅助字段缺失 "
+        + ", ".join(
+            f"{field} ({detail['count']} 条)"
+            for field, detail in optional_unknown[r["dataset"]].items()
+        )
+        for r in requirements
+        if r["dataset"] in optional_unknown
+    ]
     return {
         "scope": scope,
         "display_name": display_name(
@@ -150,11 +193,26 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
         "status": "INVALID" if invalid else "VERIFIED" if admitted else "VERIFICATION_PENDING",
         "admitted": admitted,
         "requirements": requirements,
+        "completeness": dict(
+            rule=RULE,
+            core_total=len(core),
+            core_verified=sum(r["status"] == "VERIFIED" for r in core),
+            auxiliary_total=len(auxiliary),
+            auxiliary_verified=sum(r["status"] == "VERIFIED" for r in auxiliary),
+            optional_unknown_fields=optional_unknown,
+            fully_verified=admitted and not warnings,
+            publishable_datasets=[r["dataset"] for r in requirements if r["status"] == "VERIFIED"],
+        ),
+        "quality": dict(
+            status="BLOCKED" if not admitted else "GAPS" if warnings else "COMPLETE",
+            warnings=warnings,
+            execution_admission=False,
+        ),
         "reasons": reasons,
         "policy": (
-            "按合约类型核验全部适用必需数据；已确认不适用的资料和独立研究序列不阻塞发布。"
-            "适用性未知仍阻塞发布，且不盲目发起请求。"
-            "已下载、空响应和请求完成都不等于整合约完整。此报告不执行数据清理。"
+            "核心身份、日历、全部分钟周期、日线及交易参数决定接纳；辅助缺失只影响完整度与质量。"
+            "每个周期独立核验，仅核验通过的数据进入固定发布。合约接纳不代表所有资料完整或策略可运行。"
+            "未知值不填造；此报告不执行数据清理。"
         ),
     }
 

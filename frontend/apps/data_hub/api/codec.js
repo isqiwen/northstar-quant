@@ -9121,6 +9121,8 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a ContractReview.
              * @typedef {Object} northstar.data_hub.ContractReview.$Properties
+             * @property {google.protobuf.Struct.$Properties|null} [completeness] ContractReview completeness
+             * @property {google.protobuf.Struct.$Properties|null} [quality] ContractReview quality
              * @property {google.protobuf.Struct.$Properties|null} [contract_type] ContractReview contract_type
              * @property {string|null} [scope] ContractReview scope
              * @property {string|null} [display_name] ContractReview display_name
@@ -9140,6 +9142,8 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [delivery_month] ContractReview delivery_month
              * @property {string|null} [lifecycle_status] ContractReview lifecycle_status
              * @property {string|null} [lifecycle_reason] ContractReview lifecycle_reason
+             * @property {"completeness"} [_completeness] ContractReview _completeness
+             * @property {"quality"} [_quality] ContractReview _quality
              * @property {"contract_type"} [_contract_type] ContractReview _contract_type
              * @property {"scope"} [_scope] ContractReview _scope
              * @property {"display_name"} [_display_name] ContractReview _display_name
@@ -9170,6 +9174,8 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a ContractReview.
              * @typedef {{
+             *   completeness?: google.protobuf.Struct.$Shape|null;
+             *   quality?: google.protobuf.Struct.$Shape|null;
              *   contract_type?: google.protobuf.Struct.$Shape|null;
              *   scope?: string|null;
              *   display_name?: string|null;
@@ -9191,6 +9197,10 @@ export const northstar = $root.northstar = (() => {
              *   lifecycle_reason?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _completeness?: undefined; completeness?: null }|{ _completeness?: "completeness"; completeness: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _quality?: undefined; quality?: null }|{ _quality?: "quality"; quality: google.protobuf.Struct.$Shape })
+             * ) & (
              *   ({ _contract_type?: undefined; contract_type?: null }|{ _contract_type?: "contract_type"; contract_type: google.protobuf.Struct.$Shape })
              * ) & (
              *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
@@ -9242,6 +9252,22 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * ContractReview completeness.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} completeness
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.completeness = null;
+
+            /**
+             * ContractReview quality.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} quality
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            ContractReview.prototype.quality = null;
 
             /**
              * ContractReview contract_type.
@@ -9397,6 +9423,28 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * ContractReview _completeness.
+             * @member {"completeness"|undefined} _completeness
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_completeness", {
+                get: $util.oneOfGetter($oneOfFields = ["completeness"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractReview _quality.
+             * @member {"quality"|undefined} _quality
+             * @memberof northstar.data_hub.ContractReview
+             * @instance
+             */
+            $Object.defineProperty(ContractReview.prototype, "_quality", {
+                get: $util.oneOfGetter($oneOfFields = ["quality"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * ContractReview _contract_type.
@@ -9644,6 +9692,10 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 17, wireType 2 =*/138).string(message.lifecycle_reason);
                 if (message.contract_type != null && $Object.hasOwnProperty.call(message, "contract_type"))
                     $root.google.protobuf.Struct.encode(message.contract_type, writer.uint32(/* id 18, wireType 2 =*/146).fork(), _depth + 1).ldelim();
+                if (message.completeness != null && $Object.hasOwnProperty.call(message, "completeness"))
+                    $root.google.protobuf.Struct.encode(message.completeness, writer.uint32(/* id 19, wireType 2 =*/154).fork(), _depth + 1).ldelim();
+                if (message.quality != null && $Object.hasOwnProperty.call(message, "quality"))
+                    $root.google.protobuf.Struct.encode(message.quality, writer.uint32(/* id 20, wireType 2 =*/162).fork(), _depth + 1).ldelim();
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -9691,6 +9743,20 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 19: {
+                            if (wireType !== 2)
+                                break;
+                            message.completeness = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.completeness);
+                            message._completeness = "completeness";
+                            continue;
+                        }
+                    case 20: {
+                            if (wireType !== 2)
+                                break;
+                            message.quality = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.quality);
+                            message._quality = "quality";
+                            continue;
+                        }
                     case 18: {
                             if (wireType !== 2)
                                 break;
@@ -9860,6 +9926,22 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.completeness != null && $Object.hasOwnProperty.call(message, "completeness")) {
+                    properties._completeness = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.completeness, _depth + 1);
+                        if (error)
+                            return "completeness." + error;
+                    }
+                }
+                if (message.quality != null && $Object.hasOwnProperty.call(message, "quality")) {
+                    properties._quality = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.quality, _depth + 1);
+                        if (error)
+                            return "quality." + error;
+                    }
+                }
                 if (message.contract_type != null && $Object.hasOwnProperty.call(message, "contract_type")) {
                     properties._contract_type = 1;
                     {
@@ -9987,6 +10069,16 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.data_hub.ContractReview();
+                if (object.completeness != null) {
+                    if (!$util.isObject(object.completeness))
+                        throw $TypeError(".northstar.data_hub.ContractReview.completeness: object expected");
+                    message.completeness = $root.google.protobuf.Struct.fromObject(object.completeness, _depth + 1);
+                }
+                if (object.quality != null) {
+                    if (!$util.isObject(object.quality))
+                        throw $TypeError(".northstar.data_hub.ContractReview.quality: object expected");
+                    message.quality = $root.google.protobuf.Struct.fromObject(object.quality, _depth + 1);
+                }
                 if (object.contract_type != null) {
                     if (!$util.isObject(object.contract_type))
                         throw $TypeError(".northstar.data_hub.ContractReview.contract_type: object expected");
@@ -10160,6 +10252,16 @@ export const northstar = $root.northstar = (() => {
                     object.contract_type = $root.google.protobuf.Struct.toObject(message.contract_type, options, _depth + 1);
                     if (options.oneofs)
                         object._contract_type = "contract_type";
+                }
+                if (message.completeness != null && $Object.hasOwnProperty.call(message, "completeness")) {
+                    object.completeness = $root.google.protobuf.Struct.toObject(message.completeness, options, _depth + 1);
+                    if (options.oneofs)
+                        object._completeness = "completeness";
+                }
+                if (message.quality != null && $Object.hasOwnProperty.call(message, "quality")) {
+                    object.quality = $root.google.protobuf.Struct.toObject(message.quality, options, _depth + 1);
+                    if (options.oneofs)
+                        object._quality = "quality";
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);

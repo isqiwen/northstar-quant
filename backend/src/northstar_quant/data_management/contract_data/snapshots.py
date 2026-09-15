@@ -41,7 +41,8 @@ def publish(engine: Engine, scope: str) -> dict[str, Any]:
         lifetime = completed(contract)
         result = review_connection(c, scope)
         if not result["admitted"]:
-            raise ValueError("整合约尚未通过本类型必需数据的完整性验收，禁止发布数据包")
+            raise ValueError("合约核心数据尚未通过接纳校验，禁止发布数据包")
+        admitted_datasets = set(result["completeness"]["publishable_datasets"])
         inputs = [
             dict(r)
             for r in c.execute(
@@ -54,6 +55,7 @@ def publish(engine: Engine, scope: str) -> dict[str, Any]:
                 {"scope": scope},
             ).mappings()
             if requirement(classify(contract), r["dataset"]).collect
+            and r["dataset"] in admitted_datasets
         ]
         from ..tushare.store import serial
 
@@ -97,10 +99,11 @@ def publish(engine: Engine, scope: str) -> dict[str, Any]:
         )
         c.execute(
             text(
-                "UPDATE data_contract_collections SET status='PUBLISHED',updated_at=now() "
+                "UPDATE data_contract_collections SET status='PUBLISHED',"
+                "reason=:reason,updated_at=now() "
                 "WHERE scope=:scope"
             ),
-            {"scope": scope},
+            {"scope": scope, "reason": "；".join(result["quality"]["warnings"]) or None},
         )
         return artifact
 
