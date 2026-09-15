@@ -282,18 +282,21 @@ def test_historical_period_recalculation_preserves_both_dates(dataset):
 
 
 @pytest.mark.parametrize("dataset", ["daily", "continuous", "adjusted", "week", "month"])
-def test_zero_volume_reference_close_keeps_null_prices_and_exact_status(dataset):
+@pytest.mark.parametrize("empty_price", [None, 0])
+def test_zero_volume_reference_close_keeps_null_prices_and_exact_status(dataset, empty_price):
     from northstar_quant.data_management.tushare.publication import response_table
 
     row, job = market_response(dataset)
-    row.update(open=None, high=None, low=None, vol=0, amount=0, oi=60)
+    row.update(open=empty_price, high=empty_price, low=empty_price, vol=0, amount=0, oi=60)
     accepted, evidence = normalize(encoded(row), job)
     assert accepted[0]["observation_status"] == "ZERO_VOLUME"
-    assert all(accepted[0][f] is None for f in ("open", "high", "low"))
+    assert all(
+        accepted[0][f] == (None if empty_price is None else "0") for f in ("open", "high", "low")
+    )
     assert accepted[0]["close"] == row["close"]
     assert evidence["zero_volume_rows"] == 1
     table = response_table(accepted, dataset)
-    assert table["open"].to_pylist() == [None]
+    assert table["open"].to_pylist() == [empty_price]
     assert table["observation_status"].to_pylist() == ["ZERO_VOLUME"]
 
 
@@ -384,3 +387,12 @@ def test_permission_code_does_not_depend_on_provider_message():
     with pytest.raises(DownloadError, match="权限不足") as caught:
         decode(json.dumps({"code": 2002, "msg": None}).encode())
     assert not caught.value.retry
+
+
+@pytest.mark.parametrize("change", [{"vol": 1}, {"amount": 1}, {"open": -1}, {"high": -1}])
+def test_zero_ohl_sentinels_do_not_hide_trades_or_negative_prices(change):
+    row, job = market_response("daily")
+    row.update(open=0, high=0, low=0, vol=0, amount=0)
+    row.update(change)
+    with pytest.raises(InvalidResponse):
+        normalize(encoded(row), job)

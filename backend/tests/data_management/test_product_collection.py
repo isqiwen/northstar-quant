@@ -145,7 +145,10 @@ def test_observed_origins_keep_each_dataset_and_contract_identity(automatic):
         assert products.origins(c) == []
 
 
-@pytest.mark.parametrize("exchange,product", [("SHFE", "AL"), ("DCE", "C"), ("CZCE", "MA")])
+@pytest.mark.parametrize(
+    "exchange,product",
+    [("SHFE", "AL"), ("DCE", "C"), ("CZCE", "MA"), ("CFFEX", "IF"), ("INE", "SC"), ("GFEX", "SI")],
+)
 def test_listing_floor_filters_planning_and_existing_queue(
     automatic, monkeypatch, exchange, product
 ):

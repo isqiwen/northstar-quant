@@ -1178,7 +1178,10 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
         )
 
 
-def test_zero_volume_blocked_source_reprocesses_without_downloading(automatic, monkeypatch):
+@pytest.mark.parametrize("sentinel", [None, 0])
+def test_zero_volume_blocked_source_reprocesses_without_downloading(
+    automatic, monkeypatch, sentinel
+):
     from uuid import UUID
 
     from northstar_quant.data_management.tushare import quality, reprocessing
@@ -1187,7 +1190,13 @@ def test_zero_volume_blocked_source_reprocesses_without_downloading(automatic, m
     data = json.loads(response())
     row = data["data"]["items"][0]
     fields = data["data"]["fields"]
-    for name, value in {"open": None, "high": None, "low": None, "vol": 0, "amount": 0}.items():
+    for name, value in {
+        "open": sentinel,
+        "high": sentinel,
+        "low": sentinel,
+        "vol": 0,
+        "amount": 0,
+    }.items():
         row[fields.index(name)] = value
     raw = json.dumps(data).encode()
     monkeypatch.setattr(acquisition, "fetch", lambda *a: raw)
@@ -1200,6 +1209,8 @@ def test_zero_volume_blocked_source_reprocesses_without_downloading(automatic, m
     blocked = jobs.process_next(automatic)
     assert blocked["status"] == "BLOCKED"
     source = UUID(blocked["reprocess_source"]["generation"])
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_contract_collections SET status='REJECTED'"))
     monkeypatch.setattr(jobs, "normalize", original_normalize)
     monkeypatch.setattr(acquisition, "fetch", lambda *a: pytest.fail("must reuse retained bytes"))
     reprocessing.enqueue(automatic._engine, request_id=request_id, source_generation=source)
@@ -1212,6 +1223,37 @@ def test_zero_volume_blocked_source_reprocesses_without_downloading(automatic, m
     assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == raw
     snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
     assert snapshot["quality"]["zero_volume_rows"] == 1
+
+
+def test_explicit_redownload_reopens_rejected_owner_and_preserves_attempt(automatic, monkeypatch):
+    from uuid import UUID
+
+    from northstar_quant.data_management.tushare import quality, reprocessing
+
+    request_id = UUID(pending(automatic))
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    original = jobs.normalize
+    monkeypatch.setattr(
+        jobs, "normalize", lambda *a: (_ for _ in ()).throw(quality.InvalidResponse("old rule"))
+    )
+    blocked = jobs.process_next(automatic)
+    assert blocked["status"] == "BLOCKED"
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_contract_collections SET status='REJECTED'"))
+    monkeypatch.setattr(jobs, "normalize", original)
+    calls = []
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: calls.append(a[:2]) or response())
+    reprocessing.redownload(automatic._engine, request_id=request_id)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"))
+    result = jobs.process_next(automatic)
+    assert result["status"] == "VALIDATED"
+    assert len(calls) == 1
+    assert result["attempts"] == blocked["attempts"] + 1
+    assert len(result["attempts_detail"]) == 2
+    assert all(a["parent_generation"] is None for a in result["attempts_detail"])
+    with pytest.raises(ValueError):
+        reprocessing.redownload(automatic._engine, request_id=request_id)
 
 
 def test_mixed_response_retains_evidence_without_partial_publication(automatic, monkeypatch):

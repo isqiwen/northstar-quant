@@ -285,3 +285,15 @@ conflicts even while session mapping is unresolved. Read `volume_comparison` bef
 interpreting an empty `volume_differences`: NOT_COMPARED_TRADING_DAY_UNVERIFIED means
 no day assignment or comparison was made. Do not replace missing historical session
 rules with current fut_basic hours or infer them from observed gaps.
+
+For DCE corn lifetimes wholly inside 2025–2026, inspect `session_policy`, its calendar
+hash, and expected/missing/unexpected label counts. `test_minute_sessions.py` exercises
+real PostgreSQL and retained Parquet: include the listing-eve night, map Friday night
+to Monday, suppress exchange-notified holiday nights, and preserve partial closing bars.
+Do not extrapolate this scoped timetable to other products or years. Dense exact-label
+coverage is not point-in-time availability. Explicit retained reprocessing must reopen
+a rejected owner or the worker cannot claim it. If originals were already released,
+use `reprocessing.redownload` for the exact failed request, preserving old attempts;
+never claim retained-source reprocessing or reset the library. A zero-volume daily
+OHL sentinel may be accepted as reference-only; positive volume with zero price must
+remain invalid. Confirm fresh supplier null limit prices without inventing prices.

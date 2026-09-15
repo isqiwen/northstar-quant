@@ -137,7 +137,15 @@ def review_connection(c: Connection, scope: str, *, core_only: bool = False) -> 
                 )
             elif calendar_complete and dataset.key.endswith("min"):
                 item.update(
-                    minute_review.inspect(c, scope, contract["exchange"], dataset.key, start, end)
+                    minute_review.inspect(
+                        c,
+                        scope,
+                        contract["exchange"],
+                        dataset.key,
+                        start,
+                        end,
+                        product=contract["product"],
+                    )
                 )
             else:
                 item["reason"] = "生命周期请求已覆盖；" + record_checks(dataset.key, profile)

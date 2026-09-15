@@ -12,7 +12,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/15"
+RULE = "tushare-response/16"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -291,9 +291,10 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
                 raise InvalidResponse("额外数值字段超出精确范围") from error
     if definition.api in _BAR_APIS or all(field in row for field in _OHLC):
         zero_volume = row.get("vol") == "0"
-        missing_ohl = all(row.get(field) is None for field in ("open", "high", "low"))
+        missing_ohl = all(row.get(field) in (None, "0") for field in ("open", "high", "low"))
         # Observed daily supplier records may retain a reference close on zero-volume
-        # days. Preserve nulls; neither that close nor settlement proves an execution.
+        # days, with null or zero OHL sentinels. Preserve source values;
+        # neither that close nor settlement proves an execution.
         reference_only = (
             job["dataset"] in {"daily", "continuous", "adjusted", "week", "month"}
             and zero_volume

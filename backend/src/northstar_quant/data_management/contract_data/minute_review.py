@@ -9,6 +9,7 @@ from sqlalchemy import Connection, text
 
 from ..files import SourceFiles
 from . import minute_policy
+from .minute_sessions import load_sessions
 from .record_review import EvidenceUnavailable, fixed_rows
 
 REFERENCE = "https://www.shfe.com.cn/docview/docview_35218417.htm"
@@ -16,10 +17,16 @@ DCE_REFERENCE = "https://www.dce.com.cn/dalianshangpin/resource/cms/2019/04/2019
 
 
 def inspect(
-    c: Connection, scope: str, exchange: str, dataset: str, start: date, end: date
+    c: Connection,
+    scope: str,
+    exchange: str,
+    dataset: str,
+    start: date,
+    end: date,
+    product: str | None = None,
 ) -> dict[str, Any]:
     evidence: dict[str, Any] = dict(
-        rule="minute-diagnostics/4",
+        rule="minute-diagnostics/5",
         grid_verified=False,
         classification="RULE_UNCONFIRMED",
         rules_pending=minute_policy.evidence()["pending"],
@@ -34,8 +41,14 @@ def inspect(
         ),
         evidence=evidence,
     )
+    sessions = load_sessions(c, exchange, product, start, end)
+    expected_labels = sessions.labels(dataset) if sessions else {}
+    if sessions:
+        evidence["session_policy"] = sessions.evidence()
     day_assignment_verified = True
-    if exchange == "SHFE" and end < date(2013, 7, 5):
+    if sessions:
+        pass
+    elif exchange == "SHFE" and end < date(2013, 7, 5):
         evidence["reference"] = REFERENCE
     elif exchange == "DCE" and end < date(2014, 7, 1):
         # The exchange's March 2019 report dates its first night products to
@@ -89,7 +102,13 @@ def inspect(
                             if volume > 0:
                                 traded.add(day)
                     else:
-                        day = datetime.fromisoformat(row["trade_time"]).date()
+                        timestamp = datetime.fromisoformat(row["trade_time"])
+                        assigned_day = (
+                            sessions.trading_day(timestamp) if sessions else timestamp.date()
+                        )
+                        if assigned_day is None or not start <= assigned_day <= end:
+                            continue
+                        day = assigned_day
                         if start <= day <= end:
                             minute_days.add(day)
                             label = row["trade_time"]
@@ -154,6 +173,37 @@ def inspect(
             ),
             evidence=evidence,
         )
+    if sessions:
+        actual_labels = set(minute_values)
+        missing_labels = sorted(expected_labels.keys() - actual_labels)
+        unexpected_labels = sorted(actual_labels - expected_labels.keys())
+        evidence.update(
+            expected_records=len(expected_labels),
+            missing_label_count=len(missing_labels),
+            missing_labels=missing_labels[:20],
+            unexpected_label_count=len(unexpected_labels),
+            unexpected_labels=unexpected_labels[:20],
+        )
+        if not missing_labels and not unexpected_labels and expected_labels:
+            evidence.update(grid_verified=True, classification="VERIFIED", rules_pending=[])
+            return dict(
+                status="VERIFIED",
+                reason=(
+                    f"按DCE玉米2025—2026时段及节假日通知逐标签核对：{len(expected_labels)}根齐全；"
+                    "夜盘归入下一开市日，重叠请求已去重；成交量差异仅诊断，不授予回测准入"
+                ),
+                evidence=evidence,
+            )
+        evidence["classification"] = "GRID_PENDING"
+        return dict(
+            status="RECEIVED",
+            reason=(
+                f"已按DCE玉米时段核对，缺少{len(missing_labels)}个预期标签，"
+                f"另有{len(unexpected_labels)}个非预期标签；需核实对应原文和零成交规则，"
+                "不自动补值或认定源端缺失"
+            ),
+            evidence=evidence,
+        )
     if missing:
         evidence["classification"] = "RECORD_GAP"
         return dict(
@@ -192,6 +242,7 @@ def diagnosis(item: dict[str, Any]) -> dict[str, Any]:
         }.get(item["status"], "REQUEST_COVERAGE_PENDING")
     labels = {
         "VERIFIED": "分钟已核验",
+        "GRID_PENDING": "分钟标签差异待核实",
         "RECORD_ERROR": "记录异常",
         "RECORD_GAP": "记录缺日",
         "RECORD_DIFFERENCE": "记录差异待归因",
@@ -202,6 +253,7 @@ def diagnosis(item: dict[str, Any]) -> dict[str, Any]:
     }
     actions = {
         "VERIFIED": "按固定发布身份浏览实际记录",
+        "GRID_PENDING": "查看缺失/非预期标签，核实源记录；不补造K线",
         "RECORD_ERROR": "查看请求诊断中的原始异常，修复可确认的请求问题后定向重采",
         "RECORD_GAP": "按缺失日期核查原始响应与请求边界，再决定定向补采",
         "RECORD_DIFFERENCE": "对照固定分钟和日线原文核实口径；不自动改值或清理",
