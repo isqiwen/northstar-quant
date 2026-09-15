@@ -118,6 +118,7 @@ export type ContractReviewRequest = {
   scope: string;
 };
 export type ContractReview = {
+  contract_type: Record<string, JsonValue>;
   scope: string;
   display_name: string;
   exchange: string;

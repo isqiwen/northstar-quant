@@ -98,7 +98,7 @@ A validated supplier response alone is private processing evidence. Installed
 browser fixtures may explicitly pin synthetic package facts to exercise readers;
 never interpret those facts as supplier lifecycle acceptance. Verify package hash
 and deterministic reconstruction in joint backup/restore. Real admission must
-show verified listing/last-trading/last-delivery dates and all supported dataset completeness;
+show verified listing/last-trading/last-delivery dates and all type-applicable required dataset completeness;
 unknown historical sessions or applicability keep publication blocked.
 
 A full, explicitly authorized Data Hub schema reset also removes extensions in
@@ -146,3 +146,18 @@ its own retention logs, PID and bounded elapsed time. Candidate discovery must n
 hold the source gate. Recheck new owner/reference pins under the gate before release.
 Benchmark both candidate discovery and locked reference checks, including the
 no-candidate case; LIMIT alone does not bound a join's scanned rows.
+
+
+For type-policy changes, exercise the same `contract_data.requirements` decision
+through planning, authenticated review and package input selection. Test DCE V_F
+with matching monthly-average/cash metadata, physical V, CFFEX stock-index/bond,
+INE EC and conflicting/unknown metadata. Missing warehouse for cash/bond types
+must not block; missing minute/settlement or UNKNOWN applicability must still block.
+Independent continuous/adjusted/index series must not be scheduled per contract.
+The report must name record/session evidence still missing, not certify window
+coverage. Verify the browser shows type, delivery and distinct applicability states.
+An explicitly authorized Data Hub reset must pause via owned settings, stop all
+Data Hub writers before schema/files deletion, preserve authentication/token/storage
+identity, recreate btree_gist with the administrator and verify an empty baseline
+before enabling collection. Verify oldest eligible lifecycle and new attempt times;
+metadata discovery alone does not prove historical downloads have restarted.

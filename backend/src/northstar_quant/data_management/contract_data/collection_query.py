@@ -7,6 +7,7 @@ from sqlalchemy import Engine, text
 from ..exploration.instruments import display_name
 from ..tushare.store import serial
 from .lifecycle import describe
+from .requirements import classify
 
 
 def search(
@@ -47,6 +48,7 @@ def search(
         items = []
         for row in rows:
             item = {**serial(row), **describe(row)}
+            item["contract_type"] = classify(row).public()
             item["display_name"] = display_name(
                 row["scope"], row["details"].get("name"), row["exchange"], row["product"]
             )

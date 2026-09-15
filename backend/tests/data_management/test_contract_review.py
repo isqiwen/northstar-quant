@@ -22,7 +22,13 @@ def lifetime(library, start="20260901", end="20260902"):
             text("UPDATE data_sync_contracts SET details=CAST(:details AS jsonb)"),
             {
                 "details": json.dumps(
-                    dict(name="螺纹钢2610", list_date=start, delist_date=end, last_ddate=end)
+                    dict(
+                        name="螺纹钢2610",
+                        list_date=start,
+                        delist_date=end,
+                        last_ddate=end,
+                        d_mode_desc="实物交割",
+                    )
                 )
             },
         )
@@ -41,7 +47,7 @@ def test_single_valid_dataset_does_not_admit_whole_contract(automatic, monkeypat
     assert found["daily"]["status"] == "RECEIVED"
     assert found["settlement"]["status"] == "COLLECTING"
     assert found["warehouse"]["scopes"] == ["SHFE:RB"]
-    assert found["mapping"]["status"] == "UNKNOWN"
+    assert found["mapping"]["status"] == "RELATED"
 
 
 def test_listing_before_old_history_floor_is_not_silently_shortened(automatic):

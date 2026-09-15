@@ -12,7 +12,8 @@ from sqlalchemy import Connection, Engine, text
 from northstar_quant import code_revision
 
 from ..contract_data.lifecycle import SEARCH_START, completed
-from .catalog import BY_KEY, DATASETS, EXCHANGES, NANHUA_CODES
+from ..contract_data.requirements import classify, requirement
+from .catalog import BY_KEY, DATASETS, EXCHANGES
 from .store import settings
 
 
@@ -199,22 +200,10 @@ def plan(engine: Engine) -> None:
                 )
                 _link(connection, contract["ts_code"], identity)
             for dataset in DATASETS:
+                if not requirement(classify(contract), dataset.key).collect:
+                    continue
                 if dataset.scope in ("catalog", "calendar"):
                     continue
-                if dataset.scope == "continuous":
-                    # Related series keep their own identity, bounded by this retired
-                    # contract's life. Never collect a continuous series independently.
-                    related = (
-                        connection.execute(
-                            text("""SELECT * FROM data_sync_contracts
-                        WHERE exchange=:e AND product=:p AND kind='2'"""),
-                            dict(e=contract["exchange"], p=contract["product"]),
-                        )
-                        .mappings()
-                        .all()
-                    )
-                else:
-                    related = [contract]
                 window_start, window_end = start, end
                 # Calendar-month shards stay fixed. The open month uses daily shards,
                 # so the current cycle's endpoint never grows underneath a running task.
@@ -224,16 +213,14 @@ def plan(engine: Engine) -> None:
                     stop = min(next_month - timedelta(days=1), window_end)
                     a = max(window_start, cursor)
                     if next_month <= target.replace(day=1):
-                        for item in related:
-                            _window(
-                                connection, dataset.key, item, a, stop, owner=contract["ts_code"]
-                            )
+                        _window(
+                            connection, dataset.key, contract, a, stop, owner=contract["ts_code"]
+                        )
                     else:
                         while a <= stop:
-                            for item in related:
-                                _window(
-                                    connection, dataset.key, item, a, a, owner=contract["ts_code"]
-                                )
+                            _window(
+                                connection, dataset.key, contract, a, a, owner=contract["ts_code"]
+                            )
                             a += timedelta(days=1)
                     cursor = next_month
             connection.execute(
@@ -280,20 +267,8 @@ def _window(
             "start_week": start.strftime("%G%V"),
             "end_week": end.strftime("%G%V"),
         }
-    if key == "index":
-        for code in NANHUA_CODES:
-            identity = enqueue(
-                connection,
-                key,
-                code,
-                {**params, "ts_code": code},
-                start.isoformat(),
-                end.isoformat(),
-            )
-            _link(connection, owner, identity)
-    else:
-        identity = enqueue(connection, key, scope, params, start.isoformat(), end.isoformat())
-        _link(connection, owner, identity)
+    identity = enqueue(connection, key, scope, params, start.isoformat(), end.isoformat())
+    _link(connection, owner, identity)
 
 
 def _link(connection: Connection, owner: str, identity: str | None) -> None:

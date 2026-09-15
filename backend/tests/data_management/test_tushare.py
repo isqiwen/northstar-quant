@@ -418,7 +418,7 @@ def test_no_secret_in_network_errors(mode):
     assert TOKEN not in str(caught.value)
 
 
-def test_planning_all_capabilities_is_idempotent_and_stops_at_expiry(automatic, monkeypatch):
+def test_planning_applicable_data_is_idempotent_and_stops_at_expiry(automatic, monkeypatch):
     from datetime import date
 
     from northstar_quant.data_management.tushare.catalog import BY_KEY
@@ -439,6 +439,7 @@ def test_planning_all_capabilities_is_idempotent_and_stops_at_expiry(automatic, 
                             "list_date": "20260901",
                             "delist_date": "20260903",
                             "last_ddate": "20260904",
+                            "d_mode_desc": "实物交割",
                         }
                     ),
                 },
@@ -447,7 +448,12 @@ def test_planning_all_capabilities_is_idempotent_and_stops_at_expiry(automatic, 
     with automatic._engine.connect() as connection:
         rows = connection.execute(text("SELECT * FROM data_sync_jobs")).mappings().all()
         count = len(rows)
-        assert {row["dataset"] for row in rows} == set(BY_KEY) - {"contracts"}
+        assert {row["dataset"] for row in rows} == set(BY_KEY) - {
+            "contracts",
+            "mapping",
+            "adjusted",
+            "index",
+        }
         assert all(
             row["end_at"] <= "2026-09-03"
             for row in rows
@@ -994,9 +1000,7 @@ def test_historical_empty_remains_uncovered_with_slow_automatic_recheck(automati
     assert jobs.process_next(automatic) is None
 
 
-def test_catalog_arrival_replans_continuous_ranges_without_duplicate_downloads(
-    automatic, monkeypatch
-):
+def test_catalog_arrival_plans_real_contract_without_continuous_downloads(automatic, monkeypatch):
     from datetime import date
 
     monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
@@ -1030,20 +1034,21 @@ def test_catalog_arrival_replans_continuous_ranges_without_duplicate_downloads(
             c.scalar(text("SELECT planning_error FROM data_sync_contracts WHERE ts_code='A.DCE'"))
             is None
         )
-        count = c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A.DCE'"))
+        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A.DCE'")) == 0
+        count = c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A2609.DCE'"))
         assert count > 0
     planning.plan(automatic._engine)
     with automatic._engine.connect() as c:
-        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A.DCE'")) == count
+        assert (
+            c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A2609.DCE'")) == count
+        )
     visible = settings.status(automatic._engine)["jobs"]
     # Completed/attempted work cannot be displaced by the flood of newly planned jobs.
     assert visible[0]["request_id"] == completed["request_id"]
 
 
-def test_index_planning_sends_explicit_official_codes_and_deduplicates(automatic, monkeypatch):
+def test_real_contract_does_not_schedule_market_indices(automatic, monkeypatch):
     from datetime import date
-
-    from northstar_quant.data_management.tushare.catalog import NANHUA_CODES
 
     monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
     with automatic._engine.begin() as c:
@@ -1060,9 +1065,7 @@ def test_index_planning_sends_explicit_official_codes_and_deduplicates(automatic
             .mappings()
             .all()
         )
-    assert rows
-    assert {r["scope"] for r in rows} == set(NANHUA_CODES)
-    assert all(r["parameters"]["ts_code"] == r["scope"] for r in rows)
+    assert rows == []
     planning.plan(automatic._engine)
     with automatic._engine.connect() as c:
         assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE dataset='index'")) == len(
@@ -1105,7 +1108,12 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
                     "code": code,
                     "kind": kind,
                     "details": json.dumps(
-                        {"list_date": begin, "delist_date": end, "last_ddate": end}
+                        {
+                            "list_date": begin,
+                            "delist_date": end,
+                            "last_ddate": end,
+                            "d_mode_desc": "实物交割",
+                        }
                     ),
                 },
             )
@@ -1121,7 +1129,7 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
         assert any(r["scope"] == "AL1201.SHF" for r in rows)
         assert not any(r["scope"] == "AL1112.SHF" for r in rows)
         assert not any(r["scope"] == "AL1202.SHF" for r in rows)
-        assert {"calendar", "daily", "1min", "holdings", "index", "mapping"} <= {
+        assert {"calendar", "daily", "1min", "holdings", "warehouse"} <= {
             r["dataset"] for r in rows
         }
         assert (

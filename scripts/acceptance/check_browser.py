@@ -285,7 +285,7 @@ def main() -> None:
                     screenshot("available-data")
                     available.get_by_role("button", name="整体验收", exact=True).first.click()
                     review = page.get_by_role("dialog")
-                    expect(review.get_by_text("已下载不等于整合约完整", exact=True)).to_be_visible()
+                    expect(review.get_by_text("按合约类型核验必需数据", exact=True)).to_be_visible()
                     expect(review.get_by_text("每日结算参数", exact=True)).to_be_visible()
                     expect(review.get_by_text("整体验收待核验", exact=True)).to_be_visible()
                     expect(review.get_by_text("上市 / 最后交易日", exact=True)).to_be_visible()
@@ -293,6 +293,9 @@ def main() -> None:
                     expect(
                         review.get_by_text("最后交易日和最后交割日均已完成", exact=True)
                     ).to_be_visible()
+                    expect(review.get_by_text("合约类型 / 交割方式", exact=True)).to_be_visible()
+                    index_row = review.get_by_role("row").filter(has_text="南华指数日线")
+                    expect(index_row.get_by_text("关联研究资料", exact=True)).to_be_visible()
                     screenshot("contract-review")
                     review.locator(".ant-drawer-close").click()
 

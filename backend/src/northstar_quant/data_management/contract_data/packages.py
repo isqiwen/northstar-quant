@@ -19,6 +19,7 @@ from ..maintenance import library_write
 from ..publications import PublishedDatasets
 from ..tushare.contract_review import review_connection
 from .lifecycle import completed
+from .requirements import classify, requirement
 
 
 def _json(value: Any) -> bytes:
@@ -45,7 +46,7 @@ def publish(engine: Engine, scope: str) -> dict[str, Any]:
         lifetime = completed(contract)
         result = review_connection(c, scope)
         if not result["admitted"]:
-            raise ValueError("整合约尚未通过全部数据集的完整性验收，禁止发布数据包")
+            raise ValueError("整合约尚未通过本类型必需数据的完整性验收，禁止发布数据包")
         inputs = [
             dict(r)
             for r in c.execute(
@@ -57,6 +58,7 @@ def publish(engine: Engine, scope: str) -> dict[str, Any]:
             ORDER BY j.dataset,j.scope,r.receipt_id"""),
                 {"scope": scope},
             ).mappings()
+            if requirement(classify(contract), r["dataset"]).collect
         ]
         from ..tushare.store import serial
 

@@ -26,6 +26,7 @@ class ContractReviewRequest(ApiModel):
 
 
 class ContractReview(ApiModel):
+    contract_type: dict[str, str]
     scope: str
     display_name: str
     exchange: str

@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy import Connection, Engine, text
 
 from ..contract_data.lifecycle import completed, describe
+from ..contract_data.requirements import classify, record_checks, requirement
 from ..exploration.instruments import display_name
 from .catalog import DATASETS, Dataset
 
@@ -31,6 +32,8 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
         raise ValueError("全生命周期验收以真实合约为单位；连续序列不能代替真实合约")
     details = contract["details"]
     facts = describe(contract)
+    profile = classify(contract)
+    facts["contract_type"] = profile.public()
     reasons = []
     try:
         lifetime = completed(contract)
@@ -73,11 +76,33 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
             reasons.append("生命周期内没有已确认交易日")
     requirements = []
     for dataset in DATASETS:
+        rule = requirement(profile, dataset.key)
+        if not rule.collect:
+            requirements.append(
+                dict(
+                    dataset=dataset.key,
+                    label=dataset.label,
+                    native_scope=dataset.scope,
+                    scopes=[],
+                    received=0,
+                    applicability=rule.applicability,
+                    status=rule.applicability,
+                    reason=rule.reason,
+                    reference=rule.reference,
+                )
+            )
+            continue
         scopes = _scopes(c, dataset, contract)
         item = _requirement(c, dataset, scopes, start, end)
+        item.update(applicability=rule.applicability, reference=rule.reference)
+        if item["status"] == "RECEIVED":
+            item["reason"] = "生命周期请求已覆盖；" + record_checks(dataset.key, profile)
         if dataset.key == "contracts":
             item.update(
-                status="RECEIVED", reason="合约元数据已收到；最后交易与交割范围仍需上述核对"
+                status="VERIFIED" if profile.category != "UNKNOWN" else "UNKNOWN",
+                reason="真实合约类型与生命周期元数据已核对"
+                if profile.category != "UNKNOWN"
+                else profile.basis,
             )
         elif dataset.key == "calendar":
             item.update(
@@ -85,23 +110,18 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
                 reason="按交易所逐自然日核对日历，包括休市日",
             )
         requirements.append(item)
-    # Successful transport/row checks cannot establish sessions, native periods,
-    # product reporting obligations or index applicability. Keep these explicit.
-    reasons.extend(
-        [
-            "分钟行情：缺少全生命周期历史交易时段及供应商时间标签的已核实证据",
-            "周/月线及品种级数据：应有记录、发布日与适用范围尚未完成核验",
-            "交割及结算相关要求：交易结束后的适用区间尚无已核实规则，不能按行情区间认定完整",
-            "主力映射、复权序列及市场指数保持独立身份；关联完整性尚未完成核验",
-        ]
-    )
+    if profile.category == "UNKNOWN":
+        reasons.append(profile.basis)
     invalid = any(r["status"] == "INVALID" for r in requirements)
     # Lead with observed failures/unfinished collection, not a universal rule disclaimer.
     reasons = [
         f"{r['label']}：{r['reason']}"
-        for r in requirements
-        if r["status"] == ("INVALID" if invalid else "COLLECTING")
+        for r in sorted(requirements, key=lambda r: r["status"] != "INVALID")
+        if r["status"] not in {"VERIFIED", "NOT_APPLICABLE", "RELATED"}
     ] + reasons
+    admitted = not reasons and all(
+        r["status"] in {"VERIFIED", "NOT_APPLICABLE", "RELATED"} for r in requirements
+    )
     return {
         "scope": scope,
         "display_name": display_name(
@@ -111,12 +131,13 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
         "product": contract["product"],
         **facts,
         "required_end": end.isoformat() if calendar_complete else None,
-        "status": "INVALID" if invalid else "VERIFICATION_PENDING",
-        "admitted": False,
+        "status": "INVALID" if invalid else "VERIFIED" if admitted else "VERIFICATION_PENDING",
+        "admitted": admitted,
         "requirements": requirements,
         "reasons": reasons,
         "policy": (
-            "全部已支持数据集参与核验；未核实适用性不算豁免。"
+            "按合约类型核验全部适用必需数据；已确认不适用的资料和独立研究序列不阻塞发布。"
+            "适用性未知仍阻塞发布，且不盲目发起请求。"
             "已下载、空响应和请求完成都不等于整合约完整。此报告不执行数据清理。"
         ),
     }
@@ -129,17 +150,7 @@ def _scopes(c: Connection, dataset: Dataset, contract: Any) -> list[str]:
         return [contract["ts_code"]]
     if dataset.scope == "product":
         return [f"{contract['exchange']}:{contract['product']}"]
-    if dataset.scope == "continuous":
-        return list(
-            c.scalars(
-                text("""SELECT ts_code FROM data_sync_contracts
-            WHERE exchange=:exchange AND product=:product AND kind='2' ORDER BY ts_code"""),
-                dict(exchange=contract["exchange"], product=contract["product"]),
-            )
-        )
-    from .catalog import NANHUA_CODES
-
-    return list(NANHUA_CODES)
+    raise ValueError("独立研究序列不能作为真实合约的必需请求")
 
 
 def _requirement(

@@ -151,6 +151,19 @@ export function SyncContracts({
           },
           { title: "品种", dataIndex: "product" },
           {
+            title: "合约类型",
+            render: (_, row) => {
+              const type = row.contract_type as
+                Record<string, string> | undefined;
+              return (
+                <>
+                  <div>{type?.label ?? "待核实"}</div>
+                  <div className="muted">{type?.delivery}</div>
+                </>
+              );
+            },
+          },
+          {
             title: "合约",
             render: (_, row) => (
               <>
