@@ -84,7 +84,7 @@ must also block rejected-source cleanup, not just new planning.
 Use the browser's “整体验收” action on downloaded contract data. Check a complete
 calendar through the candidate cutoff; an old maximum open day is insufficient.
 A response/window count, nonempty chart or successful HTTP request is not whole
-contract acceptance. The current report explicitly records unresolved minute
+contract acceptance. The report verifies actual owned daily/period/term files, and explicitly records unresolved minute
 session/label and native dataset applicability evidence; it cannot authorize
 source deletion. Test with `backend/tests/data_management/test_contract_review.py`
 against the disposable PostgreSQL database. Preserve old fixed receipts when
@@ -191,3 +191,18 @@ transition under stopped Data Hub writers; preserve current downloads and accoun
 Tushare fut_index_daily lists ts_code as optional, but the live range request without
 a code returned a parameter refusal. Use the documented Nanhua identities per request;
 do not infer index symbols from commodity codes or classify this refusal as missing history.
+
+
+For actual contract-record checks, run test_contract_review.py with PostgreSQL and
+source files. Test a revised calendar against a previously validated response,
+missing fee/margin values, conflicting receipts, and missing immutable files.
+Storage/receipt corruption stays UNKNOWN rather than rejecting a contract and
+triggering source cleanup. Week/month API requests must include the final period
+label even when the real contract ends earlier; do not shorten a weekend endpoint
+back to Friday and introduce gaps into the request union. Keep metadata expiry fixed.
+SHFE pre-2013-07-05 daily/minute date comparison can detect an entirely missing
+traded day, but cannot prove a complete intraday grid. Never promote that partial
+check to VERIFIED. Supplier-declared history bounds are not proof that every
+product is covered from that date; preserve listing history before the search floor.
+When a reset is conditional on finishing repairs, unresolved positive admission
+is not permission to wipe early. Report exact data/proof gaps and deployment state.

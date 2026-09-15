@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy import Connection, Engine, text
 
+from ..contract_data import minute_review, record_review
 from ..contract_data.lifecycle import completed, describe
 from ..contract_data.requirements import classify, record_checks, requirement
 from ..exploration.instruments import display_name
@@ -93,10 +94,19 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
             )
             continue
         scopes = _scopes(c, dataset, contract)
-        item = _requirement(c, dataset, scopes, start, end)
+        item = _requirement(c, dataset, scopes, start, end, scope)
         item.update(applicability=rule.applicability, reference=rule.reference)
         if item["status"] == "RECEIVED":
-            item["reason"] = "生命周期请求已覆盖；" + record_checks(dataset.key, profile)
+            if calendar_complete and dataset.key in record_review.SUPPORTED:
+                item.update(
+                    record_review.verify(c, scope, contract["exchange"], dataset.key, start, end)
+                )
+            elif calendar_complete and dataset.key.endswith("min"):
+                item.update(
+                    minute_review.inspect(c, scope, contract["exchange"], dataset.key, start, end)
+                )
+            else:
+                item["reason"] = "生命周期请求已覆盖；" + record_checks(dataset.key, profile)
         if dataset.key == "contracts":
             item.update(
                 status="VERIFIED" if profile.category != "UNKNOWN" else "UNKNOWN",
@@ -154,7 +164,7 @@ def _scopes(c: Connection, dataset: Dataset, contract: Any) -> list[str]:
 
 
 def _requirement(
-    c: Connection, dataset: Dataset, scopes: list[str], start: date | None, end: date
+    c: Connection, dataset: Dataset, scopes: list[str], start: date | None, end: date, owner: str
 ) -> dict[str, Any]:
     result: dict[str, Any] = dict(
         dataset=dataset.key,
@@ -177,9 +187,17 @@ def _requirement(
         LEFT JOIN data_sync_coverage v ON v.request_id=j.request_id
         LEFT JOIN data_sync_attempts a ON a.generation=j.generation
         WHERE j.dataset=:dataset AND j.scope=ANY(:scopes) AND j.status<>'SPLIT'
+        AND EXISTS (SELECT 1 FROM data_contract_requests cr
+                    WHERE cr.request_id=j.request_id AND cr.scope=:owner)
         AND (j.start_at='' OR (j.start_at<=:end AND j.end_at>=:start))
         ORDER BY j.scope,j.start_at,j.end_at"""),
-            dict(dataset=dataset.key, scopes=scopes, start=start.isoformat(), end=end.isoformat()),
+            dict(
+                dataset=dataset.key,
+                scopes=scopes,
+                start=start.isoformat(),
+                end=end.isoformat(),
+                owner=owner,
+            ),
         )
         .mappings()
         .all()
@@ -215,7 +233,15 @@ def _requirement(
         if cursor <= end:
             result.update(
                 status="COLLECTING",
-                reason=f"{scope} 从 {cursor} 起尚无连续已校验响应；不能据此确认源端缺失",
+                reason=(
+                    f"{scope} 从 {cursor} 起尚无连续已校验响应；不能据此确认源端缺失"
+                    + (
+                        "。Tushare 公布结算参数从 2012-01 开始；此前生命周期超出其声明范围，"
+                        "不能期待重试补齐，也不能缩短合约历史"
+                        if dataset.key == "settlement" and cursor < date(2012, 1, 1)
+                        else ""
+                    )
+                ),
             )
             return result
     result.update(status="RECEIVED", reason="生命周期请求范围已覆盖；还需核验应有记录和字段语义")

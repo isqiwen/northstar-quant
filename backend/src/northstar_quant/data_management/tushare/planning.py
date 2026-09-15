@@ -242,6 +242,12 @@ def _window(
     if end < start:
         return
     dataset = BY_KEY[key]
+    if key in {"week", "month"}:
+        # The API filters supplier period labels, not the last trading day of
+        # this contract. Include its final (possibly partial) native period.
+        from ..contract_data.record_review import period
+
+        end = max(end, period(end, key))
     scope = contract["ts_code"]
     params: dict[str, object] = {
         "start_date": start.strftime("%Y%m%d"),

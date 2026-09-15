@@ -458,7 +458,8 @@ def test_planning_applicable_data_is_idempotent_and_stops_at_expiry(automatic, m
         assert all(
             row["end_at"] <= "2026-09-03"
             for row in rows
-            if row["dataset"] not in ("calendar", "holdings", "warehouse", "index", "weekly_detail")
+            if row["dataset"]
+            not in ("calendar", "holdings", "warehouse", "index", "weekly_detail", "week", "month")
         )
     planning.plan(automatic._engine)
     with automatic._engine.connect() as connection:

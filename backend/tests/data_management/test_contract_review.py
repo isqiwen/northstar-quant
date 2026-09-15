@@ -44,7 +44,8 @@ def test_single_valid_dataset_does_not_admit_whole_contract(automatic, monkeypat
     assert result["required_end"] == "2026-09-01"
     assert {r["dataset"] for r in result["requirements"]} == {d.key for d in DATASETS}
     found = {r["dataset"]: r for r in result["requirements"]}
-    assert found["daily"]["status"] == "RECEIVED"
+    assert found["daily"]["status"] == "VERIFIED"
+    assert found["daily"]["evidence"]["actual_records"] == 1
     assert found["settlement"]["status"] == "COLLECTING"
     assert found["warehouse"]["scopes"] == ["SHFE:RB"]
     assert found["mapping"]["status"] == "RELATED"
@@ -133,3 +134,210 @@ def test_contract_review_uses_owned_authenticated_protocol(automatic):
         assert (
             client.post("/api/sync/contracts/review", json={"scope": "missing"}).status_code == 404
         )
+
+
+def test_unowned_receipt_cannot_satisfy_contract_review(automatic, monkeypatch):
+    lifetime(automatic, end="20260901")
+    pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.begin() as c:
+        c.execute(text("DELETE FROM data_contract_requests"))
+    found = {r["dataset"]: r for r in review(automatic._engine, "RB2610.SHF")["requirements"]}
+    assert found["daily"]["status"] == "COLLECTING"
+    assert not found["daily"]["received"]
+
+
+def test_calendar_revision_invalidates_previously_valid_daily_rows(automatic, monkeypatch):
+    lifetime(automatic)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_calendar SET is_open=false WHERE cal_date='2026-09-02'"))
+    pending(automatic, end="2026-09-02")
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_calendar SET is_open=true WHERE cal_date='2026-09-02'"))
+    result = review(automatic._engine, "RB2610.SHF")
+    found = {r["dataset"]: r for r in result["requirements"]}
+    assert found["daily"]["status"] == "INVALID"
+    assert found["daily"]["evidence"]["missing_dates"] == ["2026-09-02"]
+    assert not result["admitted"]
+
+
+@pytest.mark.parametrize("dataset,label", [("week", "20260904"), ("month", "20260930")])
+def test_native_period_including_partial_last_period_is_verified(
+    automatic, monkeypatch, dataset, label
+):
+    from northstar_quant.data_management.tushare import planning
+
+    lifetime(automatic)
+    with automatic._engine.begin() as c:
+        planning.enqueue(
+            c,
+            dataset,
+            "RB2610.SHF",
+            dict(ts_code="RB2610.SHF", freq=dataset, start_date="20260901", end_date="20260902"),
+            "2026-09-01",
+            "2026-09-02",
+        )
+    data = json.loads(response())
+    data["data"]["fields"].extend(["freq", "end_date"])
+    data["data"]["items"][0][1] = label
+    data["data"]["items"][0].extend([dataset, "20260902"])
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: json.dumps(data).encode())
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    found = {r["dataset"]: r for r in review(automatic._engine, "RB2610.SHF")["requirements"]}
+    assert found[dataset]["status"] == "VERIFIED", found[dataset]
+    assert found[dataset]["evidence"]["expected_records"] == 1
+    # A new calendar day inside the period is a required observation, even though
+    # the supplier window and period label still appear complete.
+    with automatic._engine.begin() as c:
+        c.execute(
+            text(
+                "UPDATE data_sync_contracts SET details=details || "
+                '\'{"delist_date":"20260903","last_ddate":"20260903"}\'::jsonb'
+            )
+        )
+        c.execute(text("INSERT INTO data_sync_calendar VALUES('SHFE','2026-09-03',true)"))
+    from datetime import date
+
+    from northstar_quant.data_management.contract_data.record_review import verify
+
+    with automatic._engine.connect() as c:
+        result = verify(c, "RB2610.SHF", "SHFE", dataset, date(2026, 9, 1), date(2026, 9, 3))
+    assert result["status"] == "INVALID"
+    assert "未覆盖应有最后交易日" in result["reason"]
+
+
+def test_last_month_request_includes_period_label_after_contract_expiry(automatic, monkeypatch):
+    from northstar_quant.data_management.tushare import planning
+
+    lifetime(automatic)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_contracts SET planned_revision=0"))
+    planning.plan(automatic._engine)
+    with automatic._engine.begin() as c:
+        c.execute(
+            text("UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE dataset<>'month'")
+        )
+    data = json.loads(response())
+    data["data"]["fields"].extend(["freq", "end_date"])
+    data["data"]["items"][0][1] = "20260930"
+    data["data"]["items"][0].extend(["month", "20260930"])
+
+    def fetch(api, parameters, token):
+        assert parameters["end_date"] == "20260930"
+        return json.dumps(data).encode()
+
+    monkeypatch.setattr(acquisition, "fetch", fetch)
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    result = review(automatic._engine, "RB2610.SHF")
+    found = {r["dataset"]: r for r in result["requirements"]}
+    assert found["month"]["status"] == "VERIFIED"
+    assert result["last_trade_date"] == "2026-09-02"
+
+
+def test_missing_fixed_file_is_not_a_data_rejection_or_cleanup_permission(automatic, monkeypatch):
+    lifetime(automatic, end="20260901")
+    pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.connect() as c:
+        digest = c.scalar(text("SELECT parquet_hash FROM data_sync_receipts LIMIT 1"))
+    for path in automatic._files.root.rglob(digest):
+        path.unlink()
+    result = review(automatic._engine, "RB2610.SHF")
+    found = {r["dataset"]: r for r in result["requirements"]}
+    assert found["daily"]["status"] == "UNKNOWN"
+    assert result["status"] == "VERIFICATION_PENDING"
+
+
+@pytest.mark.parametrize(
+    "dataset,missing",
+    [("limits", False), ("limits", True), ("settlement", False), ("settlement", True)],
+)
+def test_complete_daily_terms_require_actual_values(automatic, monkeypatch, dataset, missing):
+    from northstar_quant.data_management.tushare import planning
+
+    lifetime(automatic, end="20260901")
+    with automatic._engine.begin() as c:
+        planning.enqueue(
+            c,
+            dataset,
+            "RB2610.SHF",
+            dict(ts_code="RB2610.SHF", start_date="20260901", end_date="20260901"),
+            "2026-09-01",
+            "2026-09-01",
+        )
+    row = dict(ts_code="RB2610.SHF", trade_date="20260901")
+    if dataset == "limits":
+        row.update(up_limit=3500, down_limit=2800, m_ratio=None if missing else 10)
+    else:
+        from northstar_quant.data_management.tushare.catalog import BY_KEY
+
+        row.update({field: None for field in BY_KEY[dataset].fields if field not in row})
+        row.update(
+            exchange="SHFE",
+            settle=3100,
+            trading_fee_rate=0.1,
+            trading_fee=0,
+            long_margin_rate=None if missing else 10,
+            short_margin_rate=10,
+        )
+    payload = json.dumps(dict(code=0, data=dict(fields=list(row), items=[list(row.values())])))
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: payload.encode())
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    result = review(automatic._engine, "RB2610.SHF")
+    found = {r["dataset"]: r for r in result["requirements"]}
+    assert found[dataset]["status"] == ("INVALID" if missing else "VERIFIED")
+    assert not result["admitted"]
+
+
+@pytest.mark.parametrize("missing", [True, False])
+def test_historical_minute_missing_day_is_concrete_but_day_presence_is_not_full_grid(
+    automatic, monkeypatch, missing
+):
+    from northstar_quant.data_management.tushare import planning
+
+    lifetime(automatic, start="20120118", end="20120119")
+    with automatic._engine.begin() as c:
+        c.execute(
+            text(
+                "INSERT INTO data_sync_calendar VALUES('SHFE','2012-01-18',true),"
+                "('SHFE','2012-01-19',true)"
+            )
+        )
+    pending(automatic, start="2012-01-18", end="2012-01-19")
+    payload = json.loads(response())
+    first = payload["data"]["items"][0]
+    first[1] = "20120118"
+    payload["data"]["items"].append([*first[:1], "20120119", *first[2:]])
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: json.dumps(payload).encode())
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_settings SET next_request_at=now(),api_next_at='{}'"))
+        planning.enqueue(
+            c,
+            "30min",
+            "RB2610.SHF",
+            dict(
+                ts_code="RB2610.SHF",
+                freq="30min",
+                start_date="2012-01-18 00:00:00",
+                end_date="2012-01-19 23:59:59",
+            ),
+            "2012-01-18",
+            "2012-01-19",
+        )
+    payload["data"]["fields"][1] = "trade_time"
+    payload["data"]["items"][0][1] = "2012-01-18 15:00:00"
+    payload["data"]["items"][1][1] = "2012-01-19 15:00:00"
+    if missing:
+        payload["data"]["items"].pop()
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    result = review(automatic._engine, "RB2610.SHF")
+    found = {r["dataset"]: r for r in result["requirements"]}
+    assert found["30min"]["status"] == ("INVALID" if missing else "RECEIVED")
+    assert found["30min"]["evidence"]["grid_verified"] is False
+    assert found["30min"]["evidence"]["missing_dates"] == (["2012-01-19"] if missing else [])
+    assert not result["admitted"]
