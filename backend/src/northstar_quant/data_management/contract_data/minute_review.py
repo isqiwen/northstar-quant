@@ -1,7 +1,8 @@
 """Detect missing trading days without claiming an unverified intraday grid."""
 
+from collections import defaultdict
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from typing import Any
 
 from sqlalchemy import Connection, text
@@ -16,7 +17,13 @@ DCE_REFERENCE = "https://www.dce.com.cn/dalianshangpin/resource/cms/2019/04/2019
 def inspect(
     c: Connection, scope: str, exchange: str, dataset: str, start: date, end: date
 ) -> dict[str, Any]:
-    evidence: dict[str, Any] = dict(rule="day-session-presence/2", grid_verified=False)
+    evidence: dict[str, Any] = dict(
+        rule="minute-diagnostics/3",
+        grid_verified=False,
+        classification="RULE_UNCONFIRMED",
+        rules_pending=["历史交易时段", "分钟时间标签", "无成交分钟政策"],
+        volume_basis="SUPPLIER_REPORTED_NOT_SIDE_ADJUSTED",
+    )
     unresolved: dict[str, Any] = dict(
         status="RECEIVED",
         reason="尚缺供应商历史分钟标签、无成交分钟政策和逐时段规则；不能判定全部分钟完整",
@@ -49,32 +56,71 @@ def inspect(
     traded: set[date] = set()
     minute_days: set[date] = set()
     records = 0
+    duplicate_records = 0
+    zero_volume_records = 0
+    minute_values: dict[str, tuple[Any, ...]] = {}
+    minute_volume: dict[date, Decimal] = defaultdict(Decimal)
+    daily_volume: dict[date, Decimal] = {}
+    conflicts: set[str] = set()
     labels: dict[date, set[str]] = {}
     try:
         files = SourceFiles.from_environment()
-        for item in inputs:
-            for row in fixed_rows(files, dict(item)):
-                if row.get("ts_code") != scope:
-                    raise EvidenceUnavailable("分钟/日线身份与回执不一致")
-                if item["dataset"] == "daily":
-                    day = date.fromisoformat(row["trade_date"])
-                    if (
-                        row.get("vol") is not None
-                        and Decimal(str(row["vol"])) > 0
-                        and start <= day <= end
-                    ):
-                        traded.add(day)
-                else:
-                    day = datetime.fromisoformat(row["trade_time"]).date()
-                    if start <= day <= end:
-                        minute_days.add(day)
-                        labels.setdefault(day, set()).add(row["trade_time"])
-                        records += 1
+        with localcontext() as precision:
+            precision.prec = 50
+            for item in inputs:
+                for row in fixed_rows(files, dict(item)):
+                    if row.get("ts_code") != scope:
+                        raise EvidenceUnavailable("分钟/日线身份与回执不一致")
+                    if item["dataset"] == "daily":
+                        day = date.fromisoformat(row["trade_date"])
+                        if row.get("vol") is not None and start <= day <= end:
+                            volume = Decimal(str(row["vol"]))
+                            if day in daily_volume and daily_volume[day] != volume:
+                                conflicts.add(day.isoformat())
+                            daily_volume[day] = volume
+                            if volume > 0:
+                                traded.add(day)
+                    else:
+                        day = datetime.fromisoformat(row["trade_time"]).date()
+                        if start <= day <= end:
+                            minute_days.add(day)
+                            label = row["trade_time"]
+                            labels.setdefault(day, set()).add(label)
+                            records += 1
+                            values = tuple(
+                                row.get(f) for f in ("open", "high", "low", "close", "vol")
+                            )
+                            if label in minute_values:
+                                duplicate_records += 1
+                                if minute_values[label] != values:
+                                    conflicts.add(label)
+                                continue
+                            minute_values[label] = values
+                            volume = Decimal(str(row["vol"]))
+                            minute_volume[day] += volume
+                            zero_volume_records += volume == 0
     except (ValueError, KeyError, OSError) as error:
+        evidence["classification"] = "EVIDENCE_UNAVAILABLE"
         return dict(status="UNKNOWN", reason=f"分钟覆盖证据不可读取：{error}", evidence=evidence)
     missing = sorted(traded - minute_days)
+    differences = [
+        dict(
+            date=day.isoformat(),
+            minute_volume=_quantity(minute_volume[day]),
+            daily_volume=_quantity(daily_volume[day]),
+        )
+        for day in sorted(minute_days & daily_volume.keys())
+        if minute_volume[day] != daily_volume[day] and not conflicts
+    ]
     evidence.update(
         observed_records=records,
+        duplicate_records=duplicate_records,
+        zero_volume_records=zero_volume_records,
+        conflicting_records=len(conflicts),
+        conflict_samples=sorted(conflicts)[:20],
+        volume_difference_count=len(differences),
+        volume_differences=differences[:20],
+        volume_comparison="DIAGNOSTIC_ONLY_NOT_A_COMPLETENESS_PROOF",
         daily_traded_days=len(traded),
         minute_days=len(minute_days),
         distinct_records=sum(len(values) for values in labels.values()),
@@ -82,7 +128,18 @@ def inspect(
         max_labels_per_day=max((len(values) for values in labels.values()), default=0),
         missing_dates=[d.isoformat() for d in missing[:20]],
     )
+    if conflicts:
+        evidence["classification"] = "RECORD_CONFLICT"
+        return dict(
+            status="UNKNOWN",
+            reason=(
+                f"固定来源记录冲突：{sorted(conflicts)[0]}，共 {len(conflicts)} 个标签；"
+                "需核实来源版本，不自动选择或合并"
+            ),
+            evidence=evidence,
+        )
     if missing:
+        evidence["classification"] = "RECORD_GAP"
         return dict(
             status="INVALID",
             reason=(
@@ -91,7 +148,58 @@ def inspect(
             ),
             evidence=evidence,
         )
+    if differences:
+        evidence["classification"] = "RECORD_DIFFERENCE"
+        first = differences[0]
+        unresolved["reason"] = (
+            f"记录差异待归因：{first['date']} 分钟合计 {first['minute_volume']} 手，"
+            f"日线 {first['daily_volume']} 手，共 {len(differences)} 日；"
+            "不据此缩放、补值或认定源端缺失。" + unresolved["reason"]
+        )
     unresolved["reason"] = (
         f"已核对 {len(traded)} 个日线有成交日期，分钟记录 {records} 条；" + unresolved["reason"]
     )
     return unresolved
+
+
+def diagnosis(item: dict[str, Any]) -> dict[str, Any]:
+    """Explain the existing admission result without turning observations into permission."""
+    evidence = item.get("evidence", {})
+    category = evidence.get("classification")
+    if category is None:
+        category = {
+            "INVALID": "RECORD_ERROR",
+            "RECEIVED": "RULE_UNCONFIRMED",
+            "VERIFIED": "VERIFIED",
+        }.get(item["status"], "REQUEST_COVERAGE_PENDING")
+    labels = {
+        "VERIFIED": "分钟已核验",
+        "RECORD_ERROR": "记录异常",
+        "RECORD_GAP": "记录缺日",
+        "RECORD_DIFFERENCE": "记录差异待归因",
+        "RECORD_CONFLICT": "固定来源冲突",
+        "REQUEST_COVERAGE_PENDING": "请求覆盖待完成",
+        "EVIDENCE_UNAVAILABLE": "核验证据不可读取",
+        "RULE_UNCONFIRMED": "分钟规则待确认",
+    }
+    actions = {
+        "VERIFIED": "按固定发布身份浏览实际记录",
+        "RECORD_ERROR": "查看请求诊断中的原始异常，修复可确认的请求问题后定向重采",
+        "RECORD_GAP": "按缺失日期核查原始响应与请求边界，再决定定向补采",
+        "RECORD_DIFFERENCE": "对照固定分钟和日线原文核实口径；不自动改值或清理",
+        "RECORD_CONFLICT": "核实冲突来源版本，保留全部证据",
+        "REQUEST_COVERAGE_PENDING": "查看请求诊断，区分未请求、重试、权限和空响应",
+        "EVIDENCE_UNAVAILABLE": "恢复或核实固定文件与回执，不能据此认定源端缺失",
+        "RULE_UNCONFIRMED": "核实历史时段、时间标签和无成交政策；重复下载不解决规则缺口",
+    }
+    return dict(
+        category=category,
+        label=labels[category],
+        action=actions[category],
+        source_missing_confirmed=False,
+    )
+
+
+def _quantity(value: Decimal) -> str:
+    fixed = format(value, "f")
+    return fixed.rstrip("0").rstrip(".") if "." in fixed else fixed

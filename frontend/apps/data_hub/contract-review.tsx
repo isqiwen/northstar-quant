@@ -160,7 +160,44 @@ export function ContractReview({
                 title: "依据与缺口",
                 render: (_, row) => (
                   <>
+                    {!!row.diagnosis && (
+                      <div>
+                        <Tag>
+                          {String(
+                            (row.diagnosis as Record<string, unknown>).label,
+                          )}
+                        </Tag>
+                        <div className="muted">
+                          {String(
+                            (row.diagnosis as Record<string, unknown>).action,
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div>{String(row.reason ?? "")}</div>
+                    {Array.isArray(
+                      (row.evidence as Record<string, unknown> | undefined)
+                        ?.volume_differences,
+                    ) &&
+                      (
+                        (row.evidence as Record<string, unknown>)
+                          .volume_differences as unknown[]
+                      ).length > 0 && (
+                        <details>
+                          <summary>
+                            成交量差异明细（最多20日，不自动改值）
+                          </summary>
+                          {(
+                            (row.evidence as Record<string, unknown>)
+                              .volume_differences as Record<string, string>[]
+                          ).map((item) => (
+                            <div key={item.date}>
+                              {item.date}：分钟合计 {item.minute_volume}{" "}
+                              手；日线 {item.daily_volume} 手
+                            </div>
+                          ))}
+                        </details>
+                      )}
                     {!!(row.evidence as Record<string, unknown> | undefined)
                       ?.optional_unknown_fields && (
                       <div className="muted">

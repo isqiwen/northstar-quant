@@ -293,6 +293,11 @@ def main() -> None:
                     expect(review.get_by_text("每日结算参数", exact=True)).to_be_visible()
                     expect(review.get_by_text("核心接纳", exact=True)).to_be_visible()
                     expect(review.get_by_text("完整度 / 质量", exact=True)).to_be_visible()
+                    minute_row = review.get_by_role("row").filter(has_text="1 分钟")
+                    expect(minute_row.get_by_text("请求覆盖待完成", exact=True)).to_be_visible()
+                    expect(
+                        minute_row.get_by_text("区分未请求、重试、权限和空响应", exact=False)
+                    ).to_be_visible()
                     # This fixture has no speculative margin values. Actual row
                     # review must explain that failure instead of a placeholder.
                     settlement_row = review.get_by_role("row").filter(has_text="每日结算参数")

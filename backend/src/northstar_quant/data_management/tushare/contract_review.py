@@ -149,6 +149,8 @@ def review_connection(c: Connection, scope: str, *, core_only: bool = False) -> 
             )
         if dataset.key in {"contracts", "calendar"} and item["status"] == "VERIFIED":
             item.update(reference_review.verify(c, contract, dataset.key, start, end))
+        if dataset.key.endswith("min"):
+            item["diagnosis"] = minute_review.diagnosis(item)
         requirements.append(item)
     if profile.category == "UNKNOWN":
         reasons.append(profile.basis)

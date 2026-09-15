@@ -319,10 +319,7 @@ def test_complete_daily_terms_require_actual_values(
     assert not result["admitted"]
 
 
-@pytest.mark.parametrize("missing", [True, False])
-def test_historical_minute_missing_day_is_concrete_but_day_presence_is_not_full_grid(
-    automatic, monkeypatch, missing
-):
+def historical_minutes(automatic, monkeypatch, case):
     from northstar_quant.data_management.tushare import planning
 
     lifetime(automatic, start="20120118", end="20120119")
@@ -358,12 +355,76 @@ def test_historical_minute_missing_day_is_concrete_but_day_presence_is_not_full_
     payload["data"]["fields"][1] = "trade_time"
     payload["data"]["items"][0][1] = "2012-01-18 15:00:00"
     payload["data"]["items"][1][1] = "2012-01-19 15:00:00"
-    if missing:
+    if case == "missing":
         payload["data"]["items"].pop()
+    elif case == "different":
+        payload["data"]["items"][0][6] = 3
+    elif case == "zero":
+        zero = list(payload["data"]["items"][0])
+        zero[1], zero[6] = "2012-01-18 14:30:00", 0
+        payload["data"]["items"].append(zero)
     assert jobs.process_next(automatic)["status"] == "VALIDATED"
-    result = review(automatic._engine, "RB2610.SHF")
-    found = {r["dataset"]: r for r in result["requirements"]}
-    assert found["30min"]["status"] == ("INVALID" if missing else "RECEIVED")
-    assert found["30min"]["evidence"]["grid_verified"] is False
-    assert found["30min"]["evidence"]["missing_dates"] == (["2012-01-19"] if missing else [])
+    if case in {"overlap", "conflict"}:
+        with automatic._engine.begin() as c:
+            c.execute(text("UPDATE data_sync_settings SET next_request_at=now(),api_next_at='{}'"))
+            planning.enqueue(
+                c,
+                "30min",
+                "RB2610.SHF",
+                dict(
+                    ts_code="RB2610.SHF",
+                    freq="30min",
+                    start_date="2012-01-19 00:00:00",
+                    end_date="2012-01-19 23:59:59",
+                ),
+                "2012-01-19",
+                "2012-01-19",
+            )
+        payload["data"]["items"] = [payload["data"]["items"][1]]
+        if case == "conflict":
+            payload["data"]["items"][0][6] = 4
+        assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    return review(automatic._engine, "RB2610.SHF")
+
+
+@pytest.mark.parametrize("case", ["missing", "present", "different", "zero", "overlap", "conflict"])
+def test_minute_diagnostics_distinguish_observation_from_admission(automatic, monkeypatch, case):
+    result = historical_minutes(automatic, monkeypatch, case)
+    item = next(r for r in result["requirements"] if r["dataset"] == "30min")
+    expected = {
+        "missing": ("INVALID", "RECORD_GAP"),
+        "present": ("RECEIVED", "RULE_UNCONFIRMED"),
+        "different": ("RECEIVED", "RECORD_DIFFERENCE"),
+        "zero": ("RECEIVED", "RULE_UNCONFIRMED"),
+        "overlap": ("RECEIVED", "RULE_UNCONFIRMED"),
+        "conflict": ("UNKNOWN", "RECORD_CONFLICT"),
+    }
+    assert (item["status"], item["diagnosis"]["category"]) == expected[case]
+    assert item["diagnosis"]["source_missing_confirmed"] is False
+    evidence = item["evidence"]
+    assert evidence["grid_verified"] is False
+    assert evidence["missing_dates"] == (["2012-01-19"] if case == "missing" else [])
+    if case == "different":
+        assert evidence["volume_differences"] == [
+            dict(date="2012-01-18", minute_volume="3", daily_volume="2")
+        ]
+    else:
+        assert evidence["volume_differences"] == []
+    assert evidence["zero_volume_records"] == (1 if case == "zero" else 0)
+    assert evidence["duplicate_records"] == (1 if case in {"overlap", "conflict"} else 0)
     assert not result["admitted"]
+
+
+def test_unverified_night_mapping_does_not_assign_minutes_to_natural_day(automatic, monkeypatch):
+    historical_minutes(automatic, monkeypatch, "different")
+    from datetime import date
+
+    from northstar_quant.data_management.contract_data import minute_review
+
+    with automatic._engine.connect() as c:
+        result = minute_review.inspect(
+            c, "RB2610.SHF", "SHFE", "30min", date(2012, 1, 18), date(2013, 7, 5)
+        )
+    assert result["status"] == "RECEIVED"
+    assert result["evidence"]["classification"] == "RULE_UNCONFIRMED"
+    assert "volume_differences" not in result["evidence"]

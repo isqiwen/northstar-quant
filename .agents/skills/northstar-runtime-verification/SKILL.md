@@ -252,3 +252,12 @@ failures must not reject the contract or enter its published inputs. Subsequent 
 completion must create a new snapshot without changing existing identities. Before
 source cleanup, recheck core INVALID for every shared owner; stale REJECTED alone
 is insufficient. Preserve referenced evidence and keep UNKNOWN distinct from INVALID.
+
+
+For minute discrepancies, read `requirements[].diagnosis` before recommending another download.
+Compare only owner-linked, file-verified receipts and deduplicate overlapping timestamps before
+summing. Zero-volume bars are observations, not missing bars. Natural-date comparison is only
+valid inside the explicitly supported historical no-night-session boundary. A different sum is
+not supplier-missing proof and an equal sum is not grid completeness. Recheck a bounded example
+against retained raw JSON before blaming normalization; keep all period/source identities and
+never rescale values or delete evidence to reconcile the totals.
