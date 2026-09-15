@@ -286,7 +286,7 @@ def main() -> None:
                     ).to_be_visible()
                     screenshot("available-data")
                     available.get_by_role("button", name="整体验收", exact=True).first.click()
-                    review = page.get_by_role("dialog")
+                    review = page.get_by_role("dialog", name="合约全生命周期验收", exact=True)
                     expect(review.get_by_text("按合约类型核验必需数据", exact=True)).to_be_visible()
                     expect(review.get_by_text("每日结算参数", exact=True)).to_be_visible()
                     expect(review.get_by_text("整体验收待核验", exact=True)).to_be_visible()
@@ -302,7 +302,7 @@ def main() -> None:
                     review.locator(".ant-drawer-close").click()
 
                     available.get_by_role("button", name="标准数据", exact=True).first.click()
-                    standard = page.get_by_role("dialog")
+                    standard = page.get_by_role("dialog", name="合约标准数据", exact=True)
                     expect(standard.get_by_text("固定快照", exact=True)).to_be_visible()
                     expect(
                         standard.get_by_role("columnheader", name="成交量", exact=True)
@@ -530,10 +530,10 @@ def main() -> None:
                     row = page.get_by_role("row").filter(has_text="CU.NH")
                     expect(row.get_by_text("有已校验记录", exact=True)).to_be_visible()
                     row.get_by_role("button", name="历史版本", exact=True).click()
-                    history = page.get_by_role("dialog")
+                    history = page.get_by_role("dialog", name="研究序列固定版本", exact=True)
                     expect(history.get_by_role("button", name="打开固定版本")).to_have_count(2)
                     history.get_by_role("button", name="打开固定版本").last.click()
-                    standard = page.get_by_role("dialog").last
+                    standard = page.get_by_role("dialog", name="研究序列标准数据", exact=True)
                     expect(standard.get_by_role("cell", name="CU.NH", exact=True)).to_be_visible()
                     expect(standard.get_by_role("cell", name="2000", exact=True)).to_be_visible()
                     screenshot("research-series")
