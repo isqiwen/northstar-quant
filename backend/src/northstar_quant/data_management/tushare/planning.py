@@ -369,6 +369,10 @@ def split(connection: Connection, job: dict[str, Any]) -> bool:
                 params["end_date"] = job["parameters"].get("end_date", params["end_date"])
         else:
             params.update(start_date=left.strftime("%Y%m%d"), end_date=right.strftime("%Y%m%d"))
+        if params == job["parameters"]:
+            # Removing closed dates may leave one identical supplier envelope.
+            # It cannot be split further this way; never create a self retry.
+            return False
         child = enqueue(
             connection, job["dataset"], job["scope"], params, a.isoformat(), b.isoformat()
         )

@@ -183,3 +183,21 @@ def test_closed_calendar_gap_does_not_block_verified_daily_records(automatic, mo
     daily = next(r for r in result["requirements"] if r["dataset"] == "daily")
     assert daily["status"] == "VERIFIED"
     assert not result["admitted"]
+
+
+def test_closed_day_split_cannot_create_same_request_retry(automatic):
+    candidate(automatic)
+    calendar_for_planning(automatic, start="2013-01-01", end="2015-12-31")
+    with automatic._engine.begin() as c:
+        planning.enqueue(
+            c,
+            "1min",
+            "AL1501.SHF",
+            dict(freq="1min", start_date="2015-01-02 00:00:00", end_date="2015-01-05 23:59:59"),
+            "2015-01-03",
+            "2015-01-05",
+        )
+        row = dict(c.execute(text("SELECT * FROM data_sync_jobs")).mappings().one())
+        assert not planning.split(c, row)
+        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs")) == 1
+        assert c.scalar(text("SELECT status FROM data_sync_jobs")) == "PENDING"
