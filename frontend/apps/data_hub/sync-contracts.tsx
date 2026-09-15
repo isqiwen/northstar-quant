@@ -133,7 +133,7 @@ export function SyncContracts({
         rowKey="scope"
         size="small"
         loading={loading}
-        scroll={{ x: 1100 }}
+        scroll={{ x: 900 }}
         dataSource={result?.items ?? []}
         pagination={{
           current: filter.page,
@@ -146,12 +146,13 @@ export function SyncContracts({
         columns={[
           {
             title: "交易所",
+            width: 90,
             dataIndex: "exchange",
             render: (value) => exchangeName(String(value)),
           },
-          { title: "品种", dataIndex: "product" },
           {
             title: "合约类型",
+            width: 150,
             render: (_, row) => {
               const type = row.contract_type as
                 Record<string, string> | undefined;
@@ -165,6 +166,7 @@ export function SyncContracts({
           },
           {
             title: "合约",
+            width: 180,
             render: (_, row) => (
               <>
                 <strong>{String(row.display_name || row.scope)}</strong>
@@ -172,11 +174,9 @@ export function SyncContracts({
               </>
             ),
           },
-          { title: "上市日", dataIndex: "listing_date" },
-          { title: "最后交易日", dataIndex: "last_trade_date" },
-          { title: "最后交割日", dataIndex: "last_delivery_date" },
           {
             title: "采集 / 发布",
+            width: 160,
             render: (_, row) => (
               <Tag
                 color={
