@@ -240,7 +240,7 @@ def main() -> None:
                     ).to_be_enabled()
                     page.get_by_role("button", name="探查并下载所选品种", exact=True).click()
                     expect(page.get_by_text("后台采集中", exact=True)).to_be_visible()
-                    page.get_by_role("button", name=re.compile(r"^暂\s*停$")).click()
+                    page.get_by_role("button", name=re.compile(r"暂\s*停$")).click()
                     expect(page.get_by_text("已暂停", exact=True)).to_be_visible()
                     page.reload()
                     expect(
@@ -570,7 +570,7 @@ def main() -> None:
                     expect(
                         page.get_by_role("heading", name="期货数据工作台", exact=True)
                     ).to_be_visible()
-                    expect(page.get_by_text("后台自动同步已启用", exact=False)).to_be_visible()
+                    expect(page.get_by_text("所选品种后台采集中", exact=False)).to_be_visible()
                     screenshot("data")
                     visit(data_url + "/series")
                     expect(page.get_by_role("heading", name="研究序列", exact=True)).to_be_visible()
