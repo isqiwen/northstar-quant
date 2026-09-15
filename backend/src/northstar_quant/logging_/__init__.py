@@ -142,6 +142,7 @@ def configure(application: str, component: str) -> LogRuntime:
     if (application, component) not in {
         ("data_hub", "api"),
         ("data_hub", "worker"),
+        ("data_hub", "retention"),
         ("research", "api"),
         ("research", "worker"),
         ("live", "api"),

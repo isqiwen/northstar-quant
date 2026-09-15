@@ -8,12 +8,21 @@ from ..files import SourceFiles
 from . import publication
 
 
-def references(connection: Connection) -> list[dict[str, object]]:
+def references(
+    connection: Connection, *, content_hashes: list[str] | None = None
+) -> list[dict[str, object]]:
     from ..compaction import references as compacted_references
 
-    result: list[dict[str, object]] = compacted_references(connection)
-    for row in connection.execute(text("SELECT * FROM data_sync_receipts")).mappings():
+    result: list[dict[str, object]] = compacted_references(
+        connection, content_hashes=content_hashes
+    )
+    query = "SELECT * FROM data_sync_receipts"
+    if content_hashes is not None:
+        query += " WHERE manifest_hash=ANY(:hashes) OR parquet_hash=ANY(:hashes)"
+    for row in connection.execute(text(query), {"hashes": content_hashes}).mappings():
         for role in ("manifest", "parquet"):
+            if content_hashes is not None and row[f"{role}_hash"] not in content_hashes:
+                continue
             result.append(
                 {
                     "source_id": str(uuid5(NAMESPACE_URL, f"{row['receipt_id']}/{role}")),

@@ -201,10 +201,14 @@ def initialize_library(connection: Connection) -> None:
     """)
 
 
-def manifest(connection: Connection) -> list[dict[str, object]]:
+def manifest(
+    connection: Connection, *, content_hashes: list[str] | None = None
+) -> list[dict[str, object]]:
     """Read archive references inside the caller's consistent backup snapshot."""
 
     sources_query = select(_sources.c.source_id, _sources.c.content_hash, _sources.c.byte_count)
+    if content_hashes is not None:
+        sources_query = sources_query.where(_sources.c.content_hash.in_(content_hashes))
     if connection.dialect.name == "postgresql":
         sources_query = sources_query.where(
             text("""NOT EXISTS (
@@ -219,7 +223,10 @@ def manifest(connection: Connection) -> list[dict[str, object]]:
         return references
     from .tushare.retention import references as sync_references
 
-    return sorted(references + sync_references(connection), key=lambda r: str(r["source_id"]))
+    return sorted(
+        references + sync_references(connection, content_hashes=content_hashes),
+        key=lambda r: str(r["source_id"]),
+    )
 
 
 class DataLibrary:

@@ -206,3 +206,53 @@ def test_unknown_lifecycle_never_rejects_existing_collection(automatic):
     assert process_next(automatic._engine) == "RB2610.SHF"
     with automatic._engine.connect() as c:
         assert c.scalar(text("SELECT status FROM data_contract_collections")) == "VERIFYING"
+
+
+def test_cleanup_discovery_does_not_lock_collectors_and_rechecks_new_owner_state(
+    automatic, monkeypatch
+):
+    from northstar_quant.data_management.contract_data import retention
+    from northstar_quant.data_management.maintenance import library_write
+    from northstar_quant.data_management.tushare import acquisition, jobs
+
+    test_tushare.pending(automatic)
+    raw = json.loads(test_tushare.response())
+    raw["data"]["items"][0][raw["data"]["fields"].index("vol")] = -1
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: json.dumps(raw).encode())
+    jobs.process_next(automatic)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_contract_collections SET status='REJECTED'"))
+        source = c.execute(text("SELECT * FROM data_sources")).mappings().one()
+    candidates = retention._candidates
+
+    def concurrent_change(c, ids=None):
+        result = candidates(c, ids)
+        if ids is None:
+            assert result
+            # Another collector can enter during discovery. A state change made
+            # then must prevent deletion once retention acquires its exclusive gate.
+            with library_write(automatic._engine), automatic._engine.begin() as writer:
+                writer.execute(text("UPDATE data_contract_collections SET status='VERIFYING'"))
+        return result
+
+    monkeypatch.setattr(retention, "_candidates", concurrent_change)
+    assert retention.release_rejected(automatic._engine, automatic._files) == 0
+    assert automatic._files.inspect(source["content_hash"], source["byte_count"]) == "AVAILABLE"
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_contract_source_releases")) == 0
+
+
+def test_filtered_manifest_preserves_source_and_receipt_aliases(automatic, monkeypatch):
+    from northstar_quant.data_management.library import manifest
+    from northstar_quant.data_management.tushare import acquisition, jobs
+
+    test_tushare.pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: test_tushare.response())
+    jobs.process_next(automatic)
+    with automatic._engine.connect() as c:
+        full = manifest(c)
+        assert len(full) >= 3
+        for item in full:
+            selected = manifest(c, content_hashes=[str(item["content_hash"])])
+            assert selected == [r for r in full if r["content_hash"] == item["content_hash"]]
+        assert manifest(c, content_hashes=[]) == []

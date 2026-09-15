@@ -328,10 +328,19 @@ def read(engine: Engine, identity: str, *, offset: int = 0, limit: int = 200) ->
     }
 
 
-def references(c: Connection) -> list[dict[str, Any]]:
+def references(c: Connection, *, content_hashes: list[str] | None = None) -> list[dict[str, Any]]:
     result = []
-    for row in c.execute(select(_jobs).where(_jobs.c.status == "SUCCEEDED")).mappings():
+    query = select(_jobs).where(_jobs.c.status == "SUCCEEDED")
+    if content_hashes is not None:
+        query = query.where(
+            text("""(result->'manifest'->>'content_hash'=ANY(:hashes)
+            OR EXISTS(SELECT 1 FROM json_array_elements(result->'files') f
+                WHERE f->>'content_hash'=ANY(:hashes)))""")
+        ).params(hashes=content_hashes)
+    for row in c.execute(query).mappings():
         for item in [row["result"]["manifest"], *row["result"]["files"]]:
+            if content_hashes is not None and item["content_hash"] not in content_hashes:
+                continue
             result.append(
                 {
                     "source_id": str(

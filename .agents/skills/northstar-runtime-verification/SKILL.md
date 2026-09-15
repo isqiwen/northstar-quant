@@ -134,3 +134,15 @@ PostgreSQL's original error. A failed shared-memory resize may come from paralle
 hash joins in the maintenance query, even when ordinary storage is healthy. Keep
 that bounded scan serial with transaction-local settings; do not globally disable
 parallel query or delete data to recover space without diagnosing the allocation.
+
+
+For low Data Hub utilization, inspect pg_stat_activity and the exact retention
+EXPLAIN plan before increasing container CPU/RAM or /dev/shm. Verify indexes are
+valid after concurrent creation; canceled builds can leave invalid indexes that
+IF NOT EXISTS does not repair. A stopped client can leave its active read query
+running: cancel only the identified obsolete maintenance query before retrying DDL.
+The data-retention child must remain independent of collector supervision; inspect
+its own retention logs, PID and bounded elapsed time. Candidate discovery must not
+hold the source gate. Recheck new owner/reference pins under the gate before release.
+Benchmark both candidate discovery and locked reference checks, including the
+no-candidate case; LIMIT alone does not bound a join's scanned rows.
