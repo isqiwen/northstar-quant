@@ -110,9 +110,9 @@ def main() -> None:
                 if url == "about:blank":
                     return
                 # A navigation may follow an API restart, which revokes its sessions.
-                page.locator(
-                    'input[autocomplete="current-password"], .workspace'
-                ).first.wait_for(state="visible")
+                page.locator('input[autocomplete="current-password"], .workspace').first.wait_for(
+                    state="visible"
+                )
                 password = page.get_by_label("工作台密码", exact=True)
                 if password.is_visible():
                     page.get_by_label("用户名", exact=True).fill("owner")
@@ -131,17 +131,15 @@ def main() -> None:
                 page.get_by_label(label, exact=True).click()
                 if search:
                     page.get_by_label(label, exact=True).fill(text)
-                page.locator(
-                    ".ant-select-dropdown:visible .ant-select-item-option"
-                ).filter(has_text=text).first.click()
+                page.locator(".ant-select-dropdown:visible .ant-select-item-option").filter(
+                    has_text=text
+                ).first.click()
                 page.keyboard.press("Escape")
                 expect(page.locator(".ant-select-dropdown:visible")).to_have_count(0)
 
             def screenshot(name):
                 if name != "failure":
-                    expect(
-                        page.locator(".facts").get_by_text("—", exact=True)
-                    ).to_have_count(0)
+                    expect(page.locator(".facts").get_by_text("—", exact=True)).to_have_count(0)
                     expect(page.locator(".ant-spin-spinning")).to_have_count(0)
                 # Wait for the actual dialog, not merely its text in a scale-in frame.
                 # Fast-forwarding Ant's CSS animation during capture can leave only its mask.
@@ -151,11 +149,8 @@ def main() -> None:
                 page.evaluate("window.scrollTo(0, 0)")
                 target = args.screenshot.resolve()
                 page.screenshot(
-                    path=str(
-                        target.with_name(target.stem + "-" + name + target.suffix)
-                    ),
-                    full_page=name
-                    not in {"browse", "available-data", "chart-fullscreen"},
+                    path=str(target.with_name(target.stem + "-" + name + target.suffix)),
+                    full_page=name not in {"browse", "available-data", "chart-fullscreen"},
                     animations="disabled",
                 )
 
@@ -182,18 +177,10 @@ def main() -> None:
                 )
                 with app.web("data-api") as data_url:
                     visit(data_url + "/sync")
-                    expect(
-                        page.get_by_role("heading", name="Tushare 自动同步")
-                    ).to_be_visible()
-                    expect(
-                        page.get_by_text("完整合约发布进度", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        page.get_by_text("合约数据与进度", exact=True)
-                    ).to_be_visible()
-                    expect(page.get_by_text("内部采集记录", exact=True)).to_have_count(
-                        0
-                    )
+                    expect(page.get_by_role("heading", name="Tushare 自动同步")).to_be_visible()
+                    expect(page.get_by_text("合约接纳与发布进度", exact=True)).to_be_visible()
+                    expect(page.get_by_text("合约数据与进度", exact=True)).to_be_visible()
+                    expect(page.get_by_text("内部采集记录", exact=True)).to_have_count(0)
                     page.get_by_role("button", name="退出登录", exact=True).click()
                     expect(
                         page.get_by_role("heading", name="登录 Northstar Data Hub")
@@ -206,17 +193,11 @@ def main() -> None:
                         "synthetic-browser-test-token"
                     )
                     page.get_by_role("button", name="保存 token", exact=True).click()
-                    expect(
-                        page.get_by_text("已配置（不回显）", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_text("已配置（不回显）", exact=True)).to_be_visible()
                     page.reload()
                     page.get_by_text("采集设置与目录信息", exact=True).click()
-                    expect(
-                        page.get_by_label("Tushare token", exact=True)
-                    ).to_have_value("")
-                    page.get_by_role(
-                        "button", name="开始同步全部数据", exact=True
-                    ).click()
+                    expect(page.get_by_label("Tushare token", exact=True)).to_have_value("")
+                    page.get_by_role("button", name="开始同步全部数据", exact=True).click()
                     expect(page.get_by_text("已启用", exact=True)).to_be_visible()
                     visit("about:blank")
                 # Both frontend and API have exited. Only the independent processor
@@ -237,10 +218,7 @@ def main() -> None:
                     with app.api("data-api") as restarted:
                         assert (
                             json.loads(
-                                app.request(
-                                    restarted
-                                    + f"/api/attempts/{imported['attempt_id']}"
-                                )
+                                app.request(restarted + f"/api/attempts/{imported['attempt_id']}")
                             )
                             == imported
                         )
@@ -250,18 +228,10 @@ def main() -> None:
                 seed_series(app)
                 with app.web("data-api") as data_url:
                     visit(data_url)
-                    expect(
-                        page.get_by_role("heading", name="期货数据工作台")
-                    ).to_be_visible()
-                    expect(
-                        page.get_by_text("已规划结束合约", exact=True)
-                    ).to_be_visible()
-                    expect(page.get_by_text("内部采集诊断", exact=True)).to_have_count(
-                        0
-                    )
-                    expect(page.locator('tr[data-row-key="RB2610.SHF"]')).to_have_count(
-                        1
-                    )
+                    expect(page.get_by_role("heading", name="期货数据工作台")).to_be_visible()
+                    expect(page.get_by_text("已规划结束合约", exact=True)).to_be_visible()
+                    expect(page.get_by_text("内部采集诊断", exact=True)).to_have_count(0)
+                    expect(page.locator('tr[data-row-key="RB2610.SHF"]')).to_have_count(1)
                     screenshot("overview")
                     visit(
                         data_url + "/browse?dataset=settlement&scope=RB2610.SHF"
@@ -269,19 +239,11 @@ def main() -> None:
                     )
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("3 条记录", exact=True)).to_be_visible()
-                    expect(
-                        page.get_by_role("img", name="固定数据结算价曲线")
-                    ).to_be_visible()
-                    page.get_by_role(
-                        "button", name="数据明细与来源", exact=True
-                    ).click()
+                    expect(page.get_by_role("img", name="固定数据结算价曲线")).to_be_visible()
+                    page.get_by_role("button", name="数据明细与来源", exact=True).click()
                     expect(page.get_by_text("结算参数明细", exact=True)).to_be_visible()
-                    expect(
-                        page.get_by_role("cell", name="3100.125", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        page.get_by_role("cell", name="0.06", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_role("cell", name="3100.125", exact=True)).to_be_visible()
+                    expect(page.get_by_role("cell", name="0.06", exact=True)).to_be_visible()
                     screenshot("settlement")
                     visit(
                         data_url + "/versions?dataset=settlement&scope=RB2610.SHF"
@@ -297,100 +259,60 @@ def main() -> None:
                         )
                     ).to_be_visible()
                     expect(
-                        page.get_by_role("dialog").get_by_role(
-                            "cell", name="0.05", exact=True
-                        )
+                        page.get_by_role("dialog").get_by_role("cell", name="0.05", exact=True)
                     ).to_be_visible()
                     expect(
-                        page.get_by_role("dialog").get_by_role(
-                            "cell", name="0.06", exact=True
-                        )
+                        page.get_by_role("dialog").get_by_role("cell", name="0.06", exact=True)
                     ).to_be_visible()
                     screenshot("settlement-revision")
                     page.get_by_role("dialog").locator(".ant-modal-close").click()
                     # Discover published data without guessing contract or dates.
                     visit(data_url + "/browse")
                     available = page.locator(".explorer-available")
-                    expect(
-                        available.get_by_text("RB2610.SHF", exact=True).first
-                    ).to_be_visible()
+                    expect(available.get_by_text("RB2610.SHF", exact=True).first).to_be_visible()
                     choose("已有数据类型", "1 分钟")
-                    available.get_by_label("搜索已有数据合约", exact=True).fill(
-                        "螺纹钢"
-                    )
-                    expect(
-                        available.get_by_text("螺纹钢2610", exact=True).first
-                    ).to_be_visible()
-                    expect(
-                        available.get_by_text("RB2610.SHF", exact=True).first
-                    ).to_be_visible()
+                    available.get_by_label("搜索已有数据合约", exact=True).fill("螺纹钢")
+                    expect(available.get_by_text("螺纹钢2610", exact=True).first).to_be_visible()
+                    expect(available.get_by_text("RB2610.SHF", exact=True).first).to_be_visible()
                     available.get_by_role("row").filter(has_text="1 分钟").get_by_role(
                         "button", name="查看数据", exact=True
                     ).first.click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
-                    expect(
-                        available.get_by_text("RB2610.SHF", exact=True)
-                    ).to_have_count(1)
+                    expect(available.get_by_text("RB2610.SHF", exact=True)).to_have_count(1)
                     expect(
                         page.locator(".quote-summary").get_by_text(
                             "2026-09-01 — 2026-09-03", exact=True
                         )
                     ).to_be_visible()
                     screenshot("available-data")
-                    available.get_by_role(
-                        "button", name="整体验收", exact=True
-                    ).first.click()
-                    review = page.get_by_role(
-                        "dialog", name="合约全生命周期验收", exact=True
-                    )
+                    available.get_by_role("button", name="整体验收", exact=True).first.click()
+                    review = page.get_by_role("dialog", name="合约全生命周期验收", exact=True)
                     expect(
                         review.get_by_text("核心数据尚未通过接纳检查", exact=True)
                     ).to_be_visible()
-                    expect(
-                        review.get_by_text("每日结算参数", exact=True)
-                    ).to_be_visible()
+                    expect(review.get_by_text("每日结算参数", exact=True)).to_be_visible()
                     expect(review.get_by_text("核心接纳", exact=True)).to_be_visible()
-                    expect(
-                        review.get_by_text("完整度 / 质量", exact=True)
-                    ).to_be_visible()
+                    expect(review.get_by_text("完整度 / 质量", exact=True)).to_be_visible()
                     # This fixture has no speculative margin values. Actual row
                     # review must explain that failure instead of a placeholder.
-                    settlement_row = review.get_by_role("row").filter(
-                        has_text="每日结算参数"
-                    )
-                    expect(
-                        settlement_row.get_by_text("存在异常", exact=True)
-                    ).to_be_visible()
+                    settlement_row = review.get_by_role("row").filter(has_text="每日结算参数")
+                    expect(settlement_row.get_by_text("存在异常", exact=True)).to_be_visible()
                     expect(
                         settlement_row.get_by_text("缺少 long_margin_rate", exact=False)
                     ).to_be_visible()
-                    expect(
-                        review.get_by_text("上市 / 最后交易日", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        review.get_by_text("交割月份 / 最后交割日", exact=True)
-                    ).to_be_visible()
+                    expect(review.get_by_text("上市 / 最后交易日", exact=True)).to_be_visible()
+                    expect(review.get_by_text("交割月份 / 最后交割日", exact=True)).to_be_visible()
                     expect(
                         review.get_by_text("最后交易日和最后交割日均已完成", exact=True)
                     ).to_be_visible()
-                    expect(
-                        review.get_by_text("合约类型 / 交割方式", exact=True)
-                    ).to_be_visible()
-                    index_row = review.get_by_role("row").filter(
-                        has_text="南华指数日线"
-                    )
-                    expect(
-                        index_row.get_by_text("关联研究资料", exact=True)
-                    ).to_be_visible()
+                    expect(review.get_by_text("合约类型 / 交割方式", exact=True)).to_be_visible()
+                    index_row = review.get_by_role("row").filter(has_text="南华指数日线")
+                    expect(index_row.get_by_text("关联研究资料", exact=True)).to_be_visible()
                     screenshot("contract-review")
                     review.locator(".ant-drawer-close").click()
 
-                    available.get_by_role(
-                        "button", name="标准数据", exact=True
-                    ).first.click()
-                    standard = page.get_by_role(
-                        "dialog", name="合约标准数据", exact=True
-                    )
+                    available.get_by_role("button", name="标准数据", exact=True).first.click()
+                    standard = page.get_by_role("dialog", name="合约标准数据", exact=True)
                     expect(standard.get_by_text("固定快照", exact=True)).to_be_visible()
                     expect(
                         standard.get_by_role("columnheader", name="成交量", exact=True)
@@ -420,36 +342,22 @@ def main() -> None:
                         data_url
                         + "/browse?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
                     )
-                    expect(
-                        page.get_by_role("button", name="查询数据", exact=True)
-                    ).to_be_enabled()
+                    expect(page.get_by_role("button", name="查询数据", exact=True)).to_be_enabled()
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
-                    page.get_by_role(
-                        "button", name="数据明细与来源", exact=True
-                    ).click()
+                    page.get_by_role("button", name="数据明细与来源", exact=True).click()
                     page.locator("summary").filter(has_text="查询读取统计").click()
-                    expect(
-                        page.get_by_text("文件身份仍完整核验", exact=False)
-                    ).to_be_visible()
+                    expect(page.get_by_text("文件身份仍完整核验", exact=False)).to_be_visible()
                     screenshot("range-cost")
                     page.locator(".ant-drawer-open .ant-drawer-close").click()
                     expect(
                         page.get_by_role("img", name="固定数据 K 线、成交量与持仓量")
                     ).to_be_visible()
+                    expect(page.get_by_role("button", name="导出所选范围")).to_be_disabled()
+                    expect(page.get_by_text("行情图 · 固定范围", exact=True)).to_be_visible()
+                    expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
                     expect(
-                        page.get_by_role("button", name="导出所选范围")
-                    ).to_be_disabled()
-                    expect(
-                        page.get_by_text("行情图 · 固定范围", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        page.get_by_text("440 根 · 固定历史", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        page.locator(".quote-summary").get_by_text(
-                            "螺纹钢2610", exact=False
-                        )
+                        page.locator(".quote-summary").get_by_text("螺纹钢2610", exact=False)
                     ).to_be_visible()
                     page.get_by_role("button", name="全范围", exact=True).click()
                     page.get_by_role("checkbox", name="MACD", exact=True).check()
@@ -460,31 +368,19 @@ def main() -> None:
                         )
                     ).to_be_disabled()
                     periods = page.get_by_role("group", name="行情周期")
-                    periods.get_by_role(
-                        "button", name="每日结算参数", exact=True
-                    ).click()
-                    expect(
-                        page.get_by_role("img", name="固定数据结算价曲线")
-                    ).to_be_visible()
+                    periods.get_by_role("button", name="每日结算参数", exact=True).click()
+                    expect(page.get_by_role("img", name="固定数据结算价曲线")).to_be_visible()
                     expect(
                         page.locator(".quote-summary").get_by_text(
                             "2026-09-01 — 2026-09-04", exact=True
                         )
                     ).to_be_visible()
                     periods.get_by_role("button", name="1 分钟", exact=True).click()
-                    expect(
-                        page.get_by_text("440 根 · 固定历史", exact=True)
-                    ).to_be_visible()
-                    page.get_by_role(
-                        "button", name="数据明细与来源", exact=True
-                    ).click()
+                    expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="数据明细与来源", exact=True).click()
                     page.locator(".ant-pagination-item-2").first.click()
-                    expect(
-                        page.get_by_text("明细第 201–400 条", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        page.get_by_text("440 根 · 固定历史", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_text("明细第 201–400 条", exact=True)).to_be_visible()
+                    expect(page.get_by_text("440 根 · 固定历史", exact=True)).to_be_visible()
                     page.locator(".ant-drawer-open .ant-drawer-close").click()
                     page.get_by_role("checkbox", name="MACD", exact=True).check()
                     page.get_by_role("button", name="全屏看图", exact=True).click()
@@ -502,13 +398,9 @@ def main() -> None:
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.locator(".coverage-days button")).to_have_count(4)
                     expect(
-                        page.locator(".coverage-days").get_by_text(
-                            "响应已校验", exact=True
-                        )
+                        page.locator(".coverage-days").get_by_text("响应已校验", exact=True)
                     ).to_have_count(3)
-                    page.locator(".coverage-days button").filter(
-                        has_text="2026-09-01"
-                    ).click()
+                    page.locator(".coverage-days button").filter(has_text="2026-09-01").click()
                     screenshot("quality")
                     page.get_by_role("link", name="查看同步任务", exact=True).click()
                     expect(page.get_by_role("dialog")).to_be_visible()
@@ -531,12 +423,8 @@ def main() -> None:
                         )
                     ).to_be_visible()
                     screenshot("quality-issues")
-                    page.get_by_role(
-                        "button", name="重处理已留存响应", exact=True
-                    ).click()
-                    expect(
-                        page.get_by_text("已排队重处理留存响应", exact=True)
-                    ).to_be_visible()
+                    page.get_by_role("button", name="重处理已留存响应", exact=True).click()
+                    expect(page.get_by_text("已排队重处理留存响应", exact=True)).to_be_visible()
                     page.reload()
                     expect(
                         page.get_by_role("button", name="重处理已留存响应", exact=True)
@@ -546,9 +434,7 @@ def main() -> None:
                         while True:
                             sync = app.command("data", "sync")
                             result = next(
-                                j
-                                for j in sync["jobs"]
-                                if j["request_id"] == market["request_id"]
+                                j for j in sync["jobs"] if j["request_id"] == market["request_id"]
                             )
                             if result["status"] == "VALIDATED":
                                 break
@@ -570,9 +456,7 @@ def main() -> None:
                         market["receipt_id"],
                         market["baseline_receipt_id"],
                     ):
-                        page.locator(
-                            f'tr[data-row-key="{receipt}"] input[type=checkbox]'
-                        ).check()
+                        page.locator(f'tr[data-row-key="{receipt}"] input[type=checkbox]').check()
                     page.get_by_role("button", name="比较所选版本", exact=True).click()
                     expect(
                         page.get_by_role("dialog").get_by_text(
@@ -580,63 +464,43 @@ def main() -> None:
                         )
                     ).to_be_visible()
                     dialog = page.get_by_role("dialog")
-                    expect(
-                        dialog.get_by_role("cell", name="open", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        dialog.get_by_role("cell", name="3100", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        dialog.get_by_role("cell", name="3100.5", exact=True)
-                    ).to_be_visible()
+                    expect(dialog.get_by_role("cell", name="open", exact=True)).to_be_visible()
+                    expect(dialog.get_by_role("cell", name="3100", exact=True)).to_be_visible()
+                    expect(dialog.get_by_role("cell", name="3100.5", exact=True)).to_be_visible()
                     screenshot("revision-diff")
                     page.get_by_role("dialog").locator(".ant-modal-close").click()
-                    page.get_by_role(
-                        "link", name="浏览此版本", exact=True
-                    ).first.click()
+                    page.get_by_role("link", name="浏览此版本", exact=True).first.click()
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
                     page.reload()
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
                     visit(data_url + "/sync")
-                    expect(
-                        page.get_by_text("合约数据与进度", exact=True)
-                    ).to_be_visible()
-                    expect(page.get_by_text("内部请求进度", exact=True)).to_have_count(
-                        0
-                    )
-                    expect(
-                        page.get_by_text("数据范围与进度", exact=True)
-                    ).to_have_count(0)
+                    expect(page.get_by_text("合约数据与进度", exact=True)).to_be_visible()
+                    expect(page.get_by_text("内部请求进度", exact=True)).to_have_count(0)
+                    expect(page.get_by_text("数据范围与进度", exact=True)).to_have_count(0)
                     contract_row = page.locator('tr[data-row-key="RB2610.SHF"]')
                     expect(contract_row).to_have_count(1)
-                    contract_row.get_by_role(
-                        "button", name="合约详情", exact=True
-                    ).click()
+                    contract_row.get_by_role("button", name="合约详情", exact=True).click()
                     expect(
-                        page.get_by_role("dialog").get_by_text(
-                            "每日结算参数", exact=True
-                        )
+                        page.get_by_role("dialog").get_by_text("每日结算参数", exact=True)
                     ).to_be_visible()
-                    page.get_by_role(
-                        "dialog", name="合约全生命周期验收", exact=True
-                    ).locator(".ant-drawer-close").click()
-                    contract_row.get_by_role(
-                        "button", name="请求诊断", exact=True
+                    page.get_by_role("dialog", name="合约全生命周期验收", exact=True).locator(
+                        ".ant-drawer-close"
                     ).click()
+                    contract_row.get_by_role("button", name="请求诊断", exact=True).click()
                     expect(
                         page.get_by_text("仅查看 RB2610.SHF 所属请求", exact=False)
                     ).to_be_visible()
-                    page.get_by_role(
-                        "dialog", name="RB2610.SHF · 请求诊断", exact=True
-                    ).locator(".ant-drawer-close").click()
+                    page.get_by_role("dialog", name="RB2610.SHF · 请求诊断", exact=True).locator(
+                        ".ant-drawer-close"
+                    ).click()
                     page.get_by_role("button", name="采集服务诊断", exact=True).click()
                     choose("任务状态", "需处理")
                     page.get_by_role("combobox", name="任务状态").press("ArrowDown")
-                    expect(
-                        page.get_by_role("option", name="需处理", exact=True)
-                    ).to_have_attribute("aria-selected", "true")
+                    expect(page.get_by_role("option", name="需处理", exact=True)).to_have_attribute(
+                        "aria-selected", "true"
+                    )
                     page.get_by_role("combobox", name="任务状态").press("Escape")
                     expect(
                         page.get_by_text(
@@ -644,9 +508,7 @@ def main() -> None:
                             exact=True,
                         ).first
                     ).to_be_visible()
-                    page.get_by_role(
-                        "button", name=re.compile(r"^记\s*录$")
-                    ).first.click()
+                    page.get_by_role("button", name=re.compile(r"^记\s*录$")).first.click()
                     expect(page.locator(".ant-modal")).to_be_visible()
                     page.locator(".ant-modal .ant-modal-close").click()
                     page.get_by_role("button", name="清除筛选", exact=True).click()
@@ -660,51 +522,30 @@ def main() -> None:
                     ).click()
                     screenshot("sync")
                     visit(data_url + f"/attempts/{imported['attempt_id']}")
-                    expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible(
-                        timeout=30000
-                    )
+                    expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible(timeout=30000)
                     page.get_by_role("link", name="查看原文来源", exact=True).click()
                     with page.expect_download() as downloaded:
-                        page.get_by_role(
-                            "link", name="下载归档原文", exact=True
-                        ).click()
+                        page.get_by_role("link", name="下载归档原文", exact=True).click()
                     destination = runtime / "download.csv"
                     downloaded.value.save_as(destination)
-                    assert (
-                        destination.read_bytes()
-                        == (args.study.parent / filename).read_bytes()
-                    )
+                    assert destination.read_bytes() == (args.study.parent / filename).read_bytes()
                     visit(data_url + "/")
                     expect(
                         page.get_by_role("heading", name="期货数据工作台", exact=True)
                     ).to_be_visible()
-                    expect(
-                        page.get_by_text("后台自动同步已启用", exact=False)
-                    ).to_be_visible()
+                    expect(page.get_by_text("后台自动同步已启用", exact=False)).to_be_visible()
                     screenshot("data")
                     visit(data_url + "/series")
-                    expect(
-                        page.get_by_role("heading", name="研究序列", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_role("heading", name="研究序列", exact=True)).to_be_visible()
                     row = page.get_by_role("row").filter(has_text="CU.NH")
                     expect(row.get_by_text("有已校验记录", exact=True)).to_be_visible()
                     row.get_by_role("button", name="历史版本", exact=True).click()
-                    history = page.get_by_role(
-                        "dialog", name="研究序列固定版本", exact=True
-                    )
-                    expect(
-                        history.get_by_role("button", name="打开固定版本")
-                    ).to_have_count(2)
+                    history = page.get_by_role("dialog", name="研究序列固定版本", exact=True)
+                    expect(history.get_by_role("button", name="打开固定版本")).to_have_count(2)
                     history.get_by_role("button", name="打开固定版本").last.click()
-                    standard = page.get_by_role(
-                        "dialog", name="研究序列标准数据", exact=True
-                    )
-                    expect(
-                        standard.get_by_role("cell", name="CU.NH", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        standard.get_by_role("cell", name="2000", exact=True)
-                    ).to_be_visible()
+                    standard = page.get_by_role("dialog", name="研究序列标准数据", exact=True)
+                    expect(standard.get_by_role("cell", name="CU.NH", exact=True)).to_be_visible()
+                    expect(standard.get_by_role("cell", name="2000", exact=True)).to_be_visible()
                     screenshot("research-series")
                     standard.locator(".ant-drawer-close").click()
                     history.locator(".ant-drawer-close").click()
@@ -714,9 +555,7 @@ def main() -> None:
                         + "/browse?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
                     )
                     page.get_by_role("button", name="查询数据", exact=True).click()
-                    page.get_by_role(
-                        "button", name="数据明细与来源", exact=True
-                    ).click()
+                    page.get_by_role("button", name="数据明细与来源", exact=True).click()
                     expect(
                         page.get_by_role("button", name="合并固定版本", exact=True)
                     ).to_be_enabled()
@@ -733,19 +572,11 @@ def main() -> None:
                         expect(page.get_by_text("SUCCEEDED", exact=True)).to_be_visible(
                             timeout=30000
                         )
-                        expect(
-                            page.get_by_text("440 条记录", exact=True)
-                        ).to_be_visible()
-                        expect(
-                            page.get_by_role("button", name="导出所选范围")
-                        ).to_be_disabled()
-                        page.get_by_role(
-                            "button", name="数据明细与来源", exact=True
-                        ).click()
+                        expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
+                        expect(page.get_by_role("button", name="导出所选范围")).to_be_disabled()
+                        page.get_by_role("button", name="数据明细与来源", exact=True).click()
                         page.locator(".ant-pagination-item-2").first.click()
-                        expect(
-                            page.get_by_text("明细第 201–400 条", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("明细第 201–400 条", exact=True)).to_be_visible()
                         screenshot("compaction")
                 from datetime import date, timedelta
 
@@ -756,9 +587,7 @@ def main() -> None:
                         date.fromisoformat(original_day) + timedelta(days=shift)
                     ).isoformat()
                     shifted_spec = {
-                        k: v.replace(original_day, shifted_day)
-                        if isinstance(v, str)
-                        else v
+                        k: v.replace(original_day, shifted_day) if isinstance(v, str) else v
                         for k, v in spec.items()
                     }
                     shifted = app.seed_source(
@@ -782,26 +611,16 @@ def main() -> None:
                 learning_snapshots = seed_learning(app, spec, study["archive"])
                 with app.web("data-api") as data_url:
                     visit(data_url + "/datasets")
-                    expect(
-                        page.get_by_role("heading", name="研究快照", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_role("heading", name="研究快照", exact=True)).to_be_visible()
                     for snapshot in learning_snapshots[:2]:
                         page.locator(f'tr[data-row-key="{snapshot}"]').get_by_role(
                             "checkbox"
                         ).check()
-                    page.get_by_role(
-                        "button", name="装配研究输入（2）", exact=True
-                    ).click()
-                    expect(
-                        page.get_by_text("研究输入已固定", exact=True)
-                    ).to_be_visible()
+                    page.get_by_role("button", name="装配研究输入（2）", exact=True).click()
+                    expect(page.get_by_text("研究输入已固定", exact=True)).to_be_visible()
                     screenshot("research-assembly")
-                    page.get_by_role(
-                        "link", name=re.compile("查看 .*来源与条款")
-                    ).click()
-                    expect(
-                        page.get_by_role("heading", name=re.compile("固定快照"))
-                    ).to_be_visible()
+                    page.get_by_role("link", name=re.compile("查看 .*来源与条款")).click()
+                    expect(page.get_by_role("heading", name=re.compile("固定快照"))).to_be_visible()
                 with (
                     app.api("data-api"),
                     app.research_worker(),
@@ -810,32 +629,20 @@ def main() -> None:
                     visit(url + "/factors/trend.return")
                     choose("固定数据快照", imported["snapshot_id"][:8])
                     page.get_by_label("收益窗口 · bars", exact=True).fill("2")
-                    page.get_by_role(
-                        "button", name="固定参数并计算", exact=True
-                    ).click()
+                    page.get_by_role("button", name="固定参数并计算", exact=True).click()
                     page.wait_for_url(re.compile("/factor-runs/"))
                     factor_path = urlsplit(page.url).path
-                    expect(page.get_by_text("SUCCEEDED", exact=True)).to_be_visible(
-                        timeout=60000
-                    )
-                    expect(
-                        page.get_by_text("WARMING_UP", exact=True).first
-                    ).to_be_visible()
+                    expect(page.get_by_text("SUCCEEDED", exact=True)).to_be_visible(timeout=60000)
+                    expect(page.get_by_text("WARMING_UP", exact=True).first).to_be_visible()
                     analysis = (
                         page.locator(".ant-card")
-                        .filter(
-                            has=page.get_by_text("前瞻收益与稳定性诊断", exact=True)
-                        )
+                        .filter(has=page.get_by_text("前瞻收益与稳定性诊断", exact=True))
                         .first
                     )
                     analysis.locator(".ant-table-row-expand-icon").first.click()
+                    expect(analysis.get_by_text(re.compile(r"因子未就绪：[1-9]"))).to_be_visible()
                     expect(
-                        analysis.get_by_text(re.compile(r"因子未就绪：[1-9]"))
-                    ).to_be_visible()
-                    expect(
-                        analysis.get_by_role(
-                            "columnheader", name="日内 Spearman", exact=True
-                        )
+                        analysis.get_by_role("columnheader", name="日内 Spearman", exact=True)
                     ).to_be_visible()
                     screenshot("factor-analysis")
                     page.get_by_label("追加研究说明", exact=True).fill(annotation)
@@ -848,9 +655,7 @@ def main() -> None:
                     ):
                         visit(url + "/configurations/new?strategy=" + strategy)
                         page.get_by_label("配置名称", exact=True).fill(name)
-                        page.get_by_role(
-                            "button", name="保存不可变配置", exact=True
-                        ).click()
+                        page.get_by_role("button", name="保存不可变配置", exact=True).click()
                         page.wait_for_url(url + "/")
                         visit(url + "/experiments/new")
                         choose("固定数据快照", imported["snapshot_id"][:8])
@@ -861,14 +666,12 @@ def main() -> None:
                             .first
                         )
                         run_form.get_by_label("固定策略配置", exact=True).click()
-                        page.locator(
-                            ".ant-select-dropdown:visible .ant-select-item-option"
-                        ).filter(has_text=name).first.click()
+                        page.locator(".ant-select-dropdown:visible .ant-select-item-option").filter(
+                            has_text=name
+                        ).first.click()
                         page.get_by_role("button", name="提交回测", exact=True).click()
                         page.wait_for_url(re.compile("/tasks/"))
-                        page.get_by_role(
-                            "button", name="查看研究报告", exact=True
-                        ).click()
+                        page.get_by_role("button", name="查看研究报告", exact=True).click()
                         page.wait_for_url(re.compile("/runs/"))
                         runs.append(urlsplit(page.url).path.split("/")[-1])
                         expect(
@@ -882,9 +685,7 @@ def main() -> None:
                     expect(
                         page.get_by_text("mean_reversion.range", exact=True).first
                     ).to_be_visible()
-                    expect(
-                        page.get_by_text("策略参数与因子绑定", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_text("策略参数与因子绑定", exact=True)).to_be_visible()
                     screenshot("comparison")
                     page.get_by_role("tab", name="参数实验", exact=True).click()
                     page.get_by_label("研究假设", exact=True).fill("浏览器固定参数实验")
@@ -896,22 +697,14 @@ def main() -> None:
                         choose(label, snapshot[:8])
                     for name in ("浏览器动量", "浏览器区间反转"):
                         choose("候选配置（2–64 个，仅策略或因子参数不同）", name)
-                    page.get_by_role(
-                        "button", name="固定计划并提交", exact=True
-                    ).click()
+                    page.get_by_role("button", name="固定计划并提交", exact=True).click()
                     study_row = page.locator("tr").filter(
                         has=page.get_by_text("浏览器固定参数实验", exact=True)
                     )
-                    expect(study_row.get_by_text("完成", exact=True)).to_be_visible(
-                        timeout=60000
-                    )
+                    expect(study_row.get_by_text("完成", exact=True)).to_be_visible(timeout=60000)
                     study_row.locator(".ant-table-row-expand-icon").click()
-                    expect(
-                        page.get_by_role("cell", name="测试", exact=True)
-                    ).to_have_count(1)
-                    expect(
-                        page.get_by_role("link", name="查看任务", exact=True)
-                    ).to_have_count(5)
+                    expect(page.get_by_role("cell", name="测试", exact=True)).to_have_count(1)
+                    expect(page.get_by_role("link", name="查看任务", exact=True)).to_have_count(5)
                     screenshot("parameter-study")
                     study_row.locator(".ant-table-row-expand-icon").click()
                     choose("实验方法", "训练期线性收益模型")
@@ -923,22 +716,14 @@ def main() -> None:
                     ):
                         choose(label, snapshot[:8])
                     choose("账户、风险与成本模板（1 个；策略由训练生成）", "浏览器动量")
-                    page.get_by_role(
-                        "button", name="固定计划并提交", exact=True
-                    ).click()
+                    page.get_by_role("button", name="固定计划并提交", exact=True).click()
                     learned_row = page.locator("tr").filter(
                         has=page.get_by_text("浏览器训练期拟合", exact=True)
                     )
-                    expect(learned_row.get_by_text("完成", exact=True)).to_be_visible(
-                        timeout=60000
-                    )
+                    expect(learned_row.get_by_text("完成", exact=True)).to_be_visible(timeout=60000)
                     learned_row.locator(".ant-table-row-expand-icon").click()
-                    expect(
-                        page.get_by_role("cell", name="测试", exact=True)
-                    ).to_have_count(1)
-                    expect(
-                        page.get_by_role("link", name="查看任务", exact=True)
-                    ).to_have_count(7)
+                    expect(page.get_by_role("cell", name="测试", exact=True)).to_have_count(1)
+                    expect(page.get_by_role("link", name="查看任务", exact=True)).to_have_count(7)
                     screenshot("learned-study")
                     visit(url + "/candidates")
                     version_form = (
@@ -947,41 +732,31 @@ def main() -> None:
                         .first
                     )
                     version_form.get_by_label("固定策略配置", exact=True).click()
-                    page.locator(
-                        ".ant-select-dropdown:visible .ant-select-item-option"
-                    ).filter(has_text="浏览器区间反转").first.click()
+                    page.locator(".ant-select-dropdown:visible .ant-select-item-option").filter(
+                        has_text="浏览器区间反转"
+                    ).first.click()
                     page.get_by_label("策略版本名称", exact=True).fill("浏览器固定候选")
                     choose("引用此配置的研究结果", runs[-1][:12], search=True)
                     page.get_by_role("button", name="登记固定版本", exact=True).click()
                     page.wait_for_url(re.compile("/strategy-versions/"))
                     version_path = urlsplit(page.url).path
                     with page.expect_download() as download_info:
-                        page.get_by_role(
-                            "button", name="发布并下载固定候选", exact=True
-                        ).click()
+                        page.get_by_role("button", name="发布并下载固定候选", exact=True).click()
                     candidate_path = runtime / "candidate.json"
                     download_info.value.save_as(candidate_path)
                     candidate = json.loads(candidate_path.read_text())
                     assert (
-                        candidate["document"]["configuration"]["config"]["strategy"][
-                            "strategy_id"
-                        ]
+                        candidate["document"]["configuration"]["config"]["strategy"]["strategy_id"]
                         == "mean_reversion.range"
                     )
                     visit(url + "/paper")
                     choose("固定数据快照", imported["snapshot_id"][:8])
                     choose("固定策略配置", "浏览器区间反转")
-                    page.get_by_role(
-                        "button", name="创建文件 Paper", exact=True
-                    ).click()
+                    page.get_by_role("button", name="创建文件 Paper", exact=True).click()
                     page.wait_for_url(re.compile(r"/paper/.+"))
                     paper_path = urlsplit(page.url).path
-                    page.get_by_role(
-                        "button", name="推进下一条观察", exact=True
-                    ).click()
-                    expect(
-                        page.locator(".facts").get_by_text("1", exact=True)
-                    ).to_be_visible()
+                    page.get_by_role("button", name="推进下一条观察", exact=True).click()
+                    expect(page.locator(".facts").get_by_text("1", exact=True)).to_be_visible()
                     visit(url + "/")
                     screenshot("research")
                 with (
@@ -991,15 +766,11 @@ def main() -> None:
                 ):
                     visit(url + factor_path)
                     expect(page.get_by_text(annotation, exact=False)).to_be_visible()
-                    expect(
-                        page.get_by_text("前瞻收益与稳定性诊断", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_text("前瞻收益与稳定性诊断", exact=True)).to_be_visible()
                     visit(url + version_path)
                     expect(page.get_by_text("已发布：", exact=False)).to_be_visible()
                     visit(url + paper_path)
-                    expect(
-                        page.locator(".facts").get_by_text("1", exact=True)
-                    ).to_be_visible()
+                    expect(page.locator(".facts").get_by_text("1", exact=True)).to_be_visible()
                 # Accept in the actual browser with no worker, then stop both Web services.
                 with app.api("data-api"), app.web("research-api") as url:
                     visit(url + "/experiments/new")
@@ -1013,9 +784,7 @@ def main() -> None:
                     visit(url + "/factors/trend.return")
                     choose("固定数据快照", learning_snapshots[0][:8])
                     page.get_by_label("收益窗口 · bars", exact=True).fill("2")
-                    page.get_by_role(
-                        "button", name="固定参数并计算", exact=True
-                    ).click()
+                    page.get_by_role("button", name="固定参数并计算", exact=True).click()
                     page.wait_for_url(re.compile("/factor-runs/"))
                     queued_factor_path = urlsplit(page.url).path
                     queued_factor = queued_factor_path.rsplit("/", 1)[-1]
@@ -1055,9 +824,7 @@ def main() -> None:
                 with app.web("research-api") as url:
                     visit(url + queued_factor_path)
                     expect(page.get_by_text("SUCCEEDED", exact=True)).to_be_visible()
-                    expect(
-                        page.get_by_text("仅描述性分析", exact=True).first
-                    ).to_be_visible()
+                    expect(page.get_by_text("仅描述性分析", exact=True).first).to_be_visible()
                     screenshot("factor-completed-offline")
                     visit(url + "/tasks/" + task_id)
                     expect(
@@ -1072,12 +839,8 @@ def main() -> None:
                     expect(page.get_by_text("按交易日汇总", exact=True)).to_be_visible()
                     screenshot("report-performance")
                     page.get_by_role("tab", name="评价条件", exact=True).click()
-                    expect(
-                        page.get_by_text("已完成固定输入窗口", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        page.get_by_text("不交易、无利息的初始现金", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_text("已完成固定输入窗口", exact=True)).to_be_visible()
+                    expect(page.get_by_text("不交易、无利息的初始现金", exact=True)).to_be_visible()
                     screenshot("evaluation")
                     page.get_by_role("tab", name="敞口与保证金", exact=True).click()
                     expect(
@@ -1095,9 +858,7 @@ def main() -> None:
                         page.get_by_role("columnheader", name="委托手数", exact=True)
                     ).to_be_visible()
                     expect(
-                        page.get_by_role(
-                            "cell", name="RISK_AUTHORIZED", exact=True
-                        ).first
+                        page.get_by_role("cell", name="RISK_AUTHORIZED", exact=True).first
                     ).to_be_visible()
                     screenshot("orders")
                     page.get_by_role("tab", name="跨日结算", exact=True).click()
@@ -1120,17 +881,13 @@ def main() -> None:
                     original = app.command("status")
                     with app.web() as url:
                         visit(url)
-                        expect(
-                            page.get_by_text("AVAILABLE", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         screenshot("live")
                         visit(url + "/materials")
                         expect(
                             page.get_by_role("button", name="选择并核验候选文件")
                         ).to_be_enabled()
-                        page.locator('input[type="file"]').set_input_files(
-                            str(candidate_path)
-                        )
+                        page.locator('input[type="file"]').set_input_files(str(candidate_path))
                         expect(
                             page.get_by_text("候选已接收，未授予执行权限", exact=True)
                         ).to_be_visible()
@@ -1146,33 +903,21 @@ def main() -> None:
                         expect(
                             page.get_by_role("heading", name="订单与预占", exact=True)
                         ).to_be_visible()
-                        expect(
-                            page.get_by_role("cell", name="UNKNOWN", exact=True)
-                        ).to_be_visible()
-                        expect(
-                            page.get_by_role("cell", name="303", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_role("cell", name="UNKNOWN", exact=True)).to_be_visible()
+                        expect(page.get_by_role("cell", name="303", exact=True)).to_be_visible()
                         screenshot("local-orders")
                         visit(url + "/orders/" + local_order["order_id"])
-                        expect(
-                            page.get_by_text("订单结果待核对", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("订单结果待核对", exact=True)).to_be_visible()
                         expect(
                             page.get_by_role("cell", name="发送尝试已保存", exact=True)
                         ).to_be_visible()
                         expect(
-                            page.get_by_role(
-                                "cell", name="柜台订单回报", exact=True
-                            ).first
+                            page.get_by_role("cell", name="柜台订单回报", exact=True).first
                         ).to_be_visible()
                         screenshot("local-order-events")
                         visit(url + "/orders/" + local_order["fee_order_id"])
-                        expect(
-                            page.get_by_text("费用待确认手数", exact=True)
-                        ).to_be_visible()
-                        expect(
-                            page.get_by_text("订单结果待核对", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("费用待确认手数", exact=True)).to_be_visible()
+                        expect(page.get_by_text("订单结果待核对", exact=True)).to_be_visible()
                         expect(page.get_by_text("FILLED", exact=True)).to_be_visible()
                         screenshot("local-order-pending-fees")
                         assert app.command("status")["order_sending"] is False
@@ -1182,9 +927,7 @@ def main() -> None:
                         check_session_schedule(page, url, visit, screenshot)
                         visit(url)
                         page.get_by_role("link", name="运行诊断", exact=True).click()
-                        expect(
-                            page.get_by_text("数据库盘空闲字节", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("数据库盘空闲字节", exact=True)).to_be_visible()
                         expect(
                             page.locator(".facts").get_by_text("OBSERVED", exact=True)
                         ).to_be_visible()
@@ -1216,29 +959,22 @@ def main() -> None:
                         selected = []
 
                         def selected_status(route):
-                            selected.append(
-                                route.request.headers.get("x-live-instance-id")
-                            )
+                            selected.append(route.request.headers.get("x-live-instance-id"))
                             # Each intercepted poll represents a fresh synthetic observation;
                             # reusing the earlier timestamp correctly trips the UI stale gate.
                             fulfill(
                                 route,
                                 "/api/live/status",
-                                original
-                                | {"observed_at": datetime.now(UTC).isoformat()},
+                                original | {"observed_at": datetime.now(UTC).isoformat()},
                             )
 
                         page.route("**/api/live/status", selected_status)
                         page.reload()
                         choose("运行实例", "other")
-                        expect(
-                            page.get_by_text("AVAILABLE", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         assert "other" in selected
                         choose("运行实例", "sim")
-                        expect(
-                            page.get_by_text("AVAILABLE", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         page.unroute("**/api/live/status")
                         page.unroute("**/api/live/instances")
 
@@ -1271,9 +1007,7 @@ def main() -> None:
                         }
                         page.route(
                             "**/api/streams/browser-synthetic",
-                            lambda route: fulfill(
-                                route, "/api/streams/{stream_id}", stream
-                            ),
+                            lambda route: fulfill(route, "/api/streams/{stream_id}", stream),
                         )
                         page.route(
                             "**/api/streams/browser-synthetic/opening-budgets",
@@ -1309,9 +1043,7 @@ def main() -> None:
                                         ].input_type,
                                         route.request.post_data_buffer,
                                     ),
-                                    "runtime": route.request.headers.get(
-                                        "x-live-runtime-id"
-                                    ),
+                                    "runtime": route.request.headers.get("x-live-runtime-id"),
                                 }
                             )
                             route.abort("failed")
@@ -1319,19 +1051,11 @@ def main() -> None:
                         page.route("**/api/streams/browser-synthetic/control", lost)
                         visit(url + "/streams/browser-synthetic")
                         page.get_by_role("tab", name="账户事实", exact=True).click()
-                        expect(
-                            page.get_by_text("接收进程的启动查询", exact=True)
-                        ).to_be_visible()
-                        expect(
-                            page.get_by_text("INCOMPLETE", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("接收进程的启动查询", exact=True)).to_be_visible()
+                        expect(page.get_by_text("INCOMPLETE", exact=True)).to_be_visible()
                         expect(page.get_by_text("a" * 64, exact=True)).to_be_visible()
-                        expect(
-                            page.get_by_text("它不是当前余额", exact=False)
-                        ).to_be_visible()
-                        expect(
-                            page.get_by_text("数据不可用", exact=True)
-                        ).not_to_be_visible()
+                        expect(page.get_by_text("它不是当前余额", exact=False)).to_be_visible()
+                        expect(page.get_by_text("数据不可用", exact=True)).not_to_be_visible()
                         screenshot("receiver-startup-query")
                         refreshed = []
 
@@ -1339,9 +1063,7 @@ def main() -> None:
                             descriptor = methods("live")[
                                 ("POST", "/api/streams/{stream_id}/refresh-account")
                             ]
-                            body = decode(
-                                descriptor.input_type, route.request.post_data_buffer
-                            )
+                            body = decode(descriptor.input_type, route.request.post_data_buffer)
                             refreshed.append(body)
                             stream["latest_query"] = {
                                 "status": "INCOMPLETE",
@@ -1367,16 +1089,10 @@ def main() -> None:
                             "**/api/streams/browser-synthetic/refresh-account",
                             account_refresh,
                         )
-                        page.get_by_role(
-                            "button", name="刷新接收账户", exact=True
-                        ).click()
-                        expect(
-                            page.get_by_text("接收连接的最新查询", exact=True)
-                        ).to_be_visible()
+                        page.get_by_role("button", name="刷新接收账户", exact=True).click()
+                        expect(page.get_by_text("接收连接的最新查询", exact=True)).to_be_visible()
                         assert len(refreshed) == 1
-                        expect(
-                            page.get_by_text("数据不可用", exact=True)
-                        ).not_to_be_visible()
+                        expect(page.get_by_text("数据不可用", exact=True)).not_to_be_visible()
                         screenshot("receiver-account-refresh")
                         expect(
                             page.get_by_role("link", name="查看固定查询", exact=True)
@@ -1402,9 +1118,7 @@ def main() -> None:
                             ),
                         )
                         page.get_by_role("button", name="刷新观察", exact=True).click()
-                        page.get_by_role(
-                            "link", name="查看固定查询", exact=True
-                        ).click()
+                        page.get_by_role("link", name="查看固定查询", exact=True).click()
                         expect(
                             page.get_by_role("heading", name="固定账户查询", exact=True)
                         ).to_be_visible()
@@ -1418,9 +1132,7 @@ def main() -> None:
                         visit(url + "/streams/browser-synthetic")
                         page.get_by_role("tab", name="开仓预算", exact=True).click()
                         expect(
-                            page.get_by_role(
-                                "button", name="计算固定开仓预算", exact=True
-                            )
+                            page.get_by_role("button", name="计算固定开仓预算", exact=True)
                         ).to_be_disabled()
                         entry_id = str(uuid4())
                         ledger_context["entries"] = [{"entry_id": entry_id}]
@@ -1442,9 +1154,7 @@ def main() -> None:
                             descriptor = methods("live")[
                                 ("POST", "/api/streams/{stream_id}/opening-budgets")
                             ]
-                            body = decode(
-                                descriptor.input_type, route.request.post_data_buffer
-                            )
+                            body = decode(descriptor.input_type, route.request.post_data_buffer)
                             budget_requests.append(body)
                             route.fulfill(
                                 content_type="application/protobuf",
@@ -1472,47 +1182,31 @@ def main() -> None:
                         )
                         page.get_by_role("button", name="刷新观察", exact=True).click()
                         expect(
-                            page.get_by_role(
-                                "button", name="计算固定开仓预算", exact=True
-                            )
+                            page.get_by_role("button", name="计算固定开仓预算", exact=True)
                         ).to_be_enabled()
                         choose("已保存策略步骤", "5")
                         page.get_by_label("限价", exact=True).fill("3110")
-                        page.get_by_role(
-                            "button", name="计算固定开仓预算", exact=True
-                        ).click()
+                        page.get_by_role("button", name="计算固定开仓预算", exact=True).click()
                         expect(
-                            page.get_by_text(
-                                "操作已完成，结果仍有未知项，请查看记录", exact=True
-                            )
+                            page.get_by_text("操作已完成，结果仍有未知项，请查看记录", exact=True)
                         ).to_be_visible()
                         assert len(budget_requests) == 1
                         assert budget_requests[0]["query_id"] == fixed_query["query_id"]
                         assert budget_requests[0]["entry_id"] == entry_id
                         assert "order_check_id" not in budget_requests[0]
-                        expect(
-                            page.get_by_text("数据不可用", exact=True)
-                        ).not_to_be_visible()
-                        expect(
-                            page.get_by_text("操作结果未知", exact=True)
-                        ).not_to_be_visible()
+                        expect(page.get_by_text("数据不可用", exact=True)).not_to_be_visible()
+                        expect(page.get_by_text("操作结果未知", exact=True)).not_to_be_visible()
                         screenshot("receiver-opening-budget")
                         check_opening_order(page, url, observed, stream, screenshot)
                         check_closing_order(page, url, observed, stream, screenshot)
                         visit(url + "/streams/browser-synthetic")
                         page.unroute(pattern)
                         page.unroute("**/api/streams/browser-synthetic/refresh-account")
-                        page.get_by_role(
-                            "button", name="暂停影子计算", exact=True
-                        ).click()
-                        expect(
-                            page.get_by_text("操作结果未知", exact=True)
-                        ).to_be_visible()
+                        page.get_by_role("button", name="暂停影子计算", exact=True).click()
+                        expect(page.get_by_text("操作结果未知", exact=True)).to_be_visible()
                         assert len(commands) == 1 and commands[0]["runtime"] == observed
                         page.reload()
-                        expect(
-                            page.get_by_text("操作结果未知", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("操作结果未知", exact=True)).to_be_visible()
                         assert len(commands) == 1
                         page.get_by_role(
                             "button", name="已核查记录，解除本页操作锁", exact=True
@@ -1520,14 +1214,10 @@ def main() -> None:
                         replacement = dict(original, runtime_id=str(uuid4()))
                         page.route(
                             "**/api/live/status",
-                            lambda route: fulfill(
-                                route, "/api/live/status", replacement
-                            ),
+                            lambda route: fulfill(route, "/api/live/status", replacement),
                         )
                         expect(
-                            page.get_by_text(
-                                "Live 内核已更换，原页面控制已禁用", exact=True
-                            )
+                            page.get_by_text("Live 内核已更换，原页面控制已禁用", exact=True)
                         ).to_be_visible(timeout=10000)
                         expect(
                             page.get_by_role("button", name="恢复影子计算", exact=True)
@@ -1536,15 +1226,11 @@ def main() -> None:
                     app.assert_live(owner, original)
                     with app.web() as url:
                         visit(url)
-                        expect(
-                            page.get_by_text("AVAILABLE", exact=True)
-                        ).to_be_visible()
+                        expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         assert app.command("status")["runtime_id"] == observed
                 with app.web() as url:
                     visit(url)
-                    expect(
-                        page.get_by_text("Live 内核不可用", exact=True)
-                    ).to_be_visible()
+                    expect(page.get_by_text("Live 内核不可用", exact=True)).to_be_visible()
                 assert not errors, errors
                 print(
                     json.dumps(
@@ -1565,9 +1251,7 @@ def main() -> None:
                 )
             except Exception as failure:
                 try:
-                    storage = page.evaluate(
-                        "Object.fromEntries(Object.entries(sessionStorage))"
-                    )
+                    storage = page.evaluate("Object.fromEntries(Object.entries(sessionStorage))")
                 except Exception:
                     storage = {"unavailable_at": page.url}
                 print(
