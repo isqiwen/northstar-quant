@@ -7,11 +7,12 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from ..contract_data.requirements import auxiliary_fields
 from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/4"
+RULE = "tushare-response/16"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -19,7 +20,7 @@ _BAR_APIS = normalization.BAR_APIS
 
 
 class InvalidResponse(ValueError):
-    """Bounded diagnostics reference raw row positions, never echo supplier values."""
+    """Bounded diagnostics retain row positions and whitelisted numeric/time evidence."""
 
     def __init__(
         self,
@@ -47,6 +48,10 @@ class Truncated(ValueError):
 
 class Empty(ValueError):
     pass
+
+
+class EmptyResponse(Empty):
+    """The provider returned no rows, distinct from incomplete local coverage."""
 
 
 def number(value: Any) -> Decimal:
@@ -78,13 +83,32 @@ def _minute(value: Any) -> datetime:
         raise InvalidResponse("分钟 trade_time 无效") from error
 
 
+def _observed(raw: dict[str, Any]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name in ("trade_time", "trade_date", "end_date", "week_date"):
+        value = raw.get(name)
+        if isinstance(value, str) and re.fullmatch(r"[0-9 :\-]{8,19}", value):
+            result[name] = value
+    for name in (*_OHLC, "vol", "amount", "oi", "settle"):
+        if name not in raw:
+            continue
+        value = raw[name]
+        if value is None:
+            result[name] = None
+        elif not isinstance(value, bool) and re.fullmatch(
+            r"[+-]?[0-9]{1,30}(?:\.[0-9]{1,18})?(?:[eE][+-]?[0-9]{1,3})?", str(value)
+        ):
+            result[name] = str(value)
+    return result
+
+
 def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     data = decode(content)
     definition = BY_KEY[job["dataset"]]
     if len(data["items"]) >= definition.limit:
         raise Truncated("达到接口行数上限，不能认定区间完整")
     if not data["items"]:
-        raise Empty("源端返回空结果，等待发布或覆盖核查；不推进完整覆盖")
+        raise EmptyResponse("源端返回空结果，等待发布或覆盖核查；不推进完整覆盖")
     required = (
         (*definition.identity, *_OHLC, "vol")
         if definition.api in _BAR_APIS
@@ -92,6 +116,8 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     )
     if definition.frequency in ("week", "month"):
         required = (*required, "freq")
+    if definition.fields and definition.scope != "catalog" and job["dataset"] != "settlement":
+        required = (*required, *definition.fields)
     missing = sorted(set(required) - set(data["fields"]))
     if missing:
         raise InvalidResponse("响应缺少必需字段：" + ", ".join(missing), fields=tuple(missing))
@@ -101,7 +127,8 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
     failures = 0
     for position, values in enumerate(data["items"], 1):
         try:
-            key, row = _row(dict(zip(data["fields"], values, strict=True)), job)
+            raw = dict(zip(data["fields"], values, strict=True))
+            key, row = _row(dict(raw), job)
             if key in rows and rows[key] != row:
                 conflict = InvalidResponse(
                     "同一记录身份返回冲突内容；隔离该区间", fields=definition.identity
@@ -114,6 +141,9 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
             failures += 1
             if len(issues) < 100:
                 issue = {**error.report["issues"][0], "row_number": position}
+                # Preserve bounded, typed evidence even when rejected raw files are released.
+                # Never copy arbitrary supplier text or unrecognized fields into diagnostics.
+                issue["observed"] = _observed(raw)
                 issues.append(issue)
     if failures:
         raise InvalidResponse(issues[0]["reason"], issues=issues, count=failures)
@@ -128,7 +158,29 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
         if {row["cal_date"] for row in rows.values()} != expected:
             raise Empty("交易日历缺少日期；等待完整日历，不猜测休市")
     ordered = [rows[key] for key in sorted(rows)]
-    return ordered, _evidence(ordered, len(data["items"]), job["dataset"])
+    evidence = _evidence(ordered, len(data["items"]) - failures, job["dataset"])
+    evidence["excluded_rows"] = failures
+    optional = auxiliary_fields(job["dataset"])
+    evidence["optional_unknown_fields"] = {
+        field: {"count": sum(row.get(field) is None for row in ordered)}
+        for field in sorted(optional)
+        if any(row.get(field) is None for row in ordered)
+    }
+    evidence["issues"] = issues
+    evidence["issue_count"] = failures
+    evidence["truncated"] = failures > 100
+    evidence["policy"] = (
+        "任一异常行拒绝整份响应；原文行号从1开始，最多显示100项；响应通过不代表合约完整"
+    )
+    # Exclusion decisions participate in the immutable publication identity.
+    evidence["content_hash"] = hashlib.sha256(
+        json.dumps(
+            {"rows": evidence["content_hash"], "excluded_rows": failures, "issues": issues},
+            sort_keys=True,
+            ensure_ascii=False,
+        ).encode()
+    ).hexdigest()
+    return ordered, evidence
 
 
 def closed_interval_evidence(dataset: str) -> dict[str, Any]:
@@ -156,6 +208,7 @@ def _evidence(
         "normalization": normalization.evidence(dataset),
         "unique_rows": len(rows),
         "duplicate_rows": total - len(rows),
+        "zero_volume_rows": sum(row.get("observation_status") == "ZERO_VOLUME" for row in rows),
         "content_hash": hashlib.sha256(canonical).hexdigest(),
         "coverage_basis": "CALENDAR_NON_TRADING" if closed else "SUPPLIER_RESPONSE",
         "availability_basis": "FINAL_REVISED",
@@ -174,6 +227,14 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
     for field in ("ts_code", "exchange"):
         if field in parameters and field in row and row[field] != parameters[field]:
             raise InvalidResponse("返回的合约或交易所不属于请求范围", fields=(field,))
+    if job["dataset"] == "weekly_detail":
+        if row.get("prd") != parameters.get("prd"):
+            raise InvalidResponse("返回的周报品种不属于请求范围", fields=("prd",))
+        if row.get("week_date") is not None:
+            try:
+                _date(row["week_date"])
+            except InvalidResponse as error:
+                raise InvalidResponse(str(error), fields=("week_date",)) from error
     clock = row.get("trade_time", row.get("cal_date", row.get("trade_date")))
     if clock is not None:
         clock_field = (
@@ -191,12 +252,25 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
         # preserves the actual calculation cutoff instead of treating it as available.
         if definition.frequency in ("week", "month"):
             cutoff = _date(row["end_date"]).date()
-            if cutoff > day or row["freq"] != definition.frequency:
-                raise InvalidResponse(
-                    "周/月线频率或计算截至日期与期末标签不一致", fields=("freq", "end_date")
-                )
-            day = cutoff
-        if job["start_at"] and not job["start_at"] <= day.isoformat() <= job["end_at"]:
+            if row["freq"] != definition.frequency:
+                raise InvalidResponse("周/月线频率与请求不一致", fields=("freq", "end_date"))
+            # Retrospective calculations can have end_date years after the bar.
+            # Keep both source dates; this is a range key, NOT first availability.
+            day = min(day, cutoff)
+        if "trade_time" in row:
+            # Request dates are trading-calendar coverage; minute supplier bounds
+            # can include the previous open date and its cross-midnight session.
+            lower = str(parameters.get("start_date", job["start_at"]))
+            upper = str(parameters.get("end_date", job["end_at"]))
+            if len(lower) == 10:
+                lower += " 00:00:00"
+            if len(upper) == 10:
+                upper += " 23:59:59"
+            if lower and not datetime.fromisoformat(lower) <= _minute(
+                clock
+            ) <= datetime.fromisoformat(upper):
+                raise InvalidResponse("行情时间超出请求窗口", fields=(clock_field,))
+        elif job["start_at"] and not job["start_at"] <= day.isoformat() <= job["end_at"]:
             raise InvalidResponse("行情时间超出请求窗口", fields=(clock_field,))
     try:
         normalization.normalize(row, job["dataset"])
@@ -216,22 +290,51 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
             except ValueError as error:
                 raise InvalidResponse("额外数值字段超出精确范围") from error
     if definition.api in _BAR_APIS or all(field in row for field in _OHLC):
+        zero_volume = row.get("vol") == "0"
+        missing_ohl = all(row.get(field) in (None, "0") for field in ("open", "high", "low"))
+        # Observed daily supplier records may retain a reference close on zero-volume
+        # days, with null or zero OHL sentinels. Preserve source values;
+        # neither that close nor settlement proves an execution.
+        reference_only = (
+            job["dataset"] in {"daily", "continuous", "adjusted", "week", "month"}
+            and zero_volume
+            and missing_ohl
+            and row.get("amount") in (None, "0")
+        )
+        settlement_only = (
+            reference_only and row.get("close") is None and row.get("settle") is not None
+        )
+        checked = ("settle",) if settlement_only else ("close",) if reference_only else _OHLC
         try:
-            prices = [number(row[field]) for field in _OHLC]
+            prices = [number(row[field]) for field in checked]
         except InvalidResponse as error:
-            raise InvalidResponse(str(error), fields=_OHLC) from error
-        if any(not p.is_finite() or p < 0 for p in prices):
-            raise InvalidResponse("OHLC 价格无效", fields=_OHLC)
-        o, h, low, c = prices
-        if not low <= min(o, c) <= max(o, c) <= h:
-            raise InvalidResponse("OHLC 高低价关系不成立", fields=_OHLC)
+            raise InvalidResponse(
+                "行情价格缺失或无效；仅零成交日/周/月线可保留空开高低价", fields=checked
+            ) from error
+        if any(not p.is_finite() or p <= 0 for p in prices):
+            raise InvalidResponse(
+                "源响应价格为零、负数或非有限值；不能作为成交价格", fields=checked
+            )
+        if not reference_only:
+            o, h, low, c = prices
+            if not low <= min(o, c) <= max(o, c) <= h:
+                raise InvalidResponse("OHLC 高低价关系不成立", fields=_OHLC)
         if definition.api in _BAR_APIS and row["vol"] is None:
             raise InvalidResponse("行情 vol 缺少成交量；不得填零", fields=("vol",))
+        row["observation_status"] = (
+            "SETTLEMENT_ONLY" if settlement_only else "ZERO_VOLUME" if zero_volume else "TRADED"
+        )
     for field in ("vol", "oi", "amount"):
         if row.get(field) is not None:
             quantity = number(row[field])
             if not quantity.is_finite() or quantity < 0:
                 raise InvalidResponse("成交量、持仓量或金额无效", fields=(field,))
+    if job["dataset"] == "settlement":
+        for field in sorted(normalization.fields("settlement")):
+            if row.get(field) is not None:
+                value = number(row[field])
+                if value < 0 or (field == "settle" and value == 0):
+                    raise InvalidResponse("结算价或费率无效", fields=(field,))
     if job["dataset"] == "calendar" and (
         type(row.get("is_open")) is not int or row["is_open"] not in (0, 1)
     ):

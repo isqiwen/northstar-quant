@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
-from decimal import ROUND_FLOOR, Decimal
+from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
@@ -23,41 +23,37 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    Uuid,
     select,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
+from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
-from northstar_quant.broker.market import ctp_day_quote_time
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
-from northstar_quant.data_management.broker import verify_broker_contract
+from northstar_quant.accounting.observations import compare_account_amounts
+from northstar_quant.broker.account_reports import account_observation
+from northstar_quant.broker.market import ctp_quote_time
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.data_management.library import DataLibrary
-from northstar_quant.execution.orders import Side
-from northstar_quant.execution.reviews import OrderReviews
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.live.opening_inputs import _amount, _at, calculate
 from northstar_quant.live.streams import LiveStreams
-from northstar_quant.risk import (
-    OpeningAccount,
-    OpeningCandidate,
-    OpeningLimits,
-    OpeningTerms,
-    evaluate_opening_budget,
-)
+from northstar_quant.market_data.sessions import SessionSchedule
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _budgets = Table(
     "broker_opening_budgets",
     _metadata,
-    Column("budget_id", PGUUID(as_uuid=True), primary_key=True),
-    Column("stream_id", PGUUID(as_uuid=True), nullable=False),
+    Column("budget_id", Uuid(as_uuid=True), primary_key=True),
+    Column("stream_id", Uuid(as_uuid=True), nullable=False),
     Column("sequence", Integer, nullable=False),
-    Column("order_check_id", PGUUID(as_uuid=True), nullable=False),
-    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("query_id", Uuid(as_uuid=True), nullable=False),
+    Column("entry_id", Uuid(as_uuid=True), nullable=False),
+    Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
 )
@@ -96,173 +92,6 @@ def _hash(value: object) -> str:
     ).hexdigest()
 
 
-def _amount(value: object) -> Decimal:
-    if not isinstance(value, str) or not 1 <= len(value) <= 80:
-        raise ValueError("EXACT_FINANCIAL_FIELD_MISSING")
-    try:
-        number = Decimal(value)
-        exponent = number.as_tuple().exponent
-        if (
-            not number.is_finite()
-            or not isinstance(exponent, int)
-            or exponent < -18
-            or number.adjusted() > 33
-            or len(number.as_tuple().digits) > 34
-        ):
-            raise ValueError("FINANCIAL_FIELD_OUTSIDE_SUPPORTED_RANGE")
-        return number
-    except ArithmeticError as error:
-        raise ValueError("INVALID_FINANCIAL_FIELD") from error
-
-
-def _at(value: str) -> datetime:
-    result = datetime.fromisoformat(value)
-    if result.utcoffset() != UTC.utcoffset(result):
-        raise ValueError("BUDGET_EVIDENCE_REQUIRES_UTC")
-    return result
-
-
-def _one(batch: dict[str, Any], section: str) -> dict[str, Any]:
-    part = batch["completeness"]["sections"][section]
-    if part["status"] != "COMPLETE" or not isinstance(part["rows"], list) or len(part["rows"]) != 1:
-        raise ValueError(f"ONE_COMPLETE_{section.upper()}_REQUIRED")
-    return cast(dict[str, Any], part["rows"][0])
-
-
-def _calculate(
-    engine: Engine,
-    decision: dict[str, Any],
-    order: dict[str, Any],
-    parent: dict[str, Any],
-    entry: dict[str, Any],
-    batch: dict[str, Any],
-    price: Decimal,
-) -> dict[str, object]:
-    binding, result = decision["binding"], decision["result"]
-    intent, bar = result["intent"], result["bar"]
-    if not isinstance(intent, dict) or not isinstance(bar, dict) or result["reason"] is not None:
-        raise ValueError("COMMITTED_SHADOW_TARGET_REQUIRED")
-    if (
-        intent["contract_id"] != binding["contract_id"]
-        or bar["contract_id"] != binding["contract_id"]
-    ):
-        raise ValueError("TARGET_CONTRACT_MISMATCH")
-    config = binding["configuration"]["config"]
-    fraction = _amount(intent["target_fraction"])
-    desired = (abs(fraction) * config["risk"]["max_lots"]).to_integral_value(rounding=ROUND_FLOOR)
-    if desired < 1:
-        raise ValueError("TARGET_DOES_NOT_REQUEST_ONE_OPENING_LOT")
-    if not Decimal(-1) <= fraction <= Decimal(1):
-        raise ValueError("TARGET_FRACTION_OUTSIDE_SUPPORTED_RANGE")
-    if (
-        batch["status"] != "COMPLETE"
-        or batch["completeness"]["status"] != "COMPLETE"
-        or batch["completeness"]["identity"] != "CONFIRMED"
-    ):
-        raise ValueError("COMPLETE_IDENTITY_CONFIRMED_QUERY_REQUIRED")
-    if batch["completeness"]["trading_day"] != bar["trading_day"]:
-        raise ValueError("ACCOUNT_AND_TARGET_TRADING_DAY_DIFFER")
-    if _at(batch["capture"]["finished_at"]) > _at(intent["generated_at"]):
-        raise ValueError("ACCOUNT_QUERY_FINISHED_AFTER_TARGET")
-    if order["status"] != "MATCHED" or parent["status"] != "MATCHED" or entry["status"] != "READY":
-        raise ValueError("POSITION_OR_ORDER_COMPARISON_NOT_MATCHED")
-    if (
-        entry["fill_count"] != 0
-        or entry["position_projection"]["positions"]
-        or order["orders"]
-        or parent["unrecorded_fills"]
-        or any(
-            batch["completeness"]["sections"][name]["rows"] != []
-            for name in ("positions", "orders", "trades")
-        )
-    ):
-        raise ValueError("FIRST_OPENING_REQUIRES_FLAT_ACCOUNT_WITHOUT_ACTIVITY")
-    if any(
-        event["callback"] in {"OnRtnTrade", "OnRtnOrder"} for event in batch["capture"]["events"]
-    ):
-        raise ValueError("ACCOUNT_ACTIVITY_DURING_QUERY")
-    funds = _one(batch, "account")
-    if (
-        funds.get("BrokerID") != binding["profile"]["broker_id"]
-        or funds.get("AccountID") != binding["account_id"]
-        or funds.get("TradingDay") != bar["trading_day"]
-        or funds.get("CurrencyID") != "CNY"
-        or funds.get("BizType") != "1"
-    ):
-        raise ValueError("CNY_FUTURES_ACCOUNT_SCOPE_NOT_CONFIRMED")
-    for field in ("CurrMargin", "FrozenMargin", "FrozenCash", "FrozenCommission", "PositionProfit"):
-        if _amount(funds.get(field)) != 0:
-            raise ValueError("FIRST_OPENING_REQUIRES_ZERO_MARGIN_FREEZES_AND_POSITION_PROFIT")
-    instrument = _one(batch, "instrument")
-    verify_broker_contract(engine, UUID(binding["contract_id"]), instrument)
-    if instrument.get("InstrumentID") != binding["instrument"]:
-        raise ValueError("EXACT_INSTRUMENT_REQUIRED")
-    if type(instrument.get("IsTrading")) is not int or instrument["IsTrading"] != 1:
-        raise ValueError("INSTRUMENT_TRADING_STATUS_NOT_CONFIRMED")
-    margin, fee = _one(batch, "margin"), _one(batch, "commission")
-    for row in (margin, fee):
-        if (
-            row.get("BrokerID") != binding["profile"]["broker_id"]
-            or row.get("InvestorID") != binding["account_id"]
-            or row.get("InstrumentID") != binding["instrument"]
-            or row.get("ExchangeID") != "SHFE"
-            or row.get("InvestorRange") != "3"
-            or row.get("InvestUnitID") != ""
-        ):
-            raise ValueError("ACCOUNT_SPECIFIC_FEE_OR_MARGIN_SCOPE_NOT_CONFIRMED")
-    if (
-        margin.get("HedgeFlag") != "1"
-        or type(margin.get("IsRelative")) is not int
-        or margin["IsRelative"] != 0
-    ):
-        raise ValueError("ABSOLUTE_SPECULATION_MARGIN_REQUIRED")
-    if fee.get("BizType") != "1":
-        raise ValueError("FUTURES_COMMISSION_SCOPE_NOT_CONFIRMED")
-    event, quote = decision["event"], decision["event"]["data"]
-    if (
-        event["channel"] != "MD"
-        or event["callback"] != "OnRtnDepthMarketData"
-        or not isinstance(quote, dict)
-        or quote.get("InstrumentID") != binding["instrument"]
-        or quote.get("TradingDay") != bar["trading_day"]
-        or quote.get("ActionDay") != bar["trading_day"]
-        or _at(event["received_at"]) > _at(intent["generated_at"])
-    ):
-        raise ValueError("CONFIRMING_DAY_QUOTE_NOT_IDENTIFIED")
-    return evaluate_opening_budget(
-        account=OpeningAccount(
-            equity=_amount(funds.get("Balance")),
-            available=_amount(funds.get("Available")),
-            current_margin=_amount(funds.get("CurrMargin")),
-        ),
-        terms=OpeningTerms(
-            price_tick=_amount(instrument.get("PriceTick")),
-            multiplier=Decimal(instrument["VolumeMultiple"]),
-            long_margin_by_money=_amount(margin.get("LongMarginRatioByMoney")),
-            long_margin_by_volume=_amount(margin.get("LongMarginRatioByVolume")),
-            short_margin_by_money=_amount(margin.get("ShortMarginRatioByMoney")),
-            short_margin_by_volume=_amount(margin.get("ShortMarginRatioByVolume")),
-            open_fee_by_money=_amount(fee.get("OpenRatioByMoney")),
-            open_fee_by_volume=_amount(fee.get("OpenRatioByVolume")),
-            lower_limit=_amount(quote.get("LowerLimitPrice")),
-            upper_limit=_amount(quote.get("UpperLimitPrice")),
-            pre_settlement_price=_amount(quote.get("PreSettlementPrice")),
-            last_price=_amount(quote.get("LastPrice")),
-            min_limit_lots=cast(int, instrument.get("MinLimitOrderVolume")),
-            max_limit_lots=cast(int, instrument.get("MaxLimitOrderVolume")),
-        ),
-        limits=OpeningLimits(
-            max_lots=config["risk"]["max_lots"],
-            max_gross_notional=_amount(config["risk"]["max_gross_notional"]),
-            max_margin_fraction=_amount(config["risk"]["max_margin_fraction"]),
-            max_adverse_price_move_fraction=_amount(
-                config["risk"]["max_adverse_price_move_fraction"]
-            ),
-        ),
-        candidate=OpeningCandidate(side=Side.BUY if fraction > 0 else Side.SELL, limit_price=price),
-    )
-
-
 class BrokerOpeningBudgets:
     """Persist a non-executable budget from fixed references, never operator account state."""
 
@@ -270,7 +99,7 @@ class BrokerOpeningBudgets:
         self._engine, self._library = engine, library
         self._streams = LiveStreams(engine, library)
         self._ledger = BrokerLedger(engine)
-        self._orders, self._records = OrderReviews(engine), BrokerRecords(engine)
+        self._baselines = BrokerBaselines(engine)
 
     def get(self, budget_id: UUID) -> dict[str, Any]:
         with self._engine.connect() as connection:
@@ -287,20 +116,24 @@ class BrokerOpeningBudgets:
             or document["budget_id"] != str(budget_id)
             or document["stream_id"] != str(row["stream_id"])
             or document["sequence"] != row["sequence"]
-            or document["order_check_id"] != str(row["order_check_id"])
+            or document["query_id"] != str(row["query_id"])
+            or document["entry_id"] != str(row["entry_id"])
             or _at(document["recorded_at"]) != row["recorded_at"]
         ):
             raise ValueError("opening budget evidence is damaged")
         try:
             decision = self._streams.decision(UUID(document["stream_id"]), document["sequence"])
-            order = self._orders.get(UUID(document["order_check_id"]))
-            query = self._records.get(UUID(document["query_batch_id"]))
+            query = self._streams.account_query(
+                UUID(document["stream_id"]), UUID(document["query_id"])
+            )
+            entry = self._ledger.get(UUID(document["entry_id"]))
+            baseline = self._baselines.get_baseline(UUID(entry["baseline_id"]))
         except LookupError as error:
             raise ValueError("opening budget source evidence is missing") from error
         if (
             decision != document["inputs"]["decision"]
-            or _hash(order) != document["inputs"]["order_check_hash"]
-            or order["query_batch_id"] != document["query_batch_id"]
+            or _hash(entry) != document["inputs"]["entry_hash"]
+            or _hash(baseline) != document["inputs"]["baseline_hash"]
             or _hash(query) != document["inputs"]["query_hash"]
         ):
             raise ValueError("opening budget source differs from its fixed evidence")
@@ -310,12 +143,15 @@ class BrokerOpeningBudgets:
         self,
         stream_id: UUID,
         sequence: int,
-        order_check_id: UUID,
+        query_id: UUID,
+        entry_id: UUID,
         *,
         limit_price: Decimal,
         request_id: UUID,
     ) -> dict[str, Any]:
-        if not all(isinstance(value, UUID) for value in (stream_id, order_check_id, request_id)):
+        if not all(
+            isinstance(value, UUID) for value in (stream_id, query_id, entry_id, request_id)
+        ):
             raise ValueError("opening budgets require UUID identities")
         if type(sequence) is not int or not 1 <= sequence <= 100_000:
             raise ValueError("opening budget requires one retained decision sequence")
@@ -325,7 +161,8 @@ class BrokerOpeningBudgets:
         request = {
             "stream_id": str(stream_id),
             "sequence": sequence,
-            "order_check_id": str(order_check_id),
+            "query_id": str(query_id),
+            "entry_id": str(entry_id),
             "limit_price": decimal_text(price),
         }
         try:
@@ -337,13 +174,14 @@ class BrokerOpeningBudgets:
                 raise ValueError("opening budget identity is already bound to different input")
             return saved
         decision: dict[str, Any] = self._streams.decision(stream_id, sequence)
-        order = self._orders.get(order_check_id)
-        parent = self._ledger.get_check(UUID(order["position_check_id"]))
-        entry = self._ledger.get(UUID(parent["entry_id"]))
-        batch: dict[str, Any] = self._records.get(UUID(parent["query_batch_id"]))
+        entry = self._ledger.get(entry_id)
+        baseline = self._baselines.get_baseline(UUID(entry["baseline_id"]))
+        batch = self._streams.account_query(stream_id, query_id)
         binding = decision["binding"]
-        if any(batch[key] != binding[key] for key in ("profile", "account_id", "instrument")):
-            raise ValueError("opening budget requires the same environment, account and instrument")
+        if any(baseline[key] != binding[key] for key in ("profile", "account_id")):
+            raise ValueError("opening budget requires the same environment and account")
+        if _at(batch["started_at"]) <= _at(entry["recorded_at"]):
+            raise ValueError("receiver query must follow the fixed account entry")
         now = datetime.now(UTC)
         blockers = [
             "PRECHECK_ONLY_NO_EXECUTION_AUTHORIZATION",
@@ -355,16 +193,22 @@ class BrokerOpeningBudgets:
         if isinstance(intent, dict):
             if now < _at(intent["generated_at"]) or now >= _at(intent["valid_until"]):
                 blockers.append("TARGET_NOT_CURRENT")
+            receipts = batch["account_observation"]["account_receipts"]
             if (
-                batch["capture"] is not None
-                and (
-                    _at(intent["generated_at"]) - _at(batch["capture"]["started_at"])
-                ).total_seconds()
-                > 5
+                len(receipts) != 1
+                or not 0 <= (now - _at(receipts[0]["received_at"])).total_seconds() <= 5
+                or not 0 <= (now - _at(batch["finished_at"])).total_seconds() <= 5
             ):
-                blockers.append("ACCOUNT_QUERY_NOT_CURRENT_AT_TARGET")
+                blockers.append("ACCOUNT_QUERY_NOT_CURRENT_AT_RISK")
         try:
-            source_time = ctp_day_quote_time(decision["event"]["data"] or {})
+            source_time = ctp_quote_time(
+                decision["event"]["data"] or {},
+                schedule=(
+                    SessionSchedule.from_dict(binding["request"]["schedule"])
+                    if "schedule" in binding["request"]
+                    else None
+                ),
+            )
         except ValueError:
             source_time = None
         if (
@@ -375,15 +219,43 @@ class BrokerOpeningBudgets:
             blockers.append("MARKET_OBSERVATION_NOT_CURRENT")
         budget: dict[str, object] | None = None
         try:
-            budget = _calculate(self._engine, decision, order, parent, entry, batch, price)
+            budget = calculate(self._engine, decision, entry, batch, price, observed_at=now)
             status, reasons = budget["outcome"], budget["reasons"]
         except ValueError as error:
             status, reasons = "UNKNOWN", [str(error)]
+        observation = batch["account_observation"]
+        baseline_observation = account_observation(
+            BrokerRecords(self._engine).get(UUID(baseline["source_batch_id"]))
+        )
+        comparison = compare_account_amounts(
+            baseline_observation["amounts"],
+            observation["amounts"],
+            same_scope=bool(
+                observation["scope_confirmed"]
+                and baseline_observation["scope_confirmed"]
+                and observation["scope"] == baseline_observation["scope"]
+            ),
+        )
+        deltas = cast(dict[str, str | None], comparison["deltas"])
+        account_matched = (
+            not baseline_observation["problems"]
+            and not observation["problems"]
+            and not comparison["problems"]
+            and all(value == "0" for value in deltas.values())
+        )
+        if not account_matched:
+            blockers.append("RECEIVER_ACCOUNT_NOT_MATCHED_TO_LEDGER_BASELINE")
         parts = batch["completeness"]["sections"]
         document = {
             "budget_id": str(request_id),
             **request,
-            "query_batch_id": parent["query_batch_id"],
+            "account_check": {
+                "status": "UNCHANGED" if account_matched else "UNKNOWN",
+                "scope": "OBSERVATIONS_ONLY_NOT_ACCOUNT_RECONCILIATION",
+                "baseline_observation": baseline_observation,
+                "observation": observation,
+                "comparison": comparison,
+            },
             "request": request,
             "recorded_at": now.isoformat(),
             "code_revision": code_revision(),
@@ -396,15 +268,11 @@ class BrokerOpeningBudgets:
             "inputs": {
                 "decision": decision,
                 "market_source_time": None if source_time is None else source_time.isoformat(),
-                "order_check_hash": _hash(order),
-                "position_check_id": parent["check_id"],
-                "position_check_hash": _hash(parent),
-                "entry_id": entry["entry_id"],
                 "entry_hash": _hash(entry),
+                "baseline_hash": _hash(baseline),
+                "entry_id": entry["entry_id"],
                 "query_hash": _hash(batch),
-                "query_window": None
-                if batch["capture"] is None
-                else {key: batch["capture"][key] for key in ("started_at", "finished_at")},
+                "query_window": {key: batch[key] for key in ("started_at", "finished_at")},
                 "section_times": {
                     name: {key: part[key] for key in ("first_received_at", "last_received_at")}
                     for name, part in parts.items()
@@ -431,7 +299,8 @@ class BrokerOpeningBudgets:
                     budget_id=request_id,
                     stream_id=stream_id,
                     sequence=sequence,
-                    order_check_id=order_check_id,
+                    query_id=query_id,
+                    entry_id=entry_id,
                     recorded_at=now,
                     document=document,
                     sha256=_hash(document),
@@ -444,9 +313,7 @@ class BrokerOpeningBudgets:
         return saved
 
     def context(self, stream_id: UUID) -> dict[str, Any]:
-        stream = self._streams.get(stream_id)
-        binding = cast(dict[str, Any], stream["binding"])
-        orders = self._orders.context(UUID(binding["request"]["query_batch_id"]))
+        self._streams.get(stream_id)
         with self._engine.connect() as connection:
             ids = connection.scalars(
                 select(_budgets.c.budget_id)
@@ -456,7 +323,6 @@ class BrokerOpeningBudgets:
             ).all()
         return {
             "budgets": [self.get(identifier) for identifier in ids],
-            "order_checks": orders["order_checks"],
         }
 
     def verify_all(self) -> int:

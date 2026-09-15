@@ -29,10 +29,53 @@ _TRADE_FIELDS = tuple(
     "SettlementID SequenceNo".split()
 )
 
-# These are the exact CTP fields this read-only application retains. Native code
+_INSERT_FIELDS = tuple(
+    "BrokerID InvestorID InstrumentID OrderRef UserID ExchangeID Direction CombOffsetFlag "
+    "CombHedgeFlag OrderPriceType LimitPrice VolumeTotalOriginal TimeCondition VolumeCondition "
+    "MinVolume RequestID".split()
+)
+_ACTION_FIELDS = tuple(
+    "BrokerID InvestorID UserID InstrumentID ExchangeID OrderRef FrontID SessionID "
+    "OrderSysID ActionFlag OrderActionRef RequestID".split()
+)
+
+# Transfer callbacks carry sensitive bank/customer fields. Retain only the
+# account identity, monetary evidence and transfer/reversal linkage below.
+TRANSFER_CALLBACKS = frozenset(
+    {
+        "OnRtnFromBankToFutureByBank",
+        "OnRtnFromFutureToBankByBank",
+        "OnRtnFromBankToFutureByFuture",
+        "OnRtnFromFutureToBankByFuture",
+        "OnRtnRepealFromBankToFutureByBank",
+        "OnRtnRepealFromFutureToBankByBank",
+        "OnRtnRepealFromBankToFutureByFutureManual",
+        "OnRtnRepealFromFutureToBankByFutureManual",
+        "OnRtnRepealFromBankToFutureByFuture",
+        "OnRtnRepealFromFutureToBankByFuture",
+    }
+)
+ACCOUNT_ACTIVITY_CALLBACKS = TRANSFER_CALLBACKS | {"OnRtnOrder", "OnRtnTrade"}
+ORDER_REJECTION_CALLBACKS = frozenset(
+    {"OnRspOrderInsert", "OnErrRtnOrderInsert", "OnRspOrderAction", "OnErrRtnOrderAction"}
+)
+_TRANSFER_FIELDS = tuple(
+    "TradeCode BrokerID AccountID UserID TradingDay TradeDate TradeTime PlateSerial "
+    "FutureSerial SessionID CurrencyID TradeAmount CustFee BrokerFee RequestID "
+    "TransferStatus ErrorID".split()
+)
+_REPEAL_FIELDS = tuple(
+    "RepealedTimes BankRepealFlag BrokerRepealFlag PlateRepealSerial FutureRepealSerial".split()
+)
+
+# These are the exact CTP fields this application retains. Native code
 # copies these named attributes immediately; pointers, credentials, unrestricted
 # error strings and machine-identification fields never cross the Interface.
 CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
+    **{
+        name: _TRANSFER_FIELDS + (_REPEAL_FIELDS if "Repeal" in name else ())
+        for name in TRANSFER_CALLBACKS
+    },
     "CaptureStarted": (
         "profile_name",
         "td_front",
@@ -42,12 +85,26 @@ CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
         "instrument",
     ),
     "RequestSent": ("section", "method", "return_code"),
+    "AccountQueryStarted": ("query_id",),
+    "AccountQueryFinished": ("query_id", "status", "reason"),
     "OnFrontConnected": (),
     "OnFrontDisconnected": ("Reason",),
     "OnHeartBeatWarning": ("TimeLapse",),
     "OnRspError": (),
     "OnRspAuthenticate": ("BrokerID", "UserID", "AppID", "AppType"),
-    "OnRspUserLogin": ("TradingDay", "LoginTime", "BrokerID", "UserID", "FrontID", "SessionID"),
+    "OnRspUserLogin": (
+        "TradingDay",
+        "LoginTime",
+        "BrokerID",
+        "UserID",
+        "FrontID",
+        "SessionID",
+        "MaxOrderRef",
+    ),
+    "OnRspQrySettlementInfo": tuple(
+        "TradingDay SettlementID BrokerID InvestorID SequenceNo ContentBase64 "
+        "AccountID CurrencyID".split()
+    ),
     "OnRspQryTradingAccount": tuple(
         "BrokerID AccountID CurrencyID TradingDay SettlementID PreBalance PreMargin Deposit "
         "Withdraw FrozenMargin FrozenCash FrozenCommission CurrMargin CashIn Commission "
@@ -61,6 +118,10 @@ CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
         "SettlementID OpenCost ExchangeMargin TodayPosition MarginRateByMoney MarginRateByVolume "
         "ExchangeID".split()
     ),
+    "OnRspOrderInsert": _INSERT_FIELDS,
+    "OnErrRtnOrderInsert": _INSERT_FIELDS,
+    "OnRspOrderAction": _ACTION_FIELDS,
+    "OnErrRtnOrderAction": _ACTION_FIELDS,
     "OnRspQryOrder": _ORDER_FIELDS,
     "OnRtnOrder": _ORDER_FIELDS,
     "OnRspQryTrade": _TRADE_FIELDS,
@@ -114,7 +175,7 @@ class BrokerEvent:
         if type(self.sequence) is not int or not 1 <= self.sequence <= 100_000:
             raise ValueError("broker callback sequence exceeds the bounded session")
         if self.channel not in {"TD", "MD"} or self.callback not in CALLBACK_FIELDS:
-            raise ValueError("unsupported read-only CTP callback")
+            raise ValueError("unsupported CTP callback")
         if self.request_id is not None and (
             type(self.request_id) is not int or not 0 <= self.request_id < 2**31
         ):
@@ -134,7 +195,16 @@ class BrokerEvent:
                 value = self.data[name]
                 if value is None or type(value) is bool:
                     safe[name] = value
-                elif isinstance(value, str) and len(value) <= 256 and "\x00" not in value:
+                elif (
+                    isinstance(value, str)
+                    and len(value)
+                    <= (
+                        668
+                        if self.callback == "OnRspQrySettlementInfo" and name == "ContentBase64"
+                        else 256
+                    )
+                    and "\x00" not in value
+                ):
                     safe[name] = value
                 elif type(value) is int and -(2**63) <= value < 2**63:
                     safe[name] = value
@@ -298,3 +368,19 @@ def parse_time(value: str) -> datetime:
 
 def timestamp(value: datetime) -> str:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def is_order_rejection(event: BrokerEvent, *, broker_id: str, account_id: str) -> bool:
+    """Protocol category only; OMS must separately verify the exact sending attempt.
+
+    A scoped operation rejection is not a lost connection or a monetary fact.
+    Unknown/foreign operations still require the runtime's reconciliation gate.
+    """
+    data = event.data or {}
+    return bool(
+        event.channel == "TD"
+        and event.error_id
+        and event.callback in ORDER_REJECTION_CALLBACKS
+        and data.get("BrokerID") == broker_id
+        and data.get("InvestorID") == account_id
+    )

@@ -27,7 +27,7 @@ def test_batch_failure_retains_only_complete_verified_objects_and_releases_lock(
     records = files.inventory()
     assert len(records) == 2
     assert {files.read(r.content_hash, r.byte_count) for r in records} == {b"abcd", b"efgh"}
-    assert list((files.root / "staging").iterdir()) == []
+    assert files.health()["incomplete_file_count"] == 0
     assert files.store(b"abcd") in records
 
 

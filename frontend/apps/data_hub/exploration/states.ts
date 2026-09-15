@@ -9,8 +9,8 @@ export const states: Record<string, [string, string]> = {
   VERIFIED: ["日线覆盖已验证", "green"],
   CLOSED: ["非交易日", "default"],
   NOT_APPLICABLE: ["合约不适用", "default"],
-  VALIDATED: ["已校验并发布", "green"],
-  SPLIT: ["已拆分", "default"],
+  VALIDATED: ["响应已校验", "green"],
+  SPLIT: ["请求已拆分", "default"],
 };
 export function scopeUrl(
   page: string,

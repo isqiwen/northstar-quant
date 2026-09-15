@@ -1,25 +1,11 @@
-# user 仅用于 init-host 登录及提权；后续应用管理固定使用 northstar。
-[database]
-host = "core.local"
-user = "qiwen"
-port = 22
-
 [nfs]
-host = "research.local"
-user = "qiwen"
-port = 22
+host = "nas.local"
 
 [data_hub]
-host = "core.local"
-user = "qiwen"
-port = 22
+host = "hub.local"
 
 [research]
 host = "research.local"
-user = "qiwen"
-port = 22
 
 [live]
 host = "quant.wangqiwen.me"
-user = "qiwen"
-port = 22

@@ -1,6 +1,7 @@
 """Automatic sync durability, secret isolation and immutable provider revisions."""
 
 import json
+from datetime import date
 
 import httpx2
 import pytest
@@ -17,19 +18,25 @@ from northstar_quant.data_management.tushare import (
     publication,
     settings,
 )
+from tests.apps.browser import login_response
 
 TOKEN = "private-test-token-never-returned"
 
 
 @pytest.fixture
 def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
+    from northstar_quant.data_management.tushare import products
     from northstar_quant.data_management.tushare.store import initialize as initialize_sync
+
+    # Historical fixtures exercise archived lifecycle/calendar semantics. Dedicated
+    # collection-boundary tests restore the production floor explicitly.
+    monkeypatch.setattr(products, "LISTING_START", date(1990, 1, 1))
 
     with postgres_engine.begin() as connection:
         initialize_sync(connection)
         connection.execute(
-            text("""UPDATE data_sync_settings SET enabled=true,
-            refresh_at=now()+interval '1 day',next_request_at=now(),revision=1""")
+            text("""UPDATE data_sync_settings SET enabled=true,selected_products=ARRAY['SHFE:RB'],
+            refresh_at=now()+interval '1 day',api_next_at='{}',next_request_at=now(),revision=1""")
         )
     secret = tmp_path / "secrets"
     monkeypatch.setenv("NORTHSTAR_DATA_SECRET_DIR", str(secret))
@@ -44,7 +51,12 @@ def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
         connection.execute(
             text("""INSERT INTO data_sync_contracts
             (ts_code,exchange,product,kind,details,planned_revision)
-            VALUES('RB2610.SHF','SHFE','RB','1','{}',1)""")
+            VALUES('RB2610.SHF','SHFE','RB','1','{"list_date":"20250101","delist_date":"20260902","last_ddate":"20260903"}',1)""")
+        )
+        connection.execute(
+            text("""INSERT INTO data_contract_collections
+            (scope,start_date,end_date,discovery_complete)
+            VALUES('RB2610.SHF','2025-01-01','2026-09-02',true)""")
         )
         connection.execute(
             text(
@@ -52,8 +64,22 @@ def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
                 "('SHFE','2026-09-02',true)"
             )
         )
+    monkeypatch.setenv("NORTHSTAR_DATA_DIR", str(tmp_path / "sources"))
+    monkeypatch.delenv("NORTHSTAR_STORAGE_ID", raising=False)
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
     return library
+
+
+def calendar_for_planning(library, exchange="SHFE", start="2025-01-01", end="2026-12-31"):
+    """Synthetic exchange calendar for planning tests, not historical session evidence."""
+    with library._engine.begin() as c:
+        c.execute(
+            text("""INSERT INTO data_sync_calendar(exchange,cal_date,is_open)
+            SELECT :exchange,day::date,extract(isodow from day)<6
+            FROM generate_series(CAST(:start AS date),CAST(:end AS date),interval '1 day') day
+            ON CONFLICT DO NOTHING"""),
+            dict(exchange=exchange, start=start, end=end),
+        )
 
 
 def pending(library, *, start="2026-09-01", end="2026-09-01"):
@@ -101,10 +127,143 @@ def response(price=3100.1):
 
 def ready(library):
     with library._engine.begin() as connection:
-        connection.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        connection.execute(
+            text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()")
+        )
         connection.execute(
             text("UPDATE data_sync_jobs SET next_at=now() WHERE status IN ('WAITING','PENDING')")
         )
+
+
+@pytest.mark.parametrize("omit_close_today", [False, True])
+def test_settlement_fields_survive_download_and_fixed_publication(
+    automatic, monkeypatch, omit_close_today
+):
+    from northstar_quant.data_management.tushare.catalog import BY_KEY
+
+    parameters = {"ts_code": "RB2610.SHF", "start_date": "20260901", "end_date": "20260901"}
+    with automatic._engine.begin() as connection:
+        planning.enqueue(
+            connection, "settlement", "RB2610.SHF", parameters, "2026-09-01", "2026-09-01"
+        )
+        job = connection.execute(text("SELECT * FROM data_sync_jobs")).mappings().one()
+    assert "fields" not in parameters
+    selected = BY_KEY["settlement"].fields
+    assert job["parameters"]["fields"] == ",".join(selected)
+    values = {
+        "ts_code": "RB2610.SHF",
+        "trade_date": "20260901",
+        "exchange": "SHFE",
+        "settle": "3100.125",
+        "trading_fee_rate": "0.050",
+        "offset_today_fee": None,
+    }
+    returned = [
+        field for field in selected if not (omit_close_today and field == "offset_today_fee")
+    ]
+    raw = json.dumps(
+        {
+            "code": 0,
+            "data": {"fields": returned, "items": [[values.get(field) for field in returned]]},
+        }
+    ).encode()
+
+    def handle(request):
+        payload = json.loads(request.content)
+        assert payload["api_name"] == "fut_settle"
+        assert payload["fields"] == ",".join(selected)
+        assert payload["params"] == parameters
+        return httpx2.Response(200, content=raw)
+
+    fetch = acquisition.fetch
+    monkeypatch.setattr(
+        acquisition,
+        "fetch",
+        lambda *args: fetch(*args, transport=httpx2.MockTransport(handle)),
+    )
+    result = jobs.process_next(automatic)
+    with automatic._engine.connect() as connection:
+        attempt = connection.execute(text("SELECT * FROM data_sync_attempts")).mappings().one()
+        receipts = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().all()
+    assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == raw
+    assert job["parameters"]["fields"] == ",".join(selected)
+    assert result["status"] == "VALIDATED"
+    assert result["origin"]["first_observed"] == "2026-09-01"
+    assert result["origin"]["source_hash"] == attempt["source_hash"]
+    receipt = receipts[0]
+    snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
+    assert snapshot["parameters"]["fields"] == ",".join(selected)
+    assert snapshot["rows"][0]["trading_fee_rate"] == "0.05"
+    assert snapshot["rows"][0].get("offset_today_fee") is None
+    import io
+    from decimal import Decimal
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    table = pq.read_table(
+        io.BytesIO(automatic._files.read(receipt["parquet_hash"], receipt["parquet_bytes"]))
+    )
+    assert table.schema.field("trading_fee_rate").type == pa.decimal128(38, 12)
+    assert table["trading_fee_rate"].to_pylist() == [Decimal("0.05")]
+    if omit_close_today:
+        assert "offset_today_fee" not in table.column_names
+    else:
+        assert table["offset_today_fee"].to_pylist() == [None]
+    assert snapshot["quality"]["normalization"]["settlement_rate_basis"] == (
+        "SUPPLIER_REPORTED_NO_UNIT_CONVERSION"
+    )
+    # Numeric spelling changes preserve economic identity, but keep both raw responses.
+    first_raw = raw
+    raw = raw.replace(b'"0.050"', b'"5e-2"')
+    with automatic._engine.begin() as connection:
+        connection.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+    ready(automatic)
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 1
+    assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == first_raw
+    from northstar_quant.data_management.exploration.revisions import compare
+    from northstar_quant.data_management.exploration.rows import read
+
+    view = read(
+        automatic._engine,
+        "settlement",
+        "RB2610.SHF",
+        "2026-09-01",
+        "2026-09-01",
+        [receipt["receipt_id"]],
+    )
+    assert view["rows"][0]["settle"] == "3100.125"
+    assert view["rows"][0]["trading_fee_rate"] == "0.05"
+    assert view["rows"][0].get("offset_today_fee") is None
+    raw = raw.replace(b'"5e-2"', b'"0.060"')
+    with automatic._engine.begin() as connection:
+        connection.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+    ready(automatic)
+    revised = jobs.process_next(automatic)
+    assert revised["status"] == "VALIDATED"
+    with automatic._engine.connect() as connection:
+        after_id = connection.scalar(
+            text("SELECT receipt_id FROM data_sync_receipts WHERE receipt_id<>:id"),
+            {"id": receipt["receipt_id"]},
+        )
+    difference = compare(automatic._engine, before_id=receipt["receipt_id"], after_id=after_id)
+    assert difference["counts"]["changed"] == 1
+    assert [(item["field"], item["before"], item["after"]) for item in difference["changes"]] == [
+        ("trading_fee_rate", "0.05", "0.06")
+    ]
+    assert (
+        read(
+            automatic._engine,
+            "settlement",
+            "RB2610.SHF",
+            "2026-09-01",
+            "2026-09-01",
+            [receipt["receipt_id"]],
+        )["rows"]
+        == view["rows"]
+    )
 
 
 def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):
@@ -232,9 +391,9 @@ def test_ui_token_is_write_only_and_manual_interfaces_are_absent(automatic, monk
     }
     app = create_app(automatic._engine, automatic)
     with TestClient(app, base_url="http://127.0.0.1") as client:
-        assert client.post("/api/sync/reprocess", json=replay).status_code == 403
-        assert client.post("/api/sync/token", json={"token": TOKEN}).status_code == 403
-        csrf = client.get("/api/browser-session").json()["csrf"]
+        assert client.post("/api/sync/reprocess", json=replay).status_code == 401
+        assert client.post("/api/sync/token", json={"token": TOKEN}).status_code == 401
+        csrf = login_response(client).json()["csrf"]
         client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
         saved = client.post("/api/sync/token", json={"token": TOKEN})
         assert saved.status_code == 200, saved.text
@@ -254,12 +413,16 @@ def test_ui_token_is_write_only_and_manual_interfaces_are_absent(automatic, monk
             "/api/sync/settings",
             json={"revision": config["revision"], "enabled": False, "products": ["RB"]},
         ).status_code in (400, 422)
-        assert (
-            client.post(
-                "/api/sync/settings", json={"revision": config["revision"], "enabled": False}
-            ).status_code
-            == 200
+        changed = client.post(
+            "/api/sync/settings",
+            json={
+                "revision": config["revision"],
+                "enabled": False,
+                "products": [],
+                "retry_skipped": False,
+            },
         )
+        assert changed.status_code == 200, changed.text
     assert (credentials.root() / "tushare.token").stat().st_mode & 0o077 == 0
 
 
@@ -277,13 +440,14 @@ def test_no_secret_in_network_errors(mode):
     assert TOKEN not in str(caught.value)
 
 
-def test_planning_all_capabilities_is_idempotent_and_stops_at_expiry(automatic, monkeypatch):
+def test_planning_applicable_data_is_idempotent_and_stops_at_expiry(automatic, monkeypatch):
     from datetime import date
 
     from northstar_quant.data_management.tushare.catalog import BY_KEY
 
     monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
     with automatic._engine.begin() as connection:
+        connection.execute(text("DELETE FROM data_contract_collections"))
         connection.execute(text("DELETE FROM data_sync_contracts"))
         for kind, code in [("1", "RB2609.SHF"), ("2", "RB.SHF")]:
             connection.execute(
@@ -292,18 +456,37 @@ def test_planning_all_capabilities_is_idempotent_and_stops_at_expiry(automatic, 
                 {
                     "code": code,
                     "kind": kind,
-                    "details": json.dumps({"list_date": "20260901", "delist_date": "20260903"}),
+                    "details": json.dumps(
+                        {
+                            "list_date": "20260901",
+                            "delist_date": "20260903",
+                            "last_ddate": "20260904",
+                            "d_mode_desc": "实物交割",
+                        }
+                    ),
                 },
             )
+    calendar_for_planning(automatic)
+    calendar_for_planning(automatic, exchange="DCE")
+    planning.plan(automatic._engine)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_contract_collections SET discovery_complete=true"))
     planning.plan(automatic._engine)
     with automatic._engine.connect() as connection:
         rows = connection.execute(text("SELECT * FROM data_sync_jobs")).mappings().all()
         count = len(rows)
-        assert {row["dataset"] for row in rows} == set(BY_KEY) - {"contracts"}
+        assert {row["dataset"] for row in rows} == set(BY_KEY) - {
+            "contracts",
+            "continuous",
+            "mapping",
+            "adjusted",
+            "index",
+        }
         assert all(
             row["end_at"] <= "2026-09-03"
             for row in rows
-            if row["dataset"] not in ("calendar", "holdings", "warehouse", "index", "weekly_detail")
+            if row["dataset"]
+            not in ("calendar", "holdings", "warehouse", "index", "weekly_detail", "week", "month")
         )
     planning.plan(automatic._engine)
     with automatic._engine.connect() as connection:
@@ -347,6 +530,9 @@ def test_files_saved_before_commit_can_be_reused_after_crash(automatic, monkeypa
     assert len(inventory) == 3
     ready(automatic)
     monkeypatch.setattr(jobs, "_commit", original)
+    monkeypatch.setattr(
+        acquisition, "fetch", lambda *args: pytest.fail("durable raw must not redownload")
+    )
     assert jobs.process_next(automatic)["status"] == "VALIDATED"
     assert automatic._files.inventory() == inventory
 
@@ -383,7 +569,7 @@ def test_daily_missing_middle_day_cannot_advance_coverage(automatic, monkeypatch
 
 
 def test_joint_restore_preserves_downloads_and_fixed_publication(automatic, monkeypatch, tmp_path):
-    from northstar_quant.apps.maintenance import backup, restore
+    from northstar_quant.data_management.backup import backup, restore
     from tests.apps.test_maintenance import _empty_restore_database
 
     pending(automatic)
@@ -440,7 +626,7 @@ def test_missing_price_is_retained_then_corrected_response_can_publish(automatic
         assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
         assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 0
     assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == incomplete
-    assert publication.storage().inventory() == []
+    assert len(publication.storage().inventory()) == 1  # Private rejected raw response only.
     # The existing UI retry operation requeues the failed job; no alternate import path.
     monkeypatch.setattr(planning, "plan", lambda *_: None)
     monkeypatch.setattr(planning, "refresh", lambda *_: None)
@@ -658,7 +844,9 @@ def test_retained_reprocessing_survives_pause_and_preserves_versions(automatic, 
     with library._engine.begin() as connection:
         connection.execute(
             text(
-                "UPDATE data_sync_settings SET enabled=true, next_request_at=now()+interval '1 day'"
+                "UPDATE data_sync_settings SET enabled=true,selected_products=ARRAY['SHFE:RB'], "
+                "api_next_at=jsonb_build_object('fut_daily',now()+interval '1 day'), "
+                "next_request_at=now()+interval '1 day'"
             )
         )
     # A new library/worker observes the durable request without the original Web caller.
@@ -794,3 +982,388 @@ def test_only_confirmed_permission_failure_blocks_other_windows(automatic, monke
             )
             == "BLOCKED"
         )
+
+
+@pytest.mark.parametrize(
+    "message,label,retry",
+    [
+        ("积分不足", "权限不足", False),
+        ("参数不正确", "参数或范围", False),
+        ("接口不存在", "接口不可用", False),
+        ("每天最多调用", "限频", True),
+        ("unclassified", "原因未确认", False),
+    ],
+)
+def test_provider_failure_classification_never_echoes_secrets(message, label, retry):
+    with pytest.raises(acquisition.DownloadError) as caught:
+        acquisition.decode(json.dumps({"code": 50101, "msg": message + TOKEN}).encode())
+    assert label in str(caught.value)
+    assert TOKEN not in str(caught.value)
+    assert caught.value.retry is retry
+
+
+def test_historical_empty_remains_uncovered_with_slow_automatic_recheck(automatic, monkeypatch):
+    from datetime import UTC, date, datetime, timedelta
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
+    with automatic._engine.begin() as c:
+        planning.enqueue(
+            c,
+            "15min",
+            "RB2610.SHF",
+            {"ts_code": "RB2610.SHF", "freq": "15min"},
+            "2012-04-17",
+            "2012-04-30",
+        )
+        c.execute(text("UPDATE data_sync_jobs SET attempts=6"))
+    payload = json.loads(response())
+    payload["data"]["items"] = []
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: json.dumps(payload).encode())
+    before = datetime.now(UTC)
+    result = jobs.process_next(automatic)
+    assert result["status"] == "WAITING"
+    assert "起点探测" in result["error"]
+    assert datetime.fromisoformat(result["next_at"]) >= before + timedelta(days=90)
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
+    assert jobs.process_next(automatic) is None
+
+
+def test_catalog_arrival_keeps_real_and_series_request_ownership_separate(automatic, monkeypatch):
+    from datetime import date
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_settings SET selected_products=ARRAY['DCE:A']"))
+        c.execute(text("DELETE FROM data_contract_collections"))
+        c.execute(text("DELETE FROM data_sync_contracts"))
+        c.execute(
+            text(
+                "INSERT INTO data_sync_contracts VALUES "
+                "('A.DCE','DCE','A','2','{\"list_date\":\"20260901\"}',NULL,0)"
+            )
+        )
+    calendar_for_planning(automatic)
+    calendar_for_planning(automatic, exchange="DCE")
+    planning.plan(automatic._engine)
+    with automatic._engine.begin() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs")) == 0
+        planning.enqueue(c, "contracts", "DCE", {"exchange": "DCE", "fut_type": "1"}, "", "")
+    row = {
+        "ts_code": "A2609.DCE",
+        "exchange": "DCE",
+        "fut_code": "A",
+        "list_date": "20260901",
+        "delist_date": "20260908",
+        "last_ddate": "20260908",
+    }
+    payload = json.dumps(
+        {"code": 0, "data": {"fields": list(row), "items": [list(row.values())]}}
+    ).encode()
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: payload)
+    completed = jobs.process_next(automatic)
+    assert completed["status"] == "VALIDATED", completed
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        assert (
+            c.scalar(text("SELECT planning_error FROM data_sync_contracts WHERE ts_code='A.DCE'"))
+            is None
+        )
+        assert (
+            c.scalar(text("SELECT count(*) FROM data_contract_requests WHERE scope='A.DCE'")) == 0
+        )
+        assert c.scalar(text("SELECT count(*) FROM data_series_requests WHERE scope='A.DCE'")) > 0
+        count = c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A2609.DCE'"))
+        assert count > 0
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        assert (
+            c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE scope='A2609.DCE'")) == count
+        )
+    visible = settings.status(automatic._engine)["jobs"]
+    # Completed/attempted work cannot be displaced by the flood of newly planned jobs.
+    assert visible[0]["request_id"] == completed["request_id"]
+
+
+def test_real_contract_does_not_schedule_market_indices(automatic, monkeypatch):
+    from datetime import date
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
+    with automatic._engine.begin() as c:
+        c.execute(
+            text(
+                "UPDATE data_sync_contracts SET planned_revision=0, "
+                'details=\'{"list_date":"20260901","delist_date":"20260908","last_ddate":"20260908"}\''
+            )
+        )
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        rows = (
+            c.execute(text("SELECT scope,parameters FROM data_sync_jobs WHERE dataset='index'"))
+            .mappings()
+            .all()
+        )
+    assert rows == []
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_sync_jobs WHERE dataset='index'")) == len(
+            rows
+        )
+
+
+@pytest.mark.parametrize(
+    "message,label",
+    [
+        ("抱歉，您没有接口(ft_limit)访问权限", "权限不足"),
+        ("必填参数, ts_code", "参数或范围"),
+    ],
+)
+def test_observed_provider_rejections_are_classified_without_raw_message(message, label):
+    with pytest.raises(acquisition.DownloadError, match=label) as caught:
+        acquisition.decode(json.dumps({"code": 40203, "msg": message + TOKEN}).encode())
+    assert TOKEN not in str(caught.value)
+
+
+def test_only_expired_contracts_are_planned_without_truncating_lifetime(automatic, monkeypatch):
+    from datetime import date
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2015, 2, 2))
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_settings SET selected_products=ARRAY['SHFE:AL']"))
+        c.execute(text("DELETE FROM data_contract_collections"))
+        c.execute(text("DELETE FROM data_sync_contracts"))
+        for code, kind, begin, end in [
+            ("AL1412.SHF", "1", "20130101", "20141215"),
+            ("AL1501.SHF", "1", "20130101", "20150115"),
+            ("AL1502.SHF", "1", "20140101", "20150215"),
+            ("AL.SHF", "2", "20130101", ""),
+        ]:
+            c.execute(
+                text(
+                    "INSERT INTO data_sync_contracts(ts_code,exchange,product,kind,details) "
+                    "VALUES(:code,'SHFE','AL',:kind,CAST(:details AS jsonb))"
+                ),
+                {
+                    "code": code,
+                    "kind": kind,
+                    "details": json.dumps(
+                        {
+                            "list_date": begin,
+                            "delist_date": end,
+                            "last_ddate": end,
+                            "d_mode_desc": "实物交割",
+                        }
+                    ),
+                },
+            )
+    calendar_for_planning(automatic, start="2012-01-01", end="2015-12-31")
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        rows = (
+            c.execute(text("SELECT dataset,scope,start_at,end_at FROM data_sync_jobs"))
+            .mappings()
+            .all()
+        )
+        assert rows
+        assert min(r["start_at"] for r in rows if r["dataset"] != "calendar") == "2013-01-01"
+        assert any(r["scope"] == "AL1412.SHF" for r in rows)
+        assert not any(r["scope"] == "AL1501.SHF" for r in rows)
+        assert not any(r["scope"] == "AL1502.SHF" for r in rows)
+        assert {"calendar", "daily", "1min", "settlement", "limits"} <= {r["dataset"] for r in rows}
+        assert (
+            c.scalar(
+                text("SELECT count(*) FROM data_sync_contracts WHERE planning_error IS NOT NULL")
+            )
+            == 0
+        )
+
+
+@pytest.mark.parametrize("sentinel", [None, 0])
+def test_zero_volume_blocked_source_reprocesses_without_downloading(
+    automatic, monkeypatch, sentinel
+):
+    from uuid import UUID
+
+    from northstar_quant.data_management.tushare import quality, reprocessing
+
+    request_id = UUID(pending(automatic))
+    data = json.loads(response())
+    row = data["data"]["items"][0]
+    fields = data["data"]["fields"]
+    for name, value in {
+        "open": sentinel,
+        "high": sentinel,
+        "low": sentinel,
+        "vol": 0,
+        "amount": 0,
+    }.items():
+        row[fields.index(name)] = value
+    raw = json.dumps(data).encode()
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: raw)
+    original_normalize = jobs.normalize
+    monkeypatch.setattr(
+        jobs,
+        "normalize",
+        lambda *a: (_ for _ in ()).throw(quality.InvalidResponse("previous strict price rule")),
+    )
+    blocked = jobs.process_next(automatic)
+    assert blocked["status"] == "BLOCKED"
+    source = UUID(blocked["reprocess_source"]["generation"])
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_contract_collections SET status='REJECTED'"))
+    monkeypatch.setattr(jobs, "normalize", original_normalize)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: pytest.fail("must reuse retained bytes"))
+    reprocessing.enqueue(automatic._engine, request_id=request_id, source_generation=source)
+    result = jobs.process_next(automatic)
+    assert result["status"] == "VALIDATED"
+    assert result["attempts"] == blocked["attempts"]
+    assert result["attempts_detail"][0]["parent_generation"] == str(source)
+    with automatic._engine.connect() as connection:
+        receipt = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+    assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == raw
+    snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
+    assert snapshot["quality"]["zero_volume_rows"] == 1
+
+
+def test_explicit_redownload_reopens_rejected_owner_and_preserves_attempt(automatic, monkeypatch):
+    from uuid import UUID
+
+    from northstar_quant.data_management.tushare import quality, reprocessing
+
+    request_id = UUID(pending(automatic))
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    original = jobs.normalize
+    monkeypatch.setattr(
+        jobs, "normalize", lambda *a: (_ for _ in ()).throw(quality.InvalidResponse("old rule"))
+    )
+    blocked = jobs.process_next(automatic)
+    assert blocked["status"] == "BLOCKED"
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_contract_collections SET status='REJECTED'"))
+    monkeypatch.setattr(jobs, "normalize", original)
+    calls = []
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: calls.append(a[:2]) or response())
+    reprocessing.redownload(automatic._engine, request_id=request_id)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_settings SET api_next_at='{}',next_request_at=now()"))
+    result = jobs.process_next(automatic)
+    assert result["status"] == "VALIDATED"
+    assert len(calls) == 1
+    assert result["attempts"] == blocked["attempts"] + 1
+    assert len(result["attempts_detail"]) == 2
+    assert all(a["parent_generation"] is None for a in result["attempts_detail"])
+    with pytest.raises(ValueError):
+        reprocessing.redownload(automatic._engine, request_id=request_id)
+
+
+def test_mixed_response_retains_evidence_without_partial_publication(automatic, monkeypatch):
+    pending(automatic, end="2026-09-02")
+    data = json.loads(response())
+    bad = list(data["data"]["items"][0])
+    bad[1] = "20260902"
+    bad[5] = None
+    data["data"]["items"].append(bad)
+    raw = json.dumps(data).encode()
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: raw)
+    result = jobs.process_next(automatic)
+    assert result["status"] == "BLOCKED"
+    assert result["receipt_id"] is None
+    assert result["attempts_detail"][0]["quality"]["issues"][0]["row_number"] == 2
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
+        assert c.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 0
+        attempt = c.execute(text("SELECT * FROM data_sync_attempts")).mappings().one()
+    assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == raw
+
+
+def test_provider_rate_reply_cools_whole_api_without_blocking_daily(automatic, monkeypatch):
+    with automatic._engine.begin() as c:
+        for dataset in ("1min", "15min"):
+            planning.enqueue(
+                c, dataset, "RB2610.SHF", {"freq": dataset}, "2012-01-01", "2012-01-01"
+            )
+    calls = []
+
+    def fetch(api, *_):
+        calls.append(api)
+        if api == "ft_mins":
+            raise acquisition.DownloadError(
+                "Tushare 限频，等待退避重试", retry=True, rate_limited=True
+            )
+        return response()
+
+    monkeypatch.setattr(acquisition, "fetch", fetch)
+    result = jobs.process_next(automatic)
+    assert result["status"] == "WAITING"
+    pending(automatic)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+    result = jobs.process_next(automatic)
+    assert result["dataset"] == "daily" and result["status"] == "VALIDATED"
+    assert calls == ["ft_mins", "fut_daily"]
+
+
+def test_selecting_different_product_preempts_existing_queue(automatic, monkeypatch):
+    from datetime import date
+
+    from northstar_quant.data_management.tushare.scheduling import choose
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 14))
+    pending(automatic)
+    with automatic._engine.begin() as c:
+        for code, last in [("AL1502.SHF", "20150215"), ("AL1501.SHF", "20150115")]:
+            c.execute(
+                text("""INSERT INTO data_sync_contracts
+                (ts_code,exchange,product,kind,details) VALUES(:code,'SHFE','AL','1',
+                CAST(:details AS jsonb))"""),
+                dict(
+                    code=code,
+                    details=json.dumps(
+                        dict(list_date="20140101", delist_date=last, last_ddate=last)
+                    ),
+                ),
+            )
+    with automatic._engine.begin() as c:
+        assert choose(c, download_ready=True)["scope"] == "RB2610.SHF"
+        c.execute(text("UPDATE data_sync_settings SET selected_products=ARRAY['SHFE:AL']"))
+        assert choose(c, download_ready=True) is None
+    planning.plan(automatic._engine)
+    with automatic._engine.begin() as c:
+        assert c.scalar(text("SELECT min(end_date) FROM data_contract_collections")) == date(
+            2015, 1, 15
+        )
+        row = choose(c, download_ready=True)
+        owners = list(
+            c.scalars(
+                text("SELECT scope FROM data_contract_requests WHERE request_id=:id"),
+                dict(id=row["request_id"]),
+            )
+        )
+        assert "AL1501.SHF" in owners
+        # Planning another candidate cannot create a flood before the oldest is collected.
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as c:
+        assert c.scalar(text("SELECT count(*) FROM data_contract_collections")) == 2
+
+
+def test_queue_will_not_download_after_metadata_becomes_unknown(automatic):
+    from northstar_quant.data_management.tushare.scheduling import choose
+
+    pending(automatic)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_contracts SET details=details-'last_ddate'"))
+        assert choose(c, download_ready=True) is None
+        assert c.scalar(text("SELECT status FROM data_sync_jobs")) == "PENDING"
+
+
+def test_malformed_unplanned_date_cannot_starve_valid_download(automatic):
+    from northstar_quant.data_management.tushare.scheduling import choose
+
+    pending(automatic)
+    with automatic._engine.begin() as c:
+        c.execute(
+            text("""INSERT INTO data_sync_contracts
+            (ts_code,exchange,product,kind,details) VALUES('AL1201.SHF','SHFE','AL','1',
+            '{"list_date":"20110101","delist_date":"20120101unknown"}')""")
+        )
+        assert choose(c, download_ready=True)["scope"] == "RB2610.SHF"

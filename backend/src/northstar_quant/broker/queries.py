@@ -11,6 +11,7 @@ import hashlib
 from contextlib import ExitStack, closing
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import Engine, text
@@ -25,7 +26,7 @@ from northstar_quant.broker.settings import (
     profiles,
     validate_instrument,
 )
-from northstar_quant.live.storage import KernelLock
+from northstar_quant.persistence.locks import FileLock
 
 
 class BrokerQueries:
@@ -49,7 +50,12 @@ class BrokerQueries:
     def get(self, batch_id: UUID) -> dict[str, object]:
         return self._records.get(batch_id)
 
-    def query(self, instrument: str, *, request_id: UUID) -> dict[str, object]:
+    def query(
+        self, instrument: str, *, request_id: UUID, settlement_day: str | None = None
+    ) -> dict[str, object]:
+        from .statements import validate_day
+
+        settlement_day = validate_day(settlement_day)
         profile = configured_profile()
         instrument = validate_instrument(instrument)
         try:
@@ -57,7 +63,16 @@ class BrokerQueries:
         except LookupError:
             pass
         else:
-            if saved["profile"] != profile.identity() or saved["instrument"] != instrument:
+            if (
+                saved["profile"] != profile.identity()
+                or saved["instrument"] != instrument
+                or (
+                    cast(dict[str, dict[str, str]], saved["query_scope"])
+                    .get("settlement", {})
+                    .get("trading_day")
+                    != settlement_day
+                )
+            ):
                 raise ValueError("broker request identity is already bound to different input")
             # A receipt fixes the original account. Changing/removing credentials
             # cannot rebind it or prevent reading an uncertain acknowledgement.
@@ -69,7 +84,7 @@ class BrokerQueries:
             if connection.dialect.name == "sqlite":
                 try:
                     locks.enter_context(
-                        closing(KernelLock(Path(str(self._engine.url.database) + f".{lock_key}")))
+                        closing(FileLock(Path(str(self._engine.url.database) + f".{lock_key}")))
                     )
                 except BlockingIOError:
                     raise ValueError("a query or receiver already owns this account") from None
@@ -87,13 +102,23 @@ class BrokerQueries:
             else:
                 existing = True
             batch = self._records.begin(
-                profile.identity(), credentials.user_id, instrument, request_id=request_id
+                profile.identity(),
+                credentials.user_id,
+                instrument,
+                request_id=request_id,
+                settlement_day=settlement_day,
             )
             if existing:
                 return batch
             started = datetime.now(UTC).isoformat().replace("+00:00", "Z")
             try:
-                capture = ctp.query_account(profile, credentials, instrument)
+                capture = (
+                    ctp.query_account(profile, credentials, instrument)
+                    if settlement_day is None
+                    else ctp.query_account(
+                        profile, credentials, instrument, settlement_day=settlement_day
+                    )
+                )
             except Exception:
                 # Never let a vendor exception serialize credentials or arbitrary
                 # broker bytes into logs or HTTP. Partial native failures normally

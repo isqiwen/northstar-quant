@@ -29,6 +29,7 @@ class AnnotationRequest(ApiModel):
 
 
 class FactorRunRequest(ApiModel):
+    request_id: UUIDText
     revision_id: str
     snapshot_id: UUIDText
 
@@ -114,13 +115,48 @@ class FactorValue(EvidenceRecord):
     reason: str
 
 
+class ForwardGroup(ApiModel):
+    group: int
+    samples: int
+    mean_forward_return: float | None
+
+
+class ForwardDay(ApiModel):
+    trading_day: str
+    samples: int
+    spearman: float | None
+    mean_forward_return: float | None
+
+
+class FactorHorizon(ApiModel):
+    bars: int
+    samples: int
+    excluded: dict[str, int]
+    status: str
+    pearson: float | None
+    spearman: float | None
+    group_change_fraction: float | None
+    groups: list[ForwardGroup]
+    days: list[ForwardDay]
+
+
+class FactorAnalysis(ApiModel):
+    plan: str
+    numeric: str
+    horizons: list[FactorHorizon]
+    limitations: list[str]
+
+
 class FactorResult(ApiModel):
     inputs: dict[str, JsonValue]
     values: list[FactorValue]
     evaluation: dict[str, JsonValue]
+    analysis: FactorAnalysis
 
 
 class FactorRun(EvidenceRecord):
+    total: int
+    done: int
     attempt_id: str
     revision_id: str
     snapshot_id: str
@@ -154,7 +190,7 @@ class StrategyCandidate(ApiModel):
     format: int
     version_id: str
     document: VersionDocument
-    production_eligible: bool
+    same_clean_revision: bool
     candidate_id: str
 
 
@@ -227,7 +263,7 @@ def register(
 
     @app.post(
         "/api/factor-runs",
-        status_code=201,
+        status_code=202,
         response_model=FactorRun,
         response_model_exclude_unset=True,
     )
@@ -235,8 +271,22 @@ def register(
         access.protect(request)
         body = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
-            catalog.calculate, str(body["revision_id"]), UUID(str(body["snapshot_id"]))
+            catalog.submit,
+            str(body["revision_id"]),
+            UUID(str(body["snapshot_id"])),
+            UUID(str(body["request_id"])),
         )
+
+    @app.post(
+        "/api/factor-runs/{attempt_id}/cancel",
+        response_model=FactorRun,
+        response_model_exclude_unset=True,
+    )
+    def cancel_factor(
+        attempt_id: UUID, request: Request, document: PublishRequest
+    ) -> dict[str, object]:
+        access.protect(request)
+        return catalog.cancel(attempt_id)
 
     @app.get(
         "/api/strategy-versions",

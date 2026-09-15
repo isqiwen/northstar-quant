@@ -33,7 +33,7 @@ class Parameter:
             return value
         if (
             not isinstance(value, str)
-            or re.fullmatch(r"(?:0|[1-9][0-9]*)(?:\.[0-9]{1,18})?", value) is None
+            or re.fullmatch(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,18})?", value) is None
         ):
             raise ValueError(f"{self.name} must be a plain decimal string")
         number = Decimal(value)
@@ -91,7 +91,9 @@ class Inputs:
 @dataclass(frozen=True)
 class Requirements:
     history_bars: int
-    interval_seconds: int = 60
+    # A window measured in bars works at the caller's fixed native period.
+    # A time-specific formula can still require an exact period explicitly.
+    interval_seconds: int | None = None
     max_age_seconds: int = 60
     price_basis: str = "REAL_CONTRACT"
     fields: tuple[str, ...] = ("close",)

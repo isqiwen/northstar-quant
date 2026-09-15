@@ -10,15 +10,16 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import logging
 import os
 import re
-import shutil
 import stat
 import tempfile
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import cast
 
 
@@ -39,8 +40,8 @@ class SourceFiles:
         root: Path,
         *,
         max_file_bytes: int = 5 * 1024 * 1024,
-        max_total_bytes: int = 10 * 1024**3,
-        min_free_bytes: int = 256 * 1024**2,
+        max_total_bytes: int | None = None,
+        min_free_bytes: int | None = None,
         shared_read: bool = False,
     ) -> None:
         if not root.is_absolute():
@@ -48,10 +49,14 @@ class SourceFiles:
         if (
             type(max_file_bytes) is not int
             or not 1 <= max_file_bytes <= 5 * 1024 * 1024
-            or type(max_total_bytes) is not int
-            or max_total_bytes < max_file_bytes
-            or type(min_free_bytes) is not int
-            or min_free_bytes < 0
+            or (
+                max_total_bytes is not None
+                and (type(max_total_bytes) is not int or max_total_bytes < max_file_bytes)
+            )
+            or (
+                min_free_bytes is not None
+                and (type(min_free_bytes) is not int or min_free_bytes < 0)
+            )
         ):
             raise ValueError("invalid source file, archive or free-space limit")
         self.shared_read = shared_read
@@ -79,9 +84,15 @@ class SourceFiles:
             raise ValueError("source restore is incomplete; do not start the application")
         return cls(
             Path(value),
-            max_total_bytes=int(os.environ.get("NORTHSTAR_ARCHIVE_MAX_BYTES", str(10 * 1024**3))),
-            min_free_bytes=int(
-                os.environ.get("NORTHSTAR_ARCHIVE_MIN_FREE_BYTES", str(256 * 1024**2))
+            max_total_bytes=(
+                int(os.environ["NORTHSTAR_ARCHIVE_MAX_BYTES"])
+                if os.environ.get("NORTHSTAR_ARCHIVE_MAX_BYTES")
+                else None
+            ),
+            min_free_bytes=(
+                int(os.environ["NORTHSTAR_ARCHIVE_MIN_FREE_BYTES"])
+                if os.environ.get("NORTHSTAR_ARCHIVE_MIN_FREE_BYTES")
+                else None
             ),
         )
 
@@ -113,25 +124,37 @@ class SourceFiles:
         return parent / content_hash
 
     @contextmanager
-    def _writer(self) -> Iterator[None]:
+    def _writer(self, *, exclusive: bool = True) -> Iterator[None]:
         descriptor = os.open(
             self.root / ".write.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600
         )
+        started = perf_counter()
+        acquired = started
         try:
-            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            fcntl.flock(descriptor, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+            acquired = perf_counter()
             yield
         finally:
             fcntl.flock(descriptor, fcntl.LOCK_UN)
             os.close(descriptor)
+            logging.getLogger(__name__).info(
+                "Source write shared_read=%s exclusive=%s wait=%.4f hold=%.4f",
+                self.shared_read,
+                exclusive,
+                acquired - started,
+                perf_counter() - acquired,
+            )
 
     def store(self, content: bytes) -> FileObject:
-        with self._writer():
+        with self._writer(exclusive=self.max_total_bytes is not None):
             return self._store_locked(content, None)[0]
 
     def store_many(self, contents: Iterable[bytes]) -> tuple[FileObject, ...]:
-        """Retain a bounded stream under one writer lock and one capacity inventory."""
-        with self._writer():
-            used_bytes = cast(int, self.health()["used_bytes"])
+        """Share admission for immutable writes; serialize an explicitly bounded archive."""
+        with self._writer(exclusive=self.max_total_bytes is not None):
+            used_bytes = (
+                cast(int, self.health()["used_bytes"]) if self.max_total_bytes is not None else 0
+            )
             result = []
             for content in contents:
                 saved, added = self._store_locked(content, used_bytes)
@@ -147,17 +170,28 @@ class SourceFiles:
         destination = self._path(identity)
         if destination.exists() or destination.is_symlink():
             self.read(identity, len(content))
+            # A competing writer may have linked but not yet synced its directory.
+            self._sync(destination.parent.parent)
+            self._sync(destination.parent)
             return result, 0
-        if used_bytes is None:
-            used_bytes = cast(int, self.health()["used_bytes"])
-        if used_bytes + len(content) > self.max_total_bytes:
-            raise ValueError("managed source archive capacity exceeded; nothing accepted")
-        if shutil.disk_usage(self.root).free < self.min_free_bytes + len(content):
+        if self.max_total_bytes is not None:
+            if used_bytes is None:
+                used_bytes = cast(int, self.health()["used_bytes"])
+            if used_bytes + len(content) > self.max_total_bytes:
+                raise ValueError("managed source archive capacity exceeded; nothing accepted")
+        capacity = self.capacity()
+        if (
+            cast(int, capacity["free_bytes"]) < cast(int, capacity["min_free_bytes"]) + len(content)
+            or capacity["free_inodes"] == 0
+        ):
             raise ValueError("insufficient free disk space for durable source reception")
         self._directory(destination.parent)
-        staging = self.root / "staging"
+        staging = self.root / "staging" / identity[:2]
         self._directory(staging)
         descriptor, temporary = tempfile.mkstemp(prefix="receive-", dir=staging)
+        started = perf_counter()
+        written = verified = linked = started
+        added = len(content)
         path = Path(temporary)
         try:
             with os.fdopen(descriptor, "wb") as stream:
@@ -166,14 +200,35 @@ class SourceFiles:
                 stream.write(content)
                 stream.flush()
                 os.fsync(stream.fileno())
+            written = perf_counter()
             if hashlib.sha256(path.read_bytes()).hexdigest() != identity:
                 raise ValueError("source bytes failed verification before publication")
-            os.link(path, destination, follow_symlinks=False)
+            verified = perf_counter()
+            try:
+                os.link(path, destination, follow_symlinks=False)
+            except FileExistsError:
+                # The winner must contain these exact immutable bytes, not merely
+                # have the expected name. Corruption/symlinks are never replaced.
+                self.read(identity, len(content))
+                added = 0
+            # Sync the shard's entry as well: another concurrent writer may have
+            # created the directory and died before syncing its parent.
+            self._sync(destination.parent.parent)
             self._sync(destination.parent)
+            linked = perf_counter()
         finally:
             path.unlink(missing_ok=True)
             self._sync(staging)
-        return result, len(content)
+        logging.getLogger(__name__).info(
+            "Source durable shared_read=%s bytes=%s write=%.4f verify=%.4f link=%.4f cleanup=%.4f",
+            self.shared_read,
+            len(content),
+            written - started,
+            verified - written,
+            linked - verified,
+            perf_counter() - linked,
+        )
+        return result, added
 
     def read(self, content_hash: str, byte_count: int) -> bytes:
         if type(byte_count) is not int or not 1 <= byte_count <= self.max_file_bytes:
@@ -201,6 +256,14 @@ class SourceFiles:
         except ValueError:
             return "CORRUPT"
         return "AVAILABLE"
+
+    def remove_verified(self, content_hash: str, byte_count: int) -> None:
+        """Unlink one verified orphan; caller must hold the Data reference freeze."""
+        with self._writer():
+            self.read(content_hash, byte_count)
+            path = self._path(content_hash)
+            path.unlink()
+            self._sync(path.parent)
 
     def inventory(self) -> list[FileObject]:
         """Enumerate actual objects, without trusting their names as integrity evidence."""
@@ -236,11 +299,19 @@ class SourceFiles:
             os.close(descriptor)
         free = usage.f_bavail * usage.f_frsize
         inodes = usage.f_favail if usage.f_files else None
+        total = usage.f_blocks * usage.f_frsize
+        reserve = (
+            self.min_free_bytes if self.min_free_bytes is not None else max(1024**3, total // 20)
+        )
+        warning = max(reserve * 2, total // 10)
         return {
-            "status": "LOW" if free <= self.min_free_bytes or inodes == 0 else "OK",
+            "status": "LOW"
+            if free <= reserve or inodes == 0
+            else ("WARNING" if free <= warning else "OK"),
+            "warning_free_bytes": warning,
             "free_bytes": free,
-            "total_bytes": usage.f_blocks * usage.f_frsize,
-            "min_free_bytes": self.min_free_bytes,
+            "total_bytes": total,
+            "min_free_bytes": reserve,
             "free_inodes": inodes,
         }
 
@@ -249,19 +320,25 @@ class SourceFiles:
         staging = self.root / "staging"
         if staging.is_symlink():
             raise ValueError("source staging directory must not be a symbolic link")
-        incomplete = list(staging.iterdir())
-        if any(item.is_symlink() or not item.is_file() for item in incomplete):
-            raise ValueError("unexpected object in source staging directory")
-        used = sum(item.byte_count for item in objects) + sum(
-            item.stat().st_size for item in incomplete
-        )
+        incomplete = list(staging.rglob("*"))
+        sizes = []
+        for item in incomplete:
+            try:
+                details = item.lstat()
+            except FileNotFoundError:
+                continue  # A parallel writer completed its disposable staging file.
+            if stat.S_ISDIR(details.st_mode):
+                continue
+            if not stat.S_ISREG(details.st_mode):
+                raise ValueError("unexpected object in source staging directory")
+            sizes.append(details.st_size)
+        used = sum(item.byte_count for item in objects) + sum(sizes)
         return {
             "used_bytes": used,
             "object_count": len(objects),
-            "incomplete_file_count": len(incomplete),
+            "incomplete_file_count": len(sizes),
             "max_file_bytes": self.max_file_bytes,
             "max_total_bytes": self.max_total_bytes,
-            "min_free_bytes": self.min_free_bytes,
-            "free_bytes": shutil.disk_usage(self.root).free,
+            **self.capacity(),
             "deletion_enabled": False,
         }

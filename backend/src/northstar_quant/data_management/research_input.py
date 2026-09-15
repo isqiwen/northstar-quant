@@ -12,6 +12,8 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from northstar_quant.market_data.sessions import SessionWindow
+
 
 @dataclass(frozen=True, slots=True)
 class ImportSpec:
@@ -31,8 +33,11 @@ class ImportSpec:
     source_reference: str
     availability_basis: str
     availability_note: str
+    interval: str = "1m"
 
     def __post_init__(self) -> None:
+        if self.interval not in {"1m", "5m", "15m", "30m", "60m"}:
+            raise ValueError("data.interval must be 1m, 5m, 15m, 30m or 60m")
         for name in ("exchange", "symbol", "product", "quantity_unit"):
             value = getattr(self, name)
             if (
@@ -95,6 +100,8 @@ class ImportSpec:
                 raise ValueError(f"data.{name} must be UTC minute-aligned")
         if self.session_open >= self.session_close:
             raise ValueError("data.session_open must precede session_close")
+        if (self.session_close - self.session_open) % self.duration:
+            raise ValueError("session must contain complete bars at its declared interval")
         opened = self.session_open.astimezone(timezone).date()
         closed = self.session_close.astimezone(timezone).date()
         if self.session_kind == "DAY":
@@ -108,6 +115,14 @@ class ImportSpec:
                 raise ValueError("NIGHT session must be one continuous window shorter than a day")
         else:
             raise ValueError("data.session_kind must be DAY or NIGHT")
+
+    @property
+    def duration(self) -> timedelta:
+        return timedelta(minutes=int(self.interval[:-1]))
+
+    @property
+    def window(self) -> SessionWindow:
+        return SessionWindow(self.trading_day, self.session_open, self.session_close)
 
     @classmethod
     def from_mapping(cls, value: dict[str, object]) -> ImportSpec:
@@ -129,6 +144,9 @@ class ImportSpec:
             "availability_basis",
             "availability_note",
         }
+        if isinstance(value, dict):
+            value = {"interval": "1m", **value}
+        expected.add("interval")
         if not isinstance(value, dict) or set(value) != expected:
             raise ValueError("data input must contain exactly the current market/session fields")
         strings: dict[str, str] = {}
@@ -143,6 +161,7 @@ class ImportSpec:
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", strings["trading_day"]) is None:
             raise ValueError("data.trading_day must use YYYY-MM-DD")
         return cls(
+            interval=strings["interval"],
             exchange=strings["exchange"],
             symbol=strings["symbol"],
             product=strings["product"],
@@ -163,6 +182,7 @@ class ImportSpec:
 
     def to_mapping(self) -> dict[str, object]:
         return {
+            "interval": self.interval,
             "exchange": self.exchange,
             "symbol": self.symbol,
             "product": self.product,

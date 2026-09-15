@@ -8,16 +8,20 @@ import pytest
 from northstar_quant.accounting.fifo import Account
 from northstar_quant.messaging import DispatchFailed
 from northstar_quant.research.backtesting import run_research
-from northstar_quant.research.backtesting import session as module
 from northstar_quant.research.backtesting.session import STEP_COMPLETED, TradingSession
 from northstar_quant.research.configuration import ResearchConfig
+from northstar_quant.risk import engine as module
 from northstar_quant.strategies.registry import resolve
 from tests.test_research import dataset
 
 
 def session(data):
     return TradingSession(
-        data.market, ResearchConfig(), snapshot_id=data.snapshot_id, content_hash=data.content_hash
+        data.market,
+        ResearchConfig(),
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
 
 
@@ -54,7 +58,7 @@ def test_failed_event_rolls_back_fill_strategy_orders_metrics_then_retries(monke
     assert seen[-1] == completed
     assert actual.advance(data.bars[2]) is None
     assert len(seen) == 3
-    account = Account(actual.config.simulation.initial_cash, data.market)
+    account = Account(actual.config.simulation.initial_cash, (data.market,))
     for step in [*accepted, completed]:
         if step.fill:
             account.apply(step.fill.fact)
@@ -65,6 +69,7 @@ def test_failed_event_rolls_back_fill_strategy_orders_metrics_then_retries(monke
         content_hash=data.content_hash,
         checkpoint=actual.checkpoint(),
         account=account,
+        interval_seconds=data.interval_seconds,
     )
     assert resumed.advance(data.bars[3]) == clean.advance(data.bars[3])
 

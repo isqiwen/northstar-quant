@@ -32,17 +32,21 @@ export function Overview() {
             内核状态: runtime.available ? "AVAILABLE" : "UNAVAILABLE",
             运行身份: runtime.id,
             发单能力:
-              runtime.data?.order_sending === false ? "未启用" : "未确认",
+              runtime.data?.order_sending === true
+                ? "通道就绪，逐单检查"
+                : "未启用",
             撤单能力:
-              runtime.data?.cancel_sending === false ? "未启用" : "未确认",
+              runtime.data?.cancel_sending === true
+                ? "通道就绪，逐单检查"
+                : "未启用",
           }}
         />
       </Card>
       <Alert
         type="info"
         showIcon
-        title="当前为无发送管理与影子观察"
-        description="页面访问、材料接收和影子控制都不授予交易执行权限。"
+        title="SimNow 显式授权与逐单准入"
+        description="页面访问和材料接收不授予交易权限；限额确认后，仍需在固定预算页面明确提交并通过当前账户检查。"
       />
       <Records
         title="持续接收会话"
@@ -84,8 +88,12 @@ export function Diagnostics() {
               value={{
                 检查状态: q.data.status,
                 数据库: q.data.database?.status,
+                数据库盘: q.data.database?.disk_capacity,
+                数据库盘空闲字节: q.data.database?.free_bytes,
+                数据库字节: q.data.database?.database_bytes,
+                WAL字节: q.data.database?.wal_bytes,
                 来源盘: q.data.source_filesystem?.status,
-                空闲字节: q.data.source_filesystem?.free_bytes,
+                来源盘空闲字节: q.data.source_filesystem?.free_bytes,
                 检查时间: q.data.observed_at,
               }}
             />

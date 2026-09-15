@@ -1,95 +1,65 @@
-"""One fenced downloader; persisted retries and atomic coverage/receipt commits."""
+"""Independent fenced pipelines; persisted retries and atomic publication commits."""
 
 import json
-from datetime import UTC, datetime, timedelta
+import logging
+from datetime import timedelta
+from functools import partial
+from time import perf_counter
 from typing import Any
 from uuid import UUID, uuid4
 
+import httpx2
 from sqlalchemy import Engine, text
 
 from northstar_quant import code_revision
 
 from ..library import DataLibrary
 from ..maintenance import library_write
-from . import acquisition, coverage, credentials, planning, publication
+from . import (
+    acquisition,
+    claiming,
+    coverage,
+    credentials,
+    origins,
+    planning,
+    publication,
+)
 from .catalog import BY_KEY
-from .quality import Empty, InvalidResponse, Truncated, closed_interval_evidence, normalize
-from .store import initialize, job, serial, settings
+from .quality import (
+    Empty,
+    EmptyResponse,
+    InvalidResponse,
+    Truncated,
+    closed_interval_evidence,
+    normalize,
+)
+from .store import initialize, job
 
 __all__ = ["initialize", "process_next"]
-_LOCK = 0x4E53515453594E
 
 
-def process_next(library: DataLibrary) -> dict[str, Any] | None:
+def process_next(
+    library: DataLibrary, *, client: httpx2.Client | None = None, plan: bool = True
+) -> dict[str, Any] | None:
     engine = library._engine
+    checkpoint = perf_counter()
+    timings: dict[str, float] = {}
+
+    def elapsed(name: str) -> None:
+        nonlocal checkpoint
+        now = perf_counter()
+        timings[name] = round(now - checkpoint, 4)
+        checkpoint = now
+
     with library_write(engine), engine.begin() as ownership:
-        if not ownership.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": _LOCK}):
+        if plan:
+            claiming.prepare(engine)
+        elapsed("planning")
+        selected = claiming.claim(engine, ownership)
+        if selected is None:
             return None
-        config = settings(engine)
-        if not config["enabled"]:
-            return None
-        with engine.begin() as connection:
-            connection.execute(
-                text("""UPDATE data_sync_attempts SET finished_at=now(),outcome='INTERRUPTED'
-                WHERE finished_at IS NULL""")
-            )
-            connection.execute(
-                text("""UPDATE data_sync_jobs SET status='PENDING',generation=NULL,
-                error='进程中断，继续未提交分片' WHERE status='RUNNING'""")
-            )
-        planning.refresh(engine)
-        planning.plan(engine)
-        with engine.begin() as connection:
-            # Every fifth request gives old history a turn even while new data arrives.
-            count = connection.scalar(text("SELECT count(*) FROM data_sync_attempts")) or 0
-            order = "start_at ASC" if count % 5 == 4 else "start_at DESC"
-            row = (
-                connection.execute(
-                    text(f"""SELECT * FROM data_sync_jobs j
-                WHERE status IN ('PENDING','WAITING') AND next_at<=now()
-                AND (source_generation IS NOT NULL OR :download_ready)
-                AND (source_generation IS NOT NULL OR NOT EXISTS (SELECT 1 FROM data_sync_jobs b
-                WHERE b.dataset=j.dataset AND
-                b.status='BLOCKED' AND b.error LIKE 'Tushare 权限不足%'))
-                ORDER BY (source_generation IS NOT NULL) DESC,
-                CASE dataset WHEN 'contracts' THEN 0 WHEN 'calendar' THEN 1 ELSE 2 END,
-                {order},created_at LIMIT 1 FOR UPDATE SKIP LOCKED"""),
-                    {
-                        "download_ready": datetime.fromisoformat(config["next_request_at"])
-                        <= datetime.now(UTC)
-                    },
-                )
-                .mappings()
-                .one_or_none()
-            )
-            if row is None:
-                return None
-            selected = serial(row)
-            generation = uuid4()
-            connection.execute(
-                text("""UPDATE data_sync_jobs SET status='RUNNING',generation=:g,
-                attempts=attempts+CASE WHEN source_generation IS NULL THEN 1 ELSE 0 END,
-                updated_at=now() WHERE request_id=:id"""),
-                {"g": generation, "id": selected["request_id"]},
-            )
-            connection.execute(
-                text("""INSERT INTO data_sync_attempts
-                    (generation,request_id,parent_generation,code_revision)
-                    VALUES(:g,:id,:parent,:revision)"""),
-                {
-                    "g": generation,
-                    "id": selected["request_id"],
-                    "parent": selected["source_generation"],
-                    "revision": code_revision(),
-                },
-            )
-            if not selected["source_generation"]:
-                connection.execute(
-                    text("UPDATE data_sync_settings SET next_request_at=now()+:delay"),
-                    {"delay": timedelta(seconds=60 / config["requests_per_minute"])},
-                )
-        selected["generation"] = generation
-        selected["attempts"] += int(not selected["source_generation"])
+        generation = selected["generation"]
+        elapsed("claim")
         stage = "download"
         try:
             if selected["source_generation"]:
@@ -108,9 +78,13 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                     )
                 content = library._files.read(source["source_hash"], source["source_bytes"])
             else:
-                content = acquisition.fetch(
-                    BY_KEY[selected["dataset"]].api, selected["parameters"], credentials.read()
+                fetch = partial(acquisition.fetch, client=client) if client else acquisition.fetch
+                content = fetch(
+                    BY_KEY[selected["dataset"]].api,
+                    selected["parameters"],
+                    credentials.read(),
                 )
+            elapsed("acquisition")
             stage = "storage"
             archived = library._files.store(content)
             with engine.begin() as connection:
@@ -122,6 +96,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                     WHERE generation=:g"""),
                     {"hash": archived.content_hash, "size": archived.byte_count, "g": generation},
                 )
+            elapsed("archive")
             stage = "quality"
             try:
                 rows, quality = normalize(content, selected)
@@ -129,7 +104,10 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 if not coverage.confirmed_empty(engine, selected):
                     raise
                 rows, quality = [], closed_interval_evidence(selected["dataset"])
+            with engine.begin() as connection:
+                origins.observe(connection, selected, rows)
             coverage.verify(engine, selected, rows, quality)
+            elapsed("validation")
             stage = "storage"
             artifact = publication.publish(
                 rows,
@@ -138,6 +116,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 library._files,
                 source={"content_hash": archived.content_hash, "byte_count": archived.byte_count},
             )
+            elapsed("publication")
             stage = "commit"
             _commit(
                 engine,
@@ -175,14 +154,39 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 bool(selected["end_at"])
                 and selected["end_at"] >= (planning.target_day() - timedelta(days=10)).isoformat()
             )
+            historical_empty = isinstance(error, EmptyResponse) and not recent
+            with engine.connect() as connection:
+                observed = origins.first(connection, selected["dataset"], selected["scope"])
+            leading = historical_empty and (
+                observed is None or selected["end_at"] < observed.isoformat()
+            )
             _fail(
                 engine,
                 selected,
-                str(error),
+                "起点探测：该历史区间暂无数据，继续查找后续区间；90 天后复核，不认定已完成"
+                if leading
+                else "历史区间返回空数据，7 天后复核覆盖；不认定已完成"
+                if historical_empty
+                else str(error),
                 retry=not selected["source_generation"],
-                waiting=recent,
+                waiting=True,
+                retry_after=timedelta(days=90 if leading else 7) if historical_empty else None,
             )
         except acquisition.DownloadError as error:
+            if error.rate_limited:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text("""UPDATE data_sync_settings SET
+                        api_next_at=api_next_at || jsonb_build_object(CAST(:api AS text),
+                            greatest(CAST(api_next_at->>CAST(:api AS text) AS timestamptz),
+                                     now()+:delay))"""),
+                        {
+                            "api": BY_KEY[selected["dataset"]].api,
+                            "delay": timedelta(
+                                seconds=min(3600, 60 * 2 ** min(selected["attempts"], 6))
+                            ),
+                        },
+                    )
             _fail(engine, selected, str(error), retry=error.retry)
         except InvalidResponse as error:
             _fail(engine, selected, f"{error}；原文已留存", retry=False, quality=error.report)
@@ -203,7 +207,15 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                         text("UPDATE data_sync_settings SET enabled=false,error=:error"),
                         {"error": reason},
                     )
-        return job(engine, UUID(selected["request_id"]))
+        elapsed("completion")
+        result = job(engine, UUID(selected["request_id"]))
+        elapsed("readback")
+        logging.getLogger(__name__).info(
+            "Sync timing request=%s stages=%s",
+            selected["request_id"],
+            " ".join(f"{name}={seconds:.4f}" for name, seconds in timings.items()),
+        )
+        return result
 
 
 def _finish(
@@ -213,11 +225,11 @@ def _finish(
     error: str | None = None,
     delay: timedelta = timedelta(),
 ) -> None:
-    connection.execute(
+    changed = connection.scalar(
         text("""UPDATE data_sync_jobs SET status=:status,error=:error,
         next_at=now()+:delay,updated_at=now(),
         source_generation=CASE WHEN :status='WAITING' THEN source_generation ELSE NULL END
-        WHERE request_id=:id AND generation=:g"""),
+        WHERE request_id=:id AND generation=:g RETURNING generation"""),
         {
             "status": status,
             "error": error,
@@ -226,6 +238,8 @@ def _finish(
             "g": selected["generation"],
         },
     )
+    if changed is None:
+        return
     connection.execute(
         text("""UPDATE data_sync_attempts SET finished_at=now(),outcome=:status,error=:error
         WHERE generation=:g"""),
@@ -241,9 +255,10 @@ def _fail(
     retry: bool,
     waiting: bool = False,
     quality: dict[str, Any] | None = None,
+    retry_after: timedelta | None = None,
 ) -> None:
     allowed = retry and (waiting or selected["attempts"] < 6)
-    delay = timedelta(
+    delay = retry_after or timedelta(
         seconds=max(3600 if waiting else 30, min(21600, 30 * 2 ** min(selected["attempts"], 10)))
     )
     with engine.begin() as connection:
@@ -268,6 +283,8 @@ def _commit(
     artifact: dict[str, Any],
 ) -> None:
     with engine.begin() as connection:
+        if selected["dataset"] == "contracts":
+            claiming.lock_catalog(connection)
         generation = connection.scalar(
             text("SELECT generation FROM data_sync_jobs WHERE request_id=:id FOR UPDATE"),
             {"id": selected["request_id"]},
@@ -314,27 +331,42 @@ def _commit(
         connection.execute(
             text(
                 "UPDATE data_sync_jobs SET receipt_id=:receipt,checked_at=CASE "
-                "WHEN source_generation IS NULL THEN now() ELSE checked_at END WHERE "
+                "WHEN source_generation IS NULL THEN now() "
+                "ELSE COALESCE(checked_at,now()) END WHERE "
                 "request_id=:id"
             ),
             {"id": selected["request_id"], "receipt": receipt},
         )
         if selected["dataset"] == "contracts":
+            changed = False
             for row in rows:
                 if not row.get("fut_code") or not row.get("exchange"):
                     raise ValueError("合约目录缺少品种或交易所")
-                connection.execute(
+                updated = connection.execute(
                     text("""INSERT INTO data_sync_contracts(ts_code,exchange,product,kind,details)
                     VALUES(:code,:exchange,:product,:kind,CAST(:details AS jsonb))
-                    ON CONFLICT(ts_code) DO UPDATE SET details=EXCLUDED.details"""),
+                    ON CONFLICT(ts_code) DO UPDATE SET details=EXCLUDED.details,
+                    exchange=EXCLUDED.exchange,product=EXCLUDED.product,kind=EXCLUDED.kind
+                    WHERE (data_sync_contracts.details,data_sync_contracts.exchange,
+                           data_sync_contracts.product,data_sync_contracts.kind)
+                    IS DISTINCT FROM (EXCLUDED.details,EXCLUDED.exchange,
+                                      EXCLUDED.product,EXCLUDED.kind)
+                    RETURNING ts_code"""),
                     {
                         "code": row["ts_code"],
                         "exchange": row["exchange"],
                         "product": row["fut_code"],
                         "kind": selected["parameters"]["fut_type"],
-                        "details": json.dumps(row),
+                        "details": json.dumps(
+                            {k: v for k, v in row.items() if k in BY_KEY["contracts"].fields}
+                        ),
                     },
                 )
+                changed = updated.scalar_one_or_none() is not None or changed
+            if changed:
+                # Continuous/product/market ranges also depend on other catalog rows.
+                # Re-plan on the same transaction; immutable jobs deduplicate by identity.
+                planning.invalidate_catalog(connection)
         if selected["dataset"] == "calendar":
             for row in rows:
                 connection.execute(

@@ -99,6 +99,7 @@ export type CommandField<P extends CommandPath> = {
   kind?: "integer" | "check" | "select";
   options?: { label: string; value: string | number }[];
   initial?: unknown;
+  optional?: boolean;
 };
 export function Action<P extends CommandPath>({
   title,
@@ -138,7 +139,13 @@ export function Action<P extends CommandPath>({
               runtime.id,
             );
             setResult(result);
-            message.success("内核已确认操作");
+            if ("status" in result && result.status === "REJECTED") {
+              message.warning("内核已拒绝此操作，请查看原因");
+            } else if ("status" in result && result.status === "UNKNOWN") {
+              message.warning("操作已完成，结果仍有未知项，请查看记录");
+            } else {
+              message.success("内核已确认操作");
+            }
             onDone?.(result);
           } catch (e) {
             message.error((e as Error).message);
@@ -157,7 +164,9 @@ export function Action<P extends CommandPath>({
                 f.initial ?? (f.kind === "check" ? false : undefined)
               }
               valuePropName={f.kind === "check" ? "checked" : "value"}
-              rules={f.kind === "check" ? [] : [{ required: true }]}
+              rules={
+                f.kind === "check" || f.optional ? [] : [{ required: true }]
+              }
             >
               {f.kind === "select" ? (
                 <Select
@@ -179,6 +188,8 @@ export function Action<P extends CommandPath>({
           htmlType="submit"
           disabled={!runtime.canControl || disabled}
           loading={busy}
+          aria-label={title}
+          aria-busy={busy}
         >
           {title}
         </Button>

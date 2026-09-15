@@ -20,7 +20,8 @@ def budget(arguments: argparse.Namespace, client: LiveClient) -> int:
         budget_result = budgets.create(
             arguments.stream_id,
             arguments.sequence,
-            arguments.order_check,
+            arguments.query,
+            arguments.entry,
             limit_price=limit_price,
             request_id=arguments.request_id,
         )
@@ -36,6 +37,7 @@ def execute(arguments: argparse.Namespace, client: LiveClient) -> int:
         broker_result = broker.query(
             arguments.instrument,
             request_id=arguments.request_id,
+            settlement_day=arguments.settlement_day,
         )
         print(json.dumps(broker_result, ensure_ascii=False))
         return 0 if broker_result["status"] == "COMPLETE" else 2
@@ -125,6 +127,9 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     parser.add_argument("batch_id", type=UUID)
     parser = commands.add_parser("query", help="显式发起有时限的 SimNow 只读查询")
     parser.set_defaults(scope="broker", operation="broker-query")
+    parser.add_argument(
+        "--settlement-day", help="同时查询指定日期结算原文（YYYY-MM-DD），不确认结算"
+    )
     parser.add_argument("--instrument", required=True, help="one concrete futures instrument")
     parser.add_argument(
         "--request-id", type=UUID, required=True, help="reuse to read an uncertain response"
@@ -179,7 +184,8 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     parser.set_defaults(scope="broker", operation="broker-opening-budget")
     parser.add_argument("stream_id", type=UUID)
     parser.add_argument("--sequence", type=int, required=True)
-    parser.add_argument("--order-check", type=UUID, required=True)
+    parser.add_argument("--query", type=UUID, required=True, help="接收连接的固定账户查询")
+    parser.add_argument("--entry", type=UUID, required=True, help="固定账本记录")
     parser.add_argument("--limit-price", required=True, help="exact decimal limit price")
     parser.add_argument("--request-id", type=UUID, required=True)
     parser = commands.add_parser("opening-budget-show", help="查看固定的历史预算")

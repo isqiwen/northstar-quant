@@ -1,4 +1,4 @@
-"""Incremental, bounded planning of all futures history, including expired contracts."""
+"""Bounded collection of complete lifetimes for already ended real contracts."""
 
 import hashlib
 import json
@@ -11,7 +11,12 @@ from sqlalchemy import Connection, Engine, text
 
 from northstar_quant import code_revision
 
+from ..contract_data.lifecycle import completed
+from ..contract_data.requirements import classify, requirement
+from . import products
 from .catalog import BY_KEY, DATASETS, EXCHANGES
+from .request_calendar import RequestCalendar
+from .request_calendar import load as load_calendar
 from .store import settings
 
 
@@ -22,8 +27,12 @@ def enqueue(
     parameters: dict[str, object],
     start: str,
     end: str,
-) -> None:
+) -> str | None:
+    # Persist the field selection with the request, including split/retry identities.
+    if BY_KEY[dataset].fields:
+        parameters = {**parameters, "fields": ",".join(BY_KEY[dataset].fields)}
     payload = json.dumps([dataset, scope, parameters], sort_keys=True)
+    identity = hashlib.sha256(payload.encode()).hexdigest()
     connection.execute(
         text("""INSERT INTO data_sync_jobs
         (request_id,identity,dataset,scope,parameters,start_at,end_at,code_revision)
@@ -31,7 +40,7 @@ def enqueue(
         ON CONFLICT(identity) DO NOTHING"""),
         {
             "id": uuid4(),
-            "identity": hashlib.sha256(payload.encode()).hexdigest(),
+            "identity": identity,
             "dataset": dataset,
             "scope": scope,
             "params": json.dumps(parameters),
@@ -40,6 +49,20 @@ def enqueue(
             "revision": code_revision(),
         },
     )
+
+    connection.execute(
+        text("""INSERT INTO data_contract_requests(scope,request_id)
+        SELECT w.scope,j.request_id FROM data_contract_collections w CROSS JOIN data_sync_jobs j
+        WHERE w.scope=:scope AND j.identity=:identity ON CONFLICT DO NOTHING"""),
+        dict(scope=scope, identity=identity),
+    )
+    return identity
+
+
+def invalidate_catalog(connection: Connection) -> None:
+    """Replan dependent ranges without resetting downloaded jobs or coverage."""
+    connection.execute(text("UPDATE data_sync_contracts SET planned_revision=0"))
+    connection.execute(text("UPDATE data_sync_settings SET planned_at=NULL"))
 
 
 def target_day() -> date:
@@ -55,7 +78,6 @@ def refresh(engine: Engine) -> None:
     now = datetime.now(UTC)
     if datetime.fromisoformat(config["refresh_at"]) > now:
         return
-    target = target_day()
     with engine.begin() as connection:
         for exchange in EXCHANGES:
             for kind in ("1", "2"):
@@ -67,20 +89,19 @@ def refresh(engine: Engine) -> None:
                     "",
                     "",
                 )
-        # Catalog and recent windows are rechecked daily; old windows also rotate
-        # through a 90-day recheck, with the next-request time persisted independently.
+        # Ended lifetimes are fixed. Refresh discovery without silently reopening
+        # already published or rejected contracts and their internal request windows.
         connection.execute(
             text("""UPDATE data_sync_jobs SET status='PENDING',next_at=now(),attempts=0
-            WHERE status='VALIDATED' AND
-            (dataset='contracts' OR checked_at < now()-interval '90 days'
-             OR end_at >= :recent)"""),
-            {"recent": (target - timedelta(days=config["lookback"] * 2)).isoformat()},
+            WHERE status='VALIDATED' AND dataset='contracts'""")
         )
-        # A coverage hole must be repaired even when newer ranges already exist.
         connection.execute(
             text("""UPDATE data_sync_jobs j SET status='PENDING',next_at=now()
-            WHERE status='VALIDATED' AND NOT EXISTS
-            (SELECT 1 FROM data_sync_coverage c WHERE c.request_id=j.request_id)""")
+            WHERE j.status='VALIDATED' AND NOT EXISTS (
+                SELECT 1 FROM data_sync_coverage v WHERE v.request_id=j.request_id)
+            AND EXISTS (SELECT 1 FROM data_contract_requests cr
+                JOIN data_contract_collections w ON w.scope=cr.scope
+                WHERE cr.request_id=j.request_id AND w.status IN ('COLLECTING','VERIFYING'))""")
         )
         connection.execute(
             text("""UPDATE data_sync_settings SET revision=revision+1,
@@ -91,56 +112,73 @@ def refresh(engine: Engine) -> None:
 def plan(engine: Engine) -> None:
     config = settings(engine)
     target = target_day()
+    if not config["enabled"]:
+        return
     with engine.begin() as connection:
+        connection.execute(
+            text("""UPDATE data_contract_collections w SET status='VERIFYING',
+            updated_at=now() WHERE status='COLLECTING' AND discovery_complete AND NOT EXISTS(
+                SELECT 1 FROM data_contract_requests cr JOIN data_sync_jobs j USING(request_id)
+                WHERE cr.scope=w.scope AND j.status IN ('PENDING','RUNNING'))""")
+        )
+        # Finish catalog discovery before comparing historical candidates across exchanges.
+        if connection.scalar(
+            text("""SELECT EXISTS(SELECT 1 FROM data_sync_jobs
+            WHERE dataset='contracts' AND status IN ('PENDING','RUNNING','WAITING'))""")
+        ):
+            return
         contracts = (
             connection.execute(
-                text("""SELECT * FROM data_sync_contracts
-            WHERE planned_revision<>:revision ORDER BY ts_code LIMIT 8 FOR UPDATE"""),
-                {"revision": config["revision"]},
+                text("""SELECT d.* FROM data_sync_contracts d
+            LEFT JOIN data_contract_collections w ON w.scope=d.ts_code
+            WHERE planned_revision<>:revision AND kind='1'
+            AND (w.scope IS NULL OR w.status IN ('COLLECTING','VERIFYING'))
+            AND details->>'delist_date' ~ '^[0-9]{8}$'
+            AND d.exchange || ':' || d.product=ANY(CAST(:products AS text[]))
+            AND details->>'delist_date'<:today
+            AND (COALESCE(details->>'list_date','') !~ '^[0-9]{8}$'
+                OR details->>'list_date'>=:listing_start)
+            ORDER BY array_position(CAST(:products AS text[]),d.exchange || ':' || d.product),
+                details->>'list_date',details->>'delist_date',ts_code LIMIT 1 FOR UPDATE OF d"""),
+                dict(
+                    revision=config["revision"],
+                    listing_start=products.LISTING_START.strftime("%Y%m%d"),
+                    today=target.strftime("%Y%m%d"),
+                    products=config["selected_products"],
+                ),
             )
             .mappings()
             .all()
         )
         for contract in contracts:
-            details = contract["details"]
-            start_text = details.get("list_date")
-            end_text = details.get("delist_date")
-            if not start_text:
-                # Continuous instruments use the earliest actual contract for their product.
-                start_text = connection.scalar(
-                    text("""SELECT min(details->>'list_date')
-                    FROM data_sync_contracts WHERE exchange=:e AND product=:p AND kind='1'
-                    AND length(details->>'list_date')=8"""),
-                    {"e": contract["exchange"], "p": contract["product"]},
-                )
             try:
-                if not start_text:
-                    raise ValueError("missing listing")
-                start = datetime.strptime(start_text, "%Y%m%d").date()
-                end = (
-                    min(target, datetime.strptime(end_text, "%Y%m%d").date())
-                    if end_text
-                    else target
-                )
-                if start > target:
-                    connection.execute(
-                        text("""UPDATE data_sync_contracts SET planned_revision=:r,
-                        planning_error=NULL WHERE ts_code=:code"""),
-                        {"r": config["revision"], "code": contract["ts_code"]},
-                    )
-                    continue
-                if start > end:
-                    raise ValueError("invalid lifetime")
-            except (ValueError, TypeError):
+                lifetime = completed(contract, today=target)
+            except ValueError as error:
                 connection.execute(
                     text("""UPDATE data_sync_contracts SET planned_revision=:r,
-                    planning_error='上市或到期范围缺失/无效，等待目录复核' WHERE ts_code=:code"""),
-                    {"r": config["revision"], "code": contract["ts_code"]},
+                    planning_error=:reason WHERE ts_code=:scope"""),
+                    dict(r=config["revision"], reason=str(error), scope=contract["ts_code"]),
                 )
                 continue
-            for year in range(start.year, target.year + 1):
-                a, b = date(year, 1, 1), min(date(year, 12, 31), target)
-                enqueue(
+            start, end = lifetime.start, lifetime.end
+            connection.execute(
+                text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
+                VALUES(:scope,:start,:end) ON CONFLICT(scope) DO UPDATE
+                SET start_date=excluded.start_date,end_date=excluded.end_date,
+                    status='COLLECTING',discovery_complete=false,reason=NULL,updated_at=now()
+                WHERE (data_contract_collections.start_date,data_contract_collections.end_date)
+                    IS DISTINCT FROM (excluded.start_date,excluded.end_date)"""),
+                dict(scope=contract["ts_code"], start=start, end=end),
+            )
+            connection.execute(
+                text("""INSERT INTO data_contract_requests(scope,request_id)
+                SELECT :owner,request_id FROM data_sync_jobs
+                WHERE dataset='contracts' AND scope=:exchange ON CONFLICT DO NOTHING"""),
+                dict(owner=contract["ts_code"], exchange=contract["exchange"]),
+            )
+            for year in range(start.year - 1, end.year + 1):
+                a, b = date(year, 1, 1), date(year, 12, 31)
+                identity = enqueue(
                     connection,
                     "calendar",
                     contract["exchange"],
@@ -152,36 +190,35 @@ def plan(engine: Engine) -> None:
                     a.isoformat(),
                     b.isoformat(),
                 )
+                _link(connection, contract["ts_code"], identity)
+            calendar = load_calendar(connection, contract["exchange"], start, end)
+            if calendar is None:
+                # Keep planned_revision unchanged so the next calendar arrival resumes planning.
+                return
+            from .products import probe
+
+            if not probe(connection, contract, start, end, calendar):
+                return
             for dataset in DATASETS:
+                if not requirement(classify(contract), dataset.key).collect:
+                    continue
                 if dataset.scope in ("catalog", "calendar"):
                     continue
-                if dataset.scope == "continuous" and contract["kind"] != "2":
-                    continue
-                if dataset.scope == "contract" and contract["kind"] != "1":
-                    continue
-                if dataset.scope in ("product", "market") and contract["kind"] != "1":
+                if dataset.key == "weekly_detail":
+                    # Historical supplier week identifiers are neither consistently
+                    # zero-padded nor ISO weeks. Read bounded native-year envelopes;
+                    # record review uses week_date, never a guessed ISO conversion.
+                    for year in range(start.year, end.year + 1):
+                        _window(
+                            connection,
+                            dataset.key,
+                            contract,
+                            date(year, 1, 1),
+                            date(year, 12, 31),
+                            owner=contract["ts_code"],
+                        )
                     continue
                 window_start, window_end = start, end
-                if dataset.scope in ("product", "market"):
-                    condition = "kind='1'"
-                    params = {}
-                    if dataset.scope == "product":
-                        condition += " AND exchange=:e AND product=:p"
-                        params = {"e": contract["exchange"], "p": contract["product"]}
-                    group = (
-                        connection.execute(
-                            text(f"""SELECT min(ts_code) AS first,
-                        min(details->>'list_date') AS begin FROM data_sync_contracts
-                        WHERE {condition} AND length(details->>'list_date')=8"""),
-                            params,
-                        )
-                        .mappings()
-                        .one()
-                    )
-                    if contract["ts_code"] != group["first"]:
-                        continue
-                    window_start = datetime.strptime(group["begin"], "%Y%m%d").date()
-                    window_end = target
                 # Calendar-month shards stay fixed. The open month uses daily shards,
                 # so the current cycle's endpoint never grows underneath a running task.
                 cursor = window_start.replace(day=1)
@@ -190,10 +227,26 @@ def plan(engine: Engine) -> None:
                     stop = min(next_month - timedelta(days=1), window_end)
                     a = max(window_start, cursor)
                     if next_month <= target.replace(day=1):
-                        _window(connection, dataset.key, contract, a, stop)
+                        _window(
+                            connection,
+                            dataset.key,
+                            contract,
+                            a,
+                            stop,
+                            owner=contract["ts_code"],
+                            calendar=calendar,
+                        )
                     else:
                         while a <= stop:
-                            _window(connection, dataset.key, contract, a, a)
+                            _window(
+                                connection,
+                                dataset.key,
+                                contract,
+                                a,
+                                a,
+                                owner=contract["ts_code"],
+                                calendar=calendar,
+                            )
                             a += timedelta(days=1)
                     cursor = next_month
             connection.execute(
@@ -209,12 +262,35 @@ def plan(engine: Engine) -> None:
             )
 
 
-def _window(connection: Connection, key: str, contract: Any, start: date, end: date) -> None:
+def _window(
+    connection: Connection,
+    key: str,
+    contract: Any,
+    start: date,
+    end: date,
+    *,
+    owner: str,
+    calendar: RequestCalendar | None = None,
+) -> None:
+    if end < start:
+        return
     dataset = BY_KEY[key]
+    if key in {"week", "month"}:
+        # The API filters supplier period labels, not the last trading day of
+        # this contract. Include its final (possibly partial) native period.
+        from ..contract_data.record_review import period
+
+        end = max(end, period(end, key))
+    request_start, request_end = start, end
+    if calendar is not None and key not in {"week", "month", "weekly_detail"}:
+        bounds = calendar.bounds(start, end, minute=dataset.api == "ft_mins")
+        if bounds is None:
+            return
+        request_start, request_end = bounds
     scope = contract["ts_code"]
     params: dict[str, object] = {
-        "start_date": start.strftime("%Y%m%d"),
-        "end_date": end.strftime("%Y%m%d"),
+        "start_date": request_start.strftime("%Y%m%d"),
+        "end_date": request_end.strftime("%Y%m%d"),
     }
     if dataset.scope in ("contract", "continuous"):
         params["ts_code"] = contract["ts_code"]
@@ -227,28 +303,92 @@ def _window(connection: Connection, key: str, contract: Any, start: date, end: d
         params["freq"] = dataset.frequency
     if dataset.api == "ft_mins":
         params.update(
-            start_date=f"{start.isoformat()} 00:00:00", end_date=f"{end.isoformat()} 23:59:59"
+            start_date=f"{request_start.isoformat()} 00:00:00",
+            end_date=f"{request_end.isoformat()} 23:59:59",
         )
     if dataset.api == "fut_weekly_detail":
         params = {
             "exchange": contract["exchange"],
             "prd": contract["product"],
-            "start_week": start.strftime("%G%V"),
-            "end_week": end.strftime("%G%V"),
+            "start_week": f"{start.year}00",
+            # Some year-start report identifiers label the preceding December.
+            "end_week": f"{end.year + 1}99",
         }
-    enqueue(connection, key, scope, params, start.isoformat(), end.isoformat())
+    identity = enqueue(connection, key, scope, params, start.isoformat(), end.isoformat())
+    _link(connection, owner, identity)
+
+
+def _link(connection: Connection, owner: str, identity: str | None) -> None:
+    connection.execute(
+        text("""INSERT INTO data_contract_requests(scope,request_id)
+        SELECT :scope,request_id FROM data_sync_jobs WHERE identity=:identity
+        ON CONFLICT DO NOTHING"""),
+        dict(scope=owner, identity=identity),
+    )
 
 
 def split(connection: Connection, job: dict[str, Any]) -> bool:
+    if job["dataset"] == "weekly_detail":
+        # Splitting calendar days would reproduce the same native-year query and
+        # can link a truncated parent to itself. One product/two years is already
+        # bounded well below this API's 4000-row limit; overflow needs diagnosis.
+        return False
     start, end = date.fromisoformat(job["start_at"]), date.fromisoformat(job["end_at"])
     if start >= end:
         return False
+    exchange = connection.scalar(
+        text("SELECT exchange FROM data_sync_contracts WHERE ts_code=:scope"),
+        dict(scope=job["scope"]),
+    )
+    if exchange is None and ":" in job["scope"]:
+        exchange = job["scope"].split(":", 1)[0]
+    calendar = load_calendar(connection, exchange, start, end) if exchange else None
     middle = start + (end - start) // 2
     for a, b in ((start, middle), (middle + timedelta(days=1), end)):
         params = dict(job["parameters"])
-        if BY_KEY[job["dataset"]].api == "ft_mins":
-            params.update(start_date=f"{a} 00:00:00", end_date=f"{b} 23:59:59")
+        minute = BY_KEY[job["dataset"]].api == "ft_mins"
+        bounds: tuple[date, date] | None = (a, b)
+        if calendar is not None and job["dataset"] not in {"week", "month", "calendar"}:
+            bounds = calendar.bounds(a, b, minute=minute)
+        if bounds is None:
+            continue
+        left, right = bounds
+        if minute:
+            params.update(start_date=f"{left} 00:00:00", end_date=f"{right} 23:59:59")
+            # Retain parent edge coverage even when recovering a previously
+            # downloaded request without enough calendar projection to replan.
+            if a == start:
+                params["start_date"] = job["parameters"].get("start_date", params["start_date"])
+            if b == end:
+                params["end_date"] = job["parameters"].get("end_date", params["end_date"])
         else:
-            params.update(start_date=a.strftime("%Y%m%d"), end_date=b.strftime("%Y%m%d"))
-        enqueue(connection, job["dataset"], job["scope"], params, a.isoformat(), b.isoformat())
+            params.update(start_date=left.strftime("%Y%m%d"), end_date=right.strftime("%Y%m%d"))
+        if params == job["parameters"]:
+            # Removing closed dates may leave one identical supplier envelope.
+            # It cannot be split further this way; never create a self retry.
+            return False
+        child = enqueue(
+            connection, job["dataset"], job["scope"], params, a.isoformat(), b.isoformat()
+        )
+        connection.execute(
+            text("""INSERT INTO data_contract_requests(scope,request_id)
+            SELECT parent.scope,j.request_id FROM data_contract_requests parent
+            CROSS JOIN data_sync_jobs j WHERE parent.request_id=:parent AND j.identity=:child
+            ON CONFLICT DO NOTHING"""),
+            dict(parent=job["request_id"], child=child),
+        )
+        connection.execute(
+            text("""INSERT INTO data_series_requests(dataset,scope,request_id)
+            SELECT parent.dataset,parent.scope,j.request_id FROM data_series_requests parent
+            CROSS JOIN data_sync_jobs j WHERE parent.request_id=:parent AND j.identity=:child
+            ON CONFLICT DO NOTHING"""),
+            dict(parent=job["request_id"], child=child),
+        )
+        connection.execute(
+            text("""UPDATE data_sync_jobs SET status='PENDING',
+            next_at=now(),error='截断后拆分，按此区间下载' WHERE identity=:id
+            AND status='SPLIT' AND attempts=0 AND error LIKE '合并下载%'
+            AND receipt_id IS NULL AND source_generation IS NULL"""),
+            {"id": child},
+        )
     return True

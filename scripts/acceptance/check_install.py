@@ -2,7 +2,7 @@
 
 Runs with the installed interpreter and launches the installed entrypoint from
 an empty working directory; setup imports resolve from that installed package. The study is the
-synthetic intraday example; no application database is reset or deleted.
+synthetic intraday example; only the explicitly named disposable test database is reset.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from sqlalchemy import create_engine, text
 from support.broker import check_broker_access
 from support.catalog import check_catalog
 from support.evidence import save as save_evidence
@@ -43,6 +44,16 @@ def main() -> None:
         or parsed.fragment
     ):
         parser.error("NORTHSTAR_TEST_DATABASE_URL must name disposable northstar_quant_test")
+
+    # Each run owns temporary files. Retaining database references from an earlier
+    # run would mix identities and point at files that its context already removed.
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("DROP SCHEMA public CASCADE"))
+            connection.execute(text("CREATE SCHEMA public"))
+    finally:
+        engine.dispose()
 
     environment = dict(os.environ, NORTHSTAR_DATABASE_URL=database_url)
     environment.pop("PYTHONPATH", None)
@@ -143,9 +154,17 @@ def main() -> None:
                 summary = saved["result"]["summary"]
                 assert summary["bar_count"] == 12, summary
                 assert summary["decision_count"] == 11, summary
-                assert summary["fill_count"] == 7, summary
-                assert Decimal(summary["total_fees"]) == Decimal(70), summary
-                assert Decimal(summary["ending_equity"]) == Decimal(94580), summary
+                # Short 3169→3221: -2600; terminal short 3159 marked at 3160: -50.
+                # Three fills × five lots × fee 2. Terminal inventory is not invented flat.
+                assert summary["fill_count"] == 3, summary
+                assert Decimal(summary["total_fees"]) == Decimal(30), summary
+                assert Decimal(summary["ending_equity"]) == Decimal(97320), summary
+                assert summary["ending_position_lots"] == -5, summary
+                assert [(item["side"], item["price"]) for item in saved["result"]["fills"]] == [
+                    ("SELL", "3169"),
+                    ("BUY", "3221"),
+                    ("SELL", "3159"),
+                ]
                 assert Decimal(summary["ending_equity"]) == (
                     Decimal(summary["initial_cash"])
                     + Decimal(summary["realized_pnl"])
@@ -291,9 +310,10 @@ def main() -> None:
                         request(f"{research_url}/api/runs/{submitted['run_id']}")
                     )
                     assert submitted_run["result"]["summary"] == summary
-                    catalog_evidence = check_catalog(
-                        request, research_url, snapshot_id, configuration, run_id
-                    )
+                    with application.research_worker():
+                        catalog_evidence = check_catalog(
+                            request, research_url, snapshot_id, configuration, run_id
+                        )
                     assert json.loads(request(f"{research_url}/api/runs/{run_id}")) == saved
                     assert request(f"{base_url}/health/ready")
                     assert (

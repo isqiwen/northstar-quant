@@ -39,6 +39,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             run()
             return 0
+        if arguments.operation == "live-monitor":
+            from northstar_quant.live.monitor import run
+
+            run()
+            return 0
         if arguments.scope == "serve":
             from northstar_quant.apps.launch import serve
 
@@ -122,7 +127,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(result, ensure_ascii=False))
             return 0
         if arguments.operation == "restore":
-            from northstar_quant.apps.maintenance import restore
+            from northstar_quant.data_management.backup import restore
 
             data_root = os.environ.get("NORTHSTAR_DATA_DIR")
             if not data_root:

@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import protocol from "../../apps/live/api/protocol.json";
 import codec from "../../apps/live/api/codec";
 const bytes = {
-  session: [10, 5, 116, 111, 107, 101, 110],
+  session: [
+    40, 0, 8, 1, 18, 5, 116, 111, 107, 101, 110, 26, 5, 111, 119, 110, 101, 114,
+    242, 127, 10, 101, 120, 112, 105, 114, 101, 115, 95, 97, 116,
+  ],
   budget: [
     10, 6, 98, 117, 100, 103, 101, 116, 194, 62, 20, 10, 6, 115, 116, 97, 116,
     117, 115, 18, 10, 26, 8, 82, 69, 67, 79, 82, 68, 69, 68,
@@ -65,7 +68,8 @@ describe("fixed Protobuf commands", () => {
       request_id: "saved-command",
       limit_price: "1234567890.123456789",
       sequence: 7,
-      order_check_id: "check",
+      query_id: "query",
+      entry_id: "entry",
     };
     const first = api.mutate(
       "/api/streams/s/opening-budgets",
@@ -110,7 +114,6 @@ describe("fixed Protobuf commands", () => {
       id: "fixed",
       runtime: "runtime",
       status: "UNKNOWN",
-      body: { action: "STOP" },
     });
     await expect(
       api.mutate(
@@ -126,7 +129,7 @@ describe("fixed Protobuf commands", () => {
     async (kind) => {
       const result =
         kind === "unknown"
-          ? response("unknown")
+          ? response("unknown", 503)
           : new Response("gateway", {
               status: kind === "unavailable" ? 503 : 200,
             });
@@ -148,6 +151,29 @@ describe("fixed Protobuf commands", () => {
       expect(api.pendingCommand()?.status).toBe("UNKNOWN");
     },
   );
+  it("shows a completed unknown budget without locking further commands", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(response("session"))
+        .mockResolvedValueOnce(response("unknown")),
+    );
+    const api = await import("../../shared/api");
+    const result = await api.mutate(
+      "/api/streams/s/opening-budgets",
+      {
+        request_id: "fixed",
+        sequence: 5,
+        query_id: "query",
+        entry_id: "entry",
+        limit_price: "3110",
+      },
+      "runtime",
+    );
+    expect(result).toMatchObject({ status: "UNKNOWN", budget_id: "s" });
+    expect(api.pendingCommand()).toBeNull();
+  });
   it("rejects denied commands without replay", async () => {
     const fetch = vi
       .fn()
@@ -226,7 +252,8 @@ it("submits commands on LAN HTTP without crypto.randomUUID", async () => {
         request_id: id,
         limit_price: "123.45",
         sequence: 7,
-        order_check_id: "check",
+        query_id: "query",
+        entry_id: "entry",
       }),
     ).resolves.toMatchObject({ status: "RECORDED" });
     expect(fetch).toHaveBeenCalledTimes(2);
@@ -234,4 +261,96 @@ it("submits commands on LAN HTTP without crypto.randomUUID", async () => {
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+it("does not persist credentials when a response is lost", async () => {
+  const api = await import("../../shared/api");
+  const data = await import("../../apps/data_hub/api/protocol.json");
+  const dataCodec = await import("../../apps/data_hub/api/codec");
+  api.registerProtocol(data.default, dataCodec.default);
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(response("session"))
+    .mockRejectedValueOnce(new Error("lost"));
+  vi.stubGlobal("fetch", fetch);
+  await expect(
+    api.mutate("/api/sync/token", { token: "private-token" }),
+  ).rejects.toThrow("未知");
+  expect(JSON.stringify([...memory.values()])).not.toContain("private-token");
+  expect(api.pendingCommand()?.path).toBe("/api/sync/token");
+});
+
+it("returns to login on 401 without retrying a rejected command", async () => {
+  const api = await import("../../shared/api");
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(response("session"))
+    .mockResolvedValueOnce(response("forbidden", 401));
+  vi.stubGlobal("fetch", fetch);
+  await expect(
+    api.mutate("/api/streams/s/control", {
+      request_id: "fixed",
+      action: "STOP",
+    }),
+  ).rejects.toThrow("Forbidden");
+  expect(api.pendingCommand()).toBeNull();
+  expect(window.dispatchEvent).toHaveBeenCalled();
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
+
+it("decodes Python cash-flow facts without losing precision or reversal identity", async () => {
+  const { decodeResponse } = await import("../../shared/protobuf");
+  // Produced by the Python PositionEntry packer; these are synthetic facts.
+  const payload = await decodeResponse(
+    "GET",
+    "/api/broker/position-entries/entry",
+    new Response(
+      new Uint8Array(
+        Buffer.from(
+          "CgVlbnRyeRKCAQoHZGVwb3NpdBIdMTIzNDU2Nzg5MC4xMjM0NTY3ODkwMTIzNDU2NzgaA0NOWSIZMjAyNi0wOS0wN1QwMTowMDowMSswMDowMCoZMjAyNi0wOS0wN1QwMTowMDowMiswMDowMDIPc3RyZWFtOnNvdXJjZToy8n8LcmV2ZXJzZXNfaWQSfwoIcmV2ZXJzYWwSHi0xMjM0NTY3ODkwLjEyMzQ1Njc4OTAxMjM0NTY3OBoDQ05ZIhkyMDI2LTA5LTA3VDAxOjAwOjAxKzAwOjAwKhkyMDI2LTA5LTA3VDAxOjAwOjAyKzAwOjAwMg9zdHJlYW06c291cmNlOjM6B2RlcG9zaXQ=",
+          "base64",
+        ),
+      ),
+      {
+        headers: { "content-type": "application/protobuf" },
+      },
+    ),
+  );
+  expect(payload).toMatchObject({
+    entry_id: "entry",
+    added_cash_flows: [
+      {
+        cash_flow_id: "deposit",
+        amount: "1234567890.123456789012345678",
+        reverses_id: null,
+      },
+      {
+        cash_flow_id: "reversal",
+        amount: "-1234567890.123456789012345678",
+        reverses_id: "deposit",
+      },
+    ],
+  });
+});
+
+it("removes an erroneous polling notice while retaining real uncertain commands", async () => {
+  const api = await import("../../shared/api");
+  memory.set(
+    "northstar.pending-command",
+    JSON.stringify({
+      id: "poll",
+      path: "/api/sync/jobs/query",
+      status: "UNKNOWN",
+    }),
+  );
+  expect(api.pendingCommand()).toBeNull();
+  memory.set(
+    "northstar.pending-command",
+    JSON.stringify({
+      id: "order",
+      path: "/api/streams/s/control",
+      status: "UNKNOWN",
+    }),
+  );
+  expect(api.pendingCommand()?.id).toBe("order");
 });

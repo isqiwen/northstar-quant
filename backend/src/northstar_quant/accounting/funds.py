@@ -23,11 +23,11 @@ from sqlalchemy import (
     String,
     Table,
     UniqueConstraint,
+    Uuid,
     select,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
@@ -36,18 +36,18 @@ from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.accounting.observations import compare_account_amounts
 from northstar_quant.broker.account_reports import account_observation
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.broker.records import BrokerRecords
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _entries = Table(
     "broker_funds_entries",
     _metadata,
-    Column("entry_id", PGUUID(as_uuid=True), primary_key=True),
-    Column("baseline_id", PGUUID(as_uuid=True), nullable=False),
-    Column("source_batch_id", PGUUID(as_uuid=True), nullable=False),
+    Column("entry_id", Uuid(as_uuid=True), primary_key=True),
+    Column("baseline_id", Uuid(as_uuid=True), nullable=False),
+    Column("source_batch_id", Uuid(as_uuid=True), nullable=False),
     Column("ordinal", Integer, nullable=False),
-    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("baseline_id", "ordinal"),
@@ -93,6 +93,47 @@ def _time(value: str) -> datetime:
     return result
 
 
+def _comparison(
+    initial: dict[str, Any], prior: dict[str, Any], observation: dict[str, Any]
+) -> dict[str, Any]:
+    """Rebuild derived amounts and uncertainty from retained broker observations."""
+
+    def compare(previous: dict[str, Any]) -> dict[str, object]:
+        return compare_account_amounts(
+            previous["amounts"],
+            observation["amounts"],
+            same_scope=bool(
+                previous["scope_confirmed"]
+                and observation["scope_confirmed"]
+                and previous["scope"] == observation["scope"]
+            ),
+        )
+
+    interval, since_baseline = compare(prior), compare(initial)
+    problems = sorted(
+        set(
+            initial["problems"]
+            + prior["problems"]
+            + observation["problems"]
+            + interval["problems"]
+            + since_baseline["problems"]
+        )
+    )
+    return {
+        "observation": observation,
+        "interval_start": {
+            "source_batch_id": prior["source_batch_id"],
+            "account_receipts": prior["account_receipts"],
+        },
+        "interval": interval,
+        "since_baseline": since_baseline,
+        "status": "UNKNOWN" if problems else "OBSERVED",
+        "problems": problems,
+        "reconciliation": "UNRECONCILED",
+        "execution": {"order_sending": False, "cancel_sending": False},
+    }
+
+
 class BrokerFunds:
     """One bounded account book of cumulative observations and signed intervals."""
 
@@ -113,11 +154,12 @@ class BrokerFunds:
             )
         if len(rows) > 1000:
             raise ValueError("account money book exceeds its bounded entry limit")
+        initial = account_observation(self._records.get(UUID(baseline["source_batch_id"])))
         result: list[dict[str, Any]] = []
         for ordinal, row in enumerate(rows, 1):
             entry = row["document"]
             previous = result[-1] if result else None
-            source = self._records.get(row["source_batch_id"])
+            source: dict[str, Any] = self._records.get(row["source_batch_id"])
             if (
                 _hash(entry) != row["sha256"]
                 or entry["entry_id"] != str(row["entry_id"])
@@ -133,14 +175,39 @@ class BrokerFunds:
                 or entry["previous_hash"] != (None if previous is None else _hash(previous))
             ):
                 raise ValueError("account money evidence or fixed source chain is damaged")
-            position = entry["position_reference"]
+            prior = initial if previous is None else previous["observation"]
+            observation = account_observation(source)
+            capture = source["capture"]
             if (
-                position is not None
-                and _hash(self._positions.get(UUID(position["entry_id"]))) != position["sha256"]
+                source["profile"] != baseline["profile"]
+                or source["account_id"] != baseline["account_id"]
+                or capture is None
+                or _time(capture["started_at"]) <= _time(baseline["recorded_at"])
+                or _time(capture["started_at"]) <= _time(prior["query_finished_at"])
+                or _time(capture["finished_at"]) >= row["recorded_at"]
+                or any(
+                    entry.get(key) != value
+                    for key, value in _comparison(initial, prior, observation).items()
+                )
             ):
-                raise ValueError("account money position reference is damaged")
+                raise ValueError("account money projection differs from retained broker evidence")
+            self._verify_position(entry["position_reference"], baseline_id, row["recorded_at"])
             result.append(entry)
         return result
+
+    def _verify_position(
+        self, reference: dict[str, Any] | None, baseline_id: UUID, recorded_at: datetime
+    ) -> None:
+        if reference is None:
+            return
+        retained = self._positions.get(UUID(reference["entry_id"]))
+        if (
+            _hash(retained) != reference["sha256"]
+            or retained["baseline_id"] != str(baseline_id)
+            or retained["ordinal"] != reference["ordinal"]
+            or _time(retained["recorded_at"]) > recorded_at
+        ):
+            raise ValueError("account money position reference is damaged")
 
     def get(self, entry_id: UUID) -> dict[str, Any]:
         if not isinstance(entry_id, UUID):
@@ -203,27 +270,8 @@ class BrokerFunds:
             if _time(capture["started_at"]) <= _time(prior["query_finished_at"]):
                 raise ValueError("money observations require ordered non-overlapping queries")
             observation = account_observation(batch)
-            same_scope = (
-                prior["scope_confirmed"]
-                and observation["scope_confirmed"]
-                and prior["scope"] == observation["scope"]
-            )
-            interval = compare_account_amounts(
-                prior["amounts"], observation["amounts"], same_scope=bool(same_scope)
-            )
-            since_baseline = compare_account_amounts(
-                initial["amounts"],
-                observation["amounts"],
-                same_scope=(
-                    initial["scope_confirmed"]
-                    and observation["scope_confirmed"]
-                    and initial["scope"] == observation["scope"]
-                ),
-            )
+            comparison = _comparison(initial, prior, observation)
             current = self._positions.context(source_batch_id)["current"]
-            problems = sorted(
-                set(observation["problems"] + interval["problems"] + since_baseline["problems"])
-            )
             now = datetime.now(UTC)
             document = {
                 "entry_id": str(request_id),
@@ -236,13 +284,7 @@ class BrokerFunds:
                 "previous_hash": None if previous is None else _hash(previous),
                 "recorded_at": now.isoformat(),
                 "code_revision": code_revision(),
-                "observation": observation,
-                "interval_start": {
-                    "source_batch_id": prior["source_batch_id"],
-                    "account_receipts": prior["account_receipts"],
-                },
-                "interval": interval,
-                "since_baseline": since_baseline,
+                **comparison,
                 "position_reference": None
                 if current is None
                 else {
@@ -250,10 +292,6 @@ class BrokerFunds:
                     "ordinal": current["ordinal"],
                     "sha256": _hash(current),
                 },
-                "status": "UNKNOWN" if problems else "OBSERVED",
-                "problems": problems,
-                "reconciliation": "UNRECONCILED",
-                "execution": {"order_sending": False, "cancel_sending": False},
                 "limitations": [
                     "CUMULATIVE_ACCOUNT_AMOUNTS_NOT_INDIVIDUAL_FILL_FEES",
                     "QUERY_RECEIPT_TIME_NOT_ACCOUNT_SNAPSHOT_TIME",
@@ -263,6 +301,7 @@ class BrokerFunds:
                     "NO_SETTLEMENT_RESERVATION_OR_EXECUTION_AUTHORITY",
                 ],
             }
+            self._verify_position(document["position_reference"], baseline_id, now)
             connection.execute(
                 (sqlite_insert if connection.dialect.name == "sqlite" else pg_insert)(_entries)
                 .values(

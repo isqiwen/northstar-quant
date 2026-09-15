@@ -1,6 +1,8 @@
 from google.protobuf import struct_pb2 as _struct_pb2
 from northstar_quant.web import api_options_pb2 as _api_options_pb2
 from northstar_quant.web import common_pb2 as _common_pb2
+from northstar_quant.web import auth_pb2 as _web_auth_pb2
+from northstar_quant.accounting import protocol_pb2 as _accounting_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -26,6 +28,12 @@ class InstanceCatalog(_message.Message):
     instances: _containers.RepeatedCompositeFieldContainer[InstanceRecord]
     production_available: bool
     def __init__(self, instances: _Optional[_Iterable[_Union[InstanceRecord, _Mapping]]] = ..., production_available: _Optional[bool] = ...) -> None: ...
+
+class AccountQueryRequest(_message.Message):
+    __slots__ = ("request_id",)
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    def __init__(self, request_id: _Optional[str] = ...) -> None: ...
 
 class AccountCatchupRequest(_message.Message):
     __slots__ = ("baseline_id", "request_id", "through_sequence")
@@ -78,7 +86,7 @@ class ArchiveAttempt(_message.Message):
     def __init__(self, attempt_id: _Optional[str] = ..., parameters: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., snapshot_id: _Optional[str] = ..., source_id: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ArchiveDataset(_message.Message):
-    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "live_runtime", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields")
+    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "live_runtime", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields", "settlements", "terms")
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
     BAR_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -100,6 +108,8 @@ class ArchiveDataset(_message.Message):
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
     TRADING_DAYS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENTS_FIELD_NUMBER: _ClassVar[int]
+    TERMS_FIELD_NUMBER: _ClassVar[int]
     availability_basis: str
     availability_note: str
     bar_count: int
@@ -121,7 +131,9 @@ class ArchiveDataset(_message.Message):
     symbol: str
     trading_days: _containers.RepeatedScalarFieldContainer[str]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., live_runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    settlements: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.SettlementFact]
+    terms: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.FuturesTerms]
+    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., live_runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_accounting_pb2.SettlementFact, _Mapping]]] = ..., terms: _Optional[_Iterable[_Union[_accounting_pb2.FuturesTerms, _Mapping]]] = ...) -> None: ...
 
 class ArchiveReprocessRequest(_message.Message):
     __slots__ = ("request_id", "spec")
@@ -244,23 +256,15 @@ class BrokerStatus(_message.Message):
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     def __init__(self, connection: _Optional[str] = ..., credentials: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution: _Optional[_Mapping[str, bool]] = ..., profiles: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., sdk: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
-class BrowserSession(_message.Message):
-    __slots__ = ("csrf",)
-    CSRF_FIELD_NUMBER: _ClassVar[int]
-    csrf: str
-    def __init__(self, csrf: _Optional[str] = ...) -> None: ...
-
 class BudgetContext(_message.Message):
-    __slots__ = ("budgets", "live_runtime", "order_checks", "null_fields")
+    __slots__ = ("budgets", "live_runtime", "null_fields")
     BUDGETS_FIELD_NUMBER: _ClassVar[int]
     LIVE_RUNTIME_FIELD_NUMBER: _ClassVar[int]
-    ORDER_CHECKS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     budgets: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     live_runtime: _struct_pb2.Struct
-    order_checks: _containers.RepeatedCompositeFieldContainer[CheckRecord]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, budgets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., live_runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., order_checks: _Optional[_Iterable[_Union[CheckRecord, _Mapping]]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, budgets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., live_runtime: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CheckRecord(_message.Message):
     __slots__ = ("check_id", "evidence_fields")
@@ -403,7 +407,8 @@ class HttpError(_message.Message):
     def __init__(self, detail: _Optional[str] = ..., rejection_id: _Optional[str] = ..., request_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., status: _Optional[str] = ..., url: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ImportSpecification(_message.Message):
-    __slots__ = ("session_kind", "availability_basis", "availability_note", "currency", "exchange", "multiplier", "price_tick", "product", "quantity_unit", "session_close", "session_open", "source_name", "source_reference", "symbol", "timezone", "trading_day")
+    __slots__ = ("interval", "session_kind", "availability_basis", "availability_note", "currency", "exchange", "multiplier", "price_tick", "product", "quantity_unit", "session_close", "session_open", "source_name", "source_reference", "symbol", "timezone", "trading_day")
+    INTERVAL_FIELD_NUMBER: _ClassVar[int]
     SESSION_KIND_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
@@ -420,6 +425,7 @@ class ImportSpecification(_message.Message):
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
     TIMEZONE_FIELD_NUMBER: _ClassVar[int]
     TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    interval: str
     session_kind: str
     availability_basis: str
     availability_note: str
@@ -436,10 +442,47 @@ class ImportSpecification(_message.Message):
     symbol: str
     timezone: str
     trading_day: str
-    def __init__(self, session_kind: _Optional[str] = ..., availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., currency: _Optional[str] = ..., exchange: _Optional[str] = ..., multiplier: _Optional[str] = ..., price_tick: _Optional[str] = ..., product: _Optional[str] = ..., quantity_unit: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., source_name: _Optional[str] = ..., source_reference: _Optional[str] = ..., symbol: _Optional[str] = ..., timezone: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
+    def __init__(self, interval: _Optional[str] = ..., session_kind: _Optional[str] = ..., availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., currency: _Optional[str] = ..., exchange: _Optional[str] = ..., multiplier: _Optional[str] = ..., price_tick: _Optional[str] = ..., product: _Optional[str] = ..., quantity_unit: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., source_name: _Optional[str] = ..., source_reference: _Optional[str] = ..., symbol: _Optional[str] = ..., timezone: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
+
+class BrokerAccountProjection(_message.Message):
+    __slots__ = ("status", "through_entry_id", "realized_pnl_before_fees", "cash", "total_fees", "pending_fee_fill_ids", "fill_count", "net_identified_cash_flow", "cash_flow_count", "journal_ordinal", "journal_hash", "evidence_fields", "null_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    THROUGH_ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    REALIZED_PNL_BEFORE_FEES_FIELD_NUMBER: _ClassVar[int]
+    CASH_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FEES_FIELD_NUMBER: _ClassVar[int]
+    PENDING_FEE_FILL_IDS_FIELD_NUMBER: _ClassVar[int]
+    FILL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    NET_IDENTIFIED_CASH_FLOW_FIELD_NUMBER: _ClassVar[int]
+    CASH_FLOW_COUNT_FIELD_NUMBER: _ClassVar[int]
+    JOURNAL_ORDINAL_FIELD_NUMBER: _ClassVar[int]
+    JOURNAL_HASH_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    through_entry_id: str
+    realized_pnl_before_fees: str
+    cash: str
+    total_fees: str
+    pending_fee_fill_ids: _containers.RepeatedScalarFieldContainer[str]
+    fill_count: int
+    net_identified_cash_flow: str
+    cash_flow_count: int
+    journal_ordinal: int
+    journal_hash: str
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: _Optional[str] = ..., through_entry_id: _Optional[str] = ..., realized_pnl_before_fees: _Optional[str] = ..., cash: _Optional[str] = ..., total_fees: _Optional[str] = ..., pending_fee_fill_ids: _Optional[_Iterable[str]] = ..., fill_count: _Optional[int] = ..., net_identified_cash_flow: _Optional[str] = ..., cash_flow_count: _Optional[int] = ..., journal_ordinal: _Optional[int] = ..., journal_hash: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class LedgerContext(_message.Message):
-    __slots__ = ("baseline", "baseline_id", "checks", "entries", "evidence_fields", "null_fields")
+    __slots__ = ("baseline", "baseline_id", "checks", "entries", "accounting_projection", "evidence_fields", "null_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -451,18 +494,20 @@ class LedgerContext(_message.Message):
     BASELINE_ID_FIELD_NUMBER: _ClassVar[int]
     CHECKS_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNTING_PROJECTION_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     baseline: BaselineRecord
     baseline_id: str
     checks: _containers.RepeatedCompositeFieldContainer[CheckRecord]
     entries: _containers.RepeatedCompositeFieldContainer[PositionEntry]
+    accounting_projection: BrokerAccountProjection
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, baseline: _Optional[_Union[BaselineRecord, _Mapping]] = ..., baseline_id: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[CheckRecord, _Mapping]]] = ..., entries: _Optional[_Iterable[_Union[PositionEntry, _Mapping]]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, baseline: _Optional[_Union[BaselineRecord, _Mapping]] = ..., baseline_id: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[CheckRecord, _Mapping]]] = ..., entries: _Optional[_Iterable[_Union[PositionEntry, _Mapping]]] = ..., accounting_projection: _Optional[_Union[BrokerAccountProjection, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class LiveConfiguration(_message.Message):
-    __slots__ = ("config", "configuration_id", "name", "evidence_fields")
+    __slots__ = ("candidate_id", "config", "configuration_id", "name", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -470,15 +515,17 @@ class LiveConfiguration(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     CONFIGURATION_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    candidate_id: str
     config: _struct_pb2.Struct
     configuration_id: str
     name: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, config: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., configuration_id: _Optional[str] = ..., name: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, candidate_id: _Optional[str] = ..., config: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., configuration_id: _Optional[str] = ..., name: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class MaterialRequest(_message.Message):
     __slots__ = ("candidate", "request_id")
@@ -504,16 +551,18 @@ class OpeningBudget(_message.Message):
     def __init__(self, budget_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class OpeningBudgetRequest(_message.Message):
-    __slots__ = ("limit_price", "order_check_id", "request_id", "sequence")
+    __slots__ = ("entry_id", "limit_price", "query_id", "request_id", "sequence")
+    ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
     LIMIT_PRICE_FIELD_NUMBER: _ClassVar[int]
-    ORDER_CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    QUERY_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    entry_id: str
     limit_price: str
-    order_check_id: str
+    query_id: str
     request_id: str
     sequence: int
-    def __init__(self, limit_price: _Optional[str] = ..., order_check_id: _Optional[str] = ..., request_id: _Optional[str] = ..., sequence: _Optional[int] = ...) -> None: ...
+    def __init__(self, entry_id: _Optional[str] = ..., limit_price: _Optional[str] = ..., query_id: _Optional[str] = ..., request_id: _Optional[str] = ..., sequence: _Optional[int] = ...) -> None: ...
 
 class OrderCheckRequest(_message.Message):
     __slots__ = ("position_check_id", "request_id")
@@ -534,7 +583,7 @@ class PositionCheckRequest(_message.Message):
     def __init__(self, entry_id: _Optional[str] = ..., query_batch_id: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
 
 class PositionEntry(_message.Message):
-    __slots__ = ("entry_id", "evidence_fields")
+    __slots__ = ("entry_id", "added_cash_flows", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -543,10 +592,12 @@ class PositionEntry(_message.Message):
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
     ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    ADDED_CASH_FLOWS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     entry_id: str
+    added_cash_flows: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.CashFlowFact]
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, entry_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, entry_id: _Optional[str] = ..., added_cash_flows: _Optional[_Iterable[_Union[_accounting_pb2.CashFlowFact, _Mapping]]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class PositionEntryRequest(_message.Message):
     __slots__ = ("baseline_id", "request_id", "source_batch_id")
@@ -558,8 +609,36 @@ class PositionEntryRequest(_message.Message):
     source_batch_id: str
     def __init__(self, baseline_id: _Optional[str] = ..., request_id: _Optional[str] = ..., source_batch_id: _Optional[str] = ...) -> None: ...
 
+class SettlementStatement(_message.Message):
+    __slots__ = ("status", "trading_day", "content", "content_sha256", "encoding", "problems", "ledger_posted", "confirmation_sent", "settlement_id", "fragment_count", "byte_count", "null_fields")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    ENCODING_FIELD_NUMBER: _ClassVar[int]
+    PROBLEMS_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_POSTED_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMATION_SENT_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    FRAGMENT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    BYTE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    trading_day: str
+    content: str
+    content_sha256: str
+    encoding: str
+    problems: _containers.RepeatedScalarFieldContainer[str]
+    ledger_posted: bool
+    confirmation_sent: bool
+    settlement_id: int
+    fragment_count: int
+    byte_count: int
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: _Optional[str] = ..., trading_day: _Optional[str] = ..., content: _Optional[str] = ..., content_sha256: _Optional[str] = ..., encoding: _Optional[str] = ..., problems: _Optional[_Iterable[str]] = ..., ledger_posted: _Optional[bool] = ..., confirmation_sent: _Optional[bool] = ..., settlement_id: _Optional[int] = ..., fragment_count: _Optional[int] = ..., byte_count: _Optional[int] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class QueryRecord(_message.Message):
-    __slots__ = ("batch_id", "instrument", "status", "evidence_fields")
+    __slots__ = ("settlement_statement", "batch_id", "instrument", "status", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -567,23 +646,59 @@ class QueryRecord(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    SETTLEMENT_STATEMENT_FIELD_NUMBER: _ClassVar[int]
     BATCH_ID_FIELD_NUMBER: _ClassVar[int]
     INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    settlement_statement: SettlementStatement
     batch_id: str
     instrument: str
     status: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, batch_id: _Optional[str] = ..., instrument: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, settlement_statement: _Optional[_Union[SettlementStatement, _Mapping]] = ..., batch_id: _Optional[str] = ..., instrument: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+
+class OpeningOrderRequest(_message.Message):
+    __slots__ = ("budget_id", "authorization_id", "request_id")
+    BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    budget_id: str
+    authorization_id: str
+    request_id: str
+    def __init__(self, budget_id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
+
+class ClosingOrderRequest(_message.Message):
+    __slots__ = ("opening_order_id", "query_id", "authorization_id", "limit_price", "request_id")
+    OPENING_ORDER_ID_FIELD_NUMBER: _ClassVar[int]
+    QUERY_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_PRICE_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    opening_order_id: str
+    query_id: str
+    authorization_id: str
+    limit_price: str
+    request_id: str
+    def __init__(self, opening_order_id: _Optional[str] = ..., query_id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., limit_price: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
+
+class CancelOrderRequest(_message.Message):
+    __slots__ = ("stream_id", "request_id")
+    STREAM_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    stream_id: str
+    request_id: str
+    def __init__(self, stream_id: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
 
 class QueryRequest(_message.Message):
-    __slots__ = ("instrument", "request_id")
+    __slots__ = ("settlement_day", "instrument", "request_id")
+    SETTLEMENT_DAY_FIELD_NUMBER: _ClassVar[int]
     INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    settlement_day: str
     instrument: str
     request_id: str
-    def __init__(self, instrument: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, settlement_day: _Optional[str] = ..., instrument: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
 
 class Readiness(_message.Message):
     __slots__ = ("status",)
@@ -732,8 +847,37 @@ class StreamDecision(_message.Message):
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     def __init__(self, sequence: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
+class ReceiverQuery(_message.Message):
+    __slots__ = ("status", "reason", "through_sequence", "source_hash", "completeness", "account_observation", "query_id", "finished_at", "evidence_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    THROUGH_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
+    COMPLETENESS_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNT_OBSERVATION_FIELD_NUMBER: _ClassVar[int]
+    QUERY_ID_FIELD_NUMBER: _ClassVar[int]
+    FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    reason: str
+    through_sequence: int
+    source_hash: str
+    completeness: _struct_pb2.Struct
+    account_observation: _struct_pb2.Struct
+    query_id: str
+    finished_at: str
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    def __init__(self, status: _Optional[str] = ..., reason: _Optional[str] = ..., through_sequence: _Optional[int] = ..., source_hash: _Optional[str] = ..., completeness: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., account_observation: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., query_id: _Optional[str] = ..., finished_at: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+
 class StreamDetail(_message.Message):
-    __slots__ = ("account_progress", "archives", "binding", "connection", "cursor", "paused", "received", "steps", "stream_id", "evidence_fields")
+    __slots__ = ("account_progress", "archives", "binding", "connection", "cursor", "paused", "received", "steps", "stream_id", "startup_query", "latest_query", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -750,6 +894,8 @@ class StreamDetail(_message.Message):
     RECEIVED_FIELD_NUMBER: _ClassVar[int]
     STEPS_FIELD_NUMBER: _ClassVar[int]
     STREAM_ID_FIELD_NUMBER: _ClassVar[int]
+    STARTUP_QUERY_FIELD_NUMBER: _ClassVar[int]
+    LATEST_QUERY_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     account_progress: StreamAccountProgress
     archives: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
@@ -760,8 +906,10 @@ class StreamDetail(_message.Message):
     received: int
     steps: _containers.RepeatedCompositeFieldContainer[StreamStep]
     stream_id: str
+    startup_query: ReceiverQuery
+    latest_query: ReceiverQuery
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, account_progress: _Optional[_Union[StreamAccountProgress, _Mapping]] = ..., archives: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., binding: _Optional[_Union[StreamBinding, _Mapping]] = ..., connection: _Optional[str] = ..., cursor: _Optional[int] = ..., paused: _Optional[bool] = ..., received: _Optional[int] = ..., steps: _Optional[_Iterable[_Union[StreamStep, _Mapping]]] = ..., stream_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, account_progress: _Optional[_Union[StreamAccountProgress, _Mapping]] = ..., archives: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., binding: _Optional[_Union[StreamBinding, _Mapping]] = ..., connection: _Optional[str] = ..., cursor: _Optional[int] = ..., paused: _Optional[bool] = ..., received: _Optional[int] = ..., steps: _Optional[_Iterable[_Union[StreamStep, _Mapping]]] = ..., stream_id: _Optional[str] = ..., startup_query: _Optional[_Union[ReceiverQuery, _Mapping]] = ..., latest_query: _Optional[_Union[ReceiverQuery, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class StreamEvent(_message.Message):
     __slots__ = ("committed_at", "event")
@@ -781,21 +929,43 @@ class StreamPositionsRequest(_message.Message):
     through_sequence: int
     def __init__(self, baseline_id: _Optional[str] = ..., request_id: _Optional[str] = ..., through_sequence: _Optional[int] = ...) -> None: ...
 
+class SessionWindow(_message.Message):
+    __slots__ = ("trading_day", "opens_at", "closes_at")
+    TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    OPENS_AT_FIELD_NUMBER: _ClassVar[int]
+    CLOSES_AT_FIELD_NUMBER: _ClassVar[int]
+    trading_day: str
+    opens_at: str
+    closes_at: str
+    def __init__(self, trading_day: _Optional[str] = ..., opens_at: _Optional[str] = ..., closes_at: _Optional[str] = ...) -> None: ...
+
+class SessionSchedule(_message.Message):
+    __slots__ = ("source_reference", "available_at", "windows")
+    SOURCE_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_AT_FIELD_NUMBER: _ClassVar[int]
+    WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    source_reference: str
+    available_at: str
+    windows: _containers.RepeatedCompositeFieldContainer[SessionWindow]
+    def __init__(self, source_reference: _Optional[str] = ..., available_at: _Optional[str] = ..., windows: _Optional[_Iterable[_Union[SessionWindow, _Mapping]]] = ...) -> None: ...
+
 class StreamRequest(_message.Message):
-    __slots__ = ("allow_retention", "configuration_id", "duration_seconds", "query_batch_id", "request_id", "use_basis")
+    __slots__ = ("allow_retention", "configuration_id", "duration_seconds", "query_batch_id", "request_id", "use_basis", "schedule")
     ALLOW_RETENTION_FIELD_NUMBER: _ClassVar[int]
     CONFIGURATION_ID_FIELD_NUMBER: _ClassVar[int]
     DURATION_SECONDS_FIELD_NUMBER: _ClassVar[int]
     QUERY_BATCH_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     USE_BASIS_FIELD_NUMBER: _ClassVar[int]
+    SCHEDULE_FIELD_NUMBER: _ClassVar[int]
     allow_retention: bool
     configuration_id: str
     duration_seconds: int
     query_batch_id: str
     request_id: str
     use_basis: str
-    def __init__(self, allow_retention: _Optional[bool] = ..., configuration_id: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., query_batch_id: _Optional[str] = ..., request_id: _Optional[str] = ..., use_basis: _Optional[str] = ...) -> None: ...
+    schedule: SessionSchedule
+    def __init__(self, allow_retention: _Optional[bool] = ..., configuration_id: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., query_batch_id: _Optional[str] = ..., request_id: _Optional[str] = ..., use_basis: _Optional[str] = ..., schedule: _Optional[_Union[SessionSchedule, _Mapping]] = ...) -> None: ...
 
 class StreamStep(_message.Message):
     __slots__ = ("committed_at", "result", "sequence")
@@ -870,3 +1040,174 @@ class GetApiStreamsStreamIdEventsResponse(_message.Message):
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[StreamEvent]
     def __init__(self, items: _Optional[_Iterable[_Union[StreamEvent, _Mapping]]] = ...) -> None: ...
+
+class OrderReservation(_message.Message):
+    __slots__ = ("reserved_fee", "reserved_margin", "reserved_gross", "reserved_loss", "reserved_close_lots")
+    RESERVED_FEE_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_MARGIN_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_GROSS_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_LOSS_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_CLOSE_LOTS_FIELD_NUMBER: _ClassVar[int]
+    reserved_fee: str
+    reserved_margin: str
+    reserved_gross: str
+    reserved_loss: str
+    reserved_close_lots: int
+    def __init__(self, reserved_fee: _Optional[str] = ..., reserved_margin: _Optional[str] = ..., reserved_gross: _Optional[str] = ..., reserved_loss: _Optional[str] = ..., reserved_close_lots: _Optional[int] = ...) -> None: ...
+
+class LocalOrder(_message.Message):
+    __slots__ = ("order_id", "contract_id", "authorization_id", "runtime_id", "attempt_id", "status", "quantity_lots", "filled_lots", "requires_reconciliation", "reservation", "order", "fee_pending_lots", "evidence_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    ORDER_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_ID_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    QUANTITY_LOTS_FIELD_NUMBER: _ClassVar[int]
+    FILLED_LOTS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_RECONCILIATION_FIELD_NUMBER: _ClassVar[int]
+    RESERVATION_FIELD_NUMBER: _ClassVar[int]
+    ORDER_FIELD_NUMBER: _ClassVar[int]
+    FEE_PENDING_LOTS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    order_id: str
+    contract_id: str
+    authorization_id: str
+    runtime_id: str
+    attempt_id: str
+    status: str
+    quantity_lots: int
+    filled_lots: int
+    requires_reconciliation: bool
+    reservation: OrderReservation
+    order: _struct_pb2.Struct
+    fee_pending_lots: int
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    def __init__(self, order_id: _Optional[str] = ..., contract_id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., attempt_id: _Optional[str] = ..., status: _Optional[str] = ..., quantity_lots: _Optional[int] = ..., filled_lots: _Optional[int] = ..., requires_reconciliation: _Optional[bool] = ..., reservation: _Optional[_Union[OrderReservation, _Mapping]] = ..., order: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., fee_pending_lots: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+
+class LocalOrderEvent(_message.Message):
+    __slots__ = ("sequence", "event_id", "order_id", "kind", "recorded_at", "document")
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    ORDER_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
+    DOCUMENT_FIELD_NUMBER: _ClassVar[int]
+    sequence: int
+    event_id: str
+    order_id: str
+    kind: str
+    recorded_at: str
+    document: _struct_pb2.Struct
+    def __init__(self, sequence: _Optional[int] = ..., event_id: _Optional[str] = ..., order_id: _Optional[str] = ..., kind: _Optional[str] = ..., recorded_at: _Optional[str] = ..., document: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+
+class LocalOrderPage(_message.Message):
+    __slots__ = ("orders", "next_before", "evidence_fields", "null_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    ORDERS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_BEFORE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    orders: _containers.RepeatedCompositeFieldContainer[LocalOrder]
+    next_before: int
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, orders: _Optional[_Iterable[_Union[LocalOrder, _Mapping]]] = ..., next_before: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class LocalOrderDetail(_message.Message):
+    __slots__ = ("record", "events", "next_after", "evidence_fields", "null_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    RECORD_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_AFTER_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    record: LocalOrder
+    events: _containers.RepeatedCompositeFieldContainer[LocalOrderEvent]
+    next_after: int
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, record: _Optional[_Union[LocalOrder, _Mapping]] = ..., events: _Optional[_Iterable[_Union[LocalOrderEvent, _Mapping]]] = ..., next_after: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ExecutionConsent(_message.Message):
+    __slots__ = ("authorization_id", "status", "requires_current_admission", "evidence_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_CURRENT_ADMISSION_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    authorization_id: str
+    status: str
+    requires_current_admission: bool
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    def __init__(self, authorization_id: _Optional[str] = ..., status: _Optional[str] = ..., requires_current_admission: _Optional[bool] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+
+class ConsentPage(_message.Message):
+    __slots__ = ("authorizations", "next_before", "evidence_fields", "null_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    AUTHORIZATIONS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_BEFORE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    authorizations: _containers.RepeatedCompositeFieldContainer[ExecutionConsent]
+    next_before: int
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, authorizations: _Optional[_Iterable[_Union[ExecutionConsent, _Mapping]]] = ..., next_before: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ConsentRequest(_message.Message):
+    __slots__ = ("request_id", "expires_at", "max_order_lots", "max_total_lots", "fee", "margin", "gross", "loss")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    MAX_ORDER_LOTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_TOTAL_LOTS_FIELD_NUMBER: _ClassVar[int]
+    FEE_FIELD_NUMBER: _ClassVar[int]
+    MARGIN_FIELD_NUMBER: _ClassVar[int]
+    GROSS_FIELD_NUMBER: _ClassVar[int]
+    LOSS_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    expires_at: str
+    max_order_lots: int
+    max_total_lots: int
+    fee: str
+    margin: str
+    gross: str
+    loss: str
+    def __init__(self, request_id: _Optional[str] = ..., expires_at: _Optional[str] = ..., max_order_lots: _Optional[int] = ..., max_total_lots: _Optional[int] = ..., fee: _Optional[str] = ..., margin: _Optional[str] = ..., gross: _Optional[str] = ..., loss: _Optional[str] = ...) -> None: ...
+
+class RevokeConsent(_message.Message):
+    __slots__ = ("request_id",)
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    def __init__(self, request_id: _Optional[str] = ...) -> None: ...

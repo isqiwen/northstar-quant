@@ -2,6 +2,7 @@
 
 import json
 import time
+from contextlib import nullcontext
 from decimal import Decimal
 from typing import Any, cast
 
@@ -13,13 +14,25 @@ ENDPOINT = "https://api.tushare.pro"
 
 
 class DownloadError(ValueError):
-    def __init__(self, reason: str, *, retry: bool = False) -> None:
+    def __init__(self, reason: str, *, retry: bool = False, rate_limited: bool = False) -> None:
         super().__init__(reason)
         self.retry = retry
+        self.rate_limited = rate_limited
 
 
 class ResponseLimit(DownloadError):
     pass
+
+
+def open_client(*, transport: httpx2.BaseTransport | None = None) -> httpx2.Client:
+    return httpx2.Client(
+        transport=transport,
+        timeout=10,
+        follow_redirects=False,
+        trust_env=False,
+        headers={"Accept-Encoding": "identity"},
+        limits=httpx2.Limits(max_connections=1, max_keepalive_connections=1, keepalive_expiry=60),
+    )
 
 
 def fetch(
@@ -28,26 +41,26 @@ def fetch(
     token: str,
     *,
     transport: httpx2.BaseTransport | None = None,
+    client: httpx2.Client | None = None,
 ) -> bytes:
     validate(token)
+    parameters = dict(parameters)
+    fields = parameters.pop("fields", "")
     started = time.monotonic()
     try:
-        with httpx2.Client(
-            transport=transport,
-            timeout=10,
-            follow_redirects=False,
-            trust_env=False,
-            headers={"Accept-Encoding": "identity"},
-        ) as client:
-            with client.stream(
+        with (
+            nullcontext(client) if client is not None else open_client(transport=transport)
+        ) as session:
+            with session.stream(
                 "POST",
                 ENDPOINT,
-                json={"api_name": api, "params": parameters, "token": token, "fields": ""},
+                json={"api_name": api, "params": parameters, "token": token, "fields": fields},
             ) as response:
                 if response.status_code != 200:
                     raise DownloadError(
                         f"Tushare HTTP {response.status_code}",
                         retry=response.status_code == 429 or response.status_code >= 500,
+                        rate_limited=response.status_code == 429,
                     )
                 if response.headers.get("content-encoding", "identity") != "identity":
                     raise DownloadError("Tushare 返回了不支持的压缩响应")
@@ -78,18 +91,39 @@ def decode(content: bytes) -> dict[str, Any]:
         if document["code"]:
             # Classify only locally; never propagate the provider's raw message.
             msg = str(document.get("msg", ""))
-            rate = any(word in msg for word in ("频次", "每分钟", "每小时", "每秒"))
-            permission = any(
-                word in msg
-                for word in ("没有访问该接口的权限", "没有权限", "无权限", "权限不足", "权限已过期")
+            rate = any(
+                word in msg for word in ("频次", "每分钟", "每小时", "每秒", "每天最多", "每日上限")
             )
+            permission = document["code"] == 2002 or any(
+                word in msg
+                for word in (
+                    "没有访问该接口的权限",
+                    "没有权限",
+                    "无权限",
+                    "权限不足",
+                    "权限已过期",
+                    "积分不足",
+                    "权限不够",
+                    "访问权限",
+                )
+            )
+            invalid = any(
+                word in msg
+                for word in ("参数错误", "参数不合法", "参数不正确", "请求范围无效", "必填参数")
+            )
+            unavailable = any(word in msg for word in ("接口不存在", "接口名称错误", "接口已停用"))
             raise DownloadError(
                 "Tushare 限频，等待退避重试"
                 if rate
                 else f"Tushare 权限不足（代码 {document['code']}），请核对该接口授权"
                 if permission
+                else f"Tushare 参数或范围被拒绝（代码 {document['code']}），请核查此分片请求"
+                if invalid
+                else f"Tushare 接口不可用（代码 {document['code']}），请核查接口定义"
+                if unavailable
                 else f"Tushare 请求异常（代码 {document['code']}），原因未确认；仅暂停此分片",
                 retry=rate,
+                rate_limited=rate,
             )
         data = document["data"]
         fields, items = data["fields"], data["items"]

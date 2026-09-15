@@ -7,7 +7,9 @@ import json
 import os
 from pathlib import Path
 
-from .storage import KernelLock, require_local_path
+from northstar_quant.persistence.locks import FileLock
+
+from .storage import require_local_path
 
 # Every kernel container mounts the same host directory at this exact path.
 # It must never be placed under an instance's private database directory.
@@ -31,7 +33,7 @@ class AccountOwnership:
         self._directory_identity = (info.st_dev, info.st_ino)
         self._directory = ACCOUNT_DIRECTORY
         try:
-            self._lock = KernelLock(path)
+            self._lock = FileLock(path)
         except BlockingIOError as exc:
             raise ValueError("This broker account already has an active Live instance") from exc
 

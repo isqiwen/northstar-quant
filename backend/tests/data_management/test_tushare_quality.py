@@ -45,6 +45,37 @@ def encoded(row):
 
 
 @pytest.mark.parametrize(
+    "field,value",
+    [
+        ("settle", "0"),
+        ("settle", "NaN"),
+        ("settle", "-1"),
+        ("trading_fee_rate", "Infinity"),
+        ("trading_fee_rate", "-0.01"),
+        ("offset_today_fee", True),
+        ("offset_today_fee", "unknown"),
+        ("long_margin_rate", "1e-13"),
+        ("short_margin_rate", "1e30"),
+    ],
+)
+def test_invalid_settlement_numbers_cannot_pass_response_quality(field, value):
+    from northstar_quant.data_management.tushare.catalog import BY_KEY
+
+    row = dict.fromkeys(BY_KEY["settlement"].fields)
+    row.update(ts_code="RB2610.SHF", trade_date="20260901", settle="3100.125")
+    row[field] = value
+    job = {
+        "dataset": "settlement",
+        "parameters": {"ts_code": "RB2610.SHF"},
+        "start_at": "2026-09-01",
+        "end_at": "2026-09-01",
+    }
+    with pytest.raises(InvalidResponse) as caught:
+        normalize(encoded(row), job)
+    assert field in caught.value.report["issues"][0]["fields"]
+
+
+@pytest.mark.parametrize(
     "dataset",
     ["1min", "5min", "15min", "30min", "60min", "daily", "week", "month", "adjusted", "index"],
 )
@@ -113,7 +144,7 @@ def test_weekly_label_and_actual_cutoff_are_kept_distinct():
         normalize(encoded(row), job)
     row["freq"] = "week"
     row["end_date"] = "20260905"
-    with pytest.raises(InvalidResponse, match="截至日期"):
+    with pytest.raises(InvalidResponse, match="请求窗口"):
         normalize(encoded(row), job)
 
 
@@ -218,3 +249,150 @@ def test_conflicting_rows_report_both_raw_positions():
     issue = caught.value.report["issues"][0]
     assert issue["row_number"] == 2
     assert issue["related_row_number"] == 1
+
+
+@pytest.mark.parametrize("dataset", ["week", "month"])
+def test_historical_period_recalculation_preserves_both_dates(dataset):
+    import io
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from northstar_quant.data_management.exploration.parquet import ResponseScan
+
+    row, job = market_response(dataset)
+    row.update(trade_date="19950428", end_date="20260623")
+    job.update(start_at="1995-04-17", end_at="1995-04-30")
+    accepted, _ = normalize(encoded(row), job)
+    assert accepted[0]["end_date"] == "20260623"
+    raw = io.BytesIO()
+    pq.write_table(pa.Table.from_pylist(accepted), raw)
+    scan = ResponseScan(
+        raw.getvalue(),
+        row_count=1,
+        dataset=dataset,
+        scope=row["ts_code"],
+        start="1995-04-17",
+        end="1995-04-30",
+    )
+    assert list(scan.rows())[0]["trade_date"] == "19950428"
+    job.update(start_at="2026-06-01", end_at="2026-06-30")
+    with pytest.raises(InvalidResponse, match="请求窗口"):
+        normalize(encoded(row), job)
+
+
+@pytest.mark.parametrize("dataset", ["daily", "continuous", "adjusted", "week", "month"])
+@pytest.mark.parametrize("empty_price", [None, 0])
+def test_zero_volume_reference_close_keeps_null_prices_and_exact_status(dataset, empty_price):
+    from northstar_quant.data_management.tushare.publication import response_table
+
+    row, job = market_response(dataset)
+    row.update(open=empty_price, high=empty_price, low=empty_price, vol=0, amount=0, oi=60)
+    accepted, evidence = normalize(encoded(row), job)
+    assert accepted[0]["observation_status"] == "ZERO_VOLUME"
+    assert all(
+        accepted[0][f] == (None if empty_price is None else "0") for f in ("open", "high", "low")
+    )
+    assert accepted[0]["close"] == row["close"]
+    assert evidence["zero_volume_rows"] == 1
+    table = response_table(accepted, dataset)
+    assert table["open"].to_pylist() == [empty_price]
+    assert table["observation_status"].to_pylist() == ["ZERO_VOLUME"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"vol": 1},
+        {"vol": None},
+        {"amount": 1},
+        {"open": "3100.1"},
+        {"close": 0},
+        {"close": None},
+        {"close": "invalid"},
+    ],
+)
+def test_missing_daily_prices_are_not_excused_by_inconsistent_zero_volume(change):
+    row, job = market_response("daily")
+    row.update(open=None, high=None, low=None, vol=0, amount=0)
+    row.update(change)
+    with pytest.raises(InvalidResponse):
+        normalize(encoded(row), job)
+
+
+def test_mixed_response_rejects_all_rows_with_original_failure_positions():
+    row, job = market_response("daily")
+    job["end_at"] = "2026-09-02"
+    bad = dict(row, trade_date="20260902", close=None)
+    data = {
+        "code": 0,
+        "data": {"fields": list(row), "items": [list(row.values()), list(bad.values())]},
+    }
+    with pytest.raises(InvalidResponse) as failure:
+        normalize(json.dumps(data).encode(), job)
+    assert failure.value.report["issue_count"] == 1
+    assert failure.value.report["issues"][0]["row_number"] == 2
+
+
+def test_settlement_only_is_not_an_invented_close():
+    row, job = market_response("daily")
+    row.update(open=None, high=None, low=None, close=None, vol=0, amount=0, settle="2480")
+    accepted, _ = normalize(encoded(row), job)
+    assert accepted[0]["observation_status"] == "SETTLEMENT_ONLY"
+    assert accepted[0]["close"] is None
+    assert accepted[0]["settle"] == "2480"
+    row["vol"] = 600
+    with pytest.raises(InvalidResponse):
+        normalize(encoded(row), job)
+
+
+def test_pooled_provider_session_keeps_request_credentials_scoped_and_bounds():
+    import httpx2
+
+    from northstar_quant.data_management.tushare import acquisition
+
+    received = []
+
+    def handle(request):
+        received.append(json.loads(request.content))
+        return httpx2.Response(200, json={"code": 0, "data": {"fields": [], "items": []}})
+
+    with acquisition.open_client(transport=httpx2.MockTransport(handle)) as client:
+        for token in ("a" * 40, "b" * 40):
+            acquisition.fetch("fut_daily", {"ts_code": "RB2610.SHF"}, token, client=client)
+            assert not client.is_closed
+        assert [r["token"] for r in received] == ["a" * 40, "b" * 40]
+    assert client.is_closed
+
+
+def test_minute_zero_prices_preserve_supplier_values_in_returned_field_order():
+    row, job = market_response("1min")
+    row.update(open=0, high=0, low=0, close=0, vol=14, amount=661080)
+    row["untrusted"] = "must not enter diagnostics"
+    # Provider fields need not match request order.
+    reordered = dict(reversed(list(row.items())))
+    with pytest.raises(InvalidResponse) as caught:
+        normalize(encoded(reordered), job)
+    issue = caught.value.report["issues"][0]
+    assert issue["row_number"] == 1
+    assert issue["observed"]["trade_time"] == row["trade_time"]
+    assert issue["observed"]["open"] == "0"
+    assert issue["observed"]["vol"] == "14"
+    assert issue["observed"]["amount"] == "661080"
+    assert "untrusted" not in issue["observed"]
+    assert "源响应价格" in issue["reason"]
+
+
+def test_permission_code_does_not_depend_on_provider_message():
+    with pytest.raises(DownloadError, match="权限不足") as caught:
+        decode(json.dumps({"code": 2002, "msg": None}).encode())
+    assert not caught.value.retry
+
+
+@pytest.mark.parametrize("change", [{"vol": 1}, {"amount": 1}, {"open": -1}, {"high": -1}])
+def test_zero_ohl_sentinels_do_not_hide_trades_or_negative_prices(change):
+    row, job = market_response("daily")
+    row.update(open=0, high=0, low=0, vol=0, amount=0)
+    row.update(change)
+    with pytest.raises(InvalidResponse):
+        normalize(encoded(row), job)

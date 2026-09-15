@@ -1,20 +1,20 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   App,
   Button,
   Card,
+  ConfigProvider,
+  theme,
   Empty,
-  Form,
-  Input,
-  Select,
   Space,
-  Tag,
+  Drawer,
 } from "antd";
 import Link from "next/link";
 import { query } from "../api/client";
 import type {
   ExplorerRows,
+  ExplorerInstrument,
   ExplorerCoverage,
   ExplorerRange,
 } from "../api/generated";
@@ -22,6 +22,8 @@ import { useData } from "../../../shared/data";
 import { download } from "../../../shared/api";
 import { Failure, Heading } from "../../../shared/ui";
 import { explore } from "./api";
+import { RangeFilters } from "./range-filters";
+import { AvailableData } from "./available-data";
 import { DataPanel } from "./data-panel";
 import { CoveragePanel } from "./coverage-panel";
 import { VersionsPanel } from "./versions-panel";
@@ -53,6 +55,7 @@ export function Explorer({
   const [search, setSearch] = useState("");
   const [contracts, setContracts] = useState<Row[]>([]);
   const [contractTotal, setContractTotal] = useState(0);
+  const [instrument, setInstrument] = useState<ExplorerInstrument>();
   const [result, setResult] = useState<ExplorerRows>();
   const [coverage, setCoverage] = useState<ExplorerCoverage>();
   const [versions, setVersions] = useState<Row[]>([]);
@@ -64,8 +67,22 @@ export function Explorer({
   const [error, setError] = useState<Error>();
   const [exporting, setExporting] = useState(false);
   const generation = useRef(0);
+  const [rangeOpen, setRangeOpen] = useState(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (mode === "browse") {
+      if (params.has("scope")) setRangeOpen(true);
+      else {
+        try {
+          const saved = JSON.parse(
+            sessionStorage.getItem("northstar:data-browse") || "null",
+          );
+          if (saved?.scope && saved?.dataset)
+            void openInstrument(saved.scope, saved.dataset);
+        } catch {}
+      }
+    }
+    setSearch(params.get("scope") || "");
     setPreset(params.get("receipt") ? [params.get("receipt")!] : []);
     setFilter((f) => ({
       ...f,
@@ -100,6 +117,21 @@ export function Explorer({
       clearTimeout(timer);
     };
   }, [exchange, product, search]);
+  useEffect(() => {
+    let active = true;
+    setInstrument(undefined);
+    if (!filter.scope) return;
+    void explore("/api/explorer/instrument", { scope: filter.scope })
+      .then((value) => {
+        if (active) setInstrument(value);
+      })
+      .catch((e) => {
+        if (active) setError(e);
+      });
+    return () => {
+      active = false;
+    };
+  }, [filter.scope]);
   function change(values: Partial<ExplorerRange>) {
     setPreset([]);
     generation.current++;
@@ -153,6 +185,51 @@ export function Explorer({
       if (mine === generation.current) setBusy(false);
     }
   }
+  async function openInstrument(scope: string, dataset: string) {
+    const mine = ++generation.current;
+    setBusy(true);
+    setError(undefined);
+    setResult(undefined);
+    setLoaded(undefined);
+    try {
+      const value = await explore("/api/explorer/select", { scope, dataset });
+      if (mine !== generation.current) return;
+      const range = {
+        dataset: value.dataset,
+        scope: value.scope,
+        start: value.start,
+        end: value.end,
+        offset: 0,
+      };
+      try {
+        sessionStorage.setItem(
+          "northstar:data-browse",
+          JSON.stringify({ scope: value.scope, dataset: value.dataset }),
+        );
+      } catch {}
+      setFilter(range);
+      setPreset(value.receipt_ids);
+      setLoaded(range);
+      setResult(value);
+      setExchange("");
+      setProduct("");
+      setSearch(value.scope);
+      window.history.replaceState(
+        null,
+        "",
+        scopeUrl("/browse", range) +
+          `&receipt=${encodeURIComponent(value.receipt_ids[0])}`,
+      );
+    } catch (e) {
+      if (mine === generation.current) {
+        setError(e as Error);
+        setResult(undefined);
+        setLoaded(undefined);
+      }
+    } finally {
+      if (mine === generation.current) setBusy(false);
+    }
+  }
   async function exportRange() {
     if (!result || !loaded) return;
     setExporting(true);
@@ -191,171 +268,218 @@ export function Explorer({
               ? "覆盖与质量"
               : "版本与来源"
         }
-        description="Tushare · 固定历史版本。筛选仅用于查看，不改变全部自动同步范围。"
+        description="Tushare · 固定历史版本。筛选仅用于查看，不改变已选品种的下载范围。"
         actions={
-          <Link href="/sync">
-            <Button>查看自动同步</Button>
-          </Link>
+          <Space>
+            {mode === "browse" && (
+              <Button onClick={() => setRangeOpen(true)}>日期范围</Button>
+            )}
+            <Link href="/sync">
+              <Button>查看自动同步</Button>
+            </Link>
+          </Space>
         }
       />
       <Failure error={catalog.error || error} />
-      <Card className="explorer-filters">
-        <Form layout="vertical" onFinish={() => void load()}>
-          <div className="explorer-controls">
-            <Form.Item label="交易所">
-              <Select
-                aria-label="交易所"
-                value={exchange}
-                options={[
-                  { value: "", label: "全部交易所" },
-                  ...(catalog.data?.exchanges || []).map((v) => ({
-                    value: v,
-                    label: v,
-                  })),
-                ]}
-                onChange={(v) => {
-                  setExchange(v);
-                  setProduct("");
-                  change({ scope: "" });
-                }}
-              />
-            </Form.Item>
-            <Form.Item label="品种">
-              <Select
-                aria-label="品种"
-                showSearch
-                optionFilterProp="label"
-                value={product}
-                options={[
-                  { value: "", label: "全部品种" },
-                  ...Array.from(
-                    new Set(
-                      (catalog.data?.products || [])
-                        .filter((r) => !exchange || r.exchange === exchange)
-                        .map((r) => String(r.product)),
-                    ),
-                  ).map((v) => ({ value: v, label: v })),
-                ]}
-                onChange={(v) => {
-                  setProduct(v);
-                  change({ scope: "" });
-                }}
-              />
-            </Form.Item>
-            <Form.Item label="合约">
-              <Select
-                aria-label="合约"
-                showSearch
-                filterOption={false}
-                onSearch={setSearch}
-                value={filter.scope || undefined}
-                placeholder="搜索合约代码"
-                notFoundContent="目录中暂无匹配合约"
-                options={contracts.map((r) => ({
-                  value: String(r.ts_code),
-                  label: `${r.ts_code}${r.kind === "2" ? " · 连续序列" : ""}`,
-                }))}
-                onChange={(v) => change({ scope: v })}
-              />
-            </Form.Item>
-            <Form.Item label="周期">
-              <Select
-                aria-label="周期"
-                value={filter.dataset}
-                options={(catalog.data?.datasets || [])
-                  .filter((r) => r.browsable)
-                  .map((r) => ({
-                    value: String(r.key),
-                    label: String(r.label),
-                  }))}
-                onChange={(v) => {
-                  change({ dataset: v });
-                }}
-              />
-            </Form.Item>
-            <Form.Item label="开始日期">
-              <Input
-                aria-label="开始日期"
-                type="date"
-                value={filter.start}
-                onChange={(e) => change({ start: e.target.value })}
-              />
-            </Form.Item>
-            <Form.Item label="结束日期">
-              <Input
-                aria-label="结束日期"
-                type="date"
-                value={filter.end}
-                onChange={(e) => change({ end: e.target.value })}
-              />
-            </Form.Item>
-          </div>
-          <Space wrap>
-            {preset.length > 0 && (
-              <Tag color="blue">正在查看指定的历史分片版本</Tag>
-            )}
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={busy}
-              disabled={!filter.scope}
-            >
-              查询数据
-            </Button>
-            <span className="muted">
-              合约匹配 {contractTotal} 个，最多显示前 50
-              个；可输入代码缩小范围。
-            </span>
-          </Space>
-        </Form>
-      </Card>
-      <Space wrap className="explorer-links">
-        {[
-          ["/browse", "数据浏览"],
-          ["/quality", "覆盖与质量"],
-          ["/versions", "版本与来源"],
-        ].map(([path, label]) => (
-          <Link key={path} href={scopeUrl(path, linkRange)}>
-            <Button
-              type={
-                path ===
-                `/${mode === "browse" ? "browse" : mode === "quality" ? "quality" : "versions"}`
-                  ? "primary"
-                  : "default"
+      <ConfigProvider
+        theme={
+          mode === "browse"
+            ? {
+                algorithm: theme.darkAlgorithm,
+                components: { Table: { headerBg: "#1b2635" } },
+                token: {
+                  colorBgContainer: "#141b25",
+                  colorBgElevated: "#1a2533",
+                  colorBgLayout: "#10151d",
+                  colorBorderSecondary: "#293545",
+                  colorText: "#dbe5ef",
+                  colorTextSecondary: "#94a6bc",
+                  colorPrimary: "#6a9de8",
+                  borderRadiusLG: 6,
+                },
               }
-            >
-              {label}
-            </Button>
-          </Link>
-        ))}
-        <Link href="/sources">来源归档与处理记录</Link>
-        <Link href="/datasets">研究快照</Link>
-      </Space>
-      {!loaded && !busy && !error && (
-        <Card>
-          <Empty description="选择合约和日期范围，查询已同步的数据" />
-        </Card>
-      )}
-      {mode === "browse" && result && (
-        <DataPanel
-          result={result}
-          exporting={exporting}
-          onExport={() => void exportRange()}
-          onPage={(offset) => void load(offset, result.receipt_ids, loaded!)}
-        />
-      )}
-      {mode === "quality" && coverage && (
-        <CoveragePanel coverage={coverage} linkRange={linkRange} />
-      )}
-      {mode === "versions" && loaded && (
-        <VersionsPanel
-          versions={versions}
-          linkRange={linkRange}
-          versionPage={versionPage}
-          versionTotal={versionTotal}
-          onPage={(offset) => void load(offset)}
-        />
-      )}
+            : undefined
+        }
+      >
+        <div className={mode === "browse" ? "market-terminal" : undefined}>
+          {mode === "browse" && (
+            <AvailableData
+              catalog={catalog.data}
+              opening={busy}
+              selectedScope={result?.scope}
+              onOpen={(scope, dataset) => void openInstrument(scope, dataset)}
+            />
+          )}
+          <RangeSettings
+            inline={mode !== "browse"}
+            open={rangeOpen}
+            onClose={() => setRangeOpen(false)}
+          >
+            <RangeFilters
+              catalog={catalog.data}
+              filter={filter}
+              exchange={exchange}
+              product={product}
+              contracts={contracts}
+              contractTotal={contractTotal}
+              preset={preset}
+              busy={busy}
+              onSubmit={() => {
+                setRangeOpen(false);
+                void load();
+              }}
+              onChange={change}
+              onSearch={setSearch}
+              onExchange={(v) => {
+                setExchange(v);
+                setProduct("");
+                change({ scope: "" });
+              }}
+              onProduct={(v) => {
+                setProduct(v);
+                change({ scope: "" });
+              }}
+            />
+          </RangeSettings>
+          <Space wrap className="explorer-links">
+            {[
+              ["/browse", "数据浏览"],
+              ["/quality", "覆盖与质量"],
+              ["/versions", "版本与来源"],
+            ].map(([path, label]) => (
+              <Link key={path} href={scopeUrl(path, linkRange)}>
+                <Button
+                  type={
+                    path ===
+                    `/${mode === "browse" ? "browse" : mode === "quality" ? "quality" : "versions"}`
+                      ? "primary"
+                      : "default"
+                  }
+                >
+                  {label}
+                </Button>
+              </Link>
+            ))}
+            <Link href="/sources">来源归档与处理记录</Link>
+            <Link href="/datasets">研究快照</Link>
+          </Space>
+          <div id="explorer-result" className="explorer-result-content">
+            {mode === "browse" && filter.scope && (
+              <div
+                className="period-toolbar"
+                role="group"
+                aria-label="行情周期"
+              >
+                <span>历史周期</span>
+
+                {(catalog.data?.datasets || [])
+                  .filter((d) => d.browsable)
+                  .map((d) => (
+                    <Button
+                      key={String(d.key)}
+                      size="small"
+                      type={filter.dataset === d.key ? "primary" : "text"}
+                      disabled={
+                        busy || !instrument?.periods.includes(String(d.key))
+                      }
+                      title={
+                        instrument?.periods.includes(String(d.key))
+                          ? "切换原生周期并定位已有数据日期"
+                          : "该合约尚无已发布数据"
+                      }
+                      onClick={() => {
+                        void openInstrument(filter.scope, String(d.key));
+                      }}
+                    >
+                      {String(d.label)}
+                    </Button>
+                  ))}
+              </div>
+            )}
+            {!loaded && !busy && !error && (
+              <Card>
+                <Empty
+                  description={
+                    mode === "browse"
+                      ? "从左侧选择合约，立即查看历史行情"
+                      : "选择合约和日期范围，查询已同步的数据"
+                  }
+                />
+              </Card>
+            )}
+            {mode === "browse" && result?.total === 0 && (
+              <Card>
+                <p>
+                  所选合约和日期没有已发布记录。请从左侧“已有数据”选择一份，自动填入有记录的日期。
+                </p>
+                <Button
+                  onClick={() =>
+                    document
+                      .querySelector(".explorer-available")
+                      ?.scrollIntoView({ behavior: "smooth" })
+                  }
+                >
+                  选择已有数据
+                </Button>
+              </Card>
+            )}
+            {mode === "browse" && result && (
+              <DataPanel
+                key={result.view_id}
+                instrumentName={
+                  instrument?.scope === result.scope
+                    ? instrument.name
+                    : undefined
+                }
+                result={result}
+                exporting={exporting}
+                onExport={() => void exportRange()}
+                onPage={(offset) =>
+                  void load(offset, result.receipt_ids, loaded!)
+                }
+              />
+            )}
+          </div>
+          {mode === "quality" && coverage && (
+            <CoveragePanel coverage={coverage} linkRange={linkRange} />
+          )}
+          {mode === "versions" && loaded && (
+            <VersionsPanel
+              versions={versions}
+              linkRange={linkRange}
+              versionPage={versionPage}
+              versionTotal={versionTotal}
+              onPage={(offset) => void load(offset)}
+            />
+          )}
+        </div>
+      </ConfigProvider>
     </>
+  );
+}
+
+function RangeSettings({
+  inline,
+  open,
+  onClose,
+  children,
+}: {
+  inline: boolean;
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return inline ? (
+    children
+  ) : (
+    <Drawer
+      rootClassName="market-drawer"
+      title="合约与日期范围"
+      open={open}
+      onClose={onClose}
+      width={760}
+    >
+      {children}
+    </Drawer>
   );
 }

@@ -1,6 +1,8 @@
 from google.protobuf import struct_pb2 as _struct_pb2
 from northstar_quant.web import api_options_pb2 as _api_options_pb2
 from northstar_quant.web import common_pb2 as _common_pb2
+from northstar_quant.web import auth_pb2 as _web_auth_pb2
+from northstar_quant.accounting import protocol_pb2 as _accounting_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -26,14 +28,8 @@ class AdmissionRejection(_message.Message):
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     def __init__(self, reason: _Optional[str] = ..., rejection_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
-class BrowserSession(_message.Message):
-    __slots__ = ("csrf",)
-    CSRF_FIELD_NUMBER: _ClassVar[int]
-    csrf: str
-    def __init__(self, csrf: _Optional[str] = ...) -> None: ...
-
 class DatasetDetails(_message.Message):
-    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields")
+    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields", "settlements", "terms")
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
     BAR_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -54,6 +50,8 @@ class DatasetDetails(_message.Message):
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
     TRADING_DAYS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENTS_FIELD_NUMBER: _ClassVar[int]
+    TERMS_FIELD_NUMBER: _ClassVar[int]
     availability_basis: str
     availability_note: str
     bar_count: int
@@ -74,7 +72,9 @@ class DatasetDetails(_message.Message):
     symbol: str
     trading_days: _containers.RepeatedScalarFieldContainer[str]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    settlements: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.SettlementFact]
+    terms: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.FuturesTerms]
+    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_accounting_pb2.SettlementFact, _Mapping]]] = ..., terms: _Optional[_Iterable[_Union[_accounting_pb2.FuturesTerms, _Mapping]]] = ...) -> None: ...
 
 class DatasetLineage(_message.Message):
     __slots__ = ("attempts", "snapshot_id", "sources", "usages")
@@ -131,7 +131,8 @@ class HttpError(_message.Message):
     def __init__(self, detail: _Optional[str] = ..., rejection_id: _Optional[str] = ..., request_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., status: _Optional[str] = ..., url: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ImportSpecification(_message.Message):
-    __slots__ = ("session_kind", "availability_basis", "availability_note", "currency", "exchange", "multiplier", "price_tick", "product", "quantity_unit", "session_close", "session_open", "source_name", "source_reference", "symbol", "timezone", "trading_day")
+    __slots__ = ("interval", "session_kind", "availability_basis", "availability_note", "currency", "exchange", "multiplier", "price_tick", "product", "quantity_unit", "session_close", "session_open", "source_name", "source_reference", "symbol", "timezone", "trading_day")
+    INTERVAL_FIELD_NUMBER: _ClassVar[int]
     SESSION_KIND_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
@@ -148,6 +149,7 @@ class ImportSpecification(_message.Message):
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
     TIMEZONE_FIELD_NUMBER: _ClassVar[int]
     TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    interval: str
     session_kind: str
     availability_basis: str
     availability_note: str
@@ -164,7 +166,7 @@ class ImportSpecification(_message.Message):
     symbol: str
     timezone: str
     trading_day: str
-    def __init__(self, session_kind: _Optional[str] = ..., availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., currency: _Optional[str] = ..., exchange: _Optional[str] = ..., multiplier: _Optional[str] = ..., price_tick: _Optional[str] = ..., product: _Optional[str] = ..., quantity_unit: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., source_name: _Optional[str] = ..., source_reference: _Optional[str] = ..., symbol: _Optional[str] = ..., timezone: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
+    def __init__(self, interval: _Optional[str] = ..., session_kind: _Optional[str] = ..., availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., currency: _Optional[str] = ..., exchange: _Optional[str] = ..., multiplier: _Optional[str] = ..., price_tick: _Optional[str] = ..., product: _Optional[str] = ..., quantity_unit: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., source_name: _Optional[str] = ..., source_reference: _Optional[str] = ..., symbol: _Optional[str] = ..., timezone: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
 
 class ProcessingAttempt(_message.Message):
     __slots__ = ("attempt_id", "created_at", "error", "parameters", "snapshot_id", "source_id", "stage", "status", "evidence_fields", "null_fields")
@@ -282,13 +284,69 @@ class ProcessingQueueStatus(_message.Message):
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, observed_at: _Optional[str] = ..., total: _Optional[int] = ..., pending: _Optional[int] = ..., running: _Optional[int] = ..., published: _Optional[int] = ..., failed: _Optional[int] = ..., oldest_pending_id: _Optional[str] = ..., oldest_pending_at: _Optional[str] = ..., oldest_pending_seconds: _Optional[int] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class ContractReviewRequest(_message.Message):
+    __slots__ = ("scope",)
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    def __init__(self, scope: _Optional[str] = ...) -> None: ...
+
+class ContractReview(_message.Message):
+    __slots__ = ("completeness", "quality", "contract_type", "scope", "display_name", "exchange", "product", "listing_date", "last_trade_date", "required_end", "status", "admitted", "requirements", "reasons", "policy", "null_fields", "last_delivery_date", "first_delivery_date", "delivery_month", "lifecycle_status", "lifecycle_reason")
+    COMPLETENESS_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_FIELD_NUMBER: _ClassVar[int]
+    LISTING_DATE_FIELD_NUMBER: _ClassVar[int]
+    LAST_TRADE_DATE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_END_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ADMITTED_FIELD_NUMBER: _ClassVar[int]
+    REQUIREMENTS_FIELD_NUMBER: _ClassVar[int]
+    REASONS_FIELD_NUMBER: _ClassVar[int]
+    POLICY_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    LAST_DELIVERY_DATE_FIELD_NUMBER: _ClassVar[int]
+    FIRST_DELIVERY_DATE_FIELD_NUMBER: _ClassVar[int]
+    DELIVERY_MONTH_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_STATUS_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    completeness: _struct_pb2.Struct
+    quality: _struct_pb2.Struct
+    contract_type: _struct_pb2.Struct
+    scope: str
+    display_name: str
+    exchange: str
+    product: str
+    listing_date: str
+    last_trade_date: str
+    required_end: str
+    status: str
+    admitted: bool
+    requirements: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    reasons: _containers.RepeatedScalarFieldContainer[str]
+    policy: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    last_delivery_date: str
+    first_delivery_date: str
+    delivery_month: str
+    lifecycle_status: str
+    lifecycle_reason: str
+    def __init__(self, completeness: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., contract_type: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., scope: _Optional[str] = ..., display_name: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., listing_date: _Optional[str] = ..., last_trade_date: _Optional[str] = ..., required_end: _Optional[str] = ..., status: _Optional[str] = ..., admitted: _Optional[bool] = ..., requirements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reasons: _Optional[_Iterable[str]] = ..., policy: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ..., last_delivery_date: _Optional[str] = ..., first_delivery_date: _Optional[str] = ..., delivery_month: _Optional[str] = ..., lifecycle_status: _Optional[str] = ..., lifecycle_reason: _Optional[str] = ...) -> None: ...
+
 class SyncSettingsRequest(_message.Message):
-    __slots__ = ("revision", "enabled")
+    __slots__ = ("revision", "enabled", "products", "retry_skipped")
     REVISION_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
+    PRODUCTS_FIELD_NUMBER: _ClassVar[int]
+    RETRY_SKIPPED_FIELD_NUMBER: _ClassVar[int]
     revision: int
     enabled: bool
-    def __init__(self, revision: _Optional[int] = ..., enabled: _Optional[bool] = ...) -> None: ...
+    products: _containers.RepeatedScalarFieldContainer[str]
+    retry_skipped: bool
+    def __init__(self, revision: _Optional[int] = ..., enabled: _Optional[bool] = ..., products: _Optional[_Iterable[str]] = ..., retry_skipped: _Optional[bool] = ...) -> None: ...
 
 class SyncReprocessRequest(_message.Message):
     __slots__ = ("request_id", "source_generation")
@@ -304,21 +362,105 @@ class SyncTokenRequest(_message.Message):
     token: str
     def __init__(self, token: _Optional[str] = ...) -> None: ...
 
+class SyncLane(_message.Message):
+    __slots__ = ("lane", "start", "end", "total", "validated", "waiting", "blocked", "running", "oldest_pending", "null_fields")
+    LANE_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    VALIDATED_FIELD_NUMBER: _ClassVar[int]
+    WAITING_FIELD_NUMBER: _ClassVar[int]
+    BLOCKED_FIELD_NUMBER: _ClassVar[int]
+    RUNNING_FIELD_NUMBER: _ClassVar[int]
+    OLDEST_PENDING_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    lane: str
+    start: str
+    end: str
+    total: int
+    validated: int
+    waiting: int
+    blocked: int
+    running: int
+    oldest_pending: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, lane: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., total: _Optional[int] = ..., validated: _Optional[int] = ..., waiting: _Optional[int] = ..., blocked: _Optional[int] = ..., running: _Optional[int] = ..., oldest_pending: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class SyncStatus(_message.Message):
-    __slots__ = ("settings", "token_configured", "datasets", "progress", "jobs", "unplanned_contracts")
+    __slots__ = ("settings", "token_configured", "datasets", "progress", "jobs", "lanes", "unplanned_contracts")
     SETTINGS_FIELD_NUMBER: _ClassVar[int]
     TOKEN_CONFIGURED_FIELD_NUMBER: _ClassVar[int]
     DATASETS_FIELD_NUMBER: _ClassVar[int]
     PROGRESS_FIELD_NUMBER: _ClassVar[int]
     JOBS_FIELD_NUMBER: _ClassVar[int]
+    LANES_FIELD_NUMBER: _ClassVar[int]
     UNPLANNED_CONTRACTS_FIELD_NUMBER: _ClassVar[int]
     settings: _struct_pb2.Struct
     token_configured: bool
     datasets: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     progress: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     jobs: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    lanes: _containers.RepeatedCompositeFieldContainer[SyncLane]
     unplanned_contracts: int
-    def __init__(self, settings: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., token_configured: _Optional[bool] = ..., datasets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., progress: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., jobs: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., unplanned_contracts: _Optional[int] = ...) -> None: ...
+    def __init__(self, settings: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., token_configured: _Optional[bool] = ..., datasets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., progress: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., jobs: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., lanes: _Optional[_Iterable[_Union[SyncLane, _Mapping]]] = ..., unplanned_contracts: _Optional[int] = ...) -> None: ...
+
+class CollectionQuery(_message.Message):
+    __slots__ = ("exchange", "product", "search", "status", "offset", "limit")
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    exchange: str
+    product: str
+    search: str
+    status: str
+    offset: int
+    limit: int
+    def __init__(self, exchange: _Optional[str] = ..., product: _Optional[str] = ..., search: _Optional[str] = ..., status: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class CollectionPage(_message.Message):
+    __slots__ = ("total", "offset", "limit", "items", "exchanges", "products")
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    EXCHANGES_FIELD_NUMBER: _ClassVar[int]
+    PRODUCTS_FIELD_NUMBER: _ClassVar[int]
+    total: int
+    offset: int
+    limit: int
+    items: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    exchanges: _containers.RepeatedScalarFieldContainer[str]
+    products: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., items: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., exchanges: _Optional[_Iterable[str]] = ..., products: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class SyncJobQuery(_message.Message):
+    __slots__ = ("owner_scope", "dataset", "status", "offset", "limit")
+    OWNER_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    owner_scope: str
+    dataset: str
+    status: str
+    offset: int
+    limit: int
+    def __init__(self, owner_scope: _Optional[str] = ..., dataset: _Optional[str] = ..., status: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class SyncJobPage(_message.Message):
+    __slots__ = ("total", "offset", "limit", "items")
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    total: int
+    offset: int
+    limit: int
+    items: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    def __init__(self, total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., items: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
 
 class SyncEvidence(_message.Message):
     __slots__ = ("request_id", "evidence_fields")
@@ -379,6 +521,26 @@ class ContractSearch(_message.Message):
     offset: int
     def __init__(self, exchange: _Optional[str] = ..., product: _Optional[str] = ..., search: _Optional[str] = ..., offset: _Optional[int] = ...) -> None: ...
 
+class AvailableSearch(_message.Message):
+    __slots__ = ("exchange", "product", "search", "offset", "dataset")
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    exchange: str
+    product: str
+    search: str
+    offset: int
+    dataset: str
+    def __init__(self, exchange: _Optional[str] = ..., product: _Optional[str] = ..., search: _Optional[str] = ..., offset: _Optional[int] = ..., dataset: _Optional[str] = ...) -> None: ...
+
+class PublishedSelection(_message.Message):
+    __slots__ = ("receipt_id",)
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    receipt_id: str
+    def __init__(self, receipt_id: _Optional[str] = ...) -> None: ...
+
 class ExplorerList(_message.Message):
     __slots__ = ("rows", "total")
     ROWS_FIELD_NUMBER: _ClassVar[int]
@@ -419,6 +581,46 @@ class ExplorerQuery(_message.Message):
     limit: int
     def __init__(self, dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., offset: _Optional[int] = ..., receipt_ids: _Optional[_Iterable[str]] = ..., limit: _Optional[int] = ...) -> None: ...
 
+class ChartQuery(_message.Message):
+    __slots__ = ("dataset", "scope", "start", "end", "receipt_ids")
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_IDS_FIELD_NUMBER: _ClassVar[int]
+    dataset: str
+    scope: str
+    start: str
+    end: str
+    receipt_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class InstrumentOpen(_message.Message):
+    __slots__ = ("scope", "dataset")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    dataset: str
+    def __init__(self, scope: _Optional[str] = ..., dataset: _Optional[str] = ...) -> None: ...
+
+class InstrumentSelection(_message.Message):
+    __slots__ = ("scope",)
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    def __init__(self, scope: _Optional[str] = ...) -> None: ...
+
+class ExplorerInstrument(_message.Message):
+    __slots__ = ("scope", "name", "exchange", "periods")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PERIODS_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    name: str
+    exchange: str
+    periods: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scope: _Optional[str] = ..., name: _Optional[str] = ..., exchange: _Optional[str] = ..., periods: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class ExplorerCoverage(_message.Message):
     __slots__ = ("days", "jobs", "note")
     DAYS_FIELD_NUMBER: _ClassVar[int]
@@ -430,7 +632,7 @@ class ExplorerCoverage(_message.Message):
     def __init__(self, days: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., jobs: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., note: _Optional[str] = ...) -> None: ...
 
 class ExplorerRows(_message.Message):
-    __slots__ = ("sources", "export_allowed", "dataset", "scope", "start", "end", "receipt_ids", "view_id", "rows", "total", "offset", "limit", "fields", "versions", "note")
+    __slots__ = ("sources", "export_allowed", "dataset", "scope", "start", "end", "receipt_ids", "view_id", "rows", "total", "offset", "limit", "fields", "versions", "note", "scan")
     SOURCES_FIELD_NUMBER: _ClassVar[int]
     EXPORT_ALLOWED_FIELD_NUMBER: _ClassVar[int]
     DATASET_FIELD_NUMBER: _ClassVar[int]
@@ -446,6 +648,7 @@ class ExplorerRows(_message.Message):
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     VERSIONS_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
+    SCAN_FIELD_NUMBER: _ClassVar[int]
     sources: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     export_allowed: bool
     dataset: str
@@ -461,7 +664,8 @@ class ExplorerRows(_message.Message):
     fields: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     versions: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     note: str
-    def __init__(self, sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., export_allowed: _Optional[bool] = ..., dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ..., view_id: _Optional[str] = ..., rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., fields: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., versions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., note: _Optional[str] = ...) -> None: ...
+    scan: _struct_pb2.Struct
+    def __init__(self, sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., export_allowed: _Optional[bool] = ..., dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ..., view_id: _Optional[str] = ..., rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., fields: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., versions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., note: _Optional[str] = ..., scan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class RevisionRequest(_message.Message):
     __slots__ = ("before_id", "after_id", "offset")
@@ -498,3 +702,173 @@ class RevisionComparison(_message.Message):
     offset: int
     note: str
     def __init__(self, comparison_id: _Optional[str] = ..., rule: _Optional[str] = ..., before: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., after: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., source_changed: _Optional[bool] = ..., rules_changed: _Optional[bool] = ..., counts: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., changes: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., note: _Optional[str] = ...) -> None: ...
+
+class CompactionRequest(_message.Message):
+    __slots__ = ("request_id", "dataset", "scope", "start", "end", "receipt_ids")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_IDS_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    dataset: str
+    scope: str
+    start: str
+    end: str
+    receipt_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, request_id: _Optional[str] = ..., dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class Compaction(_message.Message):
+    __slots__ = ("compaction_id", "plan_id", "plan", "created_at", "status", "result", "error", "null_fields")
+    COMPACTION_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    compaction_id: str
+    plan_id: str
+    plan: _struct_pb2.Struct
+    created_at: str
+    status: str
+    result: _struct_pb2.Struct
+    error: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, compaction_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., plan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., created_at: _Optional[str] = ..., status: _Optional[str] = ..., result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., error: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CompactionPage(_message.Message):
+    __slots__ = ("offset", "limit")
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    offset: int
+    limit: int
+    def __init__(self, offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class CompactionList(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[Compaction]
+    def __init__(self, items: _Optional[_Iterable[_Union[Compaction, _Mapping]]] = ...) -> None: ...
+
+class PrepareResearchRequest(_message.Message):
+    __slots__ = ("receipt_id", "request_id", "specification", "label_convention", "interpretation_reference")
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    SPECIFICATION_FIELD_NUMBER: _ClassVar[int]
+    LABEL_CONVENTION_FIELD_NUMBER: _ClassVar[int]
+    INTERPRETATION_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    receipt_id: str
+    request_id: str
+    specification: ImportSpecification
+    label_convention: str
+    interpretation_reference: str
+    def __init__(self, receipt_id: _Optional[str] = ..., request_id: _Optional[str] = ..., specification: _Optional[_Union[ImportSpecification, _Mapping]] = ..., label_convention: _Optional[str] = ..., interpretation_reference: _Optional[str] = ...) -> None: ...
+
+class AssembleResearchRequest(_message.Message):
+    __slots__ = ("snapshot_ids",)
+    SNAPSHOT_IDS_FIELD_NUMBER: _ClassVar[int]
+    snapshot_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, snapshot_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CatalogSnapshot(_message.Message):
+    __slots__ = ("snapshot_id", "exchange", "product", "contract", "files", "reference", "time_basis", "fee_basis", "series", "entity_type")
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    TIME_BASIS_FIELD_NUMBER: _ClassVar[int]
+    FEE_BASIS_FIELD_NUMBER: _ClassVar[int]
+    SERIES_FIELD_NUMBER: _ClassVar[int]
+    ENTITY_TYPE_FIELD_NUMBER: _ClassVar[int]
+    snapshot_id: str
+    exchange: str
+    product: str
+    contract: str
+    files: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    reference: _struct_pb2.Struct
+    time_basis: str
+    fee_basis: str
+    series: str
+    entity_type: str
+    def __init__(self, snapshot_id: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., contract: _Optional[str] = ..., files: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reference: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., time_basis: _Optional[str] = ..., fee_basis: _Optional[str] = ..., series: _Optional[str] = ..., entity_type: _Optional[str] = ...) -> None: ...
+
+class CatalogQuery(_message.Message):
+    __slots__ = ("domain", "contract", "start", "end", "offset", "limit", "series")
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    SERIES_FIELD_NUMBER: _ClassVar[int]
+    domain: str
+    contract: str
+    start: str
+    end: str
+    offset: int
+    limit: int
+    series: str
+    def __init__(self, domain: _Optional[str] = ..., contract: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., series: _Optional[str] = ...) -> None: ...
+
+class CatalogRows(_message.Message):
+    __slots__ = ("snapshot_id", "domain", "rows", "total", "offset", "limit")
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    ROWS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    snapshot_id: str
+    domain: str
+    rows: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    total: int
+    offset: int
+    limit: int
+    def __init__(self, snapshot_id: _Optional[str] = ..., domain: _Optional[str] = ..., rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class SeriesQuery(_message.Message):
+    __slots__ = ("dataset", "search", "offset")
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    dataset: str
+    search: str
+    offset: int
+    def __init__(self, dataset: _Optional[str] = ..., search: _Optional[str] = ..., offset: _Optional[int] = ...) -> None: ...
+
+class SeriesVersions(_message.Message):
+    __slots__ = ("dataset", "scope", "offset")
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    dataset: str
+    scope: str
+    offset: int
+    def __init__(self, dataset: _Optional[str] = ..., scope: _Optional[str] = ..., offset: _Optional[int] = ...) -> None: ...
+
+class SeriesIdentity(_message.Message):
+    __slots__ = ("dataset", "scope")
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    dataset: str
+    scope: str
+    def __init__(self, dataset: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
+
+class SeriesRows(_message.Message):
+    __slots__ = ("rows", "total")
+    ROWS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    rows: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    total: int
+    def __init__(self, rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ...) -> None: ...
+
+class SeriesRetry(_message.Message):
+    __slots__ = ("retried",)
+    RETRIED_FIELD_NUMBER: _ClassVar[int]
+    retried: int
+    def __init__(self, retried: _Optional[int] = ...) -> None: ...

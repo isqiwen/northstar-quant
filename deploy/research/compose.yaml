@@ -62,6 +62,7 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
+      NORTHSTAR_WORKSPACE_DIR: /var/lib/northstar/workspace
       NORTHSTAR_LOG_DIR: /var/log/northstar
       TMPDIR: /var/lib/northstar/work
       NORTHSTAR_DATABASE_OWNER: research
@@ -72,6 +73,11 @@ services:
       NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19090}
       NORTHSTAR_RESEARCH_DATABASE: /var/lib/northstar/state/research.sqlite3
     volumes:
+    - type: bind
+      source: /opt/northstar/credentials/research/workspace
+      target: /var/lib/northstar/workspace
+      bind:
+        create_host_path: false
     - type: bind
       source: /opt/northstar/logs/research
       target: /var/log/northstar/research

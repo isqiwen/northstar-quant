@@ -33,6 +33,7 @@ def test_import_research_and_reopen_preserve_complete_result(
         )
         lines.append(f"{at},{available},bar-{index},{price},{price},{price},{price},100")
     specification = {
+        "interval": "1m",
         "exchange": "SHFE",
         "symbol": "RB2605",
         "product": "RB",
@@ -61,14 +62,14 @@ def test_import_research_and_reopen_preserve_complete_result(
             base_url="http://127.0.0.1",
         ) as data,
     ):
+        _browser_session(client)
+        _browser_session(data)
         assert client.get("/health/ready").status_code == 200
         assert client.get("/api/runs").json() == []
         assert client.get("/api/datasets").json() == []
         content = ("\n".join(lines) + "\n").encode("utf-8")
         upload_request = _upload_request(content, specification)
         assert data.post("/api/import", json=upload_request).status_code == 404
-        _browser_session(client)
-        _browser_session(data)
         assert client.post("/api/import", json=upload_request).status_code in {404, 405}
         assert data.post("/api/runs", json={}).status_code in {404, 405}
         imported = _seed_source(DataLibrary(postgres_engine, archive), upload_request)
@@ -152,9 +153,9 @@ def test_import_research_and_reopen_preserve_complete_result(
                 base_url="http://127.0.0.1",
             ) as data,
         ):
-            assert client.get(f"/api/runs/{run_id}").json() == saved
             _browser_session(client)
             _browser_session(data)
+            assert client.get(f"/api/runs/{run_id}").json() == saved
             assert data.get(f"/api/sources/{source_id}/download").content == content
             assert client.get("/api/datasets").json()[0]["snapshot_id"] == dataset["snapshot_id"]
             assert client.get(f"/api/datasets/{dataset['snapshot_id']}").json() == details

@@ -34,6 +34,9 @@ def parse(argv: Sequence[str] | None) -> argparse.Namespace:
     )
     commands = parser.add_subparsers(required=True, title="命令")
     servers = group(commands, "serve", "启动一个后端服务（前端通过 Compose 或 npm 启动）")
+    servers.add_parser("live-monitor", help="独立只读观察 Live 健康并输出 JSON 告警").set_defaults(
+        scope="serve", operation="live-monitor"
+    )
     servers.add_parser("data-worker", help="独立执行已持久接收的数据加工任务").set_defaults(
         scope="serve", operation="data-worker"
     )

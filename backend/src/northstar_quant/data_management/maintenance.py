@@ -9,7 +9,7 @@ from typing import Any
 
 from sqlalchemy import Connection, Engine, text
 
-from northstar_quant.live.storage import KernelLock
+from northstar_quant.persistence.locks import FileLock
 
 _LIBRARY_LOCK = 0x4E535144415441
 
@@ -19,7 +19,7 @@ def library_write(engine: Engine) -> Iterator[None]:
     """Hold shared admission until the complete bounded ingestion operation ends."""
 
     if engine.dialect.name == "sqlite":
-        with closing(KernelLock(Path(str(engine.url.database) + ".archive"))):
+        with closing(FileLock(Path(str(engine.url.database) + ".archive"))):
             yield
         return
     with engine.begin() as connection:
@@ -59,4 +59,11 @@ def record_backup(connection: Connection, document: dict[str, Any], content: byt
             "hash": hashlib.sha256(content).hexdigest(),
             "sources": json.dumps(document["sources"]),
         },
+    )
+
+
+def try_freeze_sources(connection: Connection) -> bool:
+    """Defer routine retention while an ingestion holds the shared source gate."""
+    return bool(
+        connection.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": _LIBRARY_LOCK})
     )

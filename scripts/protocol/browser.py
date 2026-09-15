@@ -17,6 +17,7 @@ def main() -> None:
         "northstar_quant",
         "northstar_quant.web",
         "northstar_quant.apps",
+        "northstar_quant.accounting",
         *[f"northstar_quant.apps.{role}" for role in ("data_hub", "research", "live")],
     ):
         namespace = ModuleType(name)
@@ -24,13 +25,27 @@ def main() -> None:
         sys.modules[name] = namespace
     options = importlib.import_module("northstar_quant.web.api_options_pb2")
     common = importlib.import_module("northstar_quant.web.common_pb2")
+    auth = importlib.import_module("northstar_quant.web.auth_pb2")
+    accounting = importlib.import_module("northstar_quant.accounting.protocol_pb2")
     from google.protobuf.descriptor import FieldDescriptor as F
+
+    def wire_type(field):
+        if field.message_type:
+            return field.message_type.full_name
+        return {
+            F.TYPE_STRING: "string",
+            F.TYPE_BOOL: "bool",
+            F.TYPE_INT64: "int64",
+            F.TYPE_DOUBLE: "double",
+        }[field.type]
 
     for role in ("data_hub", "research", "live"):
         module = importlib.import_module(f"northstar_quant.apps.{role}.api_pb2")
         descriptors = {
             **module.DESCRIPTOR.message_types_by_name,
             **common.DESCRIPTOR.message_types_by_name,
+            **auth.DESCRIPTOR.message_types_by_name,
+            **accounting.DESCRIPTOR.message_types_by_name,
         }
         definitions = {}
         declarations = [
@@ -93,14 +108,7 @@ def main() -> None:
                 info = {
                     "id": f.number,
                     "presence": f.has_presence,
-                    "type": f.message_type.full_name
-                    if f.message_type
-                    else {
-                        F.TYPE_STRING: "string",
-                        F.TYPE_BOOL: "bool",
-                        F.TYPE_INT64: "int64",
-                        F.TYPE_DOUBLE: "double",
-                    }[f.type],
+                    "type": wire_type(f),
                     "required": f.GetOptions().Extensions[options.required_field],
                     "nullable": f.GetOptions().Extensions[options.nullable],
                 }
@@ -108,7 +116,7 @@ def main() -> None:
                     value = f.message_type.fields_by_name["value"]
                     info.update(
                         keyType="string",
-                        type=value.message_type.full_name if value.message_type else "string",
+                        type=wire_type(value),
                     )
                 elif f.is_repeated:
                     info["rule"] = "repeated"

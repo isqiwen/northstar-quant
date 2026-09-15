@@ -94,7 +94,23 @@ class TradingKernel[M, R]:
             raise RuntimeError("cannot change subscriptions in an active or faulted kernel")
         self._bus.subscribe(topic, handler)
 
+    def register[C, S](self, endpoint: Endpoint[C, S], handler: Callable[[C], S]) -> None:
+        """Compose additional owned command routes before starting this core."""
+        self._check_owner()
+        if self._state != KernelState.READY:
+            raise RuntimeError("kernel command routes must be composed before start")
+        self._bus.register(endpoint, handler)
+
+    def execute[C, S](self, endpoint: Endpoint[C, S], message: C) -> S:
+        """Route a control command under the same single-core failure boundary."""
+        return self._dispatch(endpoint, message, None)
+
     def advance(self, message: M) -> R:
+        return self._dispatch(self._endpoint, message, self._completed)
+
+    def _dispatch[C, S](
+        self, endpoint: Endpoint[C, S], message: C, completed: Topic[S] | None
+    ) -> S:
         self._check_owner()
         if self._state != KernelState.RUNNING:
             raise RuntimeError("trading kernel is not running (closed or faulted)")
@@ -103,12 +119,12 @@ class TradingKernel[M, R]:
         self._active = True
         committed = False
         try:
-            result = self._bus.request(self._endpoint, message)
+            result = self._bus.request(endpoint, message)
             committed = True
             self._processed += 1
             # None is the processor's duplicate/no-op result, not a new fact.
-            if self._completed is not None and result is not None:
-                self._bus.publish(self._completed, result)
+            if completed is not None and result is not None:
+                self._bus.publish(completed, result)
             return result
         except BaseException as error:
             self._failures += 1

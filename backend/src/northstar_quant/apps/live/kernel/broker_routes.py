@@ -17,6 +17,7 @@ from .commands import execute_command
 class QueryBroker(BaseModel):
     model_config = ConfigDict(extra="forbid")
     instrument: str = Field(min_length=1, max_length=32)
+    settlement_day: str | None = None
 
 
 class SourceObservation(BaseModel):
@@ -64,8 +65,10 @@ def routes(owner: LiveOwner) -> APIRouter:
         return execute_command(
             owner,
             request,
-            body.model_dump(mode="json"),
-            lambda identifier: broker.query(body.instrument, request_id=identifier),
+            body.model_dump(mode="json", exclude_none=True),
+            lambda identifier: broker.query(
+                body.instrument, request_id=identifier, settlement_day=body.settlement_day
+            ),
         )
 
     @router.get("/broker/queries/{batch_id}/baseline")

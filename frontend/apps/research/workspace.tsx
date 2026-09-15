@@ -16,7 +16,7 @@ import { Paper, PaperDetail } from "./paper";
 
 export default function Workspace({ children }: { children: ReactNode }) {
   return (
-    <Providers>
+    <Providers name="Research">
       <Shell
         name="Research"
         subtitle="固定输入 · 可复核研究"

@@ -13,10 +13,10 @@ from uuid import UUID
 
 from sqlalchemy import Engine, create_engine, inspect, text
 
-from northstar_quant.apps.maintenance import _file_hash, _write_record
 from northstar_quant.apps.storage import require_current_database
 from northstar_quant.data_management.publications import PublishedDatasets
 from northstar_quant.data_management.storage_identity import initialize
+from northstar_quant.persistence.backup_files import file_hash, write_record
 from northstar_quant.research.artifacts import ResearchArtifacts
 
 
@@ -81,7 +81,7 @@ def backup(engine: Engine, destination: Path) -> dict[str, object]:
         for name in ("MARKET", "RESEARCH", "BACKUP")
         if os.environ.get(f"NORTHSTAR_{name}_STORAGE_ID")
     }
-    _write_record(
+    write_record(
         target / "storage-bindings.json",
         json.dumps(
             {
@@ -92,7 +92,7 @@ def backup(engine: Engine, destination: Path) -> dict[str, object]:
             sort_keys=True,
         ).encode(),
     )
-    manifest = {str(p.relative_to(target)): _file_hash(p) for p in target.rglob("*") if p.is_file()}
+    manifest = {str(p.relative_to(target)): file_hash(p) for p in target.rglob("*") if p.is_file()}
     document: dict[str, object] = {"owner": "research", "files": manifest}
     for path in manifest:
         with (target / path).open("rb") as stream:
@@ -101,7 +101,7 @@ def backup(engine: Engine, destination: Path) -> dict[str, object]:
 
     for root in (target / "market", target / "research", target):
         SourceFiles._sync(root)
-    _write_record(target / "manifest.json", json.dumps(document, sort_keys=True).encode())
+    write_record(target / "manifest.json", json.dumps(document, sort_keys=True).encode())
     return document
 
 
@@ -122,7 +122,7 @@ def restore(engine: Engine, destination: Path) -> dict[str, object]:
             "research",
         }:
             raise ValueError("invalid Research backup component")
-        if _file_hash(destination / relative) != digest:
+        if file_hash(destination / relative) != digest:
             raise ValueError("backup checksum mismatch")
     if not {"database.sqlite3", "storage-bindings.json"} <= document["files"].keys():
         raise ValueError("missing database dump")
@@ -148,11 +148,11 @@ def restore(engine: Engine, destination: Path) -> dict[str, object]:
     for name, root in roots.items():
         root.mkdir(parents=True, mode=0o700)
         initialize(root, os.environ[f"NORTHSTAR_{name.upper()}_STORAGE_ID"])
-        _write_record(root / ".restore-incomplete", b"Restore has not passed validation.\n")
+        write_record(root / ".restore-incomplete", b"Restore has not passed validation.\n")
     for name in document["files"]:
         parts = Path(name).parts
         if len(parts) == 2:
-            _write_record(roots[parts[0]] / parts[1], (destination / name).read_bytes())
+            write_record(roots[parts[0]] / parts[1], (destination / name).read_bytes())
     if engine.dialect.name != "sqlite" or not engine.url.database:
         raise ValueError("Research restore requires local SQLite")
     engine.dispose()
@@ -194,7 +194,7 @@ def restore(engine: Engine, destination: Path) -> dict[str, object]:
         factors.get(UUID(str(identity)))
     state = Path(engine.url.database).parent / "bindings"
     state.mkdir(mode=0o700, exist_ok=True)
-    _write_record(state / "storage.json", json.dumps(bindings, sort_keys=True).encode())
+    write_record(state / "storage.json", json.dumps(bindings, sort_keys=True).encode())
     for root in roots.values():
         (root / ".restore-incomplete").unlink()
         from northstar_quant.data_management.files import SourceFiles

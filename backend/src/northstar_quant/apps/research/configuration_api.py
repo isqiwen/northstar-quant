@@ -46,6 +46,7 @@ class SimulationInput(ApiModel):
     initial_cash: str = "100000"
     fee_per_lot: str = "2"
     slippage_ticks: int = 1
+    max_volume_participation: str = "0.1"
 
 
 class ResearchConfigurationInput(ApiModel):

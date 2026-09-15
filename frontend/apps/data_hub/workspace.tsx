@@ -1,4 +1,5 @@
 "use client";
+import "./api/client";
 import type { ReactNode } from "react";
 import {
   DashboardOutlined,
@@ -12,13 +13,14 @@ import { Shell, Providers } from "../../shared/shell";
 
 export default function Workspace({ children }: { children: ReactNode }) {
   return (
-    <Providers>
+    <Providers name="Data Hub">
       <Shell
         name="Data Hub"
         subtitle="来源证据 · 固定快照"
         items={[
           { key: "/", label: "数据概览", icon: <DashboardOutlined /> },
           { key: "/browse", label: "数据浏览", icon: <LineChartOutlined /> },
+          { key: "/series", label: "研究序列", icon: <LineChartOutlined /> },
           {
             key: "/quality",
             label: "覆盖与质量",

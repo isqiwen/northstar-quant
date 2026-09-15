@@ -1,6 +1,8 @@
 from google.protobuf import struct_pb2 as _struct_pb2
 from northstar_quant.web import api_options_pb2 as _api_options_pb2
 from northstar_quant.web import common_pb2 as _common_pb2
+from northstar_quant.web import auth_pb2 as _web_auth_pb2
+from northstar_quant.accounting import protocol_pb2 as _accounting_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -28,12 +30,6 @@ class AnnotationRequest(_message.Message):
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     description: str
     def __init__(self, description: _Optional[str] = ...) -> None: ...
-
-class BrowserSession(_message.Message):
-    __slots__ = ("csrf",)
-    CSRF_FIELD_NUMBER: _ClassVar[int]
-    csrf: str
-    def __init__(self, csrf: _Optional[str] = ...) -> None: ...
 
 class Catalog(_message.Message):
     __slots__ = ("factors", "strategies")
@@ -92,7 +88,7 @@ class ConfigurationRequest(_message.Message):
     def __init__(self, config: _Optional[_Union[ResearchConfigurationInput, _Mapping]] = ..., name: _Optional[str] = ...) -> None: ...
 
 class DatasetDetails(_message.Message):
-    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields")
+    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields", "settlements", "terms")
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
     BAR_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -113,6 +109,8 @@ class DatasetDetails(_message.Message):
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
     TRADING_DAYS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENTS_FIELD_NUMBER: _ClassVar[int]
+    TERMS_FIELD_NUMBER: _ClassVar[int]
     availability_basis: str
     availability_note: str
     bar_count: int
@@ -133,7 +131,9 @@ class DatasetDetails(_message.Message):
     symbol: str
     trading_days: _containers.RepeatedScalarFieldContainer[str]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    settlements: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.SettlementFact]
+    terms: _containers.RepeatedCompositeFieldContainer[_accounting_pb2.FuturesTerms]
+    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_accounting_pb2.SettlementFact, _Mapping]]] = ..., terms: _Optional[_Iterable[_Union[_accounting_pb2.FuturesTerms, _Mapping]]] = ...) -> None: ...
 
 class DatasetLineage(_message.Message):
     __slots__ = ("attempts", "snapshot_id", "sources", "usages")
@@ -172,7 +172,7 @@ class DatasetSummary(_message.Message):
     def __init__(self, bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EquityPoint(_message.Message):
-    __slots__ = ("at", "equity", "observation_id", "evidence_fields")
+    __slots__ = ("at", "equity", "observation_id", "evidence_fields", "close", "cash", "position_lots", "realized_pnl", "unrealized_pnl", "total_fees", "drawdown", "drawdown_fraction", "long_lots", "short_lots", "net_exposure", "gross_exposure", "settlement_pnl", "trade_realized_pnl", "terms_id", "margin_used", "available", "reserved_fee", "reserved_margin", "reserved_close_lots", "available_after_reservations", "reserved_gross", "reserved_loss", "null_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -184,11 +184,59 @@ class EquityPoint(_message.Message):
     EQUITY_FIELD_NUMBER: _ClassVar[int]
     OBSERVATION_ID_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    CLOSE_FIELD_NUMBER: _ClassVar[int]
+    CASH_FIELD_NUMBER: _ClassVar[int]
+    POSITION_LOTS_FIELD_NUMBER: _ClassVar[int]
+    REALIZED_PNL_FIELD_NUMBER: _ClassVar[int]
+    UNREALIZED_PNL_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FEES_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWN_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWN_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    LONG_LOTS_FIELD_NUMBER: _ClassVar[int]
+    SHORT_LOTS_FIELD_NUMBER: _ClassVar[int]
+    NET_EXPOSURE_FIELD_NUMBER: _ClassVar[int]
+    GROSS_EXPOSURE_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENT_PNL_FIELD_NUMBER: _ClassVar[int]
+    TRADE_REALIZED_PNL_FIELD_NUMBER: _ClassVar[int]
+    TERMS_ID_FIELD_NUMBER: _ClassVar[int]
+    MARGIN_USED_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_FEE_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_MARGIN_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_CLOSE_LOTS_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_AFTER_RESERVATIONS_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_GROSS_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_LOSS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     at: str
     equity: str
     observation_id: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, at: _Optional[str] = ..., equity: _Optional[str] = ..., observation_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    close: str
+    cash: str
+    position_lots: int
+    realized_pnl: str
+    unrealized_pnl: str
+    total_fees: str
+    drawdown: str
+    drawdown_fraction: str
+    long_lots: int
+    short_lots: int
+    net_exposure: str
+    gross_exposure: str
+    settlement_pnl: str
+    trade_realized_pnl: str
+    terms_id: str
+    margin_used: str
+    available: str
+    reserved_fee: str
+    reserved_margin: str
+    reserved_close_lots: int
+    available_after_reservations: str
+    reserved_gross: str
+    reserved_loss: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, at: _Optional[str] = ..., equity: _Optional[str] = ..., observation_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., close: _Optional[str] = ..., cash: _Optional[str] = ..., position_lots: _Optional[int] = ..., realized_pnl: _Optional[str] = ..., unrealized_pnl: _Optional[str] = ..., total_fees: _Optional[str] = ..., drawdown: _Optional[str] = ..., drawdown_fraction: _Optional[str] = ..., long_lots: _Optional[int] = ..., short_lots: _Optional[int] = ..., net_exposure: _Optional[str] = ..., gross_exposure: _Optional[str] = ..., settlement_pnl: _Optional[str] = ..., trade_realized_pnl: _Optional[str] = ..., terms_id: _Optional[str] = ..., margin_used: _Optional[str] = ..., available: _Optional[str] = ..., reserved_fee: _Optional[str] = ..., reserved_margin: _Optional[str] = ..., reserved_close_lots: _Optional[int] = ..., available_after_reservations: _Optional[str] = ..., reserved_gross: _Optional[str] = ..., reserved_loss: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FactorBinding(_message.Message):
     __slots__ = ("code_revision", "factor_id", "parameters", "revision")
@@ -231,14 +279,85 @@ class FactorInput(_message.Message):
     def __init__(self, factor_id: _Optional[str] = ..., parameters: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class FactorResult(_message.Message):
-    __slots__ = ("evaluation", "inputs", "values")
+    __slots__ = ("evaluation", "inputs", "values", "analysis")
     EVALUATION_FIELD_NUMBER: _ClassVar[int]
     INPUTS_FIELD_NUMBER: _ClassVar[int]
     VALUES_FIELD_NUMBER: _ClassVar[int]
+    ANALYSIS_FIELD_NUMBER: _ClassVar[int]
     evaluation: _struct_pb2.Struct
     inputs: _struct_pb2.Struct
     values: _containers.RepeatedCompositeFieldContainer[FactorValue]
-    def __init__(self, evaluation: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., values: _Optional[_Iterable[_Union[FactorValue, _Mapping]]] = ...) -> None: ...
+    analysis: FactorAnalysis
+    def __init__(self, evaluation: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., values: _Optional[_Iterable[_Union[FactorValue, _Mapping]]] = ..., analysis: _Optional[_Union[FactorAnalysis, _Mapping]] = ...) -> None: ...
+
+class ForwardGroup(_message.Message):
+    __slots__ = ("group", "samples", "mean_forward_return", "null_fields")
+    GROUP_FIELD_NUMBER: _ClassVar[int]
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    MEAN_FORWARD_RETURN_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    group: int
+    samples: int
+    mean_forward_return: float
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, group: _Optional[int] = ..., samples: _Optional[int] = ..., mean_forward_return: _Optional[float] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ForwardDay(_message.Message):
+    __slots__ = ("trading_day", "samples", "spearman", "mean_forward_return", "null_fields")
+    TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    SPEARMAN_FIELD_NUMBER: _ClassVar[int]
+    MEAN_FORWARD_RETURN_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    trading_day: str
+    samples: int
+    spearman: float
+    mean_forward_return: float
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, trading_day: _Optional[str] = ..., samples: _Optional[int] = ..., spearman: _Optional[float] = ..., mean_forward_return: _Optional[float] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class FactorHorizon(_message.Message):
+    __slots__ = ("bars", "samples", "excluded", "status", "pearson", "spearman", "group_change_fraction", "groups", "days", "null_fields")
+    class ExcludedEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    BARS_FIELD_NUMBER: _ClassVar[int]
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PEARSON_FIELD_NUMBER: _ClassVar[int]
+    SPEARMAN_FIELD_NUMBER: _ClassVar[int]
+    GROUP_CHANGE_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    GROUPS_FIELD_NUMBER: _ClassVar[int]
+    DAYS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    bars: int
+    samples: int
+    excluded: _containers.ScalarMap[str, int]
+    status: str
+    pearson: float
+    spearman: float
+    group_change_fraction: float
+    groups: _containers.RepeatedCompositeFieldContainer[ForwardGroup]
+    days: _containers.RepeatedCompositeFieldContainer[ForwardDay]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, bars: _Optional[int] = ..., samples: _Optional[int] = ..., excluded: _Optional[_Mapping[str, int]] = ..., status: _Optional[str] = ..., pearson: _Optional[float] = ..., spearman: _Optional[float] = ..., group_change_fraction: _Optional[float] = ..., groups: _Optional[_Iterable[_Union[ForwardGroup, _Mapping]]] = ..., days: _Optional[_Iterable[_Union[ForwardDay, _Mapping]]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class FactorAnalysis(_message.Message):
+    __slots__ = ("plan", "numeric", "horizons", "limitations")
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    NUMERIC_FIELD_NUMBER: _ClassVar[int]
+    HORIZONS_FIELD_NUMBER: _ClassVar[int]
+    LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
+    plan: str
+    numeric: str
+    horizons: _containers.RepeatedCompositeFieldContainer[FactorHorizon]
+    limitations: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, plan: _Optional[str] = ..., numeric: _Optional[str] = ..., horizons: _Optional[_Iterable[_Union[FactorHorizon, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FactorRevision(_message.Message):
     __slots__ = ("annotations", "binding", "revision_id")
@@ -259,7 +378,7 @@ class FactorRevisionRequest(_message.Message):
     def __init__(self, factor_id: _Optional[str] = ..., parameters: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class FactorRun(_message.Message):
-    __slots__ = ("attempt_id", "code_revision", "completed_at", "created_at", "error", "result", "revision_id", "snapshot_id", "status", "evidence_fields", "null_fields")
+    __slots__ = ("total", "done", "attempt_id", "code_revision", "completed_at", "created_at", "error", "result", "revision_id", "snapshot_id", "status", "evidence_fields", "null_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -267,6 +386,8 @@ class FactorRun(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    DONE_FIELD_NUMBER: _ClassVar[int]
     ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
     CODE_REVISION_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -278,6 +399,8 @@ class FactorRun(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    total: int
+    done: int
     attempt_id: str
     code_revision: str
     completed_at: str
@@ -289,15 +412,17 @@ class FactorRun(_message.Message):
     status: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, attempt_id: _Optional[str] = ..., code_revision: _Optional[str] = ..., completed_at: _Optional[str] = ..., created_at: _Optional[str] = ..., error: _Optional[str] = ..., result: _Optional[_Union[FactorResult, _Mapping]] = ..., revision_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, total: _Optional[int] = ..., done: _Optional[int] = ..., attempt_id: _Optional[str] = ..., code_revision: _Optional[str] = ..., completed_at: _Optional[str] = ..., created_at: _Optional[str] = ..., error: _Optional[str] = ..., result: _Optional[_Union[FactorResult, _Mapping]] = ..., revision_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FactorRunRequest(_message.Message):
-    __slots__ = ("revision_id", "snapshot_id")
+    __slots__ = ("request_id", "revision_id", "snapshot_id")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     REVISION_ID_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
     revision_id: str
     snapshot_id: str
-    def __init__(self, revision_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., revision_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ...) -> None: ...
 
 class FactorSummary(_message.Message):
     __slots__ = ("capabilities", "category", "description", "factor_id", "limitations", "name")
@@ -392,7 +517,8 @@ class HttpError(_message.Message):
     def __init__(self, detail: _Optional[str] = ..., rejection_id: _Optional[str] = ..., request_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., status: _Optional[str] = ..., url: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ImportSpecification(_message.Message):
-    __slots__ = ("session_kind", "availability_basis", "availability_note", "currency", "exchange", "multiplier", "price_tick", "product", "quantity_unit", "session_close", "session_open", "source_name", "source_reference", "symbol", "timezone", "trading_day")
+    __slots__ = ("interval", "session_kind", "availability_basis", "availability_note", "currency", "exchange", "multiplier", "price_tick", "product", "quantity_unit", "session_close", "session_open", "source_name", "source_reference", "symbol", "timezone", "trading_day")
+    INTERVAL_FIELD_NUMBER: _ClassVar[int]
     SESSION_KIND_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
@@ -409,6 +535,7 @@ class ImportSpecification(_message.Message):
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
     TIMEZONE_FIELD_NUMBER: _ClassVar[int]
     TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    interval: str
     session_kind: str
     availability_basis: str
     availability_note: str
@@ -425,7 +552,7 @@ class ImportSpecification(_message.Message):
     symbol: str
     timezone: str
     trading_day: str
-    def __init__(self, session_kind: _Optional[str] = ..., availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., currency: _Optional[str] = ..., exchange: _Optional[str] = ..., multiplier: _Optional[str] = ..., price_tick: _Optional[str] = ..., product: _Optional[str] = ..., quantity_unit: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., source_name: _Optional[str] = ..., source_reference: _Optional[str] = ..., symbol: _Optional[str] = ..., timezone: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
+    def __init__(self, interval: _Optional[str] = ..., session_kind: _Optional[str] = ..., availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., currency: _Optional[str] = ..., exchange: _Optional[str] = ..., multiplier: _Optional[str] = ..., price_tick: _Optional[str] = ..., product: _Optional[str] = ..., quantity_unit: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., source_name: _Optional[str] = ..., source_reference: _Optional[str] = ..., symbol: _Optional[str] = ..., timezone: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
 
 class PaperAdvanced(_message.Message):
     __slots__ = ("sequence", "session_id", "step", "url", "evidence_fields")
@@ -555,7 +682,7 @@ class ResearchConfigurationInput(_message.Message):
     def __init__(self, risk: _Optional[_Union[RiskInput, _Mapping]] = ..., simulation: _Optional[_Union[SimulationInput, _Mapping]] = ..., strategy: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ResearchResultDocument(_message.Message):
-    __slots__ = ("data", "decisions", "equity_curve", "fills", "summary", "evidence_fields", "null_fields")
+    __slots__ = ("performance", "evaluation", "orders", "data", "decisions", "equity_curve", "fills", "summary", "evidence_fields", "null_fields", "settlements")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -563,6 +690,9 @@ class ResearchResultDocument(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    PERFORMANCE_FIELD_NUMBER: _ClassVar[int]
+    EVALUATION_FIELD_NUMBER: _ClassVar[int]
+    ORDERS_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
     DECISIONS_FIELD_NUMBER: _ClassVar[int]
     EQUITY_CURVE_FIELD_NUMBER: _ClassVar[int]
@@ -570,14 +700,19 @@ class ResearchResultDocument(_message.Message):
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
-    data: _struct_pb2.Struct
+    SETTLEMENTS_FIELD_NUMBER: _ClassVar[int]
+    performance: PerformanceReport
+    evaluation: EvaluationResult
+    orders: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    data: DatasetDetails
     decisions: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     equity_curve: _containers.RepeatedCompositeFieldContainer[EquityPoint]
     fills: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     summary: ResearchSummary
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., equity_curve: _Optional[_Iterable[_Union[EquityPoint, _Mapping]]] = ..., fills: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., summary: _Optional[_Union[ResearchSummary, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    settlements: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    def __init__(self, performance: _Optional[_Union[PerformanceReport, _Mapping]] = ..., evaluation: _Optional[_Union[EvaluationResult, _Mapping]] = ..., orders: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., data: _Optional[_Union[DatasetDetails, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., equity_curve: _Optional[_Iterable[_Union[EquityPoint, _Mapping]]] = ..., fills: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., summary: _Optional[_Union[ResearchSummary, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
 
 class ResearchSummary(_message.Message):
     __slots__ = ("bar_count", "decision_count", "ending_cash", "ending_equity", "ending_position_lots", "fill_count", "initial_cash", "max_drawdown", "max_drawdown_fraction", "realized_pnl", "total_fees", "total_return", "unrealized_pnl")
@@ -702,14 +837,16 @@ class SavedConfiguration(_message.Message):
     def __init__(self, config: _Optional[_Union[ResearchConfiguration, _Mapping]] = ..., configuration_id: _Optional[str] = ..., created_at: _Optional[str] = ..., name: _Optional[str] = ..., risk_hash: _Optional[str] = ..., strategy_hash: _Optional[str] = ...) -> None: ...
 
 class SimulationInput(_message.Message):
-    __slots__ = ("fee_per_lot", "initial_cash", "slippage_ticks")
+    __slots__ = ("max_volume_participation", "fee_per_lot", "initial_cash", "slippage_ticks")
+    MAX_VOLUME_PARTICIPATION_FIELD_NUMBER: _ClassVar[int]
     FEE_PER_LOT_FIELD_NUMBER: _ClassVar[int]
     INITIAL_CASH_FIELD_NUMBER: _ClassVar[int]
     SLIPPAGE_TICKS_FIELD_NUMBER: _ClassVar[int]
+    max_volume_participation: str
     fee_per_lot: str
     initial_cash: str
     slippage_ticks: int
-    def __init__(self, fee_per_lot: _Optional[str] = ..., initial_cash: _Optional[str] = ..., slippage_ticks: _Optional[int] = ...) -> None: ...
+    def __init__(self, max_volume_participation: _Optional[str] = ..., fee_per_lot: _Optional[str] = ..., initial_cash: _Optional[str] = ..., slippage_ticks: _Optional[int] = ...) -> None: ...
 
 class SnapshotReference(_message.Message):
     __slots__ = ("content_hash", "id", "evidence_fields")
@@ -729,18 +866,18 @@ class SnapshotReference(_message.Message):
     def __init__(self, content_hash: _Optional[str] = ..., id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class StrategyCandidate(_message.Message):
-    __slots__ = ("candidate_id", "document", "format", "production_eligible", "version_id")
+    __slots__ = ("candidate_id", "document", "format", "same_clean_revision", "version_id")
     CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
     DOCUMENT_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
-    PRODUCTION_ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    SAME_CLEAN_REVISION_FIELD_NUMBER: _ClassVar[int]
     VERSION_ID_FIELD_NUMBER: _ClassVar[int]
     candidate_id: str
     document: VersionDocument
     format: int
-    production_eligible: bool
+    same_clean_revision: bool
     version_id: str
-    def __init__(self, candidate_id: _Optional[str] = ..., document: _Optional[_Union[VersionDocument, _Mapping]] = ..., format: _Optional[int] = ..., production_eligible: _Optional[bool] = ..., version_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, candidate_id: _Optional[str] = ..., document: _Optional[_Union[VersionDocument, _Mapping]] = ..., format: _Optional[int] = ..., same_clean_revision: _Optional[bool] = ..., version_id: _Optional[str] = ...) -> None: ...
 
 class StrategyDescription(_message.Message):
     __slots__ = ("category", "description", "factor_slots", "name", "parameters", "revision", "strategy_id")
@@ -953,8 +1090,214 @@ class TaskControl(_message.Message):
     action: str
     def __init__(self, action: _Optional[str] = ...) -> None: ...
 
+class ExperimentRequest(_message.Message):
+    __slots__ = ("request_id", "hypothesis", "train_snapshot", "validation_snapshot", "test_snapshot", "configurations")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    HYPOTHESIS_FIELD_NUMBER: _ClassVar[int]
+    TRAIN_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    VALIDATION_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    TEST_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATIONS_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    hypothesis: str
+    train_snapshot: str
+    validation_snapshot: str
+    test_snapshot: str
+    configurations: _containers.RepeatedCompositeFieldContainer[ResearchConfigurationInput]
+    def __init__(self, request_id: _Optional[str] = ..., hypothesis: _Optional[str] = ..., train_snapshot: _Optional[str] = ..., validation_snapshot: _Optional[str] = ..., test_snapshot: _Optional[str] = ..., configurations: _Optional[_Iterable[_Union[ResearchConfigurationInput, _Mapping]]] = ...) -> None: ...
+
+class LearningRecipeInput(_message.Message):
+    __slots__ = ("fast_bars", "slow_bars", "horizon_bars", "penalties", "threshold", "target_fraction")
+    FAST_BARS_FIELD_NUMBER: _ClassVar[int]
+    SLOW_BARS_FIELD_NUMBER: _ClassVar[int]
+    HORIZON_BARS_FIELD_NUMBER: _ClassVar[int]
+    PENALTIES_FIELD_NUMBER: _ClassVar[int]
+    THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    fast_bars: int
+    slow_bars: int
+    horizon_bars: int
+    penalties: _containers.RepeatedScalarFieldContainer[str]
+    threshold: str
+    target_fraction: str
+    def __init__(self, fast_bars: _Optional[int] = ..., slow_bars: _Optional[int] = ..., horizon_bars: _Optional[int] = ..., penalties: _Optional[_Iterable[str]] = ..., threshold: _Optional[str] = ..., target_fraction: _Optional[str] = ...) -> None: ...
+
+class LearningExperimentRequest(_message.Message):
+    __slots__ = ("request_id", "hypothesis", "train_snapshot", "validation_snapshot", "test_snapshot", "configurations", "learning")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    HYPOTHESIS_FIELD_NUMBER: _ClassVar[int]
+    TRAIN_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    VALIDATION_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    TEST_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATIONS_FIELD_NUMBER: _ClassVar[int]
+    LEARNING_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    hypothesis: str
+    train_snapshot: str
+    validation_snapshot: str
+    test_snapshot: str
+    configurations: _containers.RepeatedCompositeFieldContainer[ResearchConfigurationInput]
+    learning: LearningRecipeInput
+    def __init__(self, request_id: _Optional[str] = ..., hypothesis: _Optional[str] = ..., train_snapshot: _Optional[str] = ..., validation_snapshot: _Optional[str] = ..., test_snapshot: _Optional[str] = ..., configurations: _Optional[_Iterable[_Union[ResearchConfigurationInput, _Mapping]]] = ..., learning: _Optional[_Union[LearningRecipeInput, _Mapping]] = ...) -> None: ...
+
+class Experiment(_message.Message):
+    __slots__ = ("fitted", "experiment_id", "plan_id", "created_at", "status", "plan", "selection", "trials", "null_fields")
+    FITTED_FIELD_NUMBER: _ClassVar[int]
+    EXPERIMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_FIELD_NUMBER: _ClassVar[int]
+    TRIALS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    fitted: _struct_pb2.Struct
+    experiment_id: str
+    plan_id: str
+    created_at: str
+    status: str
+    plan: _struct_pb2.Struct
+    selection: _struct_pb2.Struct
+    trials: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, fitted: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., experiment_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., created_at: _Optional[str] = ..., status: _Optional[str] = ..., plan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., selection: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., trials: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ExperimentList(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[Experiment]
+    def __init__(self, items: _Optional[_Iterable[_Union[Experiment, _Mapping]]] = ...) -> None: ...
+
 class TaskList(_message.Message):
     __slots__ = ("items",)
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[ResearchTask]
     def __init__(self, items: _Optional[_Iterable[_Union[ResearchTask, _Mapping]]] = ...) -> None: ...
+
+class EvaluationPlan(_message.Message):
+    __slots__ = ("plan_id", "revision", "snapshot_id", "content_hash", "window", "event_start", "event_end", "expected_bars", "benchmark", "annualization", "risk_free_rate", "sample_use", "null_fields")
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    EVENT_START_FIELD_NUMBER: _ClassVar[int]
+    EVENT_END_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_BARS_FIELD_NUMBER: _ClassVar[int]
+    BENCHMARK_FIELD_NUMBER: _ClassVar[int]
+    ANNUALIZATION_FIELD_NUMBER: _ClassVar[int]
+    RISK_FREE_RATE_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_USE_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    plan_id: str
+    revision: str
+    snapshot_id: str
+    content_hash: str
+    window: str
+    event_start: str
+    event_end: str
+    expected_bars: int
+    benchmark: str
+    annualization: str
+    risk_free_rate: str
+    sample_use: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, plan_id: _Optional[str] = ..., revision: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., content_hash: _Optional[str] = ..., window: _Optional[str] = ..., event_start: _Optional[str] = ..., event_end: _Optional[str] = ..., expected_bars: _Optional[int] = ..., benchmark: _Optional[str] = ..., annualization: _Optional[str] = ..., risk_free_rate: _Optional[str] = ..., sample_use: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class EvaluationResult(_message.Message):
+    __slots__ = ("plan", "status", "observed_bars", "benchmark_ending_equity", "benchmark_return", "excess_return", "annualized_return", "sharpe", "limitations", "null_fields")
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_BARS_FIELD_NUMBER: _ClassVar[int]
+    BENCHMARK_ENDING_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    BENCHMARK_RETURN_FIELD_NUMBER: _ClassVar[int]
+    EXCESS_RETURN_FIELD_NUMBER: _ClassVar[int]
+    ANNUALIZED_RETURN_FIELD_NUMBER: _ClassVar[int]
+    SHARPE_FIELD_NUMBER: _ClassVar[int]
+    LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    plan: EvaluationPlan
+    status: str
+    observed_bars: int
+    benchmark_ending_equity: str
+    benchmark_return: str
+    excess_return: str
+    annualized_return: str
+    sharpe: str
+    limitations: _containers.RepeatedScalarFieldContainer[str]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, plan: _Optional[_Union[EvaluationPlan, _Mapping]] = ..., status: _Optional[str] = ..., observed_bars: _Optional[int] = ..., benchmark_ending_equity: _Optional[str] = ..., benchmark_return: _Optional[str] = ..., excess_return: _Optional[str] = ..., annualized_return: _Optional[str] = ..., sharpe: _Optional[str] = ..., limitations: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PerformancePeriod(_message.Message):
+    __slots__ = ("period", "start_at", "end_at", "opening_equity", "closing_equity", "pnl", "return_fraction", "observations", "null_fields")
+    PERIOD_FIELD_NUMBER: _ClassVar[int]
+    START_AT_FIELD_NUMBER: _ClassVar[int]
+    END_AT_FIELD_NUMBER: _ClassVar[int]
+    OPENING_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    CLOSING_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    PNL_FIELD_NUMBER: _ClassVar[int]
+    RETURN_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    period: str
+    start_at: str
+    end_at: str
+    opening_equity: str
+    closing_equity: str
+    pnl: str
+    return_fraction: str
+    observations: int
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, period: _Optional[str] = ..., start_at: _Optional[str] = ..., end_at: _Optional[str] = ..., opening_equity: _Optional[str] = ..., closing_equity: _Optional[str] = ..., pnl: _Optional[str] = ..., return_fraction: _Optional[str] = ..., observations: _Optional[int] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class DrawdownPeriod(_message.Message):
+    __slots__ = ("peak_at", "start_at", "trough_at", "end_at", "peak_equity", "trough_equity", "drawdown", "drawdown_fraction", "elapsed_seconds", "recovered")
+    PEAK_AT_FIELD_NUMBER: _ClassVar[int]
+    START_AT_FIELD_NUMBER: _ClassVar[int]
+    TROUGH_AT_FIELD_NUMBER: _ClassVar[int]
+    END_AT_FIELD_NUMBER: _ClassVar[int]
+    PEAK_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    TROUGH_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWN_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWN_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    RECOVERED_FIELD_NUMBER: _ClassVar[int]
+    peak_at: str
+    start_at: str
+    trough_at: str
+    end_at: str
+    peak_equity: str
+    trough_equity: str
+    drawdown: str
+    drawdown_fraction: str
+    elapsed_seconds: str
+    recovered: bool
+    def __init__(self, peak_at: _Optional[str] = ..., start_at: _Optional[str] = ..., trough_at: _Optional[str] = ..., end_at: _Optional[str] = ..., peak_equity: _Optional[str] = ..., trough_equity: _Optional[str] = ..., drawdown: _Optional[str] = ..., drawdown_fraction: _Optional[str] = ..., elapsed_seconds: _Optional[str] = ..., recovered: _Optional[bool] = ...) -> None: ...
+
+class RollingReturn(_message.Message):
+    __slots__ = ("start_day", "end_day", "observed_days", "return_fraction", "null_fields")
+    START_DAY_FIELD_NUMBER: _ClassVar[int]
+    END_DAY_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_DAYS_FIELD_NUMBER: _ClassVar[int]
+    RETURN_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    start_day: str
+    end_day: str
+    observed_days: int
+    return_fraction: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, start_day: _Optional[str] = ..., end_day: _Optional[str] = ..., observed_days: _Optional[int] = ..., return_fraction: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PerformanceReport(_message.Message):
+    __slots__ = ("daily", "monthly", "drawdowns", "rolling", "basis")
+    DAILY_FIELD_NUMBER: _ClassVar[int]
+    MONTHLY_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWNS_FIELD_NUMBER: _ClassVar[int]
+    ROLLING_FIELD_NUMBER: _ClassVar[int]
+    BASIS_FIELD_NUMBER: _ClassVar[int]
+    daily: _containers.RepeatedCompositeFieldContainer[PerformancePeriod]
+    monthly: _containers.RepeatedCompositeFieldContainer[PerformancePeriod]
+    drawdowns: _containers.RepeatedCompositeFieldContainer[DrawdownPeriod]
+    rolling: _containers.RepeatedCompositeFieldContainer[RollingReturn]
+    basis: str
+    def __init__(self, daily: _Optional[_Iterable[_Union[PerformancePeriod, _Mapping]]] = ..., monthly: _Optional[_Iterable[_Union[PerformancePeriod, _Mapping]]] = ..., drawdowns: _Optional[_Iterable[_Union[DrawdownPeriod, _Mapping]]] = ..., rolling: _Optional[_Iterable[_Union[RollingReturn, _Mapping]]] = ..., basis: _Optional[str] = ...) -> None: ...

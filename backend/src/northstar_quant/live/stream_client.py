@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -35,6 +36,7 @@ class StreamsClient:
         duration_seconds: int,
         allow_retention: bool,
         use_basis: str,
+        schedule: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return self._live.mutate(
             "/streams",
@@ -44,12 +46,49 @@ class StreamsClient:
                 "duration_seconds": duration_seconds,
                 "allow_retention": allow_retention,
                 "use_basis": use_basis,
+                **({"schedule": schedule} if schedule is not None else {}),
             },
             request_id,
         )
 
     def control(self, identifier: UUID, action: str, *, request_id: UUID) -> dict[str, Any]:
         return self._live.mutate(f"/streams/{identifier}/control", {"action": action}, request_id)
+
+    def account_query(self, identifier: UUID, query_id: UUID) -> dict[str, Any]:
+        return self._live.read(f"/streams/{identifier}/account-queries/{query_id}")
+
+    def submit_opening(
+        self, identifier: UUID, budget_id: UUID, authorization_id: UUID, *, request_id: UUID
+    ) -> dict[str, Any]:
+        return self._live.mutate(
+            f"/streams/{identifier}/opening-orders",
+            {"budget_id": str(budget_id), "authorization_id": str(authorization_id)},
+            request_id,
+        )
+
+    def submit_closing(
+        self,
+        identifier: UUID,
+        opening_order_id: UUID,
+        query_id: UUID,
+        authorization_id: UUID,
+        limit_price: Decimal,
+        *,
+        request_id: UUID,
+    ) -> dict[str, Any]:
+        return self._live.mutate(
+            f"/streams/{identifier}/closing-orders",
+            dict(
+                opening_order_id=str(opening_order_id),
+                query_id=str(query_id),
+                authorization_id=str(authorization_id),
+                limit_price=str(limit_price),
+            ),
+            request_id,
+        )
+
+    def refresh_account(self, identifier: UUID, *, request_id: UUID) -> dict[str, Any]:
+        return self._live.mutate(f"/streams/{identifier}/refresh-account", {}, request_id)
 
     def catchup_account(
         self,

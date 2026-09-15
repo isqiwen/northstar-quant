@@ -11,9 +11,10 @@ from uuid import uuid4
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
-from northstar_quant.apps.maintenance import _file_hash, _write_record, backup
+from northstar_quant.data_management.backup import backup
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.storage_identity import require_identity
+from northstar_quant.persistence.backup_files import file_hash, write_record
 
 
 def run() -> None:
@@ -65,7 +66,7 @@ def run() -> None:
         name: os.environ[f"NORTHSTAR_{name}_STORAGE_ID"]
         for name in ("SOURCE", "MARKET", "RESEARCH", "BACKUP")
     }
-    _write_record(
+    write_record(
         target / "storage-bindings.json",
         json.dumps(
             {
@@ -77,7 +78,7 @@ def run() -> None:
         ).encode(),
     )
     document = {
-        str(path.relative_to(target)): _file_hash(path)
+        str(path.relative_to(target)): file_hash(path)
         for path in target.rglob("*")
         if path.is_file()
     }
@@ -87,7 +88,7 @@ def run() -> None:
     for path in target.rglob("*"):
         if path.is_dir():
             SourceFiles._sync(path)
-    _write_record(target / "complete.json", json.dumps(document, sort_keys=True).encode())
+    write_record(target / "complete.json", json.dumps(document, sort_keys=True).encode())
     print(json.dumps({"status": "complete", "directory": str(target)}, ensure_ascii=False))
 
 

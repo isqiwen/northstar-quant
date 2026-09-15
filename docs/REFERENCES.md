@@ -16,6 +16,7 @@ NautilusTrader 是总体架构的首要参考；其他项目补充国内期货�
 | **[LEAN / QuantConnect LEAN](https://www.quantconnect.com/docs/v2/writing-algorithms/reality-modeling/trade-fills/key-concepts)** | Fill、Slippage、Fee、Buying Power、Settlement 等 reality model 分层，回测和实盘统一思想 | 跨日回测、账户、费用、保证金和成交模型的补充参考 | Backtest / Accounting / Risk |
 | **[ArcticDB](https://docs.arcticdb.io/latest/api/library/)** | 时间序列版本化、snapshot、time travel、范围读取、版本保留、大规模 DataFrame 存储 | 数据版本、不可变快照和生命周期设计参考 | Data Hub / Storage |
 | **[MLflow](https://mlflow.org/docs/latest/ml/tracking/)** | Experiment / Run、参数、指标、标签、Artifact Store、结果比较 UI | 任务元数据与大产物分离、实验追踪 | Research / Experiment / Artifact |
+| **同花顺期货通（本机 1.2.0）** | 合约列表、图表工作区、紧凑导航与面板交互；2026-09-14 用户指定、本机控件及截图核对 | 三应用统一交互习惯，Data Hub 按合约浏览；不复用交易授权/账户逻辑 | Frontend / UX |
 | **[Freqtrade / FreqUI](https://www.freqtrade.io/en/stable/rest-api/)** | 策略运行、回测结果管理、运行监控、独立 Web UI、参数优化交互 | Research / Live 的前端交互和工作台设计 | Frontend / UX |
 | **[Backtrader](https://www.backtrader.com/docu/concepts/)** | 简单事件驱动策略 API、Broker/Order/Data Feed 抽象、Analyzer | 理解经典 Python 回测框架结构 | Research / Backtest |
 | **[Zipline / Zipline-reloaded](https://zipline.ml4trading.io/)** | Pipeline、事件驱动回测、资产数据组织 | 研究数据和回测框架的历史参考 | Research |

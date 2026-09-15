@@ -20,6 +20,7 @@ class StartStream(BaseModel):
     duration_seconds: StrictInt = Field(ge=60, le=7200)
     allow_retention: StrictBool
     use_basis: str = Field(min_length=1, max_length=500)
+    schedule: dict[str, Any] | None = None
 
 
 class ShadowControl(BaseModel):
@@ -44,6 +45,10 @@ class ArchiveStream(BaseModel):
 def routes(owner: LiveOwner) -> APIRouter:
     router = APIRouter()
 
+    @router.get("/streams/health")
+    def input_health() -> dict[str, Any]:
+        return owner.read(owner.streams.health())
+
     @router.get("/streams")
     def list_streams() -> list[dict[str, Any]]:
         return [owner.read(item) for item in owner.streams.list()]
@@ -64,6 +69,7 @@ def routes(owner: LiveOwner) -> APIRouter:
                 duration_seconds=body.duration_seconds,
                 allow_retention=body.allow_retention,
                 use_basis=body.use_basis,
+                schedule=body.schedule,
             ),
         )
 
@@ -87,6 +93,22 @@ def routes(owner: LiveOwner) -> APIRouter:
             request,
             body.model_dump(mode="json"),
             lambda identifier: owner.streams.control(stream_id, body.action, request_id=identifier),
+        )
+
+    @router.get("/streams/{stream_id}/account-queries/{query_id}")
+    def account_query(stream_id: UUID, query_id: UUID) -> dict[str, Any]:
+        return owner.read(owner.streams.account_query(stream_id, query_id))
+
+    @router.post("/streams/{stream_id}/refresh-account")
+    def refresh_account(request: Request, stream_id: UUID) -> dict[str, Any]:
+        if request.headers.get("x-northstar-operator") != "owner":
+            raise HTTPException(403, "Only the owner may refresh the receiving account")
+        owner.check_ownership()
+        return execute_command(
+            owner,
+            request,
+            {},
+            lambda identifier: owner.streams.refresh_account(stream_id, request_id=identifier),
         )
 
     @router.post("/streams/{stream_id}/account-catchup")

@@ -23,7 +23,7 @@ def expand(config: dict) -> dict:
     dependencies = {}
     for instance in instances:
         name = instance.identifier
-        names = {key: f"{name}-{key}" for key in ("initialize", "live")}
+        names = {key: f"{name}-{key}" for key in ("initialize", "live", "live-monitor")}
         for network in ("management", "egress"):
             networks[f"{name}-{network}"] = {"internal": True} if network != "egress" else {}
         for key, service_name in names.items():
@@ -31,10 +31,12 @@ def expand(config: dict) -> dict:
             service["networks"] = {f"{name}-{k}": v for k, v in service["networks"].items()}
             service["depends_on"] = {names[k]: v for k, v in service.get("depends_on", {}).items()}
             environment = service.get("environment", {})
-            if key == "live":
+            if key in {"live", "live-monitor"}:
                 environment["NORTHSTAR_LIVE_INSTANCE"] = name
                 environment["NORTHSTAR_BROKER_PROFILE"] = instance.broker_profile
                 environment["NORTHSTAR_ENVIRONMENT"] = instance.environment.value
+            if key == "live-monitor":
+                environment["NORTHSTAR_LIVE_URL"] = f"http://{name}-live:18081"
             for volume in service.get("volumes", []):
                 if volume.get("type") == "bind":
                     volume["source"] = volume["source"].replace(
@@ -75,6 +77,11 @@ def expand(config: dict) -> dict:
         dependencies[f"{name}-initialize"] = {"condition": "service_completed_successfully"}
     api = services["live-api"]
     api["environment"] = {
+        **{
+            key: value
+            for key, value in api.get("environment", {}).items()
+            if key not in {"NORTHSTAR_LIVE_URL", "NORTHSTAR_LIVE_AUTH"}
+        },
         "NORTHSTAR_LOG_DIR": "/var/log/northstar",
         "NORTHSTAR_LIVE_ENDPOINTS": json.dumps(endpoints),
     }

@@ -5,13 +5,19 @@ These project workflows are maintained with the code, not installed globally:
 - `northstar-issue-delivery`: reconcile Issue/Project evidence, implement the next
   vertical result and publish accurate acceptance status.
 - `northstar-runtime-verification`: choose existing installation, persistence and
-  lifecycle checks without confusing local tests with browser or broker evidence.
+  lifecycle checks without confusing local tests with browser or broker evidence;
+  includes discovering published Data Hub records and recovering from empty queries.
+- `northstar-research-validation`: validate a fixed research run against causal
+  inputs, futures account reconciliation and reproducible result evidence.
 
 They provide repository-specific navigation and operational knowledge for the
 current Astra workflow, not a generic reasoning framework or a claim of measured
 model improvement. `AGENTS.md` remains the source of engineering and authorization
 rules. Add a skill only when a repeated project task benefits from instructions
 not already clear in code or those rules; keep descriptions narrow.
+During project work, proactively preserve reusable findings in the owning skill,
+prefer updates to duplicate skills, and keep entry points aligned with code.
+The permanent maintenance and authorization rules live in `AGENTS.md`.
 
 OpenAI official built-in and plugin skills remain client-managed and enabled.
 The former live in the client's `.codex/skills/.system/`; they are not vendored here.

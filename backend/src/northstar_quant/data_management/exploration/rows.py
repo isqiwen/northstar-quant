@@ -1,9 +1,7 @@
 """Exact, pinned range reads with bounded Parquet batches and explicit conflicts."""
 
 import hashlib
-import io
 import json
-from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from threading import BoundedSemaphore
 from typing import Any
@@ -15,9 +13,14 @@ from ..tushare import normalization, publication
 from ..tushare.catalog import BY_KEY
 from ..tushare.store import serial
 from .catalog import pinned
+from .parquet import ResponseScan
 
 _READERS = BoundedSemaphore(2)
 _FIELDS = {
+    "observation_status": (
+        "行情状态",
+        "ZERO_VOLUME：零成交；SETTLEMENT_ONLY：仅结算；两者不可模拟成交；TRADED：有成交量",
+    ),
     "ts_code": ("合约代码", "供应商合约标识"),
     "trade_time": ("供应商时间", "Asia/Shanghai；未推断所属交易日或首次可得时间"),
     "trade_date": ("供应商日期", "供应商标签；周/月线需同时查看 end_date"),
@@ -30,6 +33,16 @@ _FIELDS = {
     "oi": ("持仓量", "供应商口径，尚未统一单双边语义"),
     "amount": ("原始成交额", "供应商接口单位"),
     "amount_cny": ("标准成交额", "元（CNY）"),
+    "settle": ("结算价", "供应商报价单位；不代表账户已结算"),
+    "trading_fee_rate": ("交易手续费率", "供应商原始费率；未换算为账户条款"),
+    "trading_fee": ("交易手续费", "供应商原始收费单位；非已发生费用"),
+    "delivery_fee": ("交割手续费", "供应商原始收费单位；非已发生费用"),
+    "offset_today_fee": ("平今手续费率", "供应商原始费率；未换算为账户条款"),
+    "long_margin_rate": ("买投机保证金率", "供应商原始费率；未换算为账户条款"),
+    "short_margin_rate": ("卖投机保证金率", "供应商原始费率；未换算为账户条款"),
+    "b_hedging_margin_rate": ("买套保保证金率", "供应商原始费率；未换算为账户条款"),
+    "s_hedging_margin_rate": ("卖套保保证金率", "供应商原始费率；未换算为账户条款"),
+    "exchange": ("交易所", "供应商交易所标识"),
 }
 
 
@@ -51,21 +64,9 @@ def read(
         _READERS.release()
 
 
-def _read(
-    engine: Engine,
-    dataset: str,
-    scope: str,
-    start: str,
-    end: str,
-    receipt_ids: list[UUID],
-    offset: int,
-    limit: int,
-) -> dict[str, Any]:
-    import pyarrow.parquet as pq  # type: ignore[import-untyped]
-
-    versions = pinned(engine, dataset, scope, start, end, receipt_ids)
-    if sum(r["parquet_bytes"] for r in versions) > 32 * 1024 * 1024:
-        raise ValueError("所选分片超过 32 MiB，请缩小范围")
+def source_permissions(
+    engine: Engine, versions: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], bool]:
     with engine.connect() as c:
         sources = [
             serial(r)
@@ -82,56 +83,72 @@ def _read(
         and all(any(s["content_hash"] == r["source_hash"] for s in sources) for r in versions)
         and all(s["allow_download"] for s in sources)
     )
+    return sources, export_allowed
+
+
+def verified_scan(version: dict[str, Any], start: str, end: str) -> ResponseScan:
+    """Discovery and range queries verify the same immutable publication."""
+    if version["parquet_bytes"] > 32 * 1024 * 1024:
+        raise ValueError("所选分片超过 32 MiB，请缩小范围")
     files = publication.storage()
+    manifest = json.loads(files.read(version["manifest_hash"], version["manifest_bytes"]))
+    if (
+        manifest["dataset"] != version["dataset"]
+        or manifest["scope"] != version["scope"]
+        or manifest["quality"] != version["quality"]
+        or manifest["parquet"]
+        != {"content_hash": version["parquet_hash"], "byte_count": version["parquet_bytes"]}
+    ):
+        raise ValueError("发布清单与固定版本不一致")
+    raw = files.read(version["parquet_hash"], version["parquet_bytes"])
+    return ResponseScan(
+        raw,
+        row_count=version["row_count"],
+        dataset=version["dataset"],
+        scope=version["scope"],
+        start=start,
+        end=end,
+    )
+
+
+def _read(
+    engine: Engine,
+    dataset: str,
+    scope: str,
+    start: str,
+    end: str,
+    receipt_ids: list[UUID],
+    offset: int,
+    limit: int,
+) -> dict[str, Any]:
+    versions = pinned(engine, dataset, scope, start, end, receipt_ids)
+    if sum(r["parquet_bytes"] for r in versions) > 32 * 1024 * 1024:
+        raise ValueError("所选分片超过 32 MiB，请缩小范围")
+    sources, export_allowed = source_permissions(engine, versions)
     selected: dict[tuple[str, ...], dict[str, Any]] = {}
     origins: dict[tuple[str, ...], list[str]] = {}
     identity = BY_KEY[dataset].identity
+    cost = {
+        "verified_bytes": 0,
+        "row_groups_total": 0,
+        "row_groups_read": 0,
+        "rows_decoded": 0,
+        "selected_compressed_bytes": 0,
+    }
     for version in versions:
-        manifest = json.loads(files.read(version["manifest_hash"], version["manifest_bytes"]))
-        if (
-            manifest["dataset"] != dataset
-            or manifest["scope"] != scope
-            or manifest["quality"] != version["quality"]
-            or manifest["parquet"]
-            != {"content_hash": version["parquet_hash"], "byte_count": version["parquet_bytes"]}
-        ):
-            raise ValueError("发布清单与固定版本不一致")
-        raw = files.read(version["parquet_hash"], version["parquet_bytes"])
-        parquet = pq.ParquetFile(io.BytesIO(raw))
-        if parquet.metadata.num_rows != version["row_count"] or parquet.metadata.num_rows > 10000:
-            raise ValueError("Parquet 行数与固定版本不一致或超过单分片上限")
-        if len(parquet.schema.names) > 64:
-            raise ValueError("发布字段超过浏览上限")
-        for batch in parquet.iter_batches(batch_size=256):
-            for raw_row in batch.to_pylist():
-                row = normalization.response_row(raw_row)
-                if row.get("ts_code") != scope:
-                    raise ValueError("发布记录不属于所选合约")
-                clock = (
-                    row.get("end_date")
-                    if dataset in ("week", "month")
-                    else row.get("trade_time", row.get("trade_date"))
-                )
-                if not isinstance(clock, str):
-                    raise ValueError("发布记录缺少供应商时间标签")
-                day = (
-                    datetime.strptime(clock[:10], "%Y-%m-%d").date()
-                    if "-" in clock
-                    else datetime.strptime(clock, "%Y%m%d").date()
-                )
-                if not start <= day.isoformat() <= end:
-                    continue
-                if len(json.dumps(row)) > 8192:
-                    raise ValueError("单条记录超过浏览上限")
-                key = tuple(str(row[field]) for field in identity)
-                if key in selected and selected[key] != row:
-                    raise ValueError(
-                        "所选发布版本在同一记录身份上存在冲突，请到版本页核查；未自动覆盖"
-                    )
-                selected[key] = row
-                origins.setdefault(key, []).append(str(version["receipt_id"]))
-                if len(selected) > 20000:
-                    raise ValueError("所选范围超过 20000 行，请缩小日期范围")
+        scan = verified_scan(version, start, end)
+        for row in scan.rows():
+            if len(json.dumps(row)) > 8192:
+                raise ValueError("单条记录超过浏览上限")
+            key = tuple(str(row[field]) for field in identity)
+            if key in selected and selected[key] != row:
+                raise ValueError("所选发布版本在同一记录身份上存在冲突，请到版本页核查；未自动覆盖")
+            selected[key] = row
+            origins.setdefault(key, []).append(str(version["receipt_id"]))
+            if len(selected) > 20000:
+                raise ValueError("所选范围超过 20000 行，请缩小日期范围")
+        for metric, value in scan.cost.items():
+            cost[metric] += value
     ordered = sorted(selected)
     fields = []
     for name in sorted({f for row in selected.values() for f in row}):
@@ -174,8 +191,9 @@ def _read(
         "sources": sources,
         "export_allowed": export_allowed,
         "versions": [serial(r) for r in versions],
+        "scan": {"files": len(versions), **cost},
         "note": (
-            "供应商修订后历史，非首次可得行情。图表仅显示当前页固定版本记录；"
+            "供应商修订后历史，非首次可得行情。图表与明细使用同一固定查询范围；"
             "字段统计针对当前固定查询范围。"
         ),
     }

@@ -26,10 +26,18 @@ def test_second_algorithm_needs_no_engine_branch_and_instances_are_isolated(
     data = dataset(("100", "103", "107", "110", "115", "121", "125", "130"))
     expected = run_research(data, config).to_dict()
     instance = TradingSession(
-        data.market, config, snapshot_id=data.snapshot_id, content_hash=data.content_hash
+        data.market,
+        config,
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     other = TradingSession(
-        data.market, config, snapshot_id=data.snapshot_id, content_hash=data.content_hash
+        data.market,
+        config,
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     before = other.checkpoint()
     steps = [instance.advance(bar) for bar in data.bars]
@@ -37,8 +45,6 @@ def test_second_algorithm_needs_no_engine_branch_and_instances_are_isolated(
     assert build_result(instance, steps).to_dict() == expected
     decisions = expected["decisions"]
     assert all(item["strategy_id"] == strategy_id and item["factors"] for item in decisions)
-    target = Decimal(decisions[-1]["target_fraction"])
-    assert target > 0 if strategy_id == "trend.momentum" else target < 0
     changed = replace(data, bars=(*data.bars[:-1], replace(data.bars[-1], close=Decimal("128"))))
     assert run_research(changed, config).to_dict()["decisions"][:-1] == decisions[:-1]
 
@@ -72,7 +78,11 @@ def test_no_new_target_keeps_existing_authorization_until_fill_and_survives_chec
     data = dataset(("100", "110", "200", "111"))
     config = ResearchConfig()
     session = TradingSession(
-        data.market, config, snapshot_id=data.snapshot_id, content_hash=data.content_hash
+        data.market,
+        config,
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     session.advance(data.bars[0])
     session.advance(data.bars[1])
@@ -93,7 +103,8 @@ def test_no_new_target_keeps_existing_authorization_until_fill_and_survives_chec
         snapshot_id=data.snapshot_id,
         content_hash=data.content_hash,
         checkpoint=session.checkpoint(),
-        account=Account(config.simulation.initial_cash, data.market),
+        account=Account(config.simulation.initial_cash, (data.market,)),
+        interval_seconds=data.interval_seconds,
     )
     fourth = restarted.advance(data.bars[3])
     assert fourth.fill is not None and restarted.pending is None

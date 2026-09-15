@@ -37,7 +37,11 @@ class PublishedDatasets:
         *,
         usages: Callable[[Sequence[UUID]], list[dict[str, object]]] | None = None,
     ) -> None:
-        self.root = root
+        if root.is_symlink():
+            raise ValueError("发布根目录不能是符号链接")
+        # Normalize configured ancestor aliases (e.g. macOS /tmp). Catalog child
+        # paths are still checked component by component before every access.
+        self.root = root.resolve()
         self._usages = usages
 
     @classmethod
@@ -49,6 +53,16 @@ class PublishedDatasets:
         if (root / ".restore-incomplete").exists():
             raise ValueError("restore is incomplete; refuse application startup")
         return cls(root, usages=usages)
+
+    def catalog_snapshot(self, snapshot_id: str) -> dict[str, Any]:
+        from .catalog.snapshots import load
+
+        return load(self.root, snapshot_id)
+
+    def catalog_rows(self, snapshot_id: str, **query: Any) -> dict[str, Any]:
+        from .catalog.snapshot_reading import query as read
+
+        return read(self.root, snapshot_id, **query)
 
     def publish(self, dataset: ResearchDataset) -> None:
         if dataset.details is None:

@@ -1,7 +1,7 @@
 """Manual, append-only minute-session coverage evaluation.
 
 The evaluator intentionally measures only historical point-in-time visibility:
-whether committed one-minute BAR_START facts were available by an explicit
+whether committed fixed-interval BAR_START facts were available by an explicit
 ``as_of`` cutoff.  It neither polls a provider nor claims a live-data SLA.
 """
 
@@ -21,7 +21,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql.elements import ColumnElement
 
-from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.catalog.models import (
     CalendarTradingDay,
     CanonicalBar,
@@ -44,8 +43,8 @@ from northstar_quant.data_management.quality.evaluations import (
     MinuteQualityEvaluationResult,
     validate_minute_quality_evaluation_command,
 )
+from northstar_quant.persistence.sql import UTCDateTime
 
-_ONE_MINUTE = timedelta(minutes=1)
 _MAX_EVIDENCE_SAMPLE_DAYS = 20
 _MAX_EVIDENCE_SAMPLE_IDENTIFIERS = 8
 _MAX_EVIDENCE_BYTES = 2048
@@ -69,6 +68,7 @@ class _DayGrid:
     slots: tuple[datetime, ...]
     sessions: tuple[TradingSession, ...]
     final_close: datetime
+    duration: timedelta
 
 
 @dataclass(frozen=True)
@@ -96,7 +96,7 @@ class _EvaluationAnalysis:
 
 
 class MinuteQualityEvaluationService:
-    """Append one immutable complete-session 1m quality conclusion.
+    """Append one immutable complete-session minute quality conclusion.
 
     The service reads only the committed canonical series window and its pinned
     calendar.  It does not fetch, parse, repair, publish, schedule, or expose
@@ -178,6 +178,7 @@ class MinuteQualityEvaluationService:
                 )
                 analysis = _analyze_minute_quality(
                     command=command,
+                    duration=timedelta(minutes=int(series.interval[:-1])),
                     calendar_days=calendar_days,
                     sessions=sessions,
                     bars=bars,
@@ -271,10 +272,13 @@ class MinuteQualityEvaluationService:
                 "MINUTE_QUALITY_EVALUATION_SERIES_NOT_FOUND",
                 "the requested data series does not exist",
             )
-        if series.interval != "1m" or series.timestamp_convention != "BAR_START":
+        if (
+            series.interval not in {"1m", "5m", "15m", "30m", "60m"}
+            or series.timestamp_convention != "BAR_START"
+        ):
             raise MinuteQualityEvaluationError(
-                "MINUTE_QUALITY_REQUIRES_ONE_MINUTE_BAR_START_SERIES",
-                "minute quality evaluation requires a one-minute BAR_START series",
+                "MINUTE_QUALITY_REQUIRES_MINUTE_BAR_START_SERIES",
+                "minute quality evaluation requires a fixed-interval minute BAR_START series",
             )
         return series
 
@@ -386,6 +390,7 @@ class MinuteQualityEvaluationService:
 
 def _analyze_minute_quality(
     *,
+    duration: timedelta,
     command: MinuteQualityEvaluationCommand,
     calendar_days: Sequence[CalendarTradingDay],
     sessions: Sequence[TradingSession],
@@ -442,6 +447,7 @@ def _analyze_minute_quality(
             timezone_value=timezone_value,
             db_session=db_session,
             max_slot_count=remaining_grid_slots,
+            duration=duration,
         )
         if grid is None:
             session_grid_unknown.append(trading_day)
@@ -540,10 +546,10 @@ def _analyze_minute_quality(
             outside_grid_bars.append(bar)
             continue
         session_close = _calendar_datetime(owning_session.closes_at)
-        if event_time + _ONE_MINUTE > session_close:
+        if event_time + duration > session_close:
             outside_grid_bars.append(bar)
             continue
-        if available_at < event_time + _ONE_MINUTE:
+        if available_at < event_time + duration:
             available_before_completion_bars.append(bar)
             continue
         valid_bars_by_slot[_timestamp_key(event_time)].append(bar)
@@ -785,6 +791,7 @@ def _build_day_grid(
     timezone_value: ZoneInfo,
     db_session: Session,
     max_slot_count: int,
+    duration: timedelta,
 ) -> _DayGrid | None:
     """Return a complete minute grid only when no session fact needs guessing."""
 
@@ -816,7 +823,9 @@ def _build_day_grid(
     session_slot_counts: list[int] = []
     total_slot_count = 0
     for opens_at, closes_at, _ in normalized:
-        session_slot_count = int((closes_at - opens_at) / _ONE_MINUTE)
+        if (closes_at - opens_at) % duration:
+            return None
+        session_slot_count = int((closes_at - opens_at) / duration)
         total_slot_count += session_slot_count
         if total_slot_count > max_slot_count:
             raise MinuteQualityEvaluationError(
@@ -832,12 +841,13 @@ def _build_day_grid(
         current = opens_at
         for _ in range(session_slot_count):
             slots.append(current)
-            current += _ONE_MINUTE
+            current += duration
     return _DayGrid(
         trading_day=trading_day,
         slots=tuple(slots),
         sessions=tuple(item[2] for item in normalized),
         final_close=max(item[1] for item in normalized),
+        duration=duration,
     )
 
 
@@ -859,7 +869,7 @@ def _grid_slots_with_sessions(
     )
     for slot in grid.slots:
         for opens_at, closes_at, item in normalized_sessions:
-            if opens_at <= slot and slot + _ONE_MINUTE <= closes_at:
+            if opens_at <= slot and slot + grid.duration <= closes_at:
                 yield slot, item
                 break
 
@@ -1043,7 +1053,7 @@ def _inclusive_days(from_trading_day: date, to_trading_day: date) -> Iterable[da
 def _assert_cutoff_is_not_after_snapshot(as_of: datetime, db_session: Session) -> None:
     """Reject an unverifiable future cutoff using the authority database clock."""
 
-    snapshot_now = db_session.scalar(select(func.current_timestamp(type_=EvidenceTimestamp())))
+    snapshot_now = db_session.scalar(select(func.current_timestamp(type_=UTCDateTime())))
     if not isinstance(snapshot_now, datetime):  # pragma: no cover
         raise MinuteQualityEvaluationError(
             "MINUTE_QUALITY_AUTHORITY_TIME_UNAVAILABLE",
@@ -1078,7 +1088,7 @@ def _calendar_datetime(value: datetime) -> datetime:
 
 
 def _canonical_event_time(bar: CanonicalBar) -> datetime:
-    """Recover the declared source instant for a 1m event without guessing."""
+    """Recover the declared source instant for a minute event without guessing."""
 
     return _canonical_timestamp(bar.event_time, "event_time")
 

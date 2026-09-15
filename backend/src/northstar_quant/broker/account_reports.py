@@ -13,6 +13,12 @@ from zoneinfo import ZoneInfo
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.observations import ACCOUNT_AMOUNT_FIELDS, compare_account_amounts
+from northstar_quant.broker.events import (
+    ACCOUNT_ACTIVITY_CALLBACKS,
+    TRANSFER_CALLBACKS,
+    BrokerEvent,
+    is_order_rejection,
+)
 
 _MONEY = (
     "Balance",
@@ -166,6 +172,7 @@ def stream_trades(
         if event["channel"] == "TD" and event["callback"] == "OnRspUserLogin":
             if (
                 not event["error_id"]
+                and event["is_last"] is True
                 and row.get("UserID") == binding["account_id"]
                 and row.get("BrokerID") == binding["profile"]["broker_id"]
                 and row.get("TradingDay") == day
@@ -174,7 +181,14 @@ def stream_trades(
             else:
                 confirmed_day = None
                 problems.append({"code": "STREAM_TD_IDENTITY_NOT_CONFIRMED", **locator})
-        if event["error_id"] or event["callback"] in {"OnFrontDisconnected", "OnHeartBeatWarning"}:
+        if (
+            event["error_id"]
+            and not is_order_rejection(
+                BrokerEvent.from_dict(event),
+                broker_id=binding["profile"]["broker_id"],
+                account_id=binding["account_id"],
+            )
+        ) or event["callback"] in {"OnFrontDisconnected", "OnHeartBeatWarning"}:
             confirmed_day = None
             problems.append({"code": "STREAM_ACCOUNT_CONNECTION_ERROR", **locator})
         received = _time(event["received_at"])
@@ -191,6 +205,8 @@ def stream_trades(
             or confirmed_day != day
         ):
             problems.append({"code": "STREAM_ACCOUNT_CALLBACK_IDENTITY_NOT_CONFIRMED", **locator})
+        if event["callback"] in TRANSFER_CALLBACKS:
+            problems.append({"code": "STREAM_CASHFLOW_RECONCILIATION_REQUIRED", **locator})
         if event["callback"] == "OnRtnTrade":
             if event["error_id"] or event["channel"] != "TD" or event["data"] is None:
                 problems.append({"code": "STREAM_TRADE_CALLBACK_NOT_CONFIRMED", **locator})
@@ -263,48 +279,90 @@ def account_baseline(batch: dict[str, Any]) -> tuple[dict[str, str], dict[str, A
     capture = batch["capture"]
     if capture is None:
         reasons.append("CAPTURE_NOT_COMPLETE")
-    elif any(event["callback"] in {"OnRtnTrade", "OnRtnOrder"} for event in capture["events"]):
+    elif any(event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in capture["events"]):
         reasons.append("ACCOUNT_ACTIVITY_DURING_QUERY")
     return funds, activity, sorted(set(reasons))
 
 
 def account_observation(batch: dict[str, Any]) -> dict[str, Any]:
-    section = batch["completeness"]["sections"]["account"]
     capture = batch["capture"]
+    return {
+        "source_batch_id": batch["batch_id"],
+        **_observe_account(
+            profile=batch["profile"],
+            account_id=batch["account_id"],
+            status=batch["status"],
+            completeness=batch["completeness"],
+            events=[] if capture is None else capture["events"],
+            started_at=None if capture is None else capture["started_at"],
+            finished_at=None if capture is None else capture["finished_at"],
+        ),
+    }
+
+
+def stream_account_observation(
+    binding: dict[str, Any], query: dict[str, Any], events: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Interpret a verified window without inventing a separate query batch/login."""
+    return {
+        "source_stream_id": query["stream_id"],
+        "query_id": query["query_id"],
+        "source_hash": query["source_hash"],
+        **_observe_account(
+            profile=binding["profile"],
+            account_id=binding["account_id"],
+            status=query["status"],
+            completeness=query["completeness"],
+            events=events,
+            started_at=query["started_at"],
+            finished_at=query["finished_at"],
+        ),
+    }
+
+
+def _observe_account(
+    *,
+    profile: dict[str, Any],
+    account_id: str,
+    status: str,
+    completeness: dict[str, Any],
+    events: list[dict[str, Any]],
+    started_at: str | None,
+    finished_at: str | None,
+) -> dict[str, Any]:
+    section = completeness["sections"]["account"]
     problems = []
-    if batch["status"] != "COMPLETE":
+    if status != "COMPLETE":
         problems.append("QUERY_NOT_COMPLETE")
-    if batch["completeness"]["identity"] != "CONFIRMED":
+    if completeness["identity"] != "CONFIRMED":
         problems.append("TD_ACCOUNT_IDENTITY_NOT_CONFIRMED")
     rows = section["rows"]
     row = rows[0] if section["status"] == "COMPLETE" and rows and len(rows) == 1 else None
     if row is None:
         problems.append("ONE_COMPLETE_CNY_ACCOUNT_REQUIRED")
     elif (
-        row.get("BrokerID") != batch["profile"]["broker_id"]
-        or row.get("AccountID") != batch["account_id"]
+        row.get("BrokerID") != profile["broker_id"]
+        or row.get("AccountID") != account_id
         or row.get("CurrencyID") != "CNY"
         or row.get("BizType") != "1"
-        or row.get("TradingDay") != batch["completeness"]["trading_day"]
+        or row.get("TradingDay") != completeness["trading_day"]
         or type(row.get("SettlementID")) is not int
     ):
         problems.append("ACCOUNT_SCOPE_NOT_CONFIRMED")
-    callbacks = (
-        []
-        if capture is None
-        else [
-            {"sequence": event["sequence"], "received_at": event["received_at"]}
-            for event in capture["events"]
-            if event["channel"] == "TD"
-            and event["callback"] == "OnRspQryTradingAccount"
-            and event["request_id"] == section["request_id"]
-            and event["data"] is not None
-            and event["error_id"] == 0
-        ]
-    )
+    callbacks = [
+        {"sequence": event["sequence"], "received_at": event["received_at"]}
+        for event in events
+        if event["channel"] == "TD"
+        and event["callback"] == "OnRspQryTradingAccount"
+        and event["request_id"] == section["request_id"]
+        and event["data"] is not None
+        and event["error_id"] == 0
+    ]
     if len(callbacks) != 1:
         problems.append("ACCOUNT_RECEIPT_NOT_UNIQUE")
     scope_confirmed = not problems
+    if any(event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in events):
+        problems.append("ACCOUNT_ACTIVITY_DURING_QUERY")
     amounts = (
         {} if row is None else {name: row[name] for name in ACCOUNT_AMOUNT_FIELDS if name in row}
     )
@@ -314,9 +372,8 @@ def account_observation(batch: dict[str, Any]) -> dict[str, Any]:
         code for code in cast(list[str], checked["problems"]) if not code.endswith("_PREVIOUS")
     )
     return {
-        "source_batch_id": batch["batch_id"],
-        "query_started_at": None if capture is None else capture["started_at"],
-        "query_finished_at": None if capture is None else capture["finished_at"],
+        "query_started_at": started_at,
+        "query_finished_at": finished_at,
         "account_receipts": callbacks,
         "scope": None
         if row is None
@@ -334,8 +391,9 @@ def account_observation(batch: dict[str, Any]) -> dict[str, Any]:
         "amounts": amounts,
         "scope_confirmed": scope_confirmed,
         "problems": sorted(set(problems)),
-        "account_activity_during_query": capture is not None
-        and any(event["callback"] in {"OnRtnTrade", "OnRtnOrder"} for event in capture["events"]),
+        "account_activity_during_query": any(
+            event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in events
+        ),
     }
 
 

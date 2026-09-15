@@ -4,7 +4,7 @@ import { Card, Table } from "antd";
 type Row = Record<string, unknown>;
 export function QualityIssues({ attempts }: { attempts: Row[] }) {
   return attempts
-    .filter((a) => a.quality)
+    .filter((a) => (a.quality as Row | undefined)?.issue_count != null)
     .map((attempt) => {
       const report = attempt.quality as Row;
       return (
@@ -20,6 +20,12 @@ export function QualityIssues({ attempts }: { attempts: Row[] }) {
             {String(report.policy)}
             {report.truncated ? "（明细已截断）" : ""}
           </p>
+          {attempt.source_release_reason ? (
+            <p>
+              原始文件已清理：{String(attempt.source_release_reason)}
+              。下表为当次校验记录，不是完整原文。
+            </p>
+          ) : null}
           <Table<Row>
             size="small"
             dataSource={(report.issues ?? []) as Row[]}
@@ -37,6 +43,19 @@ export function QualityIssues({ attempts }: { attempts: Row[] }) {
                   ((r.fields ?? []) as string[]).join("、") || "响应",
               },
               { title: "原因", dataIndex: "reason" },
+              {
+                title: "源响应值（校验前）",
+                render: (_, r) => {
+                  const values = r.observed as Row | undefined;
+                  return values && Object.keys(values).length
+                    ? Object.entries(values).map(([key, value]) => (
+                        <div key={key}>
+                          {key}: {value == null ? "空值" : String(value)}
+                        </div>
+                      ))
+                    : "该次报告未保存字段值，需核对原文或重新下载";
+                },
+              },
               {
                 title: "冲突原文行",
                 render: (_, r) => String(r.related_row_number ?? "—"),

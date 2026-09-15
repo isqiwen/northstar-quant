@@ -24,7 +24,7 @@ export const datasetColumns = [
     dataIndex: "trading_days",
     render: (days: string[]) => days.join("、"),
   },
-  { title: "分钟数", dataIndex: "bar_count" },
+  { title: "Bar 数", dataIndex: "bar_count" },
   {
     title: "快照",
     dataIndex: "snapshot_id",
@@ -82,7 +82,7 @@ export function DatasetDetail({
                 value={{
                   合约: q.data.symbol,
                   交易日: q.data.trading_days.join("、"),
-                  分钟数: q.data.bar_count,
+                  "Bar 数": q.data.bar_count,
                   快照: id,
                 }}
               />

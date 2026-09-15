@@ -33,14 +33,18 @@ def test_factor_revisions_causal_results_references_and_candidate_survive_reopen
     binding = dict(config.strategy.factors)["momentum"]
     identity = catalog.register(binding)
     assert catalog.register(binding) == identity
-    calculated = catalog.calculate(identity, dataset.snapshot_id)
+    job = catalog.submit(identity, dataset.snapshot_id, uuid4())
+    assert catalog.claim(UUID(job["attempt_id"]))
+    calculated = catalog.execute(UUID(job["attempt_id"]))
     assert calculated["status"] == "SUCCEEDED"
     assert calculated["result"]["values"][0]["status"] == "WARMING_UP"
     assert calculated["result"]["values"][1]["status"] == "READY"
     changed = Binding.create("trend.return", {"window_bars": 2})
     changed_id = catalog.register(changed)
     assert changed_id != identity
-    other = catalog.calculate(changed_id, dataset.snapshot_id)
+    job = catalog.submit(changed_id, dataset.snapshot_id, uuid4())
+    assert catalog.claim(UUID(job["attempt_id"]))
+    other = catalog.execute(UUID(job["attempt_id"]))
     assert other["result"]["values"][1]["status"] == "WARMING_UP"
     catalog.annotate(identity, "人工说明，不改变公式或结果")
     assert catalog.get(UUID(calculated["attempt_id"])) == calculated
@@ -68,7 +72,7 @@ def test_factor_revisions_causal_results_references_and_candidate_survive_reopen
     assert reopened.get(UUID(calculated["attempt_id"])) == calculated
     assert StrategyVersions(postgres_engine).get(version)["document"] == candidate["document"]
     assert StrategyMaterials(postgres_engine).list() == []
-    if not candidate["production_eligible"]:
+    if not candidate["same_clean_revision"]:
         with pytest.raises(ValueError, match="clean candidate"):
             StrategyMaterials(postgres_engine).accept(candidate)
     with pytest.raises(ValueError, match="exact"):
@@ -92,7 +96,9 @@ def test_factor_revisions_causal_results_references_and_candidate_survive_reopen
         raise ValueError("bounded calculation failed")
 
     monkeypatch.setattr("northstar_quant.research.factor_catalog.evaluate", broken)
-    failed = catalog.calculate(failing_id, dataset.snapshot_id)
+    job = catalog.submit(failing_id, dataset.snapshot_id, uuid4())
+    assert catalog.claim(UUID(job["attempt_id"]))
+    failed = catalog.execute(UUID(job["attempt_id"]))
     assert failed["status"] == "FAILED" and failed["result"] is None
     with pytest.raises(LookupError):
         operations.run(uuid4(), config)
@@ -104,17 +110,22 @@ def test_http_catalog_and_exact_parameter_versions_use_same_business_operations(
 ) -> None:
     library, dataset, _ = _study(postgres_engine, tmp_path)
     with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        assert len(client.get("/api/catalog").json()["strategies"]) == 2
+        _browser_session(client)
         payload = {"factor_id": "range.position", "parameters": {"window_bars": 2}}
+        del client.headers["X-Northstar-CSRF"]
         assert client.post("/api/factor-revisions", json=payload).status_code == 403
         _browser_session(client)
         revision = client.post("/api/factor-revisions", json=payload).json()["revision_id"]
         calculated = client.post(
             "/api/factor-runs",
-            json={"revision_id": revision, "snapshot_id": str(dataset.snapshot_id)},
+            json={
+                "revision_id": revision,
+                "snapshot_id": str(dataset.snapshot_id),
+                "request_id": str(uuid4()),
+            },
         )
-        assert calculated.status_code == 201, calculated.text
-        assert calculated.json()["status"] == "SUCCEEDED"
+        assert calculated.status_code == 202, calculated.text
+        assert calculated.json()["status"] == "QUEUED"
         config = ResearchConfig(
             strategy=StrategyConfig.create(
                 "mean_reversion.range",
@@ -179,8 +190,19 @@ def test_clean_material_is_received_locally_without_research_or_execution_author
     candidate = versions.publish(
         versions.register("synthetic build", saved["configuration_id"], [run_id])
     )
-    assert candidate["production_eligible"] is True
+    assert candidate["same_clean_revision"] is True
     materials = StrategyMaterials(postgres_engine)
+    from northstar_quant.factors.definition import content_id
+
+    malformed = deepcopy(candidate)
+    del malformed["document"]["configuration"]
+    malformed["version_id"] = content_id(malformed["document"])
+    malformed["candidate_id"] = content_id(
+        {key: value for key, value in malformed.items() if key != "candidate_id"}
+    )
+    with pytest.raises(ValueError, match="incomplete or invalid"):
+        materials.accept(malformed)
+    assert materials.list() == []
     received = materials.accept(candidate)
     assert received["execution_authorized"] is False and received["status"] == "RECEIVED"
     assert materials.accept(candidate) == received
@@ -193,6 +215,33 @@ def test_clean_material_is_received_locally_without_research_or_execution_author
             )
         )
     assert materials.list()[0]["document"] == candidate
+    assert materials.configurations() == [
+        {**candidate["document"]["configuration"], "candidate_id": candidate["candidate_id"]}
+    ]
+    assert materials.get_configuration(saved["configuration_id"]) == {
+        **candidate["document"]["configuration"],
+        "candidate_id": candidate["candidate_id"],
+    }
+    pinned = materials.get_configuration(
+        saved["configuration_id"], candidate_id=candidate["candidate_id"]
+    )
+    revised = deepcopy(candidate)
+    revised["document"]["validation"]["synthetic_review"] = "second received evidence"
+    revised["version_id"] = content_id(revised["document"])
+    revised["candidate_id"] = content_id(
+        {key: value for key, value in revised.items() if key != "candidate_id"}
+    )
+    materials.accept(revised)
+    assert (
+        materials.get_configuration(
+            saved["configuration_id"], candidate_id=candidate["candidate_id"]
+        )
+        == pinned
+    )
+    with pytest.raises(LookupError, match="not received"):
+        materials.get_configuration(saved["configuration_id"], candidate_id="0" * 64)
     monkeypatch.setattr("northstar_quant.strategies.artifacts.code_revision", lambda: "b" * 40)
     with pytest.raises(ValueError, match="installed Git"):
         materials.accept(candidate)
+    with pytest.raises(ValueError, match="installed Git"):
+        materials.get_configuration(saved["configuration_id"])

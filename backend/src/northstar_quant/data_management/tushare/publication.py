@@ -2,17 +2,18 @@
 
 import io
 import json
+import logging
 from decimal import Decimal
+from time import perf_counter
 from typing import Any
 
 from ..files import SourceFiles
-from ..publications import PublishedDatasets
 from . import normalization
 
 
 def storage() -> SourceFiles:
-    market = PublishedDatasets.from_environment()
-    return SourceFiles(market.root / "tushare", max_total_bytes=2**60, shared_read=True)
+    # Response artifacts are private processing material, not contract publications.
+    return SourceFiles.from_environment()
 
 
 def publish(
@@ -23,29 +24,10 @@ def publish(
     *,
     source: dict[str, Any],
 ) -> dict[str, Any]:
-    import pyarrow as pa  # type: ignore[import-untyped]
     import pyarrow.parquet as pq  # type: ignore[import-untyped]
 
-    columns = sorted({key for row in rows for key in row})
-    numeric = normalization.fields(job["dataset"])
-    table = pa.table(
-        {
-            key: pa.array(
-                [
-                    None
-                    if row.get(key) is None
-                    else Decimal(row[key])
-                    if key in numeric
-                    else str(row[key])
-                    for row in rows
-                ],
-                type=pa.decimal128(normalization.PRECISION, normalization.SCALE)
-                if key in numeric
-                else pa.string(),
-            )
-            for key in columns
-        }
-    )
+    started = perf_counter()
+    table = response_table(rows, job["dataset"])
     table = table.replace_schema_metadata(
         {
             b"northstar.normalization": json.dumps(
@@ -54,7 +36,8 @@ def publish(
         }
     )
     stream = io.BytesIO()
-    pq.write_table(table, stream, compression="zstd")
+    pq.write_table(table, stream, compression="zstd", row_group_size=512)
+    encoded = perf_counter()
     files = storage()
     parquet = archive.store(stream.getvalue())
     files.store(stream.getvalue())
@@ -74,11 +57,44 @@ def publish(
     content = json.dumps(manifest, ensure_ascii=False, sort_keys=True).encode()
     artifact = archive.store(content)
     files.store(content)
+    logging.getLogger(__name__).info(
+        "Publication request=%s encode=%.4f storage=%.4f",
+        str(job.get("request_id", "")),
+        encoded - started,
+        perf_counter() - encoded,
+    )
     return {
         **artifact.to_dict(),
         "parquet_hash": parquet.content_hash,
         "parquet_bytes": parquet.byte_count,
     }
+
+
+def response_table(rows: list[dict[str, Any]], dataset: str) -> Any:
+    """The supplier's exact physical columns, shared by publication and compaction."""
+    import pyarrow as pa
+
+    columns = sorted({key for row in rows for key in row})
+    numeric = normalization.fields(dataset)
+    table = pa.table(
+        {
+            key: pa.array(
+                [
+                    None
+                    if row.get(key) is None
+                    else Decimal(row[key])
+                    if key in numeric
+                    else str(row[key])
+                    for row in rows
+                ],
+                type=pa.decimal128(normalization.PRECISION, normalization.SCALE)
+                if key in numeric
+                else pa.string(),
+            )
+            for key in columns
+        }
+    )
+    return table
 
 
 def read_snapshot(manifest_hash: str, byte_count: int, *, limit: int = 100) -> dict[str, Any]:

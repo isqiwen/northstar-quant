@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   App,
   Button,
@@ -20,6 +20,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PendingNotice } from "./ui";
 import "./theme.css";
+import { AuthGate, Logout } from "./auth";
 export function Shell({
   name,
   subtitle,
@@ -33,7 +34,25 @@ export function Shell({
   children: ReactNode;
   lookupCommand?: (id: string) => Promise<unknown>;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+  useEffect(() => {
+    try {
+      setCollapsed(
+        localStorage.getItem(`northstar:${name}:navigation`) !== "expanded",
+      );
+    } catch {}
+  }, [name]);
+  function toggleNavigation() {
+    setCollapsed((value) => {
+      try {
+        localStorage.setItem(
+          `northstar:${name}:navigation`,
+          value ? "expanded" : "collapsed",
+        );
+      } catch {}
+      return !value;
+    });
+  }
   const pathname = usePathname();
   const active =
     [...items]
@@ -43,10 +62,13 @@ export function Shell({
     <Layout className="workspace">
       <Layout.Sider
         theme="light"
-        width={238}
+        width={200}
+        collapsedWidth={64}
         collapsed={collapsed}
         breakpoint="lg"
-        onBreakpoint={setCollapsed}
+        onBreakpoint={(small) => {
+          if (small) setCollapsed(true);
+        }}
       >
         <Link href="/" className="brand">
           <span className="brand-symbol">N</span>
@@ -74,12 +96,10 @@ export function Shell({
       </Layout.Sider>
       <Layout>
         <Layout.Header className="topbar">
-          <SpaceHeader
-            collapsed={collapsed}
-            toggle={() => setCollapsed(!collapsed)}
-          />
+          <SpaceHeader collapsed={collapsed} toggle={toggleNavigation} />
           <div>
             <Tag bordered={false}>{name}</Tag>
+            <Logout />
             {items.find((item) => item.key === active)?.label}
           </div>
         </Layout.Header>
@@ -114,7 +134,13 @@ function SpaceHeader({
     </div>
   );
 }
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+  name,
+}: {
+  children: ReactNode;
+  name: string;
+}) {
   return (
     <ConfigProvider
       locale={zhCN}
@@ -132,7 +158,9 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }}
     >
-      <App>{children}</App>
+      <App>
+        <AuthGate name={name}>{children}</AuthGate>
+      </App>
     </ConfigProvider>
   );
 }

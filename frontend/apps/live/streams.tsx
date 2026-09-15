@@ -16,7 +16,11 @@ import {
 } from "../../shared/ui";
 import { Line } from "../../shared/chart";
 import { Action } from "./runtime";
+import { SessionScheduleInput } from "./session-schedule";
+import type { SessionSchedule } from "./api/generated";
 export function Streams() {
+  const [schedule, setSchedule] = useState<SessionSchedule>();
+  const [scheduleReady, setScheduleReady] = useState(true);
   const q = useData(query("/api/streams"), 5000);
   const queries = useData(query("/api/broker/queries"));
   const configs = useData(query("/api/configurations"));
@@ -28,9 +32,17 @@ export function Streams() {
         description="使用已核验查询与固定配置，接收时长和留存用途由操作明确指定。"
       />
       <Failure error={q.error || queries.error || configs.error} />
+      <SessionScheduleInput
+        onChange={(value, ready) => {
+          setSchedule(value);
+          setScheduleReady(ready);
+        }}
+      />
       <Action
         title="启动有界持续接收"
         path="/api/streams"
+        fixed={schedule ? { schedule } : undefined}
+        disabled={!scheduleReady}
         fields={[
           {
             name: "query_batch_id",
@@ -92,6 +104,7 @@ export function Stream() {
   const q = useData(query(`/api/streams/${id}`), 3000);
   const budgets = useData(query(`/api/streams/${id}/opening-budgets`), 5000);
   const [sequence, setSequence] = useState<number>();
+  const [activeTab, setActiveTab] = useState("market");
   const step = useData(
     query(
       sequence === undefined
@@ -120,7 +133,12 @@ export function Stream() {
       <Heading
         title="持续接收详情"
         description="每三秒读取内核确认事实。控制不代表撤单、成交或执行授权。"
-        actions={<Button onClick={refresh}>刷新观察</Button>}
+        actions={
+          <Space>
+            <Button onClick={refresh}>刷新观察</Button>
+            <Link href={`/streams/${id}/authorizations`}>执行限额与授权</Link>
+          </Space>
+        }
       />
       <Failure error={q.error || budgets.error || ledger.error} />
       {q.data && (
@@ -156,6 +174,8 @@ export function Stream() {
             ))}
           </div>
           <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
             items={[
               {
                 key: "market",
@@ -262,6 +282,65 @@ export function Stream() {
                       onDone={refresh}
                     />
                     <Evidence value={q.data.account_progress} />
+                    <Action
+                      title="刷新接收账户"
+                      path={`/api/streams/${id}/refresh-account`}
+                      disabled={!safe || q.data.connection !== "RECEIVING"}
+                      fields={[]}
+                      onDone={refresh}
+                    />
+                    {q.data.latest_query && (
+                      <Card
+                        title="接收连接的最新查询"
+                        extra={
+                          q.data.latest_query.query_id &&
+                          q.data.latest_query.finished_at ? (
+                            <Link
+                              href={`/streams/${id}/account-queries/${q.data.latest_query.query_id}`}
+                            >
+                              查看固定查询
+                            </Link>
+                          ) : undefined
+                        }
+                      >
+                        <p>
+                          查询期间继续接收柜台回报。这是固定查询窗口，尚未完成账户核对，也不授予交易权限。
+                        </p>
+                        <Fields
+                          value={{
+                            查询状态: q.data.latest_query.status,
+                            来源前缀: q.data.latest_query.through_sequence,
+                            内容身份: q.data.latest_query.source_hash,
+                          }}
+                        />
+                        <Evidence
+                          value={q.data.latest_query.account_observation}
+                          title="柜台资金观察（尚未核对）"
+                        />
+                        <Evidence
+                          value={q.data.latest_query.completeness}
+                          title="查询内容与缺项"
+                        />
+                      </Card>
+                    )}
+                    {q.data.startup_query && (
+                      <Card title="接收进程的启动查询">
+                        <p>
+                          本次连接启动时收到的固定账户查询，保留原始来源前缀。它不是当前余额，也不授予交易权限。
+                        </p>
+                        <Fields
+                          value={{
+                            查询状态: q.data.startup_query.status,
+                            来源前缀: q.data.startup_query.through_sequence,
+                            内容身份: q.data.startup_query.source_hash,
+                          }}
+                        />
+                        <Evidence
+                          value={q.data.startup_query.completeness}
+                          title="查询内容与缺项"
+                        />
+                      </Card>
+                    )}
                     <Evidence value={ledger.data} title="账本与核对" />
                   </>
                 ),
@@ -274,7 +353,15 @@ export function Stream() {
                     <Action
                       title="计算固定开仓预算"
                       path={`/api/streams/${id}/opening-budgets`}
-                      disabled={!safe}
+                      disabled={
+                        !safe ||
+                        !q.data.latest_query?.finished_at ||
+                        !ledger.data?.entries?.[0]?.entry_id
+                      }
+                      fixed={{
+                        query_id: q.data.latest_query?.query_id,
+                        entry_id: ledger.data?.entries?.[0]?.entry_id,
+                      }}
                       fields={[
                         {
                           name: "sequence",
@@ -286,15 +373,6 @@ export function Stream() {
                               value: r.sequence,
                               label: String(r.sequence),
                             })),
-                        },
-                        {
-                          name: "order_check_id",
-                          label: "固定委托核对",
-                          kind: "select",
-                          options: budgets.data?.order_checks?.map((c) => ({
-                            value: c.check_id,
-                            label: c.check_id,
-                          })),
                         },
                         { name: "limit_price", label: "限价" },
                       ]}

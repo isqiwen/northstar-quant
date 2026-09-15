@@ -7,7 +7,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import Field, JsonValue
 from sqlalchemy import Engine
 
-from northstar_quant.data_management.exploration import catalog, quality, revisions, rows
+from northstar_quant.data_management.contract_data.reading import query as read_published
+from northstar_quant.data_management.exploration import (
+    catalog,
+    discovery,
+    instruments,
+    quality,
+    revisions,
+)
 from northstar_quant.web.requests import ApiModel
 
 
@@ -44,6 +51,14 @@ class ContractSearch(ApiModel):
     offset: int = Field(ge=0, le=100000)
 
 
+class AvailableSearch(ContractSearch):
+    dataset: str = Field(max_length=16)
+
+
+class PublishedSelection(ApiModel):
+    receipt_id: str = Field(max_length=36)
+
+
 class ExplorerList(ApiModel):
     rows: list[dict[str, JsonValue]]
     total: int
@@ -62,6 +77,29 @@ class ExplorerQuery(ExplorerRange):
     limit: int = Field(ge=1, le=1000)
 
 
+class ChartQuery(ApiModel):
+    dataset: str = Field(max_length=16)
+    scope: str = Field(max_length=40)
+    start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    receipt_ids: list[str] = Field(min_length=1, max_length=32)
+
+
+class InstrumentSelection(ApiModel):
+    scope: str = Field(min_length=1, max_length=40)
+
+
+class InstrumentOpen(InstrumentSelection):
+    dataset: str = Field(max_length=16)
+
+
+class ExplorerInstrument(ApiModel):
+    scope: str
+    name: str
+    exchange: str
+    periods: list[str]
+
+
 class ExplorerCoverage(ApiModel):
     days: list[dict[str, JsonValue]]
     jobs: list[dict[str, JsonValue]]
@@ -69,6 +107,7 @@ class ExplorerCoverage(ApiModel):
 
 
 class ExplorerRows(ApiModel):
+    scan: dict[str, int]
     dataset: str
     scope: str
     start: str
@@ -87,6 +126,31 @@ class ExplorerRows(ApiModel):
 
 
 def register(app: FastAPI, engine: Engine) -> None:
+    @app.post("/api/explorer/select", response_model=ExplorerRows)
+    def select_instrument(document: InstrumentOpen) -> dict[str, Any]:
+        return discovery.open_instrument(engine, **document.model_dump())
+
+    @app.post("/api/explorer/instrument", response_model=ExplorerInstrument)
+    def instrument(document: InstrumentSelection) -> dict[str, Any]:
+        return instruments.describe(engine, document.scope)
+
+    @app.post("/api/explorer/chart", response_model=ExplorerRows)
+    def chart(document: ChartQuery) -> dict[str, Any]:
+        return read_published(
+            engine,
+            **document.model_dump(exclude={"receipt_ids"}),
+            receipt_ids=[UUID(v) for v in document.receipt_ids],
+            limit=20000,
+        )
+
+    @app.post("/api/explorer/available", response_model=ExplorerList)
+    def available(document: AvailableSearch) -> dict[str, Any]:
+        return discovery.available(engine, **document.model_dump())
+
+    @app.post("/api/explorer/open", response_model=ExplorerRows)
+    def open_published(document: PublishedSelection) -> dict[str, Any]:
+        return discovery.open_published(engine, UUID(document.receipt_id))
+
     @app.post("/api/explorer/compare", response_model=RevisionComparison)
     def compare(document: RevisionRequest) -> dict[str, Any]:
         return revisions.compare(
@@ -115,7 +179,7 @@ def register(app: FastAPI, engine: Engine) -> None:
     @app.post("/api/explorer/query", response_model=ExplorerRows)
     def query(document: ExplorerQuery) -> dict[str, Any]:
         values = document.model_dump(exclude={"receipt_ids"})
-        return rows.read(engine, receipt_ids=[UUID(v) for v in document.receipt_ids], **values)
+        return read_published(engine, receipt_ids=[UUID(v) for v in document.receipt_ids], **values)
 
     @app.post("/api/explorer/export", response_model=ExplorerRows)
     def export(document: ExplorerQuery) -> dict[str, Any]:

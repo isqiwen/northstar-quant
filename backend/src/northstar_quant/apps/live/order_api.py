@@ -1,0 +1,168 @@
+"""Owned Protobuf presentation of local execution facts via the kernel client."""
+
+from decimal import Decimal
+from typing import Annotated, Any
+from uuid import UUID
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from pydantic import JsonValue
+from starlette.concurrency import run_in_threadpool
+
+from northstar_quant.web.access import WorkspaceAccess
+from northstar_quant.web.requests import ApiModel, EvidenceRecord, UUIDText
+
+from .broker_api import CommandRecord
+from .commands import _runtime_header
+from .instances import Instances
+
+
+class OrderReservation(ApiModel):
+    reserved_fee: str
+    reserved_margin: str
+    reserved_gross: str
+    reserved_loss: str
+    reserved_close_lots: int
+
+
+class LocalOrder(EvidenceRecord):
+    order_id: str
+    contract_id: str
+    authorization_id: str
+    runtime_id: str
+    attempt_id: str
+    status: str
+    quantity_lots: int
+    filled_lots: int
+    requires_reconciliation: bool
+    reservation: OrderReservation
+    order: dict[str, JsonValue]
+
+
+class LocalOrderEvent(ApiModel):
+    sequence: int
+    event_id: str
+    order_id: str
+    kind: str
+    recorded_at: str
+    document: dict[str, JsonValue]
+
+
+class LocalOrderPage(EvidenceRecord):
+    orders: list[LocalOrder]
+    next_before: int | None
+
+
+class LocalOrderDetail(EvidenceRecord):
+    record: LocalOrder
+    events: list[LocalOrderEvent]
+    next_after: int | None
+
+
+class CancelOrderRequest(ApiModel):
+    stream_id: UUIDText
+    request_id: UUIDText
+
+
+class OpeningOrderRequest(ApiModel):
+    budget_id: UUIDText
+    authorization_id: UUIDText
+    request_id: UUIDText
+
+
+class ClosingOrderRequest(ApiModel):
+    opening_order_id: UUIDText
+    query_id: UUIDText
+    authorization_id: UUIDText
+    limit_price: str
+    request_id: UUIDText
+
+
+def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> None:
+    @app.get("/api/orders", response_model=LocalOrderPage, response_model_exclude_unset=True)
+    async def orders(
+        request: Request, before: Annotated[int | None, Query(gt=0)] = None
+    ) -> dict[str, Any]:
+        access.require_request(request)
+        path = "/execution/orders" + ("" if before is None else f"?before={before}")
+        return await run_in_threadpool(instances.for_request(request).read, path)
+
+    @app.get(
+        "/api/orders/{order_id}", response_model=LocalOrderDetail, response_model_exclude_unset=True
+    )
+    async def detail(
+        request: Request, order_id: UUID, after: Annotated[int, Query(ge=0)] = 0
+    ) -> dict[str, Any]:
+        access.require_request(request)
+        return await run_in_threadpool(
+            instances.for_request(request).read, f"/execution/orders/{order_id}?after={after}"
+        )
+
+    @app.post(
+        "/api/orders/{order_id}/cancel",
+        response_model=CommandRecord,
+        response_model_exclude_unset=True,
+    )
+    async def cancel(
+        request: Request,
+        order_id: UUID,
+        document: CancelOrderRequest,
+        runtime: Annotated[UUID, Depends(_runtime_header)],
+    ) -> dict[str, Any]:
+        access.protect(request)
+        live = instances.for_request(request).for_runtime(runtime)
+        return await run_in_threadpool(
+            live.mutate,
+            f"/execution/orders/{order_id}/cancel",
+            {"stream_id": str(document.stream_id)},
+            UUID(str(document.request_id)),
+        )
+
+    @app.post(
+        "/api/streams/{stream_id}/opening-orders",
+        response_model=CommandRecord,
+        response_model_exclude_unset=True,
+    )
+    async def opening(
+        request: Request,
+        stream_id: UUID,
+        document: OpeningOrderRequest,
+        runtime: Annotated[UUID, Depends(_runtime_header)],
+    ) -> dict[str, Any]:
+        access.protect(request)
+        live = instances.for_request(request).for_runtime(runtime)
+        return await run_in_threadpool(
+            live.streams.submit_opening,
+            stream_id,
+            UUID(str(document.budget_id)),
+            UUID(str(document.authorization_id)),
+            request_id=UUID(str(document.request_id)),
+        )
+
+    @app.post(
+        "/api/streams/{stream_id}/closing-orders",
+        response_model=CommandRecord,
+        response_model_exclude_unset=True,
+    )
+    async def closing(
+        request: Request,
+        stream_id: UUID,
+        document: ClosingOrderRequest,
+        runtime: Annotated[UUID, Depends(_runtime_header)],
+    ) -> dict[str, Any]:
+        access.protect(request)
+        live = instances.for_request(request).for_runtime(runtime)
+        try:
+            price = Decimal(document.limit_price)
+            if not price.is_finite() or price <= 0:
+                raise ValueError("invalid closing price")
+        except (ArithmeticError, ValueError) as error:
+            raise HTTPException(422, "平仓限价必须为正的精确数字。") from error
+        return await run_in_threadpool(
+            live.streams.submit_closing,
+            stream_id,
+            UUID(str(document.opening_order_id)),
+            UUID(str(document.query_id)),
+            UUID(str(document.authorization_id)),
+            price,
+            request_id=UUID(str(document.request_id)),
+        )

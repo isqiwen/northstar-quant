@@ -39,7 +39,10 @@ def test_sqlite_research_paper_and_joint_restore(
     run_id = ResearchOperations(library, store).run(dataset.snapshot_id, config)
     factor = FactorCatalog(engine, library)
     binding = dict(config.strategy.factors)["momentum"]
-    assert factor.calculate(factor.register(binding), dataset.snapshot_id)["status"] == "SUCCEEDED"
+    attempt = uuid4()
+    factor.submit(factor.register(binding), dataset.snapshot_id, attempt)
+    assert factor.claim(attempt)
+    assert factor.execute(attempt)["status"] == "SUCCEEDED"
     paper = PaperStore(engine, library)
     identity = uuid4()
     paper.create(dataset.snapshot_id, saved["configuration_id"], request_id=identity)

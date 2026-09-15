@@ -1,4 +1,4 @@
-"""Reconstruct one explicitly selected DAY window from retained CTP callbacks.
+"""Reconstruct one explicitly selected session from retained CTP callbacks.
 
 The JSON prefix is the input artifact, not a vendor wire response. Reconstruction
 uses the recorded local receipt clock independently of historical shadow controls;
@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.broker.sampling import sample_market
 from northstar_quant.broker.settings import get_profile
+from northstar_quant.market_data.sessions import SessionSchedule
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ class StreamMinutes:
     session_open: datetime
     session_close: datetime
     bars: tuple[dict[str, Any], ...]
+    trading_day: date
 
     def provenance(self) -> dict[str, object]:
         return {
@@ -108,6 +110,8 @@ def reconstruct_stream(content: bytes, parameters: dict[str, object]) -> StreamM
         if binding["request"]["allow_retention"] is not True:
             raise ValueError("CTP prefix has no fixed retention permission")
         opened, closed = _utc(parameters["session_open"]), _utc(parameters["session_close"])
+        declared = binding["request"].get("schedule")
+        schedule = None if declared is None else SessionSchedule.from_dict(declared)
         local_open, local_close = (
             opened.astimezone(ZoneInfo("Asia/Shanghai")),
             closed.astimezone(ZoneInfo("Asia/Shanghai")),
@@ -118,8 +122,11 @@ def reconstruct_stream(content: bytes, parameters: dict[str, object]) -> StreamM
             or opened.microsecond
             or closed.second
             or closed.microsecond
-            or local_open.date() != local_close.date()
-            or not any(
+        ):
+            raise ValueError("CTP publication requires a positive minute-aligned range")
+        if schedule is None:
+            trading_day = local_open.date()
+            valid_range = local_open.date() == local_close.date() and any(
                 start <= local_open.time() < local_close.time() <= end
                 for start, end in (
                     (time(9), time(10, 15)),
@@ -127,8 +134,16 @@ def reconstruct_stream(content: bytes, parameters: dict[str, object]) -> StreamM
                     (time(13, 30), time(15)),
                 )
             )
-        ):
-            raise ValueError("CTP publication requires one explicit minute-aligned SHFE DAY range")
+        else:
+            windows = [
+                window
+                for window in schedule.windows
+                if window.opens_at <= opened < closed <= window.closes_at
+            ]
+            valid_range = len(windows) == 1
+            trading_day = windows[0].trading_day if valid_range else local_open.date()
+        if not valid_range:
+            raise ValueError("CTP publication requires one explicit minute-aligned SHFE session")
         events = document["events"]
         if not isinstance(events, list) or len(events) != through:
             raise ValueError("CTP prefix must retain every callback through its fixed sequence")
@@ -176,12 +191,13 @@ def reconstruct_stream(content: bytes, parameters: dict[str, object]) -> StreamM
                 contract_id=UUID(binding["contract_id"]),
                 price_tick=Decimal(binding["terms"]["PriceTick"]),
                 now=received,
+                schedule=schedule,
             )
             if state["status"] == "HALTED":
                 invalid = True
             bar = state["completed_bar"]
             if bar is not None and opened <= _utc(bar["start_at"]) < closed:
-                if bar["trading_day"] != local_open.strftime("%Y%m%d"):
+                if bar["trading_day"] != trading_day.strftime("%Y%m%d"):
                     raise ValueError("CTP observed TradingDay differs from the requested range")
                 confirmation = receipts[bar["confirmed_by_sequence"]]
                 bar.update(
@@ -198,7 +214,14 @@ def reconstruct_stream(content: bytes, parameters: dict[str, object]) -> StreamM
                 "CTP requested range has missing, partial or unconfirmed minutes; no gap filling"
             )
         return StreamMinutes(
-            identifier, through, binding, document["binding_hash"], opened, closed, tuple(bars)
+            identifier,
+            through,
+            binding,
+            document["binding_hash"],
+            opened,
+            closed,
+            tuple(bars),
+            trading_day,
         )
     except (KeyError, TypeError, UnicodeError, json.JSONDecodeError) as error:
         raise ValueError("CTP callback prefix is malformed or missing required evidence") from error

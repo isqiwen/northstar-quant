@@ -4,7 +4,8 @@ export function checkCommandTypes() {
   const control = "/api/streams/s/control";
   const body = {
     sequence: 1,
-    order_check_id: "check",
+    query_id: "query",
+    entry_id: "entry",
     limit_price: "1234567890.123456789",
     request_id: "request",
   };

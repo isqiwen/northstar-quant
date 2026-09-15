@@ -13,10 +13,12 @@ def initialize(connection: Connection) -> None:
             singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),
             revision bigint NOT NULL DEFAULT 1,
             enabled boolean NOT NULL DEFAULT false,
+            selected_products text[] NOT NULL DEFAULT '{}',
             lookback integer NOT NULL DEFAULT 5 CHECK(lookback BETWEEN 1 AND 30),
-            requests_per_minute integer NOT NULL DEFAULT 60 CHECK(requests_per_minute BETWEEN
+            requests_per_minute integer NOT NULL DEFAULT 500 CHECK(requests_per_minute BETWEEN
                 1 AND 500),
             next_request_at timestamptz NOT NULL DEFAULT now(),
+            api_next_at jsonb NOT NULL DEFAULT '{}'::jsonb,
             refresh_at timestamptz NOT NULL DEFAULT now(),
             planned_at timestamptz,
             error text,
@@ -97,13 +99,6 @@ def initialize(connection: Connection) -> None:
             code_revision text,
             quality jsonb
         );
-        ALTER TABLE data_sync_jobs ADD COLUMN IF NOT EXISTS source_generation uuid;
-        ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS parent_generation uuid
-            REFERENCES data_sync_attempts(generation);
-        ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS receipt_id uuid
-            REFERENCES data_sync_receipts;
-        ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS code_revision text;
-        ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS quality jsonb;
         CREATE OR REPLACE FUNCTION data_sync_immutable_receipt() RETURNS trigger AS $$
         BEGIN RAISE EXCEPTION 'Downloaded revisions are immutable'; END;
         $$ LANGUAGE plpgsql;
@@ -115,6 +110,14 @@ def initialize(connection: Connection) -> None:
         "INSERT INTO data_sync_settings(singleton) VALUES(true) ON CONFLICT DO NOTHING"
     )
 
+    from ..contract_data.storage import initialize as initialize_contracts
+
+    initialize_contracts(connection)
+    from ..series_data.storage import initialize as initialize_series
+
+    initialize_series(connection)
+    initialize_runtime_storage(connection)
+
 
 def serial(row: Any) -> dict[str, Any]:
     return {
@@ -125,6 +128,14 @@ def serial(row: Any) -> dict[str, Any]:
         else value
         for key, value in row.items()
     }
+
+
+def initialize_runtime_storage(connection: Connection) -> None:
+    """Idempotent physical indexes; no data or logical identities are rewritten."""
+    from importlib.resources import files
+
+    sql = files(__package__).joinpath("runtime_storage.sql").read_text()
+    connection.execute(text(sql))
 
 
 def settings(engine: Engine) -> dict[str, Any]:
@@ -143,12 +154,18 @@ def job(engine: Engine, request_id: UUID) -> dict[str, Any]:
         )
         if row is None:
             raise LookupError("同步分片不存在")
+        from .origins import describe
+
         result = serial(row)
+        result["origin"] = describe(connection, result)
         source = (
             connection.execute(
                 text("""SELECT generation,source_hash,source_bytes FROM data_sync_attempts
             WHERE request_id=:id AND source_hash IS NOT NULL AND parent_generation IS NULL
-            AND finished_at IS NOT NULL ORDER BY started_at DESC,generation DESC LIMIT 1"""),
+            AND finished_at IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM data_contract_source_releases x
+                WHERE x.source_id=data_sync_attempts.generation)
+            ORDER BY started_at DESC,generation DESC LIMIT 1"""),
                 {"id": request_id},
             )
             .mappings()
@@ -159,7 +176,10 @@ def job(engine: Engine, request_id: UUID) -> dict[str, Any]:
             serial(value)
             for value in connection.execute(
                 text("""
-            SELECT * FROM data_sync_attempts WHERE request_id=:id ORDER BY started_at DESC LIMIT 50
+            SELECT a.*,x.reason AS source_release_reason
+            FROM data_sync_attempts a LEFT JOIN data_contract_source_releases x
+            ON x.source_id=a.generation
+            WHERE a.request_id=:id ORDER BY a.started_at DESC LIMIT 50
         """),
                 {"id": request_id},
             ).mappings()

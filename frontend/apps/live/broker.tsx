@@ -13,6 +13,7 @@ import {
   Status,
 } from "../../shared/ui";
 import { Action } from "./runtime";
+import { CashFlows } from "./cash_flows";
 export function Broker() {
   const status = useData(query("/api/broker/status"));
   const q = useData(query("/api/broker/queries"), 5000);
@@ -40,7 +41,10 @@ export function Broker() {
       <Action
         title="发起只读柜台查询"
         path="/api/broker/queries"
-        fields={[{ name: "instrument", label: "合约代码" }]}
+        fields={[
+          { name: "instrument", label: "合约代码" },
+          { name: "settlement_day", label: "结算原文日期（可选 YYYY-MM-DD，不确认结算）", optional: true },
+        ]}
         onDone={(r) => navigate(`/broker/${r.batch_id || r.query_batch_id}`)}
       />
       <Records
@@ -73,6 +77,7 @@ export function BrokerDetail() {
   const ledger = useData(query(`/api/broker/queries/${id}/ledger-context`));
   const funds = useData(query(`/api/broker/queries/${id}/funds-context`));
   const base = baseline.data?.baseline?.baseline_id;
+  const accounting = ledger.data?.accounting_projection;
   const refresh = () => {
     baseline.refresh();
     ledger.refresh();
@@ -93,6 +98,22 @@ export function BrokerDetail() {
           <Fields
             value={{ 查询: id, 状态: q.data.status, 合约: q.data.instrument }}
           />
+        </Card>
+      )}
+      {q.data?.settlement_statement && (
+        <Card title="柜台结算原文">
+          <Fields value={{
+            交易日: q.data.settlement_statement.trading_day,
+            状态: q.data.settlement_statement.status,
+            内容身份: q.data.settlement_statement.content_sha256 ?? "—",
+          }} />
+          <p>保留柜台原文，尚未解释为费用或日结算事实；没有发送结算确认。</p>
+          {q.data.settlement_statement.content !== null && (
+            <pre style={{ whiteSpace: "pre-wrap", maxHeight: 480, overflow: "auto" }}>
+              {q.data.settlement_statement.content}
+            </pre>
+          )}
+          <Evidence value={q.data.settlement_statement.problems} title="原文检查问题" />
         </Card>
       )}
       <Tabs
@@ -171,6 +192,36 @@ export function BrokerDetail() {
                   ]}
                   onDone={refresh}
                 />
+                {accounting && (
+                  <Card title="已确认成交的账户计价">
+                    <p>
+                      与研究共用 FIFO
+                      规则。费用、资金流与结算未完整核对，不提供可交易余额。
+                    </p>
+                    <Fields
+                      value={{
+                        计价状态:
+                          accounting.status === "INCOMPLETE"
+                            ? "待完整核对"
+                            : "暂不可计价",
+                        费用前已实现盈亏:
+                          accounting.realized_pnl_before_fees ?? "未知",
+                        总费用: accounting.total_fees ?? "未知",
+                        账本版本: accounting.journal_ordinal ?? "未知",
+                        可交易余额: "未核定",
+                        已确认成交笔数: accounting.fill_count ?? "未知",
+                        已识别净资金流:
+                          accounting.net_identified_cash_flow ?? "未知",
+                        已识别资金流水笔数:
+                          accounting.cash_flow_count ?? "未知",
+                        待确认费用成交笔数:
+                          accounting.status === "INCOMPLETE"
+                            ? (accounting.pending_fee_fill_ids?.length ?? 0)
+                            : "未知",
+                      }}
+                    />
+                  </Card>
+                )}
                 <Evidence value={ledger.data} />
               </>
             ),
@@ -188,6 +239,7 @@ export function BrokerDetail() {
                     onDone={refresh}
                   />
                 )}
+                <CashFlows entries={ledger.data?.entries} />
                 <Evidence value={funds.data} />
               </>
             ),

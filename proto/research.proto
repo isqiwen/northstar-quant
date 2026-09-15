@@ -3,6 +3,8 @@ package northstar.research;
 import "google/protobuf/struct.proto";
 import "api_options.proto";
 import "common.proto";
+import "web_auth.proto";
+import "accounting.proto";
 
 message AdvanceRequest {
   optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
@@ -15,10 +17,6 @@ message Annotation {
 
 message AnnotationRequest {
   optional string description = 1 [json_name = "description", (northstar.web.required_field) = true];
-}
-
-message BrowserSession {
-  optional string csrf = 1 [json_name = "csrf", (northstar.web.required_field) = true];
 }
 
 message Catalog {
@@ -74,6 +72,8 @@ message DatasetDetails {
   optional string symbol = 18 [json_name = "symbol", (northstar.web.required_field) = true];
   repeated string trading_days = 19 [json_name = "trading_days", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
+  repeated northstar.accounting.SettlementFact settlements = 20 [json_name = "settlements", (northstar.web.required_field) = true];
+  repeated northstar.accounting.FuturesTerms terms = 21 [json_name = "terms", (northstar.web.required_field) = true];
 }
 
 message DatasetLineage {
@@ -102,6 +102,30 @@ message EquityPoint {
   optional string equity = 2 [json_name = "equity", (northstar.web.required_field) = true];
   optional string observation_id = 3 [json_name = "observation_id", (northstar.web.required_field) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
+  optional string close = 4 [json_name = "close", (northstar.web.required_field) = true];
+  optional string cash = 5 [json_name = "cash", (northstar.web.required_field) = true];
+  optional int64 position_lots = 6 [json_name = "position_lots", (northstar.web.required_field) = true];
+  optional string realized_pnl = 7 [json_name = "realized_pnl", (northstar.web.required_field) = true];
+  optional string unrealized_pnl = 8 [json_name = "unrealized_pnl", (northstar.web.required_field) = true];
+  optional string total_fees = 9 [json_name = "total_fees", (northstar.web.required_field) = true];
+  optional string drawdown = 10 [json_name = "drawdown", (northstar.web.required_field) = true];
+  optional string drawdown_fraction = 11 [json_name = "drawdown_fraction", (northstar.web.required_field) = true];
+  optional int64 long_lots = 12 [json_name = "long_lots", (northstar.web.required_field) = true];
+  optional int64 short_lots = 13 [json_name = "short_lots", (northstar.web.required_field) = true];
+  optional string net_exposure = 14 [json_name = "net_exposure", (northstar.web.required_field) = true];
+  optional string gross_exposure = 15 [json_name = "gross_exposure", (northstar.web.required_field) = true];
+  optional string settlement_pnl = 16 [json_name = "settlement_pnl", (northstar.web.required_field) = true];
+  optional string trade_realized_pnl = 17 [json_name = "trade_realized_pnl", (northstar.web.required_field) = true];
+  optional string terms_id = 18 [json_name = "terms_id", (northstar.web.nullable) = true];
+  optional string margin_used = 19 [json_name = "margin_used", (northstar.web.nullable) = true];
+  optional string available = 20 [json_name = "available", (northstar.web.nullable) = true];
+  optional string reserved_fee = 21 [json_name = "reserved_fee", (northstar.web.required_field) = true];
+  optional string reserved_margin = 22 [json_name = "reserved_margin", (northstar.web.required_field) = true];
+  optional int64 reserved_close_lots = 23 [json_name = "reserved_close_lots", (northstar.web.required_field) = true];
+  optional string available_after_reservations = 24 [json_name = "available_after_reservations", (northstar.web.nullable) = true];
+  optional string reserved_gross = 25 [json_name = "reserved_gross", (northstar.web.required_field) = true];
+  optional string reserved_loss = 26 [json_name = "reserved_loss", (northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
 }
 
 message FactorBinding {
@@ -131,6 +155,42 @@ message FactorResult {
   optional google.protobuf.Struct evaluation = 1 [json_name = "evaluation", (northstar.web.required_field) = true];
   optional google.protobuf.Struct inputs = 2 [json_name = "inputs", (northstar.web.required_field) = true];
   repeated FactorValue values = 3 [json_name = "values", (northstar.web.required_field) = true];
+  optional FactorAnalysis analysis = 4 [json_name = "analysis", (northstar.web.required_field) = true];
+}
+
+message ForwardGroup {
+  optional int64 group = 1 [(northstar.web.required_field) = true];
+  optional int64 samples = 2 [(northstar.web.required_field) = true];
+  optional double mean_forward_return = 3 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+
+message ForwardDay {
+  optional string trading_day = 1 [(northstar.web.required_field) = true];
+  optional int64 samples = 2 [(northstar.web.required_field) = true];
+  optional double spearman = 3 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional double mean_forward_return = 4 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+
+message FactorHorizon {
+  optional int64 bars = 1 [(northstar.web.required_field) = true];
+  optional int64 samples = 2 [(northstar.web.required_field) = true];
+  map<string, int64> excluded = 3 [(northstar.web.required_field) = true];
+  optional string status = 4 [(northstar.web.required_field) = true];
+  optional double pearson = 5 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional double spearman = 6 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional double group_change_fraction = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated ForwardGroup groups = 8 [(northstar.web.required_field) = true];
+  repeated ForwardDay days = 9 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
+message FactorAnalysis {
+  optional string plan = 1 [(northstar.web.required_field) = true];
+  optional string numeric = 2 [(northstar.web.required_field) = true];
+  repeated FactorHorizon horizons = 3 [(northstar.web.required_field) = true];
+  repeated string limitations = 4 [(northstar.web.required_field) = true];
 }
 
 message FactorRevision {
@@ -145,6 +205,8 @@ message FactorRevisionRequest {
 }
 
 message FactorRun {
+  optional int64 total = 10 [json_name = "total", (northstar.web.required_field) = true];
+  optional int64 done = 11 [json_name = "done", (northstar.web.required_field) = true];
   option (northstar.web.evidence) = true;
   optional string attempt_id = 1 [json_name = "attempt_id", (northstar.web.required_field) = true];
   optional string code_revision = 2 [json_name = "code_revision", (northstar.web.required_field) = true];
@@ -160,6 +222,7 @@ message FactorRun {
 }
 
 message FactorRunRequest {
+  optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
   optional string revision_id = 1 [json_name = "revision_id", (northstar.web.required_field) = true];
   optional string snapshot_id = 2 [json_name = "snapshot_id", (northstar.web.required_field) = true];
 }
@@ -210,6 +273,7 @@ message HttpError {
 }
 
 message ImportSpecification {
+  optional string interval = 17 [json_name = "interval", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"1m\",\"5m\",\"15m\",\"30m\",\"60m\"]"];
   optional string session_kind = 16 [json_name = "session_kind", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"DAY\",\"NIGHT\"]"];
   optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
   optional string availability_note = 2 [json_name = "availability_note", (northstar.web.required_field) = true];
@@ -294,14 +358,18 @@ message ResearchConfigurationInput {
 }
 
 message ResearchResultDocument {
+  optional PerformanceReport performance = 9 [(northstar.web.required_field) = true];
+  optional EvaluationResult evaluation = 8 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct orders = 7 [json_name = "orders", (northstar.web.required_field) = true];
   option (northstar.web.evidence) = true;
-  optional google.protobuf.Struct data = 1 [json_name = "data", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional DatasetDetails data = 1 [json_name = "data", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
   repeated google.protobuf.Struct decisions = 2 [json_name = "decisions", (northstar.web.required_field) = true];
   repeated EquityPoint equity_curve = 3 [json_name = "equity_curve", (northstar.web.required_field) = true];
   repeated google.protobuf.Struct fills = 4 [json_name = "fills", (northstar.web.required_field) = true];
   optional ResearchSummary summary = 5 [json_name = "summary", (northstar.web.required_field) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
   repeated string null_fields = 2046;
+  repeated google.protobuf.Struct settlements = 6 [json_name = "settlements", (northstar.web.required_field) = true];
 }
 
 message ResearchSummary {
@@ -369,6 +437,7 @@ message SavedConfiguration {
 }
 
 message SimulationInput {
+  optional string max_volume_participation = 4 [json_name = "max_volume_participation"];
   optional string fee_per_lot = 1 [json_name = "fee_per_lot"];
   optional string initial_cash = 2 [json_name = "initial_cash"];
   optional int64 slippage_ticks = 3 [json_name = "slippage_ticks"];
@@ -385,7 +454,7 @@ message StrategyCandidate {
   optional string candidate_id = 1 [json_name = "candidate_id", (northstar.web.required_field) = true];
   optional VersionDocument document = 2 [json_name = "document", (northstar.web.required_field) = true];
   optional int64 format = 3 [json_name = "format", (northstar.web.required_field) = true];
-  optional bool production_eligible = 4 [json_name = "production_eligible", (northstar.web.required_field) = true];
+  optional bool same_clean_revision = 4 [json_name = "same_clean_revision", (northstar.web.required_field) = true];
   optional string version_id = 5 [json_name = "version_id", (northstar.web.required_field) = true];
 }
 
@@ -488,6 +557,34 @@ message GetApiStrategyVersionsResponse {
 }
 
 service BrowserApi {
+  rpc LearnExperiment(LearningExperimentRequest) returns (Experiment) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/experiments/learn";
+  }
+  rpc SubmitExperiment (ExperimentRequest) returns (Experiment) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/experiments";
+  }
+  rpc ListExperiments (northstar.web.Empty) returns (ExperimentList) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/experiments";
+  }
+  rpc GetExperiment (northstar.web.Empty) returns (Experiment) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/experiments/{experiment_id}";
+  }
+  rpc PostApiSetup(northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/setup";
+  }
+  rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/login";
+  }
+  rpc PostApiLogout (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/logout";
+  }
   rpc SubmitTask (TaskRequest) returns (ResearchTask) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/tasks";
@@ -508,7 +605,7 @@ service BrowserApi {
     option (northstar.web.http_path) = "/api/tasks/{task_id}/control";
   }
 
-  rpc GetApiBrowserSession (northstar.web.Empty) returns (BrowserSession) {
+  rpc GetApiBrowserSession (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/browser-session";
   }
@@ -563,6 +660,10 @@ service BrowserApi {
   rpc PostApiFactorRuns (FactorRunRequest) returns (FactorRun) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/factor-runs";
+  }
+  rpc PostApiFactorRunsCancel (PublishRequest) returns (FactorRun) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/factor-runs/{attempt_id}/cancel";
   }
   rpc GetApiFactorRunsAttemptId (northstar.web.Empty) returns (FactorRun) {
     option (northstar.web.http_method) = "GET";
@@ -649,7 +750,114 @@ message TaskRequest {
  optional ResearchConfigurationInput config = 3 [(northstar.web.required_field) = true];
 }
 message TaskControl { optional string action = 1 [(northstar.web.required_field) = true]; }
+message ExperimentRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string hypothesis = 2 [(northstar.web.required_field) = true];
+  optional string train_snapshot = 3 [(northstar.web.required_field) = true];
+  optional string validation_snapshot = 4 [(northstar.web.required_field) = true];
+  optional string test_snapshot = 5 [(northstar.web.required_field) = true];
+  repeated ResearchConfigurationInput configurations = 6 [(northstar.web.required_field) = true];
+}
+message LearningRecipeInput {
+  optional int64 fast_bars = 1 [(northstar.web.required_field) = true];
+  optional int64 slow_bars = 2 [(northstar.web.required_field) = true];
+  optional int64 horizon_bars = 3 [(northstar.web.required_field) = true];
+  repeated string penalties = 4 [(northstar.web.required_field) = true];
+  optional string threshold = 5 [(northstar.web.required_field) = true];
+  optional string target_fraction = 6 [(northstar.web.required_field) = true];
+}
+message LearningExperimentRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string hypothesis = 2 [(northstar.web.required_field) = true];
+  optional string train_snapshot = 3 [(northstar.web.required_field) = true];
+  optional string validation_snapshot = 4 [(northstar.web.required_field) = true];
+  optional string test_snapshot = 5 [(northstar.web.required_field) = true];
+  repeated ResearchConfigurationInput configurations = 6 [(northstar.web.required_field) = true];
+  optional LearningRecipeInput learning = 7 [(northstar.web.required_field) = true];
+}
+message Experiment {
+  optional google.protobuf.Struct fitted = 8 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string experiment_id = 1 [(northstar.web.required_field) = true];
+  optional string plan_id = 2 [(northstar.web.required_field) = true];
+  optional string created_at = 3 [(northstar.web.required_field) = true];
+  optional string status = 4 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct plan = 5 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct selection = 6 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated google.protobuf.Struct trials = 7 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+message ExperimentList {
+  option (northstar.web.root_array) = true;
+  repeated Experiment items = 1;
+}
 message TaskList {
  option (northstar.web.root_array) = true;
  repeated ResearchTask items = 1;
+}
+
+message EvaluationPlan {
+  optional string plan_id = 1 [(northstar.web.required_field) = true];
+  optional string revision = 2 [(northstar.web.required_field) = true];
+  optional string snapshot_id = 3 [(northstar.web.required_field) = true];
+  optional string content_hash = 4 [(northstar.web.required_field) = true];
+  optional string window = 5 [(northstar.web.required_field) = true];
+  optional string event_start = 6 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string event_end = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional int64 expected_bars = 8 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string benchmark = 9 [(northstar.web.required_field) = true];
+  optional string annualization = 10 [(northstar.web.required_field) = true];
+  optional string risk_free_rate = 11 [(northstar.web.required_field) = true];
+  optional string sample_use = 12 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
+message EvaluationResult {
+  optional EvaluationPlan plan = 1 [(northstar.web.required_field) = true];
+  optional string status = 2 [(northstar.web.required_field) = true];
+  optional int64 observed_bars = 3 [(northstar.web.required_field) = true];
+  optional string benchmark_ending_equity = 4 [(northstar.web.required_field) = true];
+  optional string benchmark_return = 5 [(northstar.web.required_field) = true];
+  optional string excess_return = 6 [(northstar.web.required_field) = true];
+  optional string annualized_return = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string sharpe = 8 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string limitations = 9 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
+message PerformancePeriod {
+  optional string period = 1 [(northstar.web.required_field) = true];
+  optional string start_at = 2 [(northstar.web.required_field) = true];
+  optional string end_at = 3 [(northstar.web.required_field) = true];
+  optional string opening_equity = 4 [(northstar.web.required_field) = true];
+  optional string closing_equity = 5 [(northstar.web.required_field) = true];
+  optional string pnl = 6 [(northstar.web.required_field) = true];
+  optional string return_fraction = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional int64 observations = 8 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+message DrawdownPeriod {
+  optional string peak_at = 1 [(northstar.web.required_field) = true];
+  optional string start_at = 2 [(northstar.web.required_field) = true];
+  optional string trough_at = 3 [(northstar.web.required_field) = true];
+  optional string end_at = 4 [(northstar.web.required_field) = true];
+  optional string peak_equity = 5 [(northstar.web.required_field) = true];
+  optional string trough_equity = 6 [(northstar.web.required_field) = true];
+  optional string drawdown = 7 [(northstar.web.required_field) = true];
+  optional string drawdown_fraction = 8 [(northstar.web.required_field) = true];
+  optional string elapsed_seconds = 9 [(northstar.web.required_field) = true];
+  optional bool recovered = 10 [(northstar.web.required_field) = true];
+}
+message RollingReturn {
+  optional string start_day = 1 [(northstar.web.required_field) = true];
+  optional string end_day = 2 [(northstar.web.required_field) = true];
+  optional int64 observed_days = 3 [(northstar.web.required_field) = true];
+  optional string return_fraction = 4 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+message PerformanceReport {
+  repeated PerformancePeriod daily = 1 [(northstar.web.required_field) = true];
+  repeated PerformancePeriod monthly = 2 [(northstar.web.required_field) = true];
+  repeated DrawdownPeriod drawdowns = 3 [(northstar.web.required_field) = true];
+  repeated RollingReturn rolling = 4 [(northstar.web.required_field) = true];
+  optional string basis = 5 [(northstar.web.required_field) = true];
 }

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -38,66 +37,36 @@ def bootstrap(tmp_path, monkeypatch):
 def test_prepared_host_does_not_install_or_restart_services(bootstrap, monkeypatch):
     module, request = bootstrap
     monkeypatch.setattr(module, "available", lambda *args: True)
-    monkeypatch.setattr(module.shutil, "which", lambda name: name)
     calls = []
     monkeypatch.setattr(module, "admin", lambda *args: calls.append(args))
     monkeypatch.setattr(module, "run", lambda *args: calls.append(args))
     module.prepare(request)
-    assert len(calls) == 2 and calls[1][1:3] == ("-c", request["docker_program"])
+    assert len(calls) == 1
     assert calls[0][1:3] == ("-c", request["directory_program"])
 
 
-@pytest.mark.parametrize("app", ["data-hub", "research", "live", "database"])
-@pytest.mark.parametrize("distro", ["ubuntu", "debian"])
-def test_fresh_host_installs_tools_and_verifies_them(bootstrap, monkeypatch, app, distro):
+@pytest.mark.parametrize(
+    "missing",
+    [
+        ("git", "--version"),
+        ("uv", "--version"),
+        ("docker", "compose", "version"),
+        ("docker", "buildx", "version"),
+    ],
+)
+def test_missing_dependency_fails_without_host_changes(bootstrap, monkeypatch, missing):
     module, request = bootstrap
-    request["app"] = app
-    original = Path.read_text
-    monkeypatch.setattr(
-        Path,
-        "read_text",
-        lambda path, *a, **kw: (
-            f"ID={distro}\nVERSION_CODENAME={'resolute' if distro == 'ubuntu' else 'bookworm'}\n"
-            if str(path) == "/etc/os-release"
-            else original(path, *a, **kw)
-        ),
-    )
-    monkeypatch.setattr(
-        Path,
-        "exists",
-        lambda path: True if str(path) == "/etc/os-release" else path.is_file() or path.is_dir(),
-    )
-    monkeypatch.setattr(module.shutil, "which", lambda name: None)
-    counts = {}
-
-    def available(*args):
-        counts[args] = counts.get(args, 0) + 1
-        return args in (("docker", "info"), ("git", "--version")) or counts[args] > 1
-
-    monkeypatch.setattr(module, "available", available)
-    monkeypatch.setattr(module.subprocess, "run", lambda *a, **kw: SimpleNamespace(stdout=""))
-    monkeypatch.setattr(module.subprocess, "check_output", lambda *a, **kw: "amd64\n")
-    calls = []
-    monkeypatch.setattr(module, "admin", lambda *args: calls.append(args))
-    monkeypatch.setattr(module, "run", lambda *args: calls.append(args))
-    module.prepare(request)
-    if distro == "ubuntu":
-        assert any("docker.io" in call and "--no-remove" in call for call in calls)
-        assert any("docker-compose-v2" in call and "docker-buildx" in call for call in calls)
-        assert not any("download.docker.com" in str(call) for call in calls)
-    else:
-        assert any("docker-ce" in call for call in calls)
-        assert any("docker-compose-plugin" in call for call in calls)
-    assert any("uv==0.11.6" in call for call in calls)
-    assert not any("remove" in call or "restart" in call for call in calls)
+    monkeypatch.setattr(module, "available", lambda *args: args != missing)
+    monkeypatch.setattr(module, "admin", lambda *args: pytest.fail("unexpected host mutation"))
+    with pytest.raises(ValueError, match="预先安装"):
+        module.prepare(request)
 
 
 def test_existing_docker_access_failure_does_not_restart_daemon(bootstrap, monkeypatch):
     module, request = bootstrap
     monkeypatch.setattr(module, "available", lambda *args: args != ("docker", "info"))
-    monkeypatch.setattr(module.shutil, "which", lambda name: name)
     calls = []
     monkeypatch.setattr(module, "admin", lambda *args: calls.append(args))
     with pytest.raises(ValueError, match="Docker 不可访问"):
         module.prepare(request)
-    assert len(calls) == 1 and calls[0][1:3] == ("-c", request["directory_program"])
+    assert calls == []

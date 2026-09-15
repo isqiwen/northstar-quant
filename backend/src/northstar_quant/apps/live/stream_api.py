@@ -19,14 +19,14 @@ from northstar_quant.web.requests import (
     _uuid_field,
 )
 
-from .broker_api import CheckRecord
 from .commands import _runtime_header
 from .instances import Instances
 
 
 class OpeningBudgetRequest(ApiModel):
     sequence: int
-    order_check_id: UUIDText
+    query_id: UUIDText
+    entry_id: UUIDText
     limit_price: str
     request_id: UUIDText
 
@@ -38,6 +38,11 @@ class StreamRequest(ApiModel):
     duration_seconds: int
     allow_retention: bool
     use_basis: str
+    schedule: dict[str, JsonValue] | None = None
+
+
+class AccountQueryRequest(ApiModel):
+    request_id: UUIDText
 
 
 class ControlRequest(ApiModel):
@@ -103,6 +108,14 @@ class StreamEvent(ApiModel):
     committed_at: str
 
 
+class ReceiverQuery(EvidenceRecord):
+    status: str
+    reason: str
+    through_sequence: int
+    source_hash: str
+    completeness: dict[str, JsonValue]
+
+
 class StreamControl(EvidenceRecord):
     stream_id: str
 
@@ -113,7 +126,6 @@ class OpeningBudget(EvidenceRecord):
 
 class BudgetContext(ApiModel):
     budgets: list[dict[str, JsonValue]]
-    order_checks: list[CheckRecord]
     live_runtime: dict[str, JsonValue] | None = None
 
 
@@ -126,6 +138,7 @@ class StreamArchive(EvidenceRecord):
 
 
 class LiveConfiguration(EvidenceRecord):
+    candidate_id: str
     configuration_id: str
     name: str
     config: dict[str, JsonValue]
@@ -156,7 +169,8 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             command_live.opening_budgets.create,
             stream_id,
             payload["sequence"],
-            _uuid_field(payload, "order_check_id"),
+            _uuid_field(payload, "query_id"),
+            _uuid_field(payload, "entry_id"),
             limit_price=limit_price,
             request_id=_uuid_field(payload, "request_id"),
         )
@@ -194,6 +208,7 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             duration_seconds=cast(int, payload["duration_seconds"]),
             allow_retention=cast(bool, payload["allow_retention"]),
             use_basis=_string_field(payload, "use_basis"),
+            schedule=payload.get("schedule"),
         )
 
     @app.get(
@@ -236,6 +251,35 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             stream_id,
             _string_field(payload, "action"),
             request_id=_uuid_field(payload, "request_id"),
+        )
+
+    @app.get(
+        "/api/streams/{stream_id}/account-queries/{query_id}",
+        response_model=ReceiverQuery,
+        response_model_exclude_unset=True,
+    )
+    async def account_query(request: Request, stream_id: UUID, query_id: UUID) -> dict[str, object]:
+        access.require_request(request)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.streams.account_query, stream_id, query_id)
+
+    @app.post(
+        "/api/streams/{stream_id}/refresh-account",
+        response_model=StreamControl,
+        response_model_exclude_unset=True,
+    )
+    async def refresh_account(
+        request: Request,
+        document: AccountQueryRequest,
+        stream_id: UUID,
+        runtime: Annotated[UUID, Depends(_runtime_header)],
+    ) -> dict[str, object]:
+        access.protect(request)
+        live = instances.for_request(request).for_runtime(runtime)
+        return await run_in_threadpool(
+            live.streams.refresh_account,
+            stream_id,
+            request_id=UUID(document.request_id),
         )
 
     @app.post(

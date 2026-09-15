@@ -11,6 +11,7 @@ from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
 from northstar_quant.data_management.publications import PublishedDatasets
+from tests.apps.browser import login_response
 from tests.data_management.test_library import _receive, _study
 
 
@@ -74,6 +75,7 @@ def test_network_manifest_binds_readonly_files_and_survives_catalog_outage(
     attempt = _receive(library, content, spec)
     identifier = UUID(str(attempt["snapshot_id"]))
     with TestClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
+        assert login_response(api).status_code == 200
         assert api.get("/api/publications").status_code == 200
         assert api.post("/api/publications").status_code == 403
         # This client targets the management API, which accepts core.local.

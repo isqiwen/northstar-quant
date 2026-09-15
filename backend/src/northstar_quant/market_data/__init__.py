@@ -1,13 +1,15 @@
 """Immutable market values shared by data adapters and trading calculations."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
 
 @dataclass(frozen=True, slots=True)
-class Market:
+class Instrument:
+    """Fixed contract economics, independent of any bar stream or storage."""
+
     contract_id: UUID
     symbol: str
     exchange_timezone: str
@@ -15,7 +17,6 @@ class Market:
     quantity_unit: str
     price_tick: Decimal
     multiplier: Decimal
-    interval_seconds: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,11 +28,16 @@ class MarketBar:
     trading_day: date
     close: Decimal
     volume: Decimal
+    contract_id: UUID = field(kw_only=True)
 
     def validate(self, *, interval_seconds: int, price_tick: Decimal | None = None) -> None:
+        if type(interval_seconds) is not int or interval_seconds <= 0:
+            raise ValueError("bar interval must be a positive integer number of seconds")
         bar = self
         if not isinstance(bar, MarketBar) or not isinstance(bar.observation_id, UUID):
             raise ValueError("research requires canonical observations")
+        if not isinstance(bar.contract_id, UUID):
+            raise ValueError("bar requires a canonical contract")
         for at in (bar.event_time, bar.completed_at, bar.available_at):
             if not isinstance(at, datetime) or at.utcoffset() != timedelta(0):
                 raise ValueError("bar times must be aware UTC")

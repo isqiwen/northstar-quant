@@ -38,11 +38,11 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.engine import RowMapping
 
 from northstar_quant import code_revision
-from northstar_quant.broker.records import EvidenceTimestamp
+from northstar_quant.accounting.settlement import SettlementFact
+from northstar_quant.accounting.terms import FuturesTerms
 from northstar_quant.data_management.catalog.models import (
     DatasetSnapshotImportQualityPin,
     DatasetSnapshotManifest,
@@ -57,6 +57,7 @@ from northstar_quant.data_management.research import (
     _source_evidence,
     _timestamp,
 )
+from northstar_quant.persistence.sql import UTCDateTime
 
 from .research_reader import load_dataset
 
@@ -64,19 +65,19 @@ _metadata = MetaData()
 _sources = Table(
     "data_sources",
     _metadata,
-    Column("source_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("source_id", Uuid(as_uuid=True), primary_key=True),
     Column("filename", String(160), nullable=False),
     Column("source_name", String(64), nullable=False),
     Column("use_basis", String(1024), nullable=False),
     Column("allow_retention", Boolean, nullable=False),
     Column("allow_download", Boolean, nullable=False),
     Column("input_kind", String(32), nullable=False),
-    Column("upstream_source_id", PGUUID(as_uuid=True), ForeignKey("data_sources.source_id")),
+    Column("upstream_source_id", Uuid(as_uuid=True), ForeignKey("data_sources.source_id")),
     Column("transformation_note", String(1024)),
     Column("upstream_evidence_hash", String(64)),
     Column("content_hash", String(64), nullable=False),
     Column("byte_count", BigInteger, nullable=False),
-    Column("received_at", EvidenceTimestamp(), nullable=False),
+    Column("received_at", UTCDateTime(), nullable=False),
     Column("evidence_hash", String(64), nullable=False),
     CheckConstraint("allow_retention AND byte_count > 0 AND byte_count <= 5242880"),
     CheckConstraint(
@@ -88,8 +89,8 @@ _sources = Table(
 _attempts = Table(
     "data_processing_attempts",
     _metadata,
-    Column("attempt_id", PGUUID(as_uuid=True), primary_key=True),
-    Column("source_id", PGUUID(as_uuid=True), ForeignKey(_sources.c.source_id), nullable=False),
+    Column("attempt_id", Uuid(as_uuid=True), primary_key=True),
+    Column("source_id", Uuid(as_uuid=True), ForeignKey(_sources.c.source_id), nullable=False),
     Column("request_id", String(36), nullable=False, unique=True),
     Column("request_hash", String(64), nullable=False),
     Column("processing_hash", String(64), nullable=False, index=True),
@@ -99,11 +100,11 @@ _attempts = Table(
     Column("stage", String(24), nullable=False),
     Column("error", Text),
     Column("quality", JSON().with_variant(JSONB, "postgresql"), nullable=False),
-    Column("retry_of", PGUUID(as_uuid=True), ForeignKey("data_processing_attempts.attempt_id")),
-    Column("snapshot_id", PGUUID(as_uuid=True), ForeignKey(DatasetSnapshotManifest.id)),
+    Column("retry_of", Uuid(as_uuid=True), ForeignKey("data_processing_attempts.attempt_id")),
+    Column("snapshot_id", Uuid(as_uuid=True), ForeignKey(DatasetSnapshotManifest.id)),
     Column("reused_product", Boolean, nullable=False),
-    Column("created_at", EvidenceTimestamp(), nullable=False),
-    Column("updated_at", EvidenceTimestamp(), nullable=False),
+    Column("created_at", UTCDateTime(), nullable=False),
+    Column("updated_at", UTCDateTime(), nullable=False),
     CheckConstraint("status IN ('PENDING', 'RUNNING', 'FAILED', 'PUBLISHED')"),
     CheckConstraint(
         "(status = 'PUBLISHED' AND snapshot_id IS NOT NULL AND error IS NULL) "
@@ -113,9 +114,9 @@ _attempts = Table(
 _rejections = Table(
     "data_admission_rejections",
     _metadata,
-    Column("rejection_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("rejection_id", Uuid(as_uuid=True), primary_key=True),
     Column("request_id", String(36)),
-    Column("created_at", EvidenceTimestamp(), nullable=False),
+    Column("created_at", UTCDateTime(), nullable=False),
     Column("reason", String(512), nullable=False),
 )
 _ADMISSION_LOCK = 0x4E535141444D49
@@ -162,13 +163,6 @@ def initialize_library(connection: Connection) -> None:
             "BEGIN SELECT RAISE(ABORT, 'Processing attempts are immutable'); END"
         )
         return
-    # Replace the current constraint without rewriting retained source evidence.
-    connection.exec_driver_sql("""
-        ALTER TABLE data_sources DROP CONSTRAINT IF EXISTS data_sources_input_kind_check;
-        ALTER TABLE data_sources ADD CONSTRAINT data_sources_input_kind_check
-        CHECK (input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV',
-                             'CTP_CALLBACK_SEGMENT', 'TUSHARE_RESPONSE'))
-    """)
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION data_reject_source_change() RETURNS trigger AS $$
         BEGIN
@@ -207,22 +201,32 @@ def initialize_library(connection: Connection) -> None:
     """)
 
 
-def manifest(connection: Connection) -> list[dict[str, object]]:
+def manifest(
+    connection: Connection, *, content_hashes: list[str] | None = None
+) -> list[dict[str, object]]:
     """Read archive references inside the caller's consistent backup snapshot."""
 
+    sources_query = select(_sources.c.source_id, _sources.c.content_hash, _sources.c.byte_count)
+    if content_hashes is not None:
+        sources_query = sources_query.where(_sources.c.content_hash.in_(content_hashes))
+    if connection.dialect.name == "postgresql":
+        sources_query = sources_query.where(
+            text("""NOT EXISTS (
+            SELECT 1 FROM data_contract_source_releases released
+            WHERE released.source_id=data_sources.source_id)""")
+        )
     references = [
         _json_row(row)
-        for row in connection.execute(
-            select(_sources.c.source_id, _sources.c.content_hash, _sources.c.byte_count).order_by(
-                _sources.c.source_id
-            )
-        ).mappings()
+        for row in connection.execute(sources_query.order_by(_sources.c.source_id)).mappings()
     ]
     if connection.dialect.name == "sqlite":
         return references
     from .tushare.retention import references as sync_references
 
-    return sorted(references + sync_references(connection), key=lambda r: str(r["source_id"]))
+    return sorted(
+        references + sync_references(connection, content_hashes=content_hashes),
+        key=lambda r: str(r["source_id"]),
+    )
 
 
 class DataLibrary:
@@ -743,7 +747,14 @@ class DataLibrary:
         """
         count = 0
         with self._engine.connect().execution_options(yield_per=100) as connection:
-            rows = connection.execute(select(_sources).order_by(_sources.c.source_id)).mappings()
+            query = select(_sources)
+            if connection.dialect.name == "postgresql":
+                query = query.where(
+                    text("""NOT EXISTS (
+                    SELECT 1 FROM data_contract_source_releases released
+                    WHERE released.source_id=data_sources.source_id)""")
+                )
+            rows = connection.execute(query.order_by(_sources.c.source_id)).mappings()
             for source in rows:
                 self._verify_source(dict(source))
                 count += 1
@@ -935,6 +946,18 @@ class DataLibrary:
         details = self.load_dataset(snapshot_id).details
         assert details is not None
         return details
+
+    def assemble_research(
+        self,
+        snapshot_ids: tuple[UUID, ...],
+        *,
+        settlements: tuple[SettlementFact, ...] = (),
+        terms: tuple[FuturesTerms, ...] = (),
+    ) -> ResearchDataset:
+        """Publish fixed sessions at one quality cutoff with explicit economic facts."""
+        from .research_assembly import assemble
+
+        return assemble(self, snapshot_ids, settlements=settlements, terms=terms)
 
     def list_datasets(self, *, limit: int = 50) -> tuple[DatasetSummary, ...]:
         """Offer only confirmed publications whose pinned data and archives verify."""

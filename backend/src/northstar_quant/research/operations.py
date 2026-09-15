@@ -54,10 +54,17 @@ class ResearchOperations:
             if (
                 run["snapshot"] != first["snapshot"]
                 or run["code_revision"] != first["code_revision"]
+                or cast(dict[str, object], cast(dict[str, object], run["result"])["evaluation"])[
+                    "plan"
+                ]
+                != cast(dict[str, object], cast(dict[str, object], first["result"])["evaluation"])[
+                    "plan"
+                ]
                 or any(other[key] != config[key] for key in ("risk", "simulation"))
             ):
                 raise ValueError(
-                    "comparison requires the same snapshot, code, risk and simulation assumptions"
+                    "comparison requires the same snapshot, evaluation plan, code, risk "
+                    "and simulation assumptions"
                 )
         return [
             {

@@ -21,7 +21,7 @@ from tests.accounting.test_baselines import saved_query
 from tests.broker.test_records import _capture
 
 
-def position_baseline(engine: Engine, *, day: str = "20260907") -> UUID:
+def position_baseline(engine: Engine, *, day: str = "20260907", balance: str = "100000") -> UUID:
     """Register explicitly synthetic product metadata, then fix a saved flat query."""
     with Session(engine) as session, session.begin():
         exchange = CatalogCommands.register_exchange(
@@ -37,7 +37,10 @@ def position_baseline(engine: Engine, *, day: str = "20260907") -> UUID:
             quantity_unit="TON",
         )
     identifier = uuid4()
-    BrokerBaselines(engine).establish(saved_query(engine, day=day), request_id=identifier)
+    BrokerBaselines(engine).establish(
+        saved_query(engine, day=day, money={"Balance": balance, "Available": balance}),
+        request_id=identifier,
+    )
     return identifier
 
 
@@ -240,6 +243,7 @@ def test_unsupported_or_incomplete_facts_never_create_zero_fees_or_reverse_posit
     assert entry["status"] == "UNKNOWN"
     assert code in {item["code"] for item in entry["problems"]}
     assert entry["position_projection"] == {"status": "UNKNOWN", "positions": []}
+    assert entry["monetary_status"] == "UNAVAILABLE"
     assert entry["cash_projection"] is None
     assert (
         len(
@@ -444,3 +448,87 @@ def test_missing_canonical_contract_is_detected_without_repairing_catalog(
         BrokerLedger(postgres_engine).verify_all()
     with Session(postgres_engine) as session:
         assert session.get(FuturesContract, contract_id) is None
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "price",
+        "quantity",
+        "omitted_fill",
+        "projection",
+        "duplicate_count",
+        "authority",
+        "backdated",
+    ],
+)
+def test_rehashed_position_document_must_rebuild_from_source(
+    postgres_engine, clean_database, change
+):
+    import hashlib
+    import json
+
+    baseline, ledger = position_baseline(postgres_engine), BrokerLedger(postgres_engine)
+    identifier = uuid4()
+    document = ledger.ingest(
+        baseline, ledger_query(postgres_engine, trades=(trade(),)), request_id=identifier
+    )
+    assert BrokerLedger(postgres_engine).verify_all()["position_entries_count"] == 1
+    if change == "price":
+        document["added_fills"][0]["price"] = "3200"
+    elif change == "quantity":
+        document["added_fills"][0]["quantity_lots"] = 3
+        document["position_projection"]["positions"][0]["today_lots"] = 3
+    elif change == "omitted_fill":
+        document.update(added_fills=[], fill_count=0, new_fill_count=0)
+        document["position_projection"]["positions"] = []
+    elif change == "projection":
+        document["position_projection"]["positions"][0]["today_lots"] = 200
+    elif change == "duplicate_count":
+        document["duplicate_count"] = 100
+    elif change == "backdated":
+        source = BrokerRecords(postgres_engine).get(UUID(document["source_batch_id"]))
+        document["recorded_at"] = source["capture"]["started_at"]
+    else:
+        document["execution"]["order_sending"] = True
+    encoded = json.dumps(
+        document, sort_keys=True, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+    )
+    with postgres_engine.begin() as connection:
+        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        connection.execute(
+            text(
+                "UPDATE broker_position_entries SET document=CAST(:document AS jsonb), "
+                "sha256=:digest, recorded_at=:recorded WHERE entry_id=:id"
+            ),
+            {
+                "id": identifier,
+                "recorded": datetime.fromisoformat(document["recorded_at"]),
+                "document": encoded,
+                "digest": hashlib.sha256(encoded.encode()).hexdigest(),
+            },
+        )
+    with pytest.raises(
+        ValueError, match="projection differs|unsupported account authority|precedes"
+    ):
+        BrokerLedger(postgres_engine).verify_all()
+
+
+def test_flat_query_valuation_never_registers_contract_inside_funds_transaction(live_engine):
+    from northstar_quant.accounting.funds import BrokerFunds
+    from northstar_quant.data_management.catalog.models import FuturesContract
+    from tests.accounting.test_funds import money_query
+
+    baseline = position_baseline(live_engine)
+    ledger = BrokerLedger(live_engine)
+    source = ledger_query(live_engine)
+    ledger.ingest(baseline, source, request_id=uuid4())
+    with Session(live_engine) as session:
+        assert session.query(FuturesContract).count() == 0
+    result = BrokerFunds(live_engine).observe(
+        baseline, money_query(live_engine), request_id=uuid4()
+    )
+    assert result["position_reference"] is not None
+    assert ledger.context(source)["accounting_projection"]["status"] == "UNAVAILABLE"
+    with Session(live_engine) as session:
+        assert session.query(FuturesContract).count() == 0

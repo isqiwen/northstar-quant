@@ -1,6 +1,7 @@
 """Validate the one current deployment configuration without exposing credential values."""
 
 import re
+from pathlib import Path
 from urllib.parse import urlsplit
 
 PASSWORD = "NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"
@@ -25,7 +26,7 @@ KEYS = {
 }
 
 
-def validate(app: str, content: bytes) -> None:
+def validate(app: str, content: bytes) -> dict[str, str]:
     if len(content) > 1024 * 1024:
         raise ValueError("应用配置超过大小限制")
     try:
@@ -82,7 +83,6 @@ def validate(app: str, content: bytes) -> None:
             raise ValueError("Data Hub 地址必须是无凭据的 HTTP(S) 服务地址")
     if app == "live":
         import sys
-        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend/src"))
         from northstar_quant.live.instances import configured_instances
@@ -91,3 +91,5 @@ def validate(app: str, content: bytes) -> None:
         credentials = [values[k] for k in KEYS[app] if k.startswith("NORTHSTAR_SIMNOW_")]
         if any(credentials) and not all(credentials):
             raise ValueError("SimNow 凭据必须全部填写或全部留空")
+
+    return values

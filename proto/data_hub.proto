@@ -3,16 +3,14 @@ package northstar.data_hub;
 import "google/protobuf/struct.proto";
 import "api_options.proto";
 import "common.proto";
+import "web_auth.proto";
+import "accounting.proto";
 
 message AdmissionRejection {
   option (northstar.web.evidence) = true;
   optional string reason = 1 [json_name = "reason", (northstar.web.required_field) = true];
   optional string rejection_id = 2 [json_name = "rejection_id", (northstar.web.required_field) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
-}
-
-message BrowserSession {
-  optional string csrf = 1 [json_name = "csrf", (northstar.web.required_field) = true];
 }
 
 message DatasetDetails {
@@ -36,6 +34,8 @@ message DatasetDetails {
   optional string symbol = 18 [json_name = "symbol", (northstar.web.required_field) = true];
   repeated string trading_days = 19 [json_name = "trading_days", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
+  repeated northstar.accounting.SettlementFact settlements = 20 [json_name = "settlements", (northstar.web.required_field) = true];
+  repeated northstar.accounting.FuturesTerms terms = 21 [json_name = "terms", (northstar.web.required_field) = true];
 }
 
 message DatasetLineage {
@@ -70,6 +70,7 @@ message HttpError {
 
 
 message ImportSpecification {
+  optional string interval = 17 [json_name = "interval", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"1m\",\"5m\",\"15m\",\"30m\",\"60m\"]"];
   optional string session_kind = 16 [json_name = "session_kind", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"DAY\",\"NIGHT\"]"];
   optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
   optional string availability_note = 2 [json_name = "availability_note", (northstar.web.required_field) = true];
@@ -155,9 +156,38 @@ message ProcessingQueueStatus {
 }
 
 
+message ContractReviewRequest {
+  optional string scope = 1 [(northstar.web.required_field) = true];
+}
+message ContractReview {
+  optional google.protobuf.Struct completeness = 19 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct quality = 20 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct contract_type = 18 [(northstar.web.required_field) = true];
+  optional string scope = 1 [(northstar.web.required_field) = true];
+  optional string display_name = 2 [(northstar.web.required_field) = true];
+  optional string exchange = 3 [(northstar.web.required_field) = true];
+  optional string product = 4 [(northstar.web.required_field) = true];
+  optional string listing_date = 5 [(northstar.web.nullable) = true];
+  optional string last_trade_date = 6 [(northstar.web.nullable) = true];
+  optional string required_end = 7 [(northstar.web.nullable) = true];
+  optional string status = 8 [(northstar.web.required_field) = true];
+  optional bool admitted = 9 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct requirements = 10;
+  repeated string reasons = 11;
+  optional string policy = 12 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+  optional string last_delivery_date = 13 [(northstar.web.nullable) = true];
+  optional string first_delivery_date = 14 [(northstar.web.nullable) = true];
+  optional string delivery_month = 15 [(northstar.web.nullable) = true];
+  optional string lifecycle_status = 16 [(northstar.web.required_field) = true];
+  optional string lifecycle_reason = 17 [(northstar.web.required_field) = true];
+}
+
 message SyncSettingsRequest {
   optional int64 revision = 1 [(northstar.web.required_field) = true];
   optional bool enabled = 2 [(northstar.web.required_field) = true];
+  repeated string products = 3;
+  optional bool retry_skipped = 4;
 }
 message SyncReprocessRequest {
   optional string request_id = 1 [(northstar.web.required_field) = true];
@@ -166,13 +196,55 @@ message SyncReprocessRequest {
 message SyncTokenRequest {
   optional string token = 1 [(northstar.web.required_field) = true];
 }
+message SyncLane {
+  optional string lane = 1 [(northstar.web.required_field) = true];
+  optional string start = 2 [(northstar.web.required_field) = true];
+  optional string end = 3 [(northstar.web.required_field) = true];
+  optional int64 total = 4 [(northstar.web.required_field) = true];
+  optional int64 validated = 5 [(northstar.web.required_field) = true];
+  optional int64 waiting = 6 [(northstar.web.required_field) = true];
+  optional int64 blocked = 7 [(northstar.web.required_field) = true];
+  optional int64 running = 8 [(northstar.web.required_field) = true];
+  optional string oldest_pending = 9 [json_name = "oldest_pending", (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
 message SyncStatus {
   optional google.protobuf.Struct settings = 1 [(northstar.web.required_field) = true];
   optional bool token_configured = 2 [json_name = "token_configured", (northstar.web.required_field) = true];
   repeated google.protobuf.Struct datasets = 3;
   repeated google.protobuf.Struct progress = 4;
   repeated google.protobuf.Struct jobs = 5;
+  repeated SyncLane lanes = 7;
   optional int64 unplanned_contracts = 6 [json_name = "unplanned_contracts", (northstar.web.required_field) = true];
+}
+message CollectionQuery {
+  optional string exchange = 1 [(northstar.web.required_field) = true];
+  optional string product = 2 [(northstar.web.required_field) = true];
+  optional string search = 3 [(northstar.web.required_field) = true];
+  optional string status = 4 [(northstar.web.required_field) = true];
+  optional int64 offset = 5 [(northstar.web.required_field) = true];
+  optional int64 limit = 6 [(northstar.web.required_field) = true];
+}
+message CollectionPage {
+  optional int64 total = 1 [(northstar.web.required_field) = true];
+  optional int64 offset = 2 [(northstar.web.required_field) = true];
+  optional int64 limit = 3 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct items = 4;
+  repeated string exchanges = 5;
+  repeated string products = 6;
+}
+message SyncJobQuery {
+  optional string owner_scope = 5;
+  optional string dataset = 1 [(northstar.web.required_field) = true];
+  optional string status = 2 [(northstar.web.required_field) = true];
+  optional int64 offset = 3 [(northstar.web.required_field) = true];
+  optional int64 limit = 4 [(northstar.web.required_field) = true];
+}
+message SyncJobPage {
+  optional int64 total = 1 [(northstar.web.required_field) = true];
+  optional int64 offset = 2 [(northstar.web.required_field) = true];
+  optional int64 limit = 3 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct items = 4;
 }
 message SyncEvidence {
   option (northstar.web.evidence) = true;
@@ -204,6 +276,18 @@ message ContractSearch {
   optional int64 offset = 4 [(northstar.web.required_field) = true];
 }
 
+message AvailableSearch {
+  optional string exchange = 1 [(northstar.web.required_field) = true];
+  optional string product = 2 [(northstar.web.required_field) = true];
+  optional string search = 3 [(northstar.web.required_field) = true];
+  optional int64 offset = 4 [(northstar.web.required_field) = true];
+  optional string dataset = 5 [(northstar.web.required_field) = true];
+}
+
+message PublishedSelection {
+  optional string receipt_id = 1 [(northstar.web.required_field) = true];
+}
+
 message ExplorerList {
   repeated google.protobuf.Struct rows = 1 [(northstar.web.required_field) = true];
   optional int64 total = 2 [(northstar.web.required_field) = true];
@@ -225,6 +309,27 @@ message ExplorerQuery {
   optional int64 offset = 5 [(northstar.web.required_field) = true];
   repeated string receipt_ids = 6 [(northstar.web.required_field) = true];
   optional int64 limit = 7 [(northstar.web.required_field) = true];
+}
+
+message ChartQuery {
+  optional string dataset = 1 [(northstar.web.required_field) = true];
+  optional string scope = 2 [(northstar.web.required_field) = true];
+  optional string start = 3 [(northstar.web.required_field) = true];
+  optional string end = 4 [(northstar.web.required_field) = true];
+  repeated string receipt_ids = 5 [(northstar.web.required_field) = true];
+}
+message InstrumentOpen {
+  optional string scope = 1 [(northstar.web.required_field) = true];
+  optional string dataset = 2 [(northstar.web.required_field) = true];
+}
+message InstrumentSelection {
+  optional string scope = 1 [(northstar.web.required_field) = true];
+}
+message ExplorerInstrument {
+  optional string scope = 1 [(northstar.web.required_field) = true];
+  optional string name = 2 [(northstar.web.required_field) = true];
+  optional string exchange = 3 [(northstar.web.required_field) = true];
+  repeated string periods = 4 [(northstar.web.required_field) = true];
 }
 
 message ExplorerCoverage {
@@ -249,6 +354,7 @@ message ExplorerRows {
   repeated google.protobuf.Struct fields = 11 [(northstar.web.required_field) = true];
   repeated google.protobuf.Struct versions = 12 [(northstar.web.required_field) = true];
   optional string note = 13 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct scan = 17 [(northstar.web.required_field) = true];
 }
 
 message RevisionRequest {
@@ -270,7 +376,140 @@ message RevisionComparison {
   optional string note = 11 [(northstar.web.required_field) = true];
 }
 
+message CompactionRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string dataset = 2 [(northstar.web.required_field) = true];
+  optional string scope = 3 [(northstar.web.required_field) = true];
+  optional string start = 4 [(northstar.web.required_field) = true];
+  optional string end = 5 [(northstar.web.required_field) = true];
+  repeated string receipt_ids = 6 [(northstar.web.required_field) = true];
+}
+message Compaction {
+  optional string compaction_id = 1 [(northstar.web.required_field) = true];
+  optional string plan_id = 2 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct plan = 3 [(northstar.web.required_field) = true];
+  optional string created_at = 4 [(northstar.web.required_field) = true];
+  optional string status = 5 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct result = 6 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string error = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+message CompactionPage {
+  optional int64 offset = 1 [(northstar.web.required_field) = true];
+  optional int64 limit = 2 [(northstar.web.required_field) = true];
+}
+message CompactionList { option (northstar.web.root_array) = true; repeated Compaction items = 1; }
+
+message PrepareResearchRequest {
+  optional string receipt_id = 1 [json_name = "receipt_id", (northstar.web.required_field) = true];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+  ImportSpecification specification = 3 [json_name = "specification", (northstar.web.required_field) = true];
+  optional string label_convention = 4 [json_name = "label_convention", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"BAR_START\",\"BAR_END\"]"];
+  optional string interpretation_reference = 5 [json_name = "interpretation_reference", (northstar.web.required_field) = true];
+}
+
+message AssembleResearchRequest {
+  repeated string snapshot_ids = 1 [(northstar.web.required_field) = true];
+}
+
+message CatalogSnapshot {
+ optional string snapshot_id = 1 [(northstar.web.required_field) = true];
+ optional string exchange = 2 [(northstar.web.required_field) = true];
+ optional string product = 3 [(northstar.web.required_field) = true];
+ optional string contract = 4 [(northstar.web.required_field) = true];
+ repeated google.protobuf.Struct files = 5;
+ optional google.protobuf.Struct reference = 6 [(northstar.web.required_field) = true];
+ optional string time_basis = 7 [(northstar.web.required_field) = true];
+ optional string fee_basis = 8 [(northstar.web.required_field) = true];
+ optional string series = 9 [(northstar.web.required_field) = true];
+ optional string entity_type = 10 [(northstar.web.required_field) = true];
+}
+message CatalogQuery {
+ optional string domain = 1 [(northstar.web.required_field) = true];
+ optional string contract = 2 [(northstar.web.required_field) = true];
+ optional string start = 3 [(northstar.web.required_field) = true];
+ optional string end = 4 [(northstar.web.required_field) = true];
+ optional int64 offset = 5 [(northstar.web.required_field) = true];
+ optional int64 limit = 6 [(northstar.web.required_field) = true];
+ optional string series = 7;
+}
+message CatalogRows {
+ optional string snapshot_id = 1 [(northstar.web.required_field) = true];
+ optional string domain = 2 [(northstar.web.required_field) = true];
+ repeated google.protobuf.Struct rows = 3;
+ optional int64 total = 4 [(northstar.web.required_field) = true];
+ optional int64 offset = 5 [(northstar.web.required_field) = true];
+ optional int64 limit = 6 [(northstar.web.required_field) = true];
+}
+
+message SeriesQuery {
+ optional string dataset = 1 [(northstar.web.required_field) = true];
+ optional string search = 2 [(northstar.web.required_field) = true];
+ optional int64 offset = 3 [(northstar.web.required_field) = true];
+}
+message SeriesVersions {
+ optional string dataset = 1 [(northstar.web.required_field) = true];
+ optional string scope = 2 [(northstar.web.required_field) = true];
+ optional int64 offset = 3 [(northstar.web.required_field) = true];
+}
+message SeriesIdentity {
+ optional string dataset = 1 [(northstar.web.required_field) = true];
+ optional string scope = 2 [(northstar.web.required_field) = true];
+}
+message SeriesRows {
+ repeated google.protobuf.Struct rows = 1;
+ optional int64 total = 2 [(northstar.web.required_field) = true];
+}
+message SeriesRetry { optional int64 retried = 1 [(northstar.web.required_field) = true]; }
+
 service BrowserApi {
+ rpc QuerySeries(SeriesQuery) returns (SeriesRows) {
+  option (northstar.web.http_method) = "POST";
+  option (northstar.web.http_path) = "/api/series/query";
+ }
+ rpc SeriesHistory(SeriesVersions) returns (SeriesRows) {
+  option (northstar.web.http_method) = "POST";
+  option (northstar.web.http_path) = "/api/series/versions";
+ }
+ rpc RetrySeries(SeriesIdentity) returns (SeriesRetry) {
+  option (northstar.web.http_method) = "POST";
+  option (northstar.web.http_path) = "/api/series/retry";
+ }
+ rpc DescribeCatalogSnapshot(northstar.web.Empty) returns (CatalogSnapshot) {
+  option (northstar.web.http_method) = "GET";
+  option (northstar.web.http_path) = "/api/catalog/snapshots/{snapshot_id}";
+ }
+ rpc QueryCatalogSnapshot(CatalogQuery) returns (CatalogRows) {
+  option (northstar.web.http_method) = "POST";
+  option (northstar.web.http_path) = "/api/catalog/snapshots/{snapshot_id}/query";
+ }
+  rpc AssembleResearch (AssembleResearchRequest) returns (DatasetDetails) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/research-inputs/assemble";
+  }
+  rpc PostApiResearchInputs (PrepareResearchRequest) returns (ProcessingAttempt) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/research-inputs";
+  }
+
+  rpc SubmitCompaction(CompactionRequest) returns (Compaction) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions"; }
+  rpc ListCompactions(northstar.web.Empty) returns (CompactionList) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer/compactions"; }
+  rpc GetCompaction(northstar.web.Empty) returns (Compaction) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}"; }
+  rpc ReadCompaction(CompactionPage) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}/query"; }
+  rpc ExportCompaction(CompactionPage) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}/export"; }
+
+  rpc PostApiSetup(northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/setup";
+  }
+  rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/login";
+  }
+  rpc PostApiLogout (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/logout";
+  }
   rpc CompareRevisions (RevisionRequest) returns (RevisionComparison) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/explorer/compare";
@@ -279,6 +518,11 @@ service BrowserApi {
   rpc QueryRows(ExplorerQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/query"; }
   rpc QueryVersions(ExplorerRange) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/versions"; }
   rpc QueryCoverage(ExplorerRange) returns (ExplorerCoverage) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/coverage"; }
+  rpc ChartRows(ChartQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/chart"; }
+  rpc SelectInstrument(InstrumentOpen) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/select"; }
+  rpc DescribeInstrument(InstrumentSelection) returns (ExplorerInstrument) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/instrument"; }
+  rpc AvailableData(AvailableSearch) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/available"; }
+  rpc OpenPublished(PublishedSelection) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/open"; }
   rpc FindContracts(ContractSearch) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/contracts"; }
   rpc GetExplorer(northstar.web.Empty) returns (ExplorerCatalog) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer"; }
   rpc GetApiPublications (northstar.web.Empty) returns (PublicationCatalog) {
@@ -288,6 +532,10 @@ service BrowserApi {
   rpc GetApiPublicationsSnapshotId (northstar.web.Empty) returns (PublicationManifest) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/publications/{snapshot_id}";
+  }
+  rpc ReviewContract(ContractReviewRequest) returns (ContractReview) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/contracts/review";
   }
   rpc GetApiSync (northstar.web.Empty) returns (SyncStatus) {
     option (northstar.web.http_method) = "GET";
@@ -304,6 +552,14 @@ service BrowserApi {
   rpc PostApiSyncToken (SyncTokenRequest) returns (SyncStatus) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/sync/token";
+  }
+  rpc QueryCollections (CollectionQuery) returns (CollectionPage) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/contracts/query";
+  }
+  rpc QuerySyncJobs (SyncJobQuery) returns (SyncJobPage) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/jobs/query";
   }
   rpc GetApiSyncJobsRequestId (northstar.web.Empty) returns (SyncEvidence) {
     option (northstar.web.http_method) = "GET";
@@ -326,7 +582,7 @@ service BrowserApi {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/attempts/{attempt_id}";
   }
-  rpc GetApiBrowserSession (northstar.web.Empty) returns (BrowserSession) {
+  rpc GetApiBrowserSession (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/browser-session";
   }

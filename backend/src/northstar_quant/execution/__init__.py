@@ -1,1 +1,1 @@
-"""Order observations and their review; sending and reservations are not implemented."""
+"""Order lifecycle, durable attempts, reservations and confirmed execution evidence."""

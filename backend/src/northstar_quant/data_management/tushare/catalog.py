@@ -5,6 +5,18 @@ from dataclasses import dataclass
 EXCHANGES = ("SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX")
 
 
+# Official doc 468 index universe, reviewed 2026-09-14; never infer codes
+# from current contract products (retired index aliases and composites differ).
+NANHUA_CODES = tuple(
+    name + ".NH"
+    for name in (
+        "NHAI NHCI NHECI NHFI NHII NHMI NHNFI NHPMI A AG AL AP AU BB BU C CF CS CU CY "
+        "ER FB FG FU HC I J JD JM JR L LR M ME NI P PB PP RB RM RO RS RU SC SF SM SN "
+        "SP SR TA TC V WR WS Y ZN"
+    ).split()
+)
+
+
 @dataclass(frozen=True)
 class Dataset:
     key: str
@@ -15,13 +27,40 @@ class Dataset:
     identity: tuple[str, ...]
     frequency: str = ""
     amount_multiplier: int = 1
+    fields: tuple[str, ...] = ()
+    requests_per_minute: int = 500
 
     def public(self) -> dict[str, object]:
         return {"key": self.key, "label": self.label}
 
 
 DATASETS = (
-    Dataset("contracts", "合约信息", "fut_basic", "catalog", 10000, ("ts_code",)),
+    Dataset(
+        "contracts",
+        "合约信息",
+        "fut_basic",
+        "catalog",
+        10000,
+        ("ts_code",),
+        fields=(
+            "ts_code",
+            "symbol",
+            "exchange",
+            "name",
+            "fut_code",
+            "multiplier",
+            "trade_unit",
+            "per_unit",
+            "quote_unit",
+            "quote_unit_desc",
+            "d_mode_desc",
+            "list_date",
+            "delist_date",
+            "d_month",
+            "last_ddate",
+            "trade_time_desc",
+        ),
+    ),
     Dataset("calendar", "交易日历", "fut_trade_cal", "calendar", 10000, ("exchange", "cal_date")),
     *(
         Dataset(
@@ -58,7 +97,26 @@ DATASETS = (
         for freq, label in (("week", "周线"), ("month", "月线"))
     ),
     Dataset(
-        "settlement", "每日结算参数", "fut_settle", "contract", 1600, ("ts_code", "trade_date")
+        "settlement",
+        "每日结算参数",
+        "fut_settle",
+        "contract",
+        1600,
+        ("ts_code", "trade_date"),
+        fields=(
+            "ts_code",
+            "trade_date",
+            "settle",
+            "trading_fee_rate",
+            "trading_fee",
+            "delivery_fee",
+            "b_hedging_margin_rate",
+            "s_hedging_margin_rate",
+            "long_margin_rate",
+            "short_margin_rate",
+            "offset_today_fee",
+            "exchange",
+        ),
     ),
     Dataset(
         "limits", "涨跌停与最低保证金", "ft_limit", "contract", 4000, ("ts_code", "trade_date")
@@ -68,6 +126,15 @@ DATASETS = (
     ),
     Dataset(
         "warehouse", "仓单日报", "fut_wsr", "product", 1000, ("trade_date", "symbol", "warehouse")
+    ),
+    Dataset(
+        "continuous",
+        "连续日线",
+        "fut_daily",
+        "continuous",
+        2000,
+        ("ts_code", "trade_date"),
+        amount_multiplier=10000,
     ),
     Dataset(
         "mapping",

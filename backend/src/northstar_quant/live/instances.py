@@ -85,7 +85,8 @@ class InstanceBinding:
         from sqlalchemy import text
 
         from northstar_quant.live.account_ownership import AccountOwnership
-        from northstar_quant.live.storage import KernelLock, write_transaction
+        from northstar_quant.persistence.locks import FileLock
+        from northstar_quant.persistence.sql import write_transaction
 
         if engine.dialect.name != "sqlite":
             raise ValueError("Live instances require local SQLite")
@@ -96,7 +97,7 @@ class InstanceBinding:
         self._path = Path(str(engine.url.database))
         self._identity = (self._path.stat().st_dev, self._path.stat().st_ino)
         try:
-            self._lock = KernelLock(self._path)
+            self._lock = FileLock(self._path)
         except BlockingIOError as exc:
             raise ValueError("This Live database already has an active kernel") from exc
         try:

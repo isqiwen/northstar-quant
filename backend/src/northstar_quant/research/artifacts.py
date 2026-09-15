@@ -8,7 +8,7 @@ import os
 import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import Engine, String, literal, select, union_all
@@ -25,6 +25,7 @@ class ResearchUsages:
         self.engine = engine
 
     def list(self, snapshots: Sequence[UUID]) -> list[dict[str, object]]:
+        from .experiments import _plans
         from .paper import _sessions
         from .runs import _runs
         from .tasks.store import jobs
@@ -44,7 +45,7 @@ class ResearchUsages:
             ).where(_sessions.c.snapshot_id.in_(snapshots)),
         )
         with self.engine.connect() as connection:
-            rows = list(
+            rows: list[Any] = list(
                 connection.execute(query.order_by("created_at").limit(200)).mappings().all()
             )
             rows.extend(
@@ -61,6 +62,18 @@ class ResearchUsages:
                 .mappings()
                 .all()
             )
+            wanted = {str(s) for s in snapshots}
+            for plan in connection.execute(select(_plans)).mappings():
+                for phase, window in plan["plan"]["windows"].items():
+                    if window["snapshot_id"] in wanted:
+                        rows.append(
+                            {
+                                "kind": "RESEARCH_EXPERIMENT",
+                                "use_id": f"{plan['experiment_id']}:{phase}",
+                                "snapshot_id": window["snapshot_id"],
+                                "created_at": plan["created_at"],
+                            }
+                        )
         return [
             {
                 k: str(v) if k in {"use_id", "snapshot_id", "created_at"} else v

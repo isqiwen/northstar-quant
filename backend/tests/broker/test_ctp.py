@@ -22,7 +22,7 @@ import pytest
 from sqlalchemy import Engine
 
 from northstar_quant.broker import _ctp_worker, ctp
-from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.events import TRANSFER_CALLBACKS, BrokerEvent
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import Credentials, SimnowProfile, get_profile
 
@@ -62,6 +62,7 @@ class _Trader:
             "ReqQryInstrument",
             "ReqQryInstrumentMarginRate",
             "ReqQryInstrumentCommissionRate",
+            "ReqQrySettlementInfo",
         }
         if method not in permitted:
             raise AssertionError("unexpected SDK operation")
@@ -85,12 +86,39 @@ class _Trader:
                 Password="NEVER-PERSIST-PASSWORD",
                 AuthCode="NEVER-PERSIST-AUTH",
             )
+            if method == "ReqQrySettlementInfo":
+                assert native.TradingDay == "20260903"
+                content = "费用：12.34元\n".encode("gbk")
+                for number, fragment in enumerate((content[:1], content[1:]), 1):
+                    values.update(
+                        TradingDay=native.TradingDay,
+                        SettlementID=1,
+                        SequenceNo=number,
+                        Content=fragment,
+                    )
+                    callback(SimpleNamespace(**values), None, request, number == 2)
+                return 0
             if method == "ReqQryInvestorPosition":
                 callback(None, None, request, _MODE != "missing_last")
             else:
                 callback(SimpleNamespace(**values), None, request, True)
             if method == "ReqQryOrder":
-                self.OnRtnTrade(SimpleNamespace(**values))
+                if _MODE == "transfers":
+                    values.update(
+                        TradeAmount=2500.5,
+                        PlateSerial=27,
+                        FutureSerial=12,
+                        TransferStatus="0",
+                        ErrorID=0,
+                        BankAccount="NEVER-PERSIST-BANK",
+                        BankPassWord="NEVER-PERSIST-BANK-PASSWORD",
+                        IdentifiedCardNo="NEVER-PERSIST-ID",
+                        CustomerName="NEVER-PERSIST-NAME",
+                    )
+                    for name in sorted(TRANSFER_CALLBACKS):
+                        getattr(self, name)(SimpleNamespace(**values))
+                else:
+                    self.OnRtnTrade(SimpleNamespace(**values))
             return 0
 
         return respond
@@ -169,14 +197,18 @@ def _scripted_capture(
     instrument: str,
     directory: str,
     timeout: float,
+    settlement_day: str | None = None,
 ) -> None:
     _install_scripted(instrument)
-    _ctp_worker.capture(connection, profile, credentials, instrument, directory, timeout)
+    _ctp_worker.capture(
+        connection, profile, credentials, instrument, directory, timeout, settlement_day
+    )
 
 
 def _install_scripted(instrument: str, *, streaming: bool = False) -> None:
     global _MODE
     _MODE = {
+        "tr2610": "transfers",
         "er2610": "reject",
         "ml2610": "missing_last",
         "md2610": "market_day",
@@ -199,6 +231,7 @@ def _install_scripted(instrument: str, *, streaming: bool = False) -> None:
                 "QryInstrumentField",
                 "QryInstrumentMarginRateField",
                 "QryInstrumentCommissionRateField",
+                "QrySettlementInfoField",
             )
         }
     )
@@ -255,6 +288,7 @@ def _crashed_capture(
     instrument: str,
     _directory: str,
     _timeout: float,
+    _settlement_day: str | None = None,
 ) -> None:
     event = BrokerEvent(
         1,
@@ -413,7 +447,9 @@ def test_unapproved_endpoint_is_rejected_before_any_sdk_activity() -> None:
         )
 
 
+@pytest.mark.parametrize("instrument", ["rb2610", "tr2610"])
 def test_scripted_capture_round_trips_postgres_without_claiming_external_reconciliation(
+    instrument: str,
     monkeypatch: pytest.MonkeyPatch,
     postgres_engine: Engine,
     clean_database: None,
@@ -427,11 +463,11 @@ def test_scripted_capture_round_trips_postgres_without_claiming_external_reconci
     pending = records.begin(
         profile.identity(),
         credentials.user_id,
-        "rb2610",
+        instrument,
         request_id=request_id,
     )
     assert pending["status"] == "PENDING"
-    capture = ctp.query_account(profile, credentials, "rb2610")
+    capture = ctp.query_account(profile, credentials, instrument)
     saved = records.finish(request_id, capture)
     assert BrokerRecords(postgres_engine).get(request_id) == saved
     assert records.finish(request_id, capture) == saved
@@ -445,12 +481,13 @@ def test_scripted_capture_round_trips_postgres_without_claiming_external_reconci
     assert len(sections) == 7 and all(item["status"] == "COMPLETE" for item in sections.values())
     assert sections["account"]["rows"][0]["Balance"] == "100000.0"
     assert sections["positions"]["rows"] == []
-    assert sections["instrument"]["rows"][0]["InstrumentID"] == "rb2610"
+    assert sections["instrument"]["rows"][0]["InstrumentID"] == instrument
     reconciliation = cast(dict[str, object], saved["reconciliation"])
     assert reconciliation["status"] == "UNRECONCILED"
     assert reconciliation["local_ledger"] == "NOT_ESTABLISHED"
     assert reconciliation["differences"] is None
     assert saved["execution"] == {"order_sending": False, "cancel_sending": False}
+    assert "ACCOUNT_EVENTS_ARRIVED_DURING_QUERY" in reconciliation["reasons"]
     assert "NEVER-PERSIST" not in json.dumps(saved)
 
 
@@ -588,3 +625,55 @@ def test_stream_crash_or_unresponsive_stop_does_not_leave_native_child_running(
     assert not [
         child for child in multiprocessing.active_children() if child.name == "northstar-ctp-stream"
     ]
+
+
+def test_capture_retains_transfer_and_reversal_evidence_without_bank_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _available(monkeypatch, _scripted_capture)
+    result = ctp.query_account(
+        get_profile("simnow_dev"), _credentials(), "tr2610", timeout_seconds=1
+    )
+    assert result.failure_code is None
+    transfers = [event for event in result.events if event.callback in TRANSFER_CALLBACKS]
+    assert {event.callback for event in transfers} == TRANSFER_CALLBACKS
+    for event in transfers:
+        assert event.channel == "TD"
+        assert event.data["TradeAmount"] == "2500.5"
+        assert event.data["AccountID"] == "123456"
+        assert event.data["PlateSerial"] == 27
+    assert "NEVER-PERSIST" not in json.dumps(result.to_dict())
+
+
+def test_requested_settlement_keeps_split_native_bytes_and_survives_reopen(
+    monkeypatch: pytest.MonkeyPatch,
+    live_engine: Engine,
+) -> None:
+    _available(monkeypatch, _scripted_capture)
+    profile = get_profile("simnow_dev")
+    records = BrokerRecords(live_engine)
+    identifier = uuid4()
+    records.begin(
+        profile.identity(), "123456", "rb2610", request_id=identifier, settlement_day="2026-09-03"
+    )
+    capture = ctp.query_account(
+        profile, _credentials(), "rb2610", timeout_seconds=1, settlement_day="2026-09-03"
+    )
+    assert capture.failure_code is None
+    result = records.finish(identifier, capture)
+    statement = result["settlement_statement"]
+    assert statement["status"] == "RECEIVED"
+    assert statement["content"] == "费用：12.34元\n"
+    assert statement["fragment_count"] == 2
+    assert statement["ledger_posted"] is False
+    assert statement["confirmation_sent"] is False
+    assert result["execution"] == {"order_sending": False, "cancel_sending": False}
+    assert BrokerRecords(live_engine).get(identifier) == result
+    with pytest.raises(ValueError, match="different input"):
+        records.begin(
+            profile.identity(),
+            "123456",
+            "rb2610",
+            request_id=identifier,
+            settlement_day="2026-09-02",
+        )

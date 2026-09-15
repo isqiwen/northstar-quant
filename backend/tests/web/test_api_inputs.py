@@ -10,7 +10,9 @@ from northstar_quant.apps.live.instances import Instances
 from northstar_quant.live.auth import LiveAuth
 from northstar_quant.live.client import LiveClient
 from northstar_quant.live.instances import Instance
+from northstar_quant.web import auth_pb2
 from northstar_quant.web.protobuf import decode
+from tests.apps.browser import login_response
 
 
 def test_protobuf_commands_reject_unscoped_or_malformed_requests_before_owner() -> None:
@@ -33,10 +35,10 @@ def test_protobuf_commands_reject_unscoped_or_malformed_requests_before_owner() 
             client.post(
                 path, content=valid, headers={"Content-Type": "application/protobuf"}
             ).status_code
-            == 403
+            == 401
         )
-        session = client.get("/api/browser-session")
-        csrf = decode(api_pb2.BrowserSession.DESCRIPTOR, session.content)["csrf"]
+        session = login_response(client)
+        csrf = decode(auth_pb2.BrowserSession.DESCRIPTOR, session.content)["csrf"]
         client.headers.update(
             {
                 "X-Northstar-CSRF": csrf,
@@ -64,3 +66,48 @@ def test_protobuf_commands_reject_unscoped_or_malformed_requests_before_owner() 
         )
         assert client.post(path, content=b"x" * (8 * 1024 * 1024 + 1)).status_code == 413
         assert sent == []
+
+
+def test_cash_flow_protocol_preserves_exact_amount_and_explicit_reversal():
+    from northstar_quant.web.protobuf import pack
+
+    original = dict(
+        cash_flow_id="deposit",
+        amount="1234567890.123456789012345678",
+        currency="CNY",
+        transferred_at="2026-09-07T01:00:01+00:00",
+        available_at="2026-09-07T01:00:02+00:00",
+        source_reference="stream:source:2",
+        reverses_id=None,
+    )
+    reversal = {
+        **original,
+        "cash_flow_id": "reversal",
+        "amount": "-1234567890.123456789012345678",
+        "reverses_id": "deposit",
+    }
+    value = {"entry_id": "entry", "added_cash_flows": [original, reversal]}
+    encoded = pack(api_pb2.PositionEntry.DESCRIPTOR, value).SerializeToString()
+    assert decode(api_pb2.PositionEntry.DESCRIPTOR, encoded) == value
+
+
+def test_settlement_document_wire_preserves_text_and_unknown_content():
+    from northstar_quant.web.protobuf import pack
+
+    document = dict(
+        status="RECEIVED",
+        trading_day="2026-09-03",
+        content="手续费：12.340000000000000001\n",
+        content_sha256="a" * 64,
+        encoding="GBK",
+        problems=[],
+        ledger_posted=False,
+        confirmation_sent=False,
+    )
+    value = dict(
+        batch_id=str(uuid4()), instrument="rb2610", status="COMPLETE", settlement_statement=document
+    )
+    for content in (document["content"], None):
+        document["content"] = content
+        encoded = pack(api_pb2.QueryRecord.DESCRIPTOR, value).SerializeToString()
+        assert decode(api_pb2.QueryRecord.DESCRIPTOR, encoded)["settlement_statement"] == document

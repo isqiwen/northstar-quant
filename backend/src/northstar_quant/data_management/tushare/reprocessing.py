@@ -31,6 +31,11 @@ def enqueue(engine: Engine, *, request_id: UUID, source_generation: UUID) -> dic
             AND finished_at IS NOT NULL ORDER BY started_at DESC,generation DESC LIMIT 1"""),
             {"id": request_id},
         )
+        if connection.scalar(
+            text("SELECT 1 FROM data_contract_source_releases WHERE source_id=:id"),
+            {"id": source_generation},
+        ):
+            raise ValueError("原始响应已随拒绝合约清理，不能重处理")
         if latest != source_generation:
             raise ValueError("只能重处理当前最新的已留存响应，请刷新记录")
         if current["source_generation"] not in (None, source_generation):
@@ -39,5 +44,42 @@ def enqueue(engine: Engine, *, request_id: UUID, source_generation: UUID) -> dic
             text("""UPDATE data_sync_jobs SET source_generation=:source,status='PENDING',
             next_at=now(),error=NULL,updated_at=now() WHERE request_id=:id"""),
             {"source": source_generation, "id": request_id},
+        )
+        # A rejected owner otherwise makes the explicitly requested repair
+        # unclaimable. Reopen processing only; admission is freshly rechecked.
+        connection.execute(
+            text("""UPDATE data_contract_collections w SET status='COLLECTING',
+            updated_at=now() WHERE status='REJECTED' AND EXISTS (
+                SELECT 1 FROM data_contract_requests cr
+                WHERE cr.scope=w.scope AND cr.request_id=:id)"""),
+            {"id": request_id},
+        )
+    return job(engine, request_id)
+
+
+def redownload(engine: Engine, *, request_id: UUID) -> dict[str, Any]:
+    """Explicit bounded retry when rejected originals were already released.
+
+    Reuse the exact request identity/parameters; old attempts and release evidence
+    remain immutable. This never grants publication or repairs values in place.
+    """
+    with library_write(engine), engine.begin() as c:
+        current = c.execute(
+            text("SELECT status FROM data_sync_jobs WHERE request_id=:id FOR UPDATE"),
+            {"id": request_id},
+        ).scalar_one_or_none()
+        if current not in {"BLOCKED", "WAITING"}:
+            raise ValueError("仅失败或等待中的请求可以明确重新下载")
+        c.execute(
+            text("""UPDATE data_sync_jobs SET status='PENDING',source_generation=NULL,
+            next_at=now(),error=NULL,updated_at=now() WHERE request_id=:id"""),
+            {"id": request_id},
+        )
+        c.execute(
+            text("""UPDATE data_contract_collections w SET status='COLLECTING',
+            updated_at=now() WHERE status='REJECTED' AND EXISTS (
+                SELECT 1 FROM data_contract_requests cr
+                WHERE cr.scope=w.scope AND cr.request_id=:id)"""),
+            {"id": request_id},
         )
     return job(engine, request_id)

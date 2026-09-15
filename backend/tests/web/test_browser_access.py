@@ -1,13 +1,16 @@
 """HTTP browser authority remains bounded after replacing the server UI transport."""
 
 from fastapi import Request
-from fastapi.testclient import TestClient
 
 from northstar_quant.web.host import create_host
+from northstar_quant.web.protobuf import methods
+from tests.apps.browser import ProtocolClient as TestClient
+from tests.apps.browser import login_response
 
 
 def test_browser_commands_require_same_app_csrf_origin_and_unexpired_session() -> None:
     app = create_host("Northstar Research", ())
+    app.state.protobuf_methods = methods("research")
     access = app.state.workspace_access
     accepted = []
 
@@ -18,8 +21,8 @@ def test_browser_commands_require_same_app_csrf_origin_and_unexpired_session() -
         return {"accepted": True}
 
     with TestClient(app, base_url="http://127.0.0.1") as client:
-        assert client.post("/api/change").status_code == 403
-        token = client.get("/api/browser-session").json()["csrf"]
+        assert client.post("/api/change").status_code == 401
+        token = login_response(client).json()["csrf"]
         client.headers["X-Northstar-CSRF"] = token
         for headers in (
             {"Origin": "https://untrusted.example"},
@@ -31,10 +34,10 @@ def test_browser_commands_require_same_app_csrf_origin_and_unexpired_session() -
         assert accepted == []
         assert client.post("/api/change").json() == {"accepted": True}
         access.close()
-        assert client.post("/api/change").status_code == 403
-        token = client.get("/api/browser-session").json()["csrf"]
+        assert client.post("/api/change").status_code == 401
+        token = login_response(client).json()["csrf"]
         with TestClient(app, base_url="http://127.0.0.1") as other:
-            assert other.post("/api/change", headers={"X-Northstar-CSRF": token}).status_code == 403
+            assert other.post("/api/change", headers={"X-Northstar-CSRF": token}).status_code == 401
         assert accepted == [True]
 
 
@@ -61,6 +64,7 @@ def test_ip_access_keeps_csrf_origin_and_explicit_app_policy() -> None:
             ),
             allow_ip_hosts=True,
         )
+        app.state.protobuf_methods = methods("research")
         access = app.state.workspace_access
 
         @app.post("/api/change")
@@ -71,7 +75,7 @@ def test_ip_access_keeps_csrf_origin_and_explicit_app_policy() -> None:
         with TestClient(
             app, base_url="http://127.0.0.1:18082", headers={"Host": f"{host}:18082"}
         ) as client:
-            token = client.get("/api/browser-session").json()["csrf"]
+            token = login_response(client).json()["csrf"]
             assert client.post("/api/change").status_code == 403
             headers = {"X-Northstar-CSRF": token, "Origin": f"http://{host}:18082"}
             assert client.post("/api/change", headers=headers).status_code == 200

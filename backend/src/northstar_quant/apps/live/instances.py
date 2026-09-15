@@ -73,7 +73,9 @@ class Instances:
             identifier = next(iter(self.clients))
         if identifier not in self.clients:
             raise HTTPException(409, "Select an explicitly configured Live instance")
-        return self.clients[identifier]
+        if getattr(request.state, "operator", None) != "owner":
+            raise HTTPException(401, "Authenticated operator required")
+        return self.clients[identifier].for_operator(request.state.operator)
 
     def close(self) -> None:
         for client in self.clients.values():

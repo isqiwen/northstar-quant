@@ -5,9 +5,6 @@ export type AdmissionRejection = {
   rejection_id: string;
   [key: string]: unknown;
 };
-export type BrowserSession = {
-  csrf: string;
-};
 export type DatasetDetails = {
   availability_basis: string;
   availability_note: string;
@@ -28,6 +25,8 @@ export type DatasetDetails = {
   sources: (Record<string, JsonValue>)[];
   symbol: string;
   trading_days: (string)[];
+  settlements: (SettlementFact)[];
+  terms: (FuturesTerms)[];
 };
 export type DatasetLineage = {
   attempts: (Record<string, JsonValue>)[];
@@ -56,6 +55,7 @@ export type HttpError = {
   url?: string | null;
 };
 export type ImportSpecification = {
+  interval: "1m" | "5m" | "15m" | "30m" | "60m";
   session_kind: "DAY" | "NIGHT";
   availability_basis: string;
   availability_note: string;
@@ -114,9 +114,36 @@ export type ProcessingQueueStatus = {
   oldest_pending_at?: string | null;
   oldest_pending_seconds?: number | null;
 };
+export type ContractReviewRequest = {
+  scope: string;
+};
+export type ContractReview = {
+  completeness: Record<string, JsonValue>;
+  quality: Record<string, JsonValue>;
+  contract_type: Record<string, JsonValue>;
+  scope: string;
+  display_name: string;
+  exchange: string;
+  product: string;
+  listing_date?: string | null;
+  last_trade_date?: string | null;
+  required_end?: string | null;
+  status: string;
+  admitted: boolean;
+  requirements?: (Record<string, JsonValue>)[];
+  reasons?: (string)[];
+  policy: string;
+  last_delivery_date?: string | null;
+  first_delivery_date?: string | null;
+  delivery_month?: string | null;
+  lifecycle_status: string;
+  lifecycle_reason: string;
+};
 export type SyncSettingsRequest = {
   revision: number;
   enabled: boolean;
+  products?: (string)[];
+  retry_skipped?: boolean;
 };
 export type SyncReprocessRequest = {
   request_id: string;
@@ -125,13 +152,54 @@ export type SyncReprocessRequest = {
 export type SyncTokenRequest = {
   token: string;
 };
+export type SyncLane = {
+  lane: string;
+  start: string;
+  end: string;
+  total: number;
+  validated: number;
+  waiting: number;
+  blocked: number;
+  running: number;
+  oldest_pending?: string | null;
+};
 export type SyncStatus = {
   settings: Record<string, JsonValue>;
   token_configured: boolean;
   datasets?: (Record<string, JsonValue>)[];
   progress?: (Record<string, JsonValue>)[];
   jobs?: (Record<string, JsonValue>)[];
+  lanes?: (SyncLane)[];
   unplanned_contracts: number;
+};
+export type CollectionQuery = {
+  exchange: string;
+  product: string;
+  search: string;
+  status: string;
+  offset: number;
+  limit: number;
+};
+export type CollectionPage = {
+  total: number;
+  offset: number;
+  limit: number;
+  items?: (Record<string, JsonValue>)[];
+  exchanges?: (string)[];
+  products?: (string)[];
+};
+export type SyncJobQuery = {
+  owner_scope?: string;
+  dataset: string;
+  status: string;
+  offset: number;
+  limit: number;
+};
+export type SyncJobPage = {
+  total: number;
+  offset: number;
+  limit: number;
+  items?: (Record<string, JsonValue>)[];
 };
 export type SyncEvidence = {
   request_id: string;
@@ -159,6 +227,16 @@ export type ContractSearch = {
   search: string;
   offset: number;
 };
+export type AvailableSearch = {
+  exchange: string;
+  product: string;
+  search: string;
+  offset: number;
+  dataset: string;
+};
+export type PublishedSelection = {
+  receipt_id: string;
+};
 export type ExplorerList = {
   rows: (Record<string, JsonValue>)[];
   total: number;
@@ -178,6 +256,26 @@ export type ExplorerQuery = {
   offset: number;
   receipt_ids: (string)[];
   limit: number;
+};
+export type ChartQuery = {
+  dataset: string;
+  scope: string;
+  start: string;
+  end: string;
+  receipt_ids: (string)[];
+};
+export type InstrumentOpen = {
+  scope: string;
+  dataset: string;
+};
+export type InstrumentSelection = {
+  scope: string;
+};
+export type ExplorerInstrument = {
+  scope: string;
+  name: string;
+  exchange: string;
+  periods: (string)[];
 };
 export type ExplorerCoverage = {
   days: (Record<string, JsonValue>)[];
@@ -200,6 +298,7 @@ export type ExplorerRows = {
   fields: (Record<string, JsonValue>)[];
   versions: (Record<string, JsonValue>)[];
   note: string;
+  scan: Record<string, JsonValue>;
 };
 export type RevisionRequest = {
   before_id: string;
@@ -219,6 +318,88 @@ export type RevisionComparison = {
   offset: number;
   note: string;
 };
+export type CompactionRequest = {
+  request_id: string;
+  dataset: string;
+  scope: string;
+  start: string;
+  end: string;
+  receipt_ids: (string)[];
+};
+export type Compaction = {
+  compaction_id: string;
+  plan_id: string;
+  plan: Record<string, JsonValue>;
+  created_at: string;
+  status: string;
+  result: Record<string, JsonValue> | null;
+  error: string | null;
+};
+export type CompactionPage = {
+  offset: number;
+  limit: number;
+};
+export type CompactionList = (Compaction)[];
+export type PrepareResearchRequest = {
+  receipt_id: string;
+  request_id: string;
+  specification: ImportSpecification;
+  label_convention: "BAR_START" | "BAR_END";
+  interpretation_reference: string;
+};
+export type AssembleResearchRequest = {
+  snapshot_ids: (string)[];
+};
+export type CatalogSnapshot = {
+  snapshot_id: string;
+  exchange: string;
+  product: string;
+  contract: string;
+  files?: (Record<string, JsonValue>)[];
+  reference: Record<string, JsonValue>;
+  time_basis: string;
+  fee_basis: string;
+  series: string;
+  entity_type: string;
+};
+export type CatalogQuery = {
+  domain: string;
+  contract: string;
+  start: string;
+  end: string;
+  offset: number;
+  limit: number;
+  series?: string;
+};
+export type CatalogRows = {
+  snapshot_id: string;
+  domain: string;
+  rows?: (Record<string, JsonValue>)[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+export type SeriesQuery = {
+  dataset: string;
+  search: string;
+  offset: number;
+};
+export type SeriesVersions = {
+  dataset: string;
+  scope: string;
+  offset: number;
+};
+export type SeriesIdentity = {
+  dataset: string;
+  scope: string;
+};
+export type SeriesRows = {
+  rows?: (Record<string, JsonValue>)[];
+  total: number;
+};
+export type SeriesRetry = {
+  retried: number;
+};
 export type Empty = {
 };
 export type Error = {
@@ -228,4 +409,55 @@ export type Error = {
   runtime_id?: string;
   url?: string;
   rejection_id?: string;
+};
+export type BrowserSession = {
+  setup_required: boolean;
+  authenticated: boolean;
+  csrf: string | null;
+  operator: string | null;
+  expires_at: string | null;
+};
+export type LoginRequest = {
+  username: string;
+  password: string;
+};
+export type ChargeRate = {
+  by_money: string;
+  by_volume: string;
+};
+export type FuturesTerms = {
+  terms_id: string;
+  contract_id: string;
+  effective_from: string;
+  effective_until: string;
+  available_at: string;
+  source_reference: string;
+  open_fee: ChargeRate;
+  close_today_fee: ChargeRate;
+  close_yesterday_fee: ChargeRate;
+  long_margin: ChargeRate;
+  short_margin: ChargeRate;
+  lower_limit: string;
+  upper_limit: string;
+  money_quantum: string;
+  fee_rounding: string;
+};
+export type SettlementFact = {
+  settlement_id: string;
+  contract_id: string;
+  trading_day: string;
+  next_trading_day: string;
+  settled_at: string;
+  available_at: string;
+  price: string;
+  source_reference: string;
+};
+export type CashFlowFact = {
+  cash_flow_id: string;
+  amount: string;
+  currency: string;
+  transferred_at: string;
+  available_at: string;
+  source_reference: string;
+  reverses_id: string | null;
 };

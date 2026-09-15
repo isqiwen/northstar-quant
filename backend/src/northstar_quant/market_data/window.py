@@ -34,6 +34,8 @@ class MarketWindow:
 
     def _accepts(self, bar: MarketBar, history: tuple[MarketBar, ...]) -> bool:
         bar.validate(interval_seconds=self.interval_seconds)
+        if history and bar.contract_id != history[-1].contract_id:
+            raise ValueError("market window rejects a different contract")
         for previous in history:
             if bar.observation_id == previous.observation_id:
                 if previous != bar:

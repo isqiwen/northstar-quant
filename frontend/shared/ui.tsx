@@ -187,7 +187,7 @@ export function PendingNotice({
       />
       <p>
         命令身份：
-        <Identity value={pending.body.request_id || pending.id} />
+        <Identity value={pending.id} />
       </p>
       <Space>
         {pending.runtime && lookup && (

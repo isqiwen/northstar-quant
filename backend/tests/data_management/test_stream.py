@@ -3,7 +3,7 @@
 import hashlib
 import json
 from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -93,6 +93,54 @@ def prefix() -> tuple[dict[str, Any], dict[str, object]]:
         "session_close": "2026-09-07T01:03:00Z",
     }
     return document, parameters
+
+
+def test_retained_night_prefix_uses_same_fixed_schedule_as_live_sampler():
+    document, parameters = prefix()
+    start = datetime(2026, 9, 11, 13, tzinfo=UTC)
+    shift = start - OPEN
+    for item in document["events"]:
+        event = item["event"]
+        if event["callback"] == "OnRtnDepthMarketData":
+            at = datetime.fromisoformat(event["received_at"]) + shift - timedelta(milliseconds=100)
+            event["data"] = tick(
+                event["sequence"],
+                at,
+                volume=event["data"]["Volume"],
+                price=event["data"]["LastPrice"],
+            ).data
+        event["data"] = {**event["data"], "TradingDay": "20260914"}
+        event["received_at"] = (
+            (datetime.fromisoformat(event["received_at"]) + shift)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        item["committed_at"] = (
+            (datetime.fromisoformat(item["committed_at"]) + shift)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        item["event_hash"] = digest(event)
+    document["binding"]["request"]["schedule"] = {
+        "source_reference": "synthetic Friday night calendar",
+        "available_at": (start - timedelta(days=1)).isoformat(),
+        "windows": [
+            {
+                "trading_day": "2026-09-14",
+                "opens_at": start.isoformat(),
+                "closes_at": (start + timedelta(hours=2)).isoformat(),
+            }
+        ],
+    }
+    document["binding_hash"] = digest(document["binding"])
+    for field in ("session_open", "session_close"):
+        parameters[field] = (datetime.fromisoformat(parameters[field]) + shift).isoformat()
+    original = encoded(document)
+    result = reconstruct_stream(original, parameters)
+    assert result.trading_day.isoformat() == "2026-09-14"
+    assert len(result.bars) == 2
+    assert {bar["trading_day"] for bar in result.bars} == {"20260914"}
+    assert encoded(document) == original
 
 
 def test_saved_receipt_prefix_reconstructs_explicit_minutes_with_exact_local_timing() -> None:

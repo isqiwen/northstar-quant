@@ -522,3 +522,62 @@ def test_completion_is_atomic_idempotent_and_detects_storage_drift(
         )
     with pytest.raises(ValueError, match="evidence"):
         records.get(batch_id)
+
+
+@pytest.mark.parametrize("section", ["authenticate", "login"])
+@pytest.mark.parametrize("failure", ["method", "rejected", "duplicate", "missing", "empty"])
+def test_identity_requires_matching_successful_native_request_once(
+    postgres_engine, clean_database, section, failure
+):
+    records = BrokerRecords(postgres_engine)
+    batch_id = UUID(str(_begin(records)["batch_id"]))
+    capture = _capture()
+    response = "OnRspAuthenticate" if section == "authenticate" else "OnRspUserLogin"
+    events = []
+    for event in capture.events:
+        if (
+            event.channel == "TD"
+            and event.callback == "RequestSent"
+            and event.data["section"] == section
+        ):
+            if failure == "method":
+                event = replace(event, data={**event.data, "method": "ReqQryTradingAccount"})
+            elif failure == "rejected":
+                event = replace(event, data={**event.data, "return_code": -1})
+        if event.channel == "TD" and event.callback == response:
+            if failure == "missing":
+                continue
+            if failure == "empty":
+                event = replace(event, data=None)
+        events.append(event)
+        if failure == "duplicate" and event.channel == "TD" and event.callback == response:
+            events.append(event)
+    # Native sources are ordered; repeating a terminal response is still a new receipt.
+    events = tuple(
+        replace(
+            event,
+            sequence=index,
+            received_at=(datetime.fromisoformat(capture.started_at) + timedelta(microseconds=index))
+            .isoformat()
+            .replace("+00:00", "Z"),
+        )
+        for index, event in enumerate(events, 1)
+    )
+    saved = records.finish(batch_id, replace(capture, events=events))
+    reason = (
+        "AUTHENTICATION_REQUEST_OR_COMPLETION_NOT_CONFIRMED"
+        if section == "authenticate"
+        else "LOGIN_REQUEST_OR_COMPLETION_NOT_CONFIRMED"
+    )
+    if failure == "missing":
+        reason = "IDENTITY_REQUEST_NOT_COMPLETED"
+    elif failure == "empty":
+        reason = (
+            "AUTHENTICATION_RESPONSE_MISSING_OR_FAILED"
+            if section == "authenticate"
+            else "LOGIN_RESPONSE_MISSING_OR_FAILED"
+        )
+    assert saved["status"] != "COMPLETE"
+    assert reason in saved["completeness"]["reasons"]
+    assert saved["execution"]["order_sending"] is False
+    assert BrokerRecords(postgres_engine).get(batch_id) == saved

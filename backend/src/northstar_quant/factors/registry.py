@@ -30,7 +30,9 @@ def catalog() -> list[dict[str, object]]:
             "category": item[2],
             "description": item[3],
             "capabilities": ["batch", "bounded_window", "single_contract"],
-            "limitations": "真实合约一分钟收盘价；不支持连续合约、截面、拟合或多腿",
+            "limitations": (
+                "真实合约固定周期收盘价，窗口按 Bar 数计算；不支持连续合约、截面、拟合或多腿"
+            ),
         }
         for key, item in _IMPLEMENTATIONS.items()
     ]

@@ -11,7 +11,7 @@ from math import lcm
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.portfolio import PortfolioState
 from northstar_quant.execution.orders import Side
-from northstar_quant.market_data import Market
+from northstar_quant.market_data import Instrument
 from northstar_quant.strategies import StrategyIntent
 
 _MAX_FINANCIAL = Decimal("9" * 34)
@@ -80,7 +80,7 @@ def evaluate_risk(
     intent: StrategyIntent,
     state: PortfolioState,
     policy: RiskPolicy,
-    market: Market,
+    market: Instrument,
 ) -> RiskDecision:
     """Authorize one target from current account truth, including execution fees.
 
@@ -91,10 +91,14 @@ def evaluate_risk(
     """
 
     with localcontext() as context:
-        context.prec = 96
+        context.prec = 192
         context.rounding = ROUND_HALF_EVEN
         if (
-            not state.equity.is_finite()
+            any(
+                not isinstance(value, Decimal) or not value.is_finite() or value < 0
+                for value in (state.other_gross_notional, state.other_margin, state.reserved_costs)
+            )
+            or not state.equity.is_finite()
             or not state.mark_price.is_finite()
             or state.mark_price <= 0
             or type(state.position_lots) is not int
@@ -106,7 +110,7 @@ def evaluate_risk(
 
 
 def _evaluate(
-    intent: StrategyIntent, state: PortfolioState, policy: RiskPolicy, market: Market
+    intent: StrategyIntent, state: PortfolioState, policy: RiskPolicy, market: Instrument
 ) -> RiskDecision:
     desired = int(
         (intent.target_fraction.copy_abs() * policy.max_lots).to_integral_value(
@@ -133,14 +137,18 @@ def _evaluate(
     notional_capacity = min(
         policy.max_lots,
         int(
-            (policy.max_gross_notional / (state.mark_price * market.multiplier)).to_integral_value(
-                rounding=ROUND_FLOOR
-            )
+            (
+                max(Decimal(0), policy.max_gross_notional - state.other_gross_notional)
+                / (state.mark_price * market.multiplier)
+            ).to_integral_value(rounding=ROUND_FLOOR)
         ),
         int(
             (
-                state.equity
-                * policy.max_margin_fraction
+                max(
+                    Decimal(0),
+                    (state.equity - state.reserved_costs) * policy.max_margin_fraction
+                    - state.other_margin,
+                )
                 / (state.mark_price * market.multiplier * policy.initial_margin_fraction)
             ).to_integral_value(rounding=ROUND_FLOOR)
         ),
@@ -155,8 +163,10 @@ def _evaluate(
         cost = policy.fee_per_lot + policy.slippage_ticks * market.price_tick * market.multiplier
         capacity = int(
             (
-                (state.equity + held * cost)
-                * policy.max_margin_fraction
+                (
+                    (state.equity - state.reserved_costs + held * cost) * policy.max_margin_fraction
+                    - state.other_margin
+                )
                 / (
                     state.mark_price * market.multiplier * policy.initial_margin_fraction
                     + cost * policy.max_margin_fraction
@@ -208,7 +218,7 @@ def _evaluate(
 
 
 def _authorize_price_interval(
-    state: PortfolioState, policy: RiskPolicy, market: Market, target: int, side: Side
+    state: PortfolioState, policy: RiskPolicy, market: Instrument, target: int, side: Side
 ) -> tuple[Decimal, Decimal] | None:
     multiplier, tick = market.multiplier, market.price_tick
     direction = 1 if side is Side.BUY else -1
@@ -220,7 +230,10 @@ def _authorize_price_interval(
         minimum = max(minimum, state.mark_price * (1 - policy.max_adverse_price_move_fraction))
     target_units = abs(target) * multiplier
     if target_units:
-        maximum = min(maximum, policy.max_gross_notional / target_units + price_offset)
+        maximum = min(
+            maximum,
+            (policy.max_gross_notional - state.other_gross_notional) / target_units + price_offset,
+        )
     minimum = max(minimum, tick + price_offset)
 
     fee = abs(target - state.position_lots) * policy.fee_per_lot
@@ -229,6 +242,7 @@ def _authorize_price_interval(
     # and gross to that close before solving the linear policy inequalities.
     intercept = (
         state.equity
+        - state.reserved_costs
         - state.position_lots * multiplier * state.mark_price
         - fee
         - target * multiplier * price_offset
@@ -244,6 +258,7 @@ def _authorize_price_interval(
     coefficient = target_units * policy.initial_margin_fraction - policy.max_margin_fraction * slope
     right_hand_side = (
         policy.max_margin_fraction * intercept
+        - state.other_margin
         + target_units * policy.initial_margin_fraction * price_offset
     )
     if coefficient > 0:
@@ -264,9 +279,12 @@ def _authorize_price_interval(
     for price in (low, high):
         equity = intercept + slope * price
         gross = target_units * (price - price_offset)
-        if equity <= 0 or gross > policy.max_gross_notional:
+        if equity <= 0 or gross + state.other_gross_notional > policy.max_gross_notional:
             return None
-        if gross * policy.initial_margin_fraction > equity * policy.max_margin_fraction:
+        if (
+            gross * policy.initial_margin_fraction + state.other_margin
+            > equity * policy.max_margin_fraction
+        ):
             return None
     return low, high
 

@@ -8,10 +8,27 @@ from ..files import SourceFiles
 from . import publication
 
 
-def references(connection: Connection) -> list[dict[str, object]]:
-    result: list[dict[str, object]] = []
-    for row in connection.execute(text("SELECT * FROM data_sync_receipts")).mappings():
+def references(
+    connection: Connection, *, content_hashes: list[str] | None = None
+) -> list[dict[str, object]]:
+    from ..compaction import references as compacted_references
+
+    result: list[dict[str, object]] = compacted_references(
+        connection, content_hashes=content_hashes
+    )
+    from ..contract_data.snapshots import references as snapshot_references
+
+    result.extend(snapshot_references(connection, content_hashes))
+    from ..series_data.retention import references as series_references
+
+    result.extend(series_references(connection, content_hashes))
+    query = "SELECT * FROM data_sync_receipts"
+    if content_hashes is not None:
+        query += " WHERE manifest_hash=ANY(:hashes) OR parquet_hash=ANY(:hashes)"
+    for row in connection.execute(text(query), {"hashes": content_hashes}).mappings():
         for role in ("manifest", "parquet"):
+            if content_hashes is not None and row[f"{role}_hash"] not in content_hashes:
+                continue
             result.append(
                 {
                     "source_id": str(uuid5(NAMESPACE_URL, f"{row['receipt_id']}/{role}")),
@@ -24,6 +41,20 @@ def references(connection: Connection) -> list[dict[str, object]]:
 
 def restore_publications(engine: Engine, files: SourceFiles) -> None:
     with engine.connect() as connection:
+        from ..contract_data.snapshots import restore_snapshots
+        from ..publications import PublishedDatasets
+
+        if connection.scalar(text("SELECT EXISTS(SELECT 1 FROM data_contract_publications)")):
+            restore_snapshots(connection, PublishedDatasets.from_environment().root, files)
+        from ..series_data.retention import restore as restore_series
+
+        if connection.scalar(text("SELECT EXISTS(SELECT 1 FROM data_series_publications)")):
+            restore_series(connection, PublishedDatasets.from_environment().root, files)
+        from ..compaction import references as compacted_references
+
+        for item in compacted_references(connection):
+            target = publication.storage()
+            target.store(files.read(str(item["content_hash"]), int(item["byte_count"])))
         for row in connection.execute(text("SELECT * FROM data_sync_receipts")).mappings():
             target = publication.storage()
             for role in ("parquet", "manifest"):

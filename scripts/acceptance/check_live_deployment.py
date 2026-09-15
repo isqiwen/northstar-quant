@@ -17,7 +17,7 @@ from uuid import uuid4
 import httpx2 as httpx
 from support.deployment import cleanup_files, isolated_compose
 
-from northstar_quant.web.protobuf import decode, methods
+from northstar_quant.web.protobuf import decode, methods, pack
 
 lifecycle = runpy.run_path(str(Path(__file__).resolve().parents[1] / "operations/compose.py"))[
     "lifecycle"
@@ -108,6 +108,18 @@ class Deployment:
             f"last={response.status_code} {response.text[:200]}"
         )
 
+    def login(self, client: httpx.Client) -> None:
+        state = self.wait_http(client, "/api/browser-session").json()
+        endpoint = "/api/setup" if state["setup_required"] else "/api/login"
+        body = pack(
+            methods("live")[("POST", endpoint)].input_type,
+            {"username": "owner", "password": self.password},
+        ).SerializeToString()
+        response = client.post(
+            endpoint, content=body, headers={"Content-Type": "application/protobuf"}
+        )
+        response.raise_for_status()
+
     def exercise(self) -> None:
         self.run("up", "-d", "--no-build", "--wait", "--wait-timeout", "120")
         base = f"http://127.0.0.1:{self.port}"
@@ -115,8 +127,8 @@ class Deployment:
             base_url=base, headers={"Origin": base, "X-Live-Instance-ID": "sim"}, timeout=4
         ) as client:
             page = self.wait_http(client, "/")
-            assert "NORTHSTAR" in page.text
-            self.wait_http(client, "/api/browser-session")
+            page.raise_for_status()
+            self.login(client)
             before = self.wait_http(client, "/api/live/status").json()
             identity = before["runtime_id"]
             # Same account/environment is refused from another container, even
@@ -161,7 +173,7 @@ class Deployment:
             self.run("restart", "live-api", "live-web")
             self.wait_http(client, "/health/ready")
             # Recreated management containers preserve the independent kernel identity.
-            self.wait_http(client, "/api/browser-session")
+            self.login(client)
             after = self.wait_http(client, "/api/live/status").json()
             assert after["runtime_id"] == identity
             assert self.run("ps", "-q", "sim-live").strip() == kernel
@@ -170,7 +182,7 @@ class Deployment:
             self.run("stop", "live-api", "live-web")
             assert self.run("ps", "-q", "sim-live").strip() == kernel
             self.run("start", "live-api", "live-web")
-            self.wait_http(client, "/api/browser-session")
+            self.login(client)
             assert self.wait_http(client, "/api/live/status").json()["runtime_id"] == identity
             print("Live management stop/start: same independent kernel", flush=True)
 
@@ -179,7 +191,7 @@ class Deployment:
             self.wait_http(client, "/api/live/status", 503)
             assert self.run("ps", "-q", "sim-live").strip() == kernel
             self.run("start", "live-api")
-            self.wait_http(client, "/api/browser-session")
+            self.login(client)
             self.wait_http(client, "/api/live/status")
 
             state = self.root / "state/live/instances/sim/database"
@@ -235,7 +247,7 @@ class Deployment:
                     lifecycle([], "live", "start", runner=self.run)
                 else:
                     lifecycle([], "live", "restart", runner=self.run)
-                self.wait_http(client, "/api/browser-session")
+                self.login(client)
                 assert self.wait_http(client, "/api/live/status").json()["runtime_id"] != previous
                 assert (
                     json.loads(

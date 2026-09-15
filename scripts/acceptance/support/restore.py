@@ -37,7 +37,11 @@ def check_restore(
         target_name,
     ]
     subprocess.run(
-        ["createdb", *pg_arguments], env=pg_environment, check=True, capture_output=True, timeout=30
+        ["createdb", "--template=template0", "--encoding=UTF8", *pg_arguments],
+        env=pg_environment,
+        check=True,
+        capture_output=True,
+        timeout=30,
     )
     restored = dict(
         environment,
@@ -75,33 +79,15 @@ def check_restore(
         finally:
             unavailable.rename(referenced)
         result = command("maintenance", "restore", str(runtime / "backup"))
-        assert result["status"] == "restored" and result["execution"] == "PAUSED"
-        evidence = result["evidence"]
-        assert set(evidence) == {
-            "query_batches_count",
-            "pending_queries_count",
-            "baselines_count",
-            "checks_count",
-            "position_entries_count",
-            "position_checks_count",
-            "order_checks_count",
-            "streams_count",
-        }
+        assert result["status"] == "restored" and result["owner"] == "data_hub"
+        live_result = application.live_command(
+            "maintenance", "restore", str(runtime / "live-backup")
+        )
+        assert live_result["execution"] == "RECONCILIATION_REQUIRED"
+        evidence = live_result["evidence"]
         assert all(type(count) is int and count >= 0 for count in evidence.values())
         assert evidence["query_batches_count"] >= len(saved_queries)
         assert evidence["streams_count"] >= len(saved_streams)
-        if not saved_queries:
-            assert evidence == {
-                "query_batches_count": 0,
-                "pending_queries_count": 0,
-                "baselines_count": 0,
-                "checks_count": 0,
-                "position_entries_count": 0,
-                "position_checks_count": 0,
-                "order_checks_count": 0,
-                "streams_count": 0,
-            }
-        application.live_command("maintenance", "restore", str(runtime / "live-backup"))
         # Read the independently restored local Live facts.
         with application.live():
             assert command("advanced", "broker", "list") == saved_queries

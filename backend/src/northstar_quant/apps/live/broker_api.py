@@ -69,6 +69,7 @@ class OrderCheckRequest(ApiModel):
 
 
 class QueryRequest(ApiModel):
+    settlement_day: str | None = None
     instrument: str
     request_id: UUIDText
 
@@ -427,6 +428,7 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             command_live.broker.query,
             _string_field(payload, "instrument"),
             request_id=_uuid_field(payload, "request_id"),
+            settlement_day=document.settlement_day,
         )
 
     @app.get(

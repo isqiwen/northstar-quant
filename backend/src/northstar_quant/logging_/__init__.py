@@ -9,7 +9,7 @@ import os
 from itertools import islice
 from pathlib import Path
 from queue import Full
-from typing import Any
+from typing import Any, Protocol
 from uuid import uuid4
 
 from .writer import FileSink, Writer
@@ -29,8 +29,14 @@ def _value(value: object) -> object:
     return "<omitted>"
 
 
+class Destination(Protocol):
+    queue: Any
+
+    def drop(self) -> None: ...
+
+
 class AsyncHandler(logging.Handler):
-    def __init__(self, writer: Writer, application: str, component: str) -> None:
+    def __init__(self, writer: Destination, application: str, component: str) -> None:
         super().__init__()
         self.writer = writer
         self.setLevel(logging.INFO)
@@ -136,6 +142,7 @@ def configure(application: str, component: str) -> LogRuntime:
     if (application, component) not in {
         ("data_hub", "api"),
         ("data_hub", "worker"),
+        ("data_hub", "retention"),
         ("research", "api"),
         ("research", "worker"),
         ("live", "api"),

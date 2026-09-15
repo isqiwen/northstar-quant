@@ -8,8 +8,10 @@ from pydantic import Field, JsonValue
 from sqlalchemy import Engine, text
 from starlette.concurrency import run_in_threadpool
 
+from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.tushare import (
     credentials,
+    job_query,
     publication,
     reprocessing,
     settings,
@@ -19,9 +21,38 @@ from northstar_quant.web.access import WorkspaceAccess
 from northstar_quant.web.requests import ApiModel, EvidenceRecord
 
 
+class ContractReviewRequest(ApiModel):
+    scope: str = Field(min_length=1, max_length=40)
+
+
+class ContractReview(ApiModel):
+    contract_type: dict[str, str]
+    scope: str
+    display_name: str
+    exchange: str
+    product: str
+    listing_date: str | None
+    last_trade_date: str | None
+    first_delivery_date: str | None
+    last_delivery_date: str | None
+    delivery_month: str | None
+    lifecycle_status: str
+    lifecycle_reason: str
+    required_end: str | None
+    status: str
+    admitted: bool
+    requirements: list[dict[str, JsonValue]]
+    reasons: list[str]
+    policy: str
+    completeness: dict[str, JsonValue]
+    quality: dict[str, JsonValue]
+
+
 class SyncSettingsRequest(ApiModel):
     revision: int
     enabled: bool
+    products: list[str] = Field(default_factory=list, max_length=200)
+    retry_skipped: bool = False
 
 
 class SyncReprocessRequest(ApiModel):
@@ -33,6 +64,18 @@ class SyncTokenRequest(ApiModel):
     token: str = Field(repr=False, min_length=16, max_length=512)
 
 
+class SyncLane(ApiModel):
+    lane: str
+    start: str
+    end: str
+    total: int
+    validated: int
+    waiting: int
+    blocked: int
+    running: int
+    oldest_pending: str | None
+
+
 class SyncStatus(ApiModel):
     settings: dict[str, JsonValue]
     token_configured: bool
@@ -40,16 +83,45 @@ class SyncStatus(ApiModel):
     progress: list[dict[str, JsonValue]]
     jobs: list[dict[str, JsonValue]]
     unplanned_contracts: int
+    lanes: list[SyncLane]
+
+
+class SyncJobQuery(ApiModel):
+    owner_scope: str = Field(default="", max_length=40)
+    dataset: str
+    status: str
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=100)
+
+
+class SyncJobPage(ApiModel):
+    total: int
+    offset: int
+    limit: int
+    items: list[dict[str, JsonValue]]
 
 
 class SyncEvidence(EvidenceRecord):
     request_id: str
 
 
-def register(app: FastAPI, access: WorkspaceAccess, engine: Engine) -> None:
+def register(app: FastAPI, access: WorkspaceAccess, engine: Engine, library: DataLibrary) -> None:
+    from . import collection_api
+
+    collection_api.register(app, access, engine)
+
+    @app.post("/api/sync/contracts/review", response_model=ContractReview)
+    async def review_contract(request: Request, document: ContractReviewRequest) -> dict[str, Any]:
+        from northstar_quant.data_management.tushare.contract_review import review
+
+        access.protect(request)
+        return await run_in_threadpool(review, engine, document.scope)
+
     @app.get("/api/sync", response_model=SyncStatus)
     def status() -> dict[str, Any]:
-        return settings.status(engine)
+        result = settings.status(engine)
+        result["settings"]["source_capacity"] = library.storage_capacity()
+        return result
 
     @app.post("/api/sync/settings", response_model=SyncStatus)
     async def configure(request: Request, document: SyncSettingsRequest) -> dict[str, Any]:
@@ -71,6 +143,11 @@ def register(app: FastAPI, access: WorkspaceAccess, engine: Engine) -> None:
         access.protect(request)
         await run_in_threadpool(credentials.save, document.token)
         return await run_in_threadpool(settings.status, engine)
+
+    @app.post("/api/sync/jobs/query", response_model=SyncJobPage)
+    async def search_jobs(request: Request, document: SyncJobQuery) -> dict[str, Any]:
+        access.protect(request)
+        return await run_in_threadpool(job_query.search, engine, **document.model_dump())
 
     @app.get("/api/sync/jobs/{request_id}", response_model=SyncEvidence)
     def job(request_id: UUID) -> dict[str, Any]:

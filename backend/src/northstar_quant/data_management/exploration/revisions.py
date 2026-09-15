@@ -11,7 +11,7 @@ from sqlalchemy import Engine, text
 from ..tushare import normalization, publication
 from ..tushare.catalog import BY_KEY
 from ..tushare.store import serial
-from .catalog import PRICE_DATASETS
+from .catalog import BROWSABLE_DATASETS
 
 RULE = "response-diff/1"
 
@@ -65,8 +65,8 @@ def compare(engine: Engine, *, before_id: UUID, after_id: UUID, offset: int = 0)
     if set(by_id) != {before_id, after_id}:
         raise LookupError("固定发布版本不存在")
     before, after = by_id[before_id], by_id[after_id]
-    if before["request_id"] != after["request_id"] or before["dataset"] not in PRICE_DATASETS:
-        raise ValueError("只能比较同一行情请求分片的两个版本")
+    if before["request_id"] != after["request_id"] or before["dataset"] not in BROWSABLE_DATASETS:
+        raise ValueError("只能比较同一数据请求分片的两个版本")
     left, right = _rows(before), _rows(after)
     identity = BY_KEY[before["dataset"]].identity
     counts = dict(added=0, removed=0, changed=0, unchanged=0)
