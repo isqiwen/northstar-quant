@@ -35,7 +35,7 @@ def process_next(engine: Engine) -> str | None:
                 ),
             )
             return scope
-    from .packages import publish
+    from .snapshots import publish
 
     publish(engine, scope)
     return scope

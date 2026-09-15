@@ -764,3 +764,55 @@ class AssembleResearchRequest(_message.Message):
     SNAPSHOT_IDS_FIELD_NUMBER: _ClassVar[int]
     snapshot_ids: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, snapshot_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CatalogSnapshot(_message.Message):
+    __slots__ = ("snapshot_id", "exchange", "product", "contract", "files", "reference", "time_basis", "fee_basis")
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    EXCHANGE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCT_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    TIME_BASIS_FIELD_NUMBER: _ClassVar[int]
+    FEE_BASIS_FIELD_NUMBER: _ClassVar[int]
+    snapshot_id: str
+    exchange: str
+    product: str
+    contract: str
+    files: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    reference: _struct_pb2.Struct
+    time_basis: str
+    fee_basis: str
+    def __init__(self, snapshot_id: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., contract: _Optional[str] = ..., files: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reference: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., time_basis: _Optional[str] = ..., fee_basis: _Optional[str] = ...) -> None: ...
+
+class CatalogQuery(_message.Message):
+    __slots__ = ("domain", "contract", "start", "end", "offset", "limit")
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    domain: str
+    contract: str
+    start: str
+    end: str
+    offset: int
+    limit: int
+    def __init__(self, domain: _Optional[str] = ..., contract: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class CatalogRows(_message.Message):
+    __slots__ = ("snapshot_id", "domain", "rows", "total", "offset", "limit")
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    ROWS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    snapshot_id: str
+    domain: str
+    rows: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    total: int
+    offset: int
+    limit: int
+    def __init__(self, snapshot_id: _Optional[str] = ..., domain: _Optional[str] = ..., rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...

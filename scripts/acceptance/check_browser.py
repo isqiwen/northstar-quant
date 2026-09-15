@@ -299,6 +299,21 @@ def main() -> None:
                     screenshot("contract-review")
                     review.locator(".ant-drawer-close").click()
 
+                    available.get_by_role("button", name="标准数据", exact=True).first.click()
+                    standard = page.get_by_role("dialog")
+                    expect(standard.get_by_text("固定快照", exact=True)).to_be_visible()
+                    expect(
+                        standard.get_by_role("columnheader", name="成交量", exact=True)
+                    ).to_be_visible()
+                    expect(
+                        standard.get_by_role("cell", name="RB2610", exact=True).first
+                    ).to_be_visible()
+                    expect(
+                        standard.get_by_role("columnheader", name="vol", exact=True)
+                    ).to_have_count(0)
+                    screenshot("standard-catalog")
+                    standard.locator(".ant-drawer-close").click()
+
                     # An empty manual range leads back to actual published data.
                     page.get_by_role("button", name="日期范围", exact=True).click()
                     page.get_by_label("开始日期", exact=True).fill("2026-09-02")
@@ -425,7 +440,10 @@ def main() -> None:
                         + "/versions?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
                     )
                     page.get_by_role("button", name="查询数据", exact=True).click()
-                    for receipt in (market["receipt_id"], market["baseline_receipt_id"]):
+                    for receipt in (
+                        market["receipt_id"],
+                        market["baseline_receipt_id"],
+                    ):
                         page.locator(f'tr[data-row-key="{receipt}"] input[type=checkbox]').check()
                     page.get_by_role("button", name="比较所选版本", exact=True).click()
                     expect(
@@ -474,7 +492,8 @@ def main() -> None:
                     page.get_by_role("combobox", name="任务状态").press("Escape")
                     expect(
                         page.get_by_text(
-                            "Synthetic acceptance: provider permission denied", exact=True
+                            "Synthetic acceptance: provider permission denied",
+                            exact=True,
                         ).first
                     ).to_be_visible()
                     page.get_by_role("button", name=re.compile(r"^记\s*录$")).first.click()
@@ -665,7 +684,9 @@ def main() -> None:
                     choose("实验方法", "训练期线性收益模型")
                     page.get_by_label("研究假设", exact=True).fill("浏览器训练期拟合")
                     for label, snapshot in zip(
-                        ("训练快照", "验证快照", "测试快照"), learning_snapshots, strict=True
+                        ("训练快照", "验证快照", "测试快照"),
+                        learning_snapshots,
+                        strict=True,
                     ):
                         choose(label, snapshot[:8])
                     choose("账户、风险与成本模板（1 个；策略由训练生成）", "浏览器动量")
@@ -761,7 +782,8 @@ def main() -> None:
                     # The two Web processes and Data Hub remain stopped. Inspect only
                     # the durable completion marker, then verify result through the API.
                     with sqlite3.connect(
-                        f"file:{app.environment['NORTHSTAR_RESEARCH_DATABASE']}?mode=ro", uri=True
+                        f"file:{app.environment['NORTHSTAR_RESEARCH_DATABASE']}?mode=ro",
+                        uri=True,
                     ) as connection:
                         while time.monotonic() < deadline:
                             state = connection.execute(
@@ -846,7 +868,10 @@ def main() -> None:
                         expect(page.get_by_text("RECEIVED", exact=True)).to_be_visible()
                         screenshot("received-material")
                         visit(url + "/streams")
-                        choose("本地固定配置", candidate["document"]["configuration"]["name"])
+                        choose(
+                            "本地固定配置",
+                            candidate["document"]["configuration"]["name"],
+                        )
                         screenshot("received-configuration")
                         visit(url + "/orders")
                         expect(
@@ -941,7 +966,10 @@ def main() -> None:
                             "steps": [],
                             "archives": [],
                             "state": {},
-                            "account_progress": {"status": "UNBOUND", "through_sequence": 0},
+                            "account_progress": {
+                                "status": "UNBOUND",
+                                "through_sequence": 0,
+                            },
                             "startup_query": {
                                 "status": "INCOMPLETE",
                                 "reason": "STARTUP_QUERY_NOT_FINISHED",
@@ -963,7 +991,11 @@ def main() -> None:
                                 {"budgets": []},
                             ),
                         )
-                        ledger_context = {"baseline_id": None, "entries": [], "checks": []}
+                        ledger_context = {
+                            "baseline_id": None,
+                            "entries": [],
+                            "checks": [],
+                        }
                         page.route(
                             "**/api/broker/queries/"
                             + stream["binding"]["request"]["query_batch_id"]

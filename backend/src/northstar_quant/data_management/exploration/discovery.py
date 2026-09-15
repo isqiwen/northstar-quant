@@ -25,7 +25,8 @@ def available(
                 text(
                     RECEIPTS
                     + """, published AS (
-                SELECT r.receipt_id,r.row_count,j.dataset,j.scope,j.start_at,j.end_at,
+                SELECT a.publication_id,r.receipt_id,r.row_count,j.dataset,j.scope,
+                j.start_at,j.end_at,
                 c.exchange,c.product,c.details->>'name' AS name
                 FROM admitted a JOIN data_sync_receipts r ON r.receipt_id=a.receipt_id
                 JOIN data_sync_jobs j ON j.request_id=r.request_id

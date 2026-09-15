@@ -76,7 +76,7 @@ def test_fixed_compaction_roundtrip_and_corruption(published):
         compaction.read(engine, str(identity))
 
 
-def test_interrupted_and_conflicting_merges_keep_originals(published):
+def test_interrupted_and_conflicting_merges_keep_originals(published, monkeypatch):
     library, response = published
     engine = library._engine
     args = prepare(library, response)
@@ -87,6 +87,12 @@ def test_interrupted_and_conflicting_merges_keep_originals(published):
     assert compaction.process_next(engine, library._files) is None
     assert compaction.get(engine, str(identity))["status"] == "FAILED"
     assert rows.read(engine, **args)["total"] == 6
+    # Publish the new observation separately; conflicting revisions may never
+    # enter one snapshot, but compaction must still reject mixing fixed versions.
+    publish = test_exploration.publish_read_fixture
+    monkeypatch.setattr(
+        test_exploration, "publish_read_fixture", lambda library: publish(library, latest_only=True)
+    )
     response["data"]["items"][0][2] = "3100.20"
     with engine.begin() as c:
         c.execute(text("UPDATE data_sync_jobs SET status='PENDING' WHERE start_at=end_at"))

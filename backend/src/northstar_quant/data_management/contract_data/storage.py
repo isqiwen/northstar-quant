@@ -35,8 +35,8 @@ def initialize(c: Connection) -> None:
             publication_id text PRIMARY KEY,
             scope text NOT NULL REFERENCES data_contract_collections(scope),
             manifest jsonb NOT NULL,
-            package_hash text NOT NULL,
-            package_bytes bigint NOT NULL CHECK(package_bytes>0),
+            manifest_hash text NOT NULL,
+            manifest_bytes bigint NOT NULL CHECK(manifest_bytes>0),
             path text NOT NULL UNIQUE,
             created_at timestamptz NOT NULL DEFAULT now()
         );

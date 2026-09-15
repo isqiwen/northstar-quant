@@ -5,6 +5,7 @@ import type { ExplorerCatalog } from "../api/generated";
 import { Failure } from "../../../shared/ui";
 import { exchangeName } from "./instrument-labels";
 import { explore } from "./api";
+import { CatalogSnapshot } from "../catalog-snapshot";
 import { ContractReview } from "../contract-review";
 
 type Row = Record<string, unknown>;
@@ -26,6 +27,7 @@ export function AvailableData({
     search: "",
     offset: 0,
   });
+  const [snapshotId, setSnapshotId] = useState<string>();
   const [reviewScope, setReviewScope] = useState<string>();
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
@@ -159,7 +161,7 @@ export function AvailableData({
         }
         locale={{
           emptyText: (
-            <Empty description="暂无完整合约发布包。请到历史同步查看合约下载和验收进度。" />
+            <Empty description="暂无完整合约快照。请到历史同步查看合约下载和验收进度。" />
           ),
         }}
         pagination={{
@@ -212,17 +214,31 @@ export function AvailableData({
                 >
                   整体验收
                 </Button>
+                <Button
+                  size="small"
+                  type="link"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSnapshotId(String(r.publication_id));
+                  }}
+                >
+                  标准数据
+                </Button>
               </div>
             ),
           },
         ]}
+      />
+      <CatalogSnapshot
+        id={snapshotId}
+        onClose={() => setSnapshotId(undefined)}
       />
       <ContractReview
         scope={reviewScope}
         onClose={() => setReviewScope(undefined)}
       />
       <p className="muted">
-        每个合约对应完整生命周期发布包；选中后读取固定发布版本。
+        每个合约对应完整生命周期快照；选中后读取固定发布版本。
       </p>
     </Card>
   );

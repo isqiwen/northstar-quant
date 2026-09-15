@@ -2204,6 +2204,166 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.CatalogSnapshot": {
+      "fields": {
+        "snapshot_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "exchange": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "product": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "contract": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "files": {
+          "id": 5,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "reference": {
+          "id": 6,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "time_basis": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "fee_basis": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.CatalogQuery": {
+      "fields": {
+        "domain": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "contract": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "limit": {
+          "id": 6,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.CatalogRows": {
+      "fields": {
+        "snapshot_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "domain": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "rows": {
+          "id": 3,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "total": {
+          "id": 4,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "limit": {
+          "id": 6,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.web.Empty": {
       "fields": {},
       "array": false,
@@ -2584,6 +2744,20 @@
     }
   },
   "methods": [
+    {
+      "method": "GET",
+      "path": "/api/catalog/snapshots/{snapshot_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.data_hub.CatalogSnapshot",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/catalog/snapshots/{snapshot_id}/query",
+      "input": "northstar.data_hub.CatalogQuery",
+      "output": "northstar.data_hub.CatalogRows",
+      "runtime": false
+    },
     {
       "method": "POST",
       "path": "/api/research-inputs/assemble",

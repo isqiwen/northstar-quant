@@ -71,6 +71,7 @@ def _require(connection: Connection) -> None:
     for table, required in {
         "data_sync_jobs": {"identity", "code_revision"},
         "data_processing_attempts": {"code_revision"},
+        "data_contract_publications": {"manifest_hash", "manifest_bytes"},
     }.items():
         if not required <= {column["name"] for column in inspect(connection).get_columns(table)}:
             raise ValueError(

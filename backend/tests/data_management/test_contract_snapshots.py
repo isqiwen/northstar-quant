@@ -1,7 +1,8 @@
 """Immutable contract-file identity and fail-closed whole-contract publication."""
 
+import io
 import json
-import zipfile
+import shutil
 from datetime import date
 from pathlib import Path
 
@@ -9,7 +10,7 @@ import pytest
 from sqlalchemy import text
 
 from northstar_quant.data_management.contract_data.lifecycle import completed
-from northstar_quant.data_management.contract_data.packages import publish, write_package
+from northstar_quant.data_management.contract_data.snapshots import publish, write_snapshot
 from northstar_quant.data_management.files import SourceFiles
 from tests.data_management import test_tushare
 
@@ -40,7 +41,7 @@ def test_retired_contract_keeps_full_lifetime_before_old_floor():
     assert value.end == date(2011, 1, 1)
 
 
-def test_package_cannot_publish_with_unknown_completeness(automatic, monkeypatch):
+def test_snapshot_cannot_publish_with_unknown_completeness(automatic, monkeypatch):
     with automatic._engine.begin() as c:
         c.execute(
             text("""UPDATE data_sync_contracts SET details=
@@ -52,50 +53,79 @@ def test_package_cannot_publish_with_unknown_completeness(automatic, monkeypatch
         assert c.scalar(text("SELECT count(*) FROM data_contract_publications")) == 0
     import os
 
-    assert list(Path(os.environ["NORTHSTAR_MARKET_DIR"]).rglob("*.zip")) == []
+    assert list(Path(os.environ["NORTHSTAR_MARKET_DIR"]).glob("published/snapshots/*.json")) == []
 
 
-def test_one_deterministic_package_preserves_input_bytes_and_refuses_corruption(tmp_path):
+def test_shared_partitions_and_fixed_snapshot_survive_private_source_removal(tmp_path):
     source = SourceFiles(tmp_path / "private")
-    inputs = {}
-    for role in ("source", "manifest", "parquet"):
-        item = source.store((role + " synthetic test bytes").encode())
+    import pyarrow.parquet as pq
+
+    from northstar_quant.data_management.contract_data.snapshot_reading import query
+    from northstar_quant.data_management.tushare.publication import response_table
+
+    raw = dict(
+        ts_code="RB2501.SHF",
+        trade_date="20250102",
+        open="3100.1",
+        high="3100.1",
+        low="3100.1",
+        close="3100.1",
+        vol="2",
+        oi="8",
+        amount_cny="100",
+    )
+    stream = io.BytesIO()
+    pq.write_table(response_table([raw], "daily"), stream)
+    inputs = dict(dataset="daily", scope="RB2501.SHF")
+    for role, content in (
+        ("source", b"private original"),
+        ("manifest", b"private receipt"),
+        ("parquet", stream.getvalue()),
+    ):
+        item = source.store(content)
         inputs.update({f"{role}_hash": item.content_hash, f"{role}_bytes": item.byte_count})
     manifest = dict(exchange="SHFE", product="RB", scope="RB2501.SHF", inputs=[inputs])
     root = tmp_path / "market"
-    artifact = write_package(root, manifest, source)
+    artifact = write_snapshot(root, manifest, source)
     path = root / artifact["path"]
-    assert path.parent == root / "SHFE" / "RB" / "RB2501.SHF"
+    assert path.parent == root / "published" / "snapshots"
     before = path.read_bytes()
-    assert write_package(root, manifest, source) == artifact
+    assert write_snapshot(root, manifest, source) == artifact
     assert path.read_bytes() == before
-    with zipfile.ZipFile(path) as package:
-        assert json.loads(package.read("manifest.json")) == manifest
-        for role in ("source", "manifest", "parquet"):
-            suffix = "parquet" if role == "parquet" else "json"
-            assert (
-                package.read(f"{role}/{inputs[role + '_hash']}.{suffix}")
-                == (role + " synthetic test bytes").encode()
-            )
-    path.write_bytes(b"corrupt")
-    with pytest.raises(ValueError, match="内容不一致"):
-        write_package(root, manifest, source)
-    assert path.read_bytes() == b"corrupt"
+    document = json.loads(before)
+    entry = next(f for f in document["files"] if f["domain"] == "market/futures/contracts/daily")
+    assert "/exchange=SHFE/product=RB/year=2025/part-" in entry["path"]
+    assert "RB2501" not in entry["path"]
+    restored = tmp_path / "restored"
+    assert write_snapshot(restored, document, source) == artifact
+    shutil.rmtree(source.root)
+    result = query(
+        root, artifact["publication_id"], domain="market/futures/contracts/daily", contract="RB2501"
+    )
+    assert result["total"] == 1
+    row = result["rows"][0]
+    assert row["contract"] == "RB2501"
+    assert row["volume"] == "2.000000000000"
+    assert "ts_code" not in row and "vol" not in row
+    assert row["trading_day"] == "2025-01-02"
+    (root / entry["path"]).write_bytes(b"corrupt")
+    with pytest.raises(ValueError, match="完整性"):
+        query(root, artifact["publication_id"], domain="market/futures/contracts/daily")
 
 
-def test_package_path_cannot_escape_through_metadata_or_symlinks(tmp_path):
+def test_snapshot_path_cannot_escape_through_metadata_or_symlinks(tmp_path):
     source = SourceFiles(tmp_path / "private")
     root = tmp_path / "market"
     outside = tmp_path / "outside"
     root.mkdir()
     outside.mkdir()
-    (root / "SHFE").symlink_to(outside, target_is_directory=True)
+    (root / "reference").symlink_to(outside, target_is_directory=True)
     with pytest.raises(ValueError, match="符号链接"):
-        write_package(
+        write_snapshot(
             root, dict(exchange="SHFE", product="RB", scope="RB2501.SHF", inputs=[]), source
         )
     with pytest.raises(ValueError, match="非法路径"):
-        write_package(
+        write_snapshot(
             root, dict(exchange="../outside", product="RB", scope="RB2501.SHF", inputs=[]), source
         )
     assert list(outside.iterdir()) == []
@@ -256,3 +286,35 @@ def test_filtered_manifest_preserves_source_and_receipt_aliases(automatic, monke
             selected = manifest(c, content_hashes=[str(item["content_hash"])])
             assert selected == [r for r in full if r["content_hash"] == item["content_hash"]]
         assert manifest(c, content_hashes=[]) == []
+
+
+def test_multiple_contracts_share_a_partition_without_overwrite(tmp_path):
+    import pyarrow.parquet as pq
+
+    from northstar_quant.data_management.contract_data.partitioned import materialize
+
+    source = SourceFiles(tmp_path / "source")
+    root = tmp_path / "market"
+
+    def record(contract, close):
+        return dict(
+            domain="market/futures/contracts/daily",
+            partition="market/futures/contracts/daily/exchange=SHFE/product=RB/year=2025",
+            identity=[contract, "2025-01-02"],
+            values=dict(
+                exchange="SHFE",
+                product="RB",
+                contract=contract,
+                trading_day="2025-01-02",
+                close=close,
+            ),
+        )
+
+    old = materialize(root, source, [record("RB2501", "3100")])
+    current = materialize(root, source, [record("RB2501", "3100"), record("RB2505", "3200")])
+    assert len(current) == 1 and current[0]["rows"] == 2
+    assert (root / old[0]["path"]).is_file()
+    table = pq.ParquetFile(root / current[0]["path"]).read()
+    assert set(table.column("contract").to_pylist()) == {"RB2501", "RB2505"}
+    with pytest.raises(ValueError, match="冲突"):
+        materialize(root, source, [record("RB2501", "3100"), record("RB2501", "3101")])

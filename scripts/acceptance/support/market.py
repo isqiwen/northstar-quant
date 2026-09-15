@@ -10,7 +10,7 @@ from support.processes import InstalledApplication
 # installed browser. They are not evidence of Tushare lifecycle completeness.
 _PACKAGE_FIXTURE = """
 def pin_reader_fixture():
-    from northstar_quant.data_management.contract_data.packages import write_package
+    from northstar_quant.data_management.contract_data.snapshots import write_snapshot
     from northstar_quant.data_management.publications import PublishedDatasets
     from northstar_quant.data_management.tushare.store import serial
     with engine.begin() as c:
@@ -20,12 +20,12 @@ def pin_reader_fixture():
             "ORDER BY j.dataset,r.receipt_id")).mappings()]
         manifest=dict(rule='SYNTHETIC_BROWSER_ACCEPTANCE',scope='RB2610.SHF',
             exchange='SHFE',product='RB',inputs=inputs)
-        artifact=write_package(PublishedDatasets.from_environment().root,manifest,library._files)
+        artifact=write_snapshot(PublishedDatasets.from_environment().root,manifest,library._files)
         c.execute(text("INSERT INTO data_contract_publications "
-            "(publication_id,scope,manifest,package_hash,package_bytes,path) "
+            "(publication_id,scope,manifest,manifest_hash,manifest_bytes,path) "
             "VALUES(:id,'RB2610.SHF',CAST(:manifest AS jsonb),:hash,:bytes,:path) "
             "ON CONFLICT DO NOTHING"),dict(id=artifact['publication_id'],
-                manifest=json.dumps(manifest),
+                manifest=json.dumps(artifact["manifest"]),
                 hash=artifact['sha256'],bytes=artifact['bytes'],path=artifact['path']))
 """
 

@@ -24611,6 +24611,1644 @@ export const northstar = $root.northstar = (() => {
             return AssembleResearchRequest;
         })();
 
+        data_hub.CatalogSnapshot = (function() {
+
+            /**
+             * Properties of a CatalogSnapshot.
+             * @typedef {Object} northstar.data_hub.CatalogSnapshot.$Properties
+             * @property {string|null} [snapshot_id] CatalogSnapshot snapshot_id
+             * @property {string|null} [exchange] CatalogSnapshot exchange
+             * @property {string|null} [product] CatalogSnapshot product
+             * @property {string|null} [contract] CatalogSnapshot contract
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [files] CatalogSnapshot files
+             * @property {google.protobuf.Struct.$Properties|null} [reference] CatalogSnapshot reference
+             * @property {string|null} [time_basis] CatalogSnapshot time_basis
+             * @property {string|null} [fee_basis] CatalogSnapshot fee_basis
+             * @property {"snapshot_id"} [_snapshot_id] CatalogSnapshot _snapshot_id
+             * @property {"exchange"} [_exchange] CatalogSnapshot _exchange
+             * @property {"product"} [_product] CatalogSnapshot _product
+             * @property {"contract"} [_contract] CatalogSnapshot _contract
+             * @property {"reference"} [_reference] CatalogSnapshot _reference
+             * @property {"time_basis"} [_time_basis] CatalogSnapshot _time_basis
+             * @property {"fee_basis"} [_fee_basis] CatalogSnapshot _fee_basis
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CatalogSnapshot.
+             * @memberof northstar.data_hub
+             * @interface ICatalogSnapshot
+             * @augments northstar.data_hub.CatalogSnapshot.$Properties
+             * @deprecated Use northstar.data_hub.CatalogSnapshot.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a CatalogSnapshot.
+             * @typedef {{
+             *   snapshot_id?: string|null;
+             *   exchange?: string|null;
+             *   product?: string|null;
+             *   contract?: string|null;
+             *   files?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   reference?: google.protobuf.Struct.$Shape|null;
+             *   time_basis?: string|null;
+             *   fee_basis?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
+             * ) & (
+             *   ({ _exchange?: undefined; exchange?: null }|{ _exchange?: "exchange"; exchange: string })
+             * ) & (
+             *   ({ _product?: undefined; product?: null }|{ _product?: "product"; product: string })
+             * ) & (
+             *   ({ _contract?: undefined; contract?: null }|{ _contract?: "contract"; contract: string })
+             * ) & (
+             *   ({ _reference?: undefined; reference?: null }|{ _reference?: "reference"; reference: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _time_basis?: undefined; time_basis?: null }|{ _time_basis?: "time_basis"; time_basis: string })
+             * ) & (
+             *   ({ _fee_basis?: undefined; fee_basis?: null }|{ _fee_basis?: "fee_basis"; fee_basis: string })
+             * )} northstar.data_hub.CatalogSnapshot.$Shape
+             */
+
+            /**
+             * Constructs a new CatalogSnapshot.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a CatalogSnapshot.
+             * @constructor
+             * @param {northstar.data_hub.CatalogSnapshot.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CatalogSnapshot = function (properties) {
+                this.files = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CatalogSnapshot snapshot_id.
+             * @member {string|null|undefined} snapshot_id
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.snapshot_id = null;
+
+            /**
+             * CatalogSnapshot exchange.
+             * @member {string|null|undefined} exchange
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.exchange = null;
+
+            /**
+             * CatalogSnapshot product.
+             * @member {string|null|undefined} product
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.product = null;
+
+            /**
+             * CatalogSnapshot contract.
+             * @member {string|null|undefined} contract
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.contract = null;
+
+            /**
+             * CatalogSnapshot files.
+             * @member {Array.<google.protobuf.Struct.$Properties>} files
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.files = $util.emptyArray;
+
+            /**
+             * CatalogSnapshot reference.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} reference
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.reference = null;
+
+            /**
+             * CatalogSnapshot time_basis.
+             * @member {string|null|undefined} time_basis
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.time_basis = null;
+
+            /**
+             * CatalogSnapshot fee_basis.
+             * @member {string|null|undefined} fee_basis
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            CatalogSnapshot.prototype.fee_basis = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * CatalogSnapshot _snapshot_id.
+             * @member {"snapshot_id"|undefined} _snapshot_id
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            $Object.defineProperty(CatalogSnapshot.prototype, "_snapshot_id", {
+                get: $util.oneOfGetter($oneOfFields = ["snapshot_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogSnapshot _exchange.
+             * @member {"exchange"|undefined} _exchange
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            $Object.defineProperty(CatalogSnapshot.prototype, "_exchange", {
+                get: $util.oneOfGetter($oneOfFields = ["exchange"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogSnapshot _product.
+             * @member {"product"|undefined} _product
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            $Object.defineProperty(CatalogSnapshot.prototype, "_product", {
+                get: $util.oneOfGetter($oneOfFields = ["product"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogSnapshot _contract.
+             * @member {"contract"|undefined} _contract
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            $Object.defineProperty(CatalogSnapshot.prototype, "_contract", {
+                get: $util.oneOfGetter($oneOfFields = ["contract"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogSnapshot _reference.
+             * @member {"reference"|undefined} _reference
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            $Object.defineProperty(CatalogSnapshot.prototype, "_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogSnapshot _time_basis.
+             * @member {"time_basis"|undefined} _time_basis
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            $Object.defineProperty(CatalogSnapshot.prototype, "_time_basis", {
+                get: $util.oneOfGetter($oneOfFields = ["time_basis"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogSnapshot _fee_basis.
+             * @member {"fee_basis"|undefined} _fee_basis
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             */
+            $Object.defineProperty(CatalogSnapshot.prototype, "_fee_basis", {
+                get: $util.oneOfGetter($oneOfFields = ["fee_basis"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CatalogSnapshot instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @static
+             * @param {northstar.data_hub.CatalogSnapshot.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.CatalogSnapshot} CatalogSnapshot instance
+             * @type {{
+             *   (properties: northstar.data_hub.CatalogSnapshot.$Shape): northstar.data_hub.CatalogSnapshot & northstar.data_hub.CatalogSnapshot.$Shape;
+             *   (properties?: northstar.data_hub.CatalogSnapshot.$Properties): northstar.data_hub.CatalogSnapshot;
+             * }}
+             */
+            CatalogSnapshot.create = function(properties) {
+                return new CatalogSnapshot(properties);
+            };
+
+            /**
+             * Encodes the specified CatalogSnapshot message. Does not implicitly {@link northstar.data_hub.CatalogSnapshot.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @static
+             * @param {northstar.data_hub.CatalogSnapshot.$Properties} message CatalogSnapshot message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CatalogSnapshot.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.snapshot_id);
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.exchange);
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.product);
+                if (message.contract != null && $Object.hasOwnProperty.call(message, "contract"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.contract);
+                if (message.files != null && message.files.length)
+                    for (let i = 0; i < message.files.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.files[i], writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
+                if (message.reference != null && $Object.hasOwnProperty.call(message, "reference"))
+                    $root.google.protobuf.Struct.encode(message.reference, writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.time_basis != null && $Object.hasOwnProperty.call(message, "time_basis"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.time_basis);
+                if (message.fee_basis != null && $Object.hasOwnProperty.call(message, "fee_basis"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.fee_basis);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CatalogSnapshot message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.CatalogSnapshot & northstar.data_hub.CatalogSnapshot.$Shape} CatalogSnapshot
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CatalogSnapshot.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.CatalogSnapshot();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.snapshot_id = reader.stringVerify();
+                            message._snapshot_id = "snapshot_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.exchange = reader.stringVerify();
+                            message._exchange = "exchange";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.product = reader.stringVerify();
+                            message._product = "product";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.contract = reader.stringVerify();
+                            message._contract = "contract";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.files && message.files.length))
+                                message.files = [];
+                            message.files.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.reference = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.reference);
+                            message._reference = "reference";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.time_basis = reader.stringVerify();
+                            message._time_basis = "time_basis";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.fee_basis = reader.stringVerify();
+                            message._fee_basis = "fee_basis";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CatalogSnapshot message.
+             * @function verify
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CatalogSnapshot.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    properties._snapshot_id = 1;
+                    if (!$util.isString(message.snapshot_id))
+                        return "snapshot_id: string expected";
+                }
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    properties._exchange = 1;
+                    if (!$util.isString(message.exchange))
+                        return "exchange: string expected";
+                }
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product")) {
+                    properties._product = 1;
+                    if (!$util.isString(message.product))
+                        return "product: string expected";
+                }
+                if (message.contract != null && $Object.hasOwnProperty.call(message, "contract")) {
+                    properties._contract = 1;
+                    if (!$util.isString(message.contract))
+                        return "contract: string expected";
+                }
+                if (message.files != null && $Object.hasOwnProperty.call(message, "files")) {
+                    if (!$Array.isArray(message.files))
+                        return "files: array expected";
+                    for (let i = 0; i < message.files.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.files[i], _depth + 1);
+                        if (error)
+                            return "files." + error;
+                    }
+                }
+                if (message.reference != null && $Object.hasOwnProperty.call(message, "reference")) {
+                    properties._reference = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.reference, _depth + 1);
+                        if (error)
+                            return "reference." + error;
+                    }
+                }
+                if (message.time_basis != null && $Object.hasOwnProperty.call(message, "time_basis")) {
+                    properties._time_basis = 1;
+                    if (!$util.isString(message.time_basis))
+                        return "time_basis: string expected";
+                }
+                if (message.fee_basis != null && $Object.hasOwnProperty.call(message, "fee_basis")) {
+                    properties._fee_basis = 1;
+                    if (!$util.isString(message.fee_basis))
+                        return "fee_basis: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CatalogSnapshot message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.CatalogSnapshot} CatalogSnapshot
+             */
+            CatalogSnapshot.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.CatalogSnapshot)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.CatalogSnapshot: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.CatalogSnapshot();
+                if (object.snapshot_id != null)
+                    message.snapshot_id = $String(object.snapshot_id);
+                if (object.exchange != null)
+                    message.exchange = $String(object.exchange);
+                if (object.product != null)
+                    message.product = $String(object.product);
+                if (object.contract != null)
+                    message.contract = $String(object.contract);
+                if (object.files) {
+                    if (!$Array.isArray(object.files))
+                        throw $TypeError(".northstar.data_hub.CatalogSnapshot.files: array expected");
+                    message.files = $Array(object.files.length);
+                    for (let i = 0; i < object.files.length; ++i) {
+                        if (!$util.isObject(object.files[i]))
+                            throw $TypeError(".northstar.data_hub.CatalogSnapshot.files: object expected");
+                        message.files[i] = $root.google.protobuf.Struct.fromObject(object.files[i], _depth + 1);
+                    }
+                }
+                if (object.reference != null) {
+                    if (!$util.isObject(object.reference))
+                        throw $TypeError(".northstar.data_hub.CatalogSnapshot.reference: object expected");
+                    message.reference = $root.google.protobuf.Struct.fromObject(object.reference, _depth + 1);
+                }
+                if (object.time_basis != null)
+                    message.time_basis = $String(object.time_basis);
+                if (object.fee_basis != null)
+                    message.fee_basis = $String(object.fee_basis);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CatalogSnapshot message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @static
+             * @param {northstar.data_hub.CatalogSnapshot} message CatalogSnapshot
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CatalogSnapshot.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.files = [];
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    object.snapshot_id = message.snapshot_id;
+                    if (options.oneofs)
+                        object._snapshot_id = "snapshot_id";
+                }
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    object.exchange = message.exchange;
+                    if (options.oneofs)
+                        object._exchange = "exchange";
+                }
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product")) {
+                    object.product = message.product;
+                    if (options.oneofs)
+                        object._product = "product";
+                }
+                if (message.contract != null && $Object.hasOwnProperty.call(message, "contract")) {
+                    object.contract = message.contract;
+                    if (options.oneofs)
+                        object._contract = "contract";
+                }
+                if (message.files && message.files.length) {
+                    object.files = $Array(message.files.length);
+                    for (let j = 0; j < message.files.length; ++j)
+                        object.files[j] = $root.google.protobuf.Struct.toObject(message.files[j], options, _depth + 1);
+                }
+                if (message.reference != null && $Object.hasOwnProperty.call(message, "reference")) {
+                    object.reference = $root.google.protobuf.Struct.toObject(message.reference, options, _depth + 1);
+                    if (options.oneofs)
+                        object._reference = "reference";
+                }
+                if (message.time_basis != null && $Object.hasOwnProperty.call(message, "time_basis")) {
+                    object.time_basis = message.time_basis;
+                    if (options.oneofs)
+                        object._time_basis = "time_basis";
+                }
+                if (message.fee_basis != null && $Object.hasOwnProperty.call(message, "fee_basis")) {
+                    object.fee_basis = message.fee_basis;
+                    if (options.oneofs)
+                        object._fee_basis = "fee_basis";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CatalogSnapshot to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CatalogSnapshot.prototype.toJSON = function() {
+                return CatalogSnapshot.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CatalogSnapshot
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.CatalogSnapshot
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CatalogSnapshot.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.CatalogSnapshot";
+            };
+
+            return CatalogSnapshot;
+        })();
+
+        data_hub.CatalogQuery = (function() {
+
+            /**
+             * Properties of a CatalogQuery.
+             * @typedef {Object} northstar.data_hub.CatalogQuery.$Properties
+             * @property {string|null} [domain] CatalogQuery domain
+             * @property {string|null} [contract] CatalogQuery contract
+             * @property {string|null} [start] CatalogQuery start
+             * @property {string|null} [end] CatalogQuery end
+             * @property {number|Long|null} [offset] CatalogQuery offset
+             * @property {number|Long|null} [limit] CatalogQuery limit
+             * @property {"domain"} [_domain] CatalogQuery _domain
+             * @property {"contract"} [_contract] CatalogQuery _contract
+             * @property {"start"} [_start] CatalogQuery _start
+             * @property {"end"} [_end] CatalogQuery _end
+             * @property {"offset"} [_offset] CatalogQuery _offset
+             * @property {"limit"} [_limit] CatalogQuery _limit
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CatalogQuery.
+             * @memberof northstar.data_hub
+             * @interface ICatalogQuery
+             * @augments northstar.data_hub.CatalogQuery.$Properties
+             * @deprecated Use northstar.data_hub.CatalogQuery.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a CatalogQuery.
+             * @typedef {{
+             *   domain?: string|null;
+             *   contract?: string|null;
+             *   start?: string|null;
+             *   end?: string|null;
+             *   offset?: number|Long|null;
+             *   limit?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _domain?: undefined; domain?: null }|{ _domain?: "domain"; domain: string })
+             * ) & (
+             *   ({ _contract?: undefined; contract?: null }|{ _contract?: "contract"; contract: string })
+             * ) & (
+             *   ({ _start?: undefined; start?: null }|{ _start?: "start"; start: string })
+             * ) & (
+             *   ({ _end?: undefined; end?: null }|{ _end?: "end"; end: string })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
+             * )} northstar.data_hub.CatalogQuery.$Shape
+             */
+
+            /**
+             * Constructs a new CatalogQuery.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a CatalogQuery.
+             * @constructor
+             * @param {northstar.data_hub.CatalogQuery.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CatalogQuery = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CatalogQuery domain.
+             * @member {string|null|undefined} domain
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            CatalogQuery.prototype.domain = null;
+
+            /**
+             * CatalogQuery contract.
+             * @member {string|null|undefined} contract
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            CatalogQuery.prototype.contract = null;
+
+            /**
+             * CatalogQuery start.
+             * @member {string|null|undefined} start
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            CatalogQuery.prototype.start = null;
+
+            /**
+             * CatalogQuery end.
+             * @member {string|null|undefined} end
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            CatalogQuery.prototype.end = null;
+
+            /**
+             * CatalogQuery offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            CatalogQuery.prototype.offset = null;
+
+            /**
+             * CatalogQuery limit.
+             * @member {number|Long|null|undefined} limit
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            CatalogQuery.prototype.limit = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * CatalogQuery _domain.
+             * @member {"domain"|undefined} _domain
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            $Object.defineProperty(CatalogQuery.prototype, "_domain", {
+                get: $util.oneOfGetter($oneOfFields = ["domain"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogQuery _contract.
+             * @member {"contract"|undefined} _contract
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            $Object.defineProperty(CatalogQuery.prototype, "_contract", {
+                get: $util.oneOfGetter($oneOfFields = ["contract"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogQuery _start.
+             * @member {"start"|undefined} _start
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            $Object.defineProperty(CatalogQuery.prototype, "_start", {
+                get: $util.oneOfGetter($oneOfFields = ["start"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogQuery _end.
+             * @member {"end"|undefined} _end
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            $Object.defineProperty(CatalogQuery.prototype, "_end", {
+                get: $util.oneOfGetter($oneOfFields = ["end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogQuery _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            $Object.defineProperty(CatalogQuery.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogQuery _limit.
+             * @member {"limit"|undefined} _limit
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             */
+            $Object.defineProperty(CatalogQuery.prototype, "_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CatalogQuery instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.CatalogQuery
+             * @static
+             * @param {northstar.data_hub.CatalogQuery.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.CatalogQuery} CatalogQuery instance
+             * @type {{
+             *   (properties: northstar.data_hub.CatalogQuery.$Shape): northstar.data_hub.CatalogQuery & northstar.data_hub.CatalogQuery.$Shape;
+             *   (properties?: northstar.data_hub.CatalogQuery.$Properties): northstar.data_hub.CatalogQuery;
+             * }}
+             */
+            CatalogQuery.create = function(properties) {
+                return new CatalogQuery(properties);
+            };
+
+            /**
+             * Encodes the specified CatalogQuery message. Does not implicitly {@link northstar.data_hub.CatalogQuery.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.CatalogQuery
+             * @static
+             * @param {northstar.data_hub.CatalogQuery.$Properties} message CatalogQuery message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CatalogQuery.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.domain != null && $Object.hasOwnProperty.call(message, "domain"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.domain);
+                if (message.contract != null && $Object.hasOwnProperty.call(message, "contract"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.contract);
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.start);
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.end);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).int64(message.offset);
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).int64(message.limit);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CatalogQuery message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.CatalogQuery
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.CatalogQuery & northstar.data_hub.CatalogQuery.$Shape} CatalogQuery
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CatalogQuery.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.CatalogQuery();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.domain = reader.stringVerify();
+                            message._domain = "domain";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.contract = reader.stringVerify();
+                            message._contract = "contract";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.start = reader.stringVerify();
+                            message._start = "start";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.end = reader.stringVerify();
+                            message._end = "end";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 0)
+                                break;
+                            message.limit = reader.int64();
+                            message._limit = "limit";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CatalogQuery message.
+             * @function verify
+             * @memberof northstar.data_hub.CatalogQuery
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CatalogQuery.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.domain != null && $Object.hasOwnProperty.call(message, "domain")) {
+                    properties._domain = 1;
+                    if (!$util.isString(message.domain))
+                        return "domain: string expected";
+                }
+                if (message.contract != null && $Object.hasOwnProperty.call(message, "contract")) {
+                    properties._contract = 1;
+                    if (!$util.isString(message.contract))
+                        return "contract: string expected";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    properties._start = 1;
+                    if (!$util.isString(message.start))
+                        return "start: string expected";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    properties._end = 1;
+                    if (!$util.isString(message.end))
+                        return "end: string expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    properties._limit = 1;
+                    if (!$util.isInteger(message.limit) && !(message.limit && $util.isInteger(message.limit.low) && $util.isInteger(message.limit.high)))
+                        return "limit: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CatalogQuery message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.CatalogQuery
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.CatalogQuery} CatalogQuery
+             */
+            CatalogQuery.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.CatalogQuery)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.CatalogQuery: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.CatalogQuery();
+                if (object.domain != null)
+                    message.domain = $String(object.domain);
+                if (object.contract != null)
+                    message.contract = $String(object.contract);
+                if (object.start != null)
+                    message.start = $String(object.start);
+                if (object.end != null)
+                    message.end = $String(object.end);
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.limit != null)
+                    if ($util.Long)
+                        message.limit = $util.Long.fromValue(object.limit, false);
+                    else if (typeof object.limit === "string")
+                        message.limit = $parseInt(object.limit, 10);
+                    else if (typeof object.limit === "number")
+                        message.limit = object.limit;
+                    else if (typeof object.limit === "object")
+                        message.limit = new $util.LongBits(object.limit.low >>> 0, object.limit.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CatalogQuery message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.CatalogQuery
+             * @static
+             * @param {northstar.data_hub.CatalogQuery} message CatalogQuery
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CatalogQuery.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.domain != null && $Object.hasOwnProperty.call(message, "domain")) {
+                    object.domain = message.domain;
+                    if (options.oneofs)
+                        object._domain = "domain";
+                }
+                if (message.contract != null && $Object.hasOwnProperty.call(message, "contract")) {
+                    object.contract = message.contract;
+                    if (options.oneofs)
+                        object._contract = "contract";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    object.start = message.start;
+                    if (options.oneofs)
+                        object._start = "start";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    object.end = message.end;
+                    if (options.oneofs)
+                        object._end = "end";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.limit = typeof message.limit === "number" ? $BigInt(message.limit) : $util.Long.fromBits(message.limit.low >>> 0, message.limit.high >>> 0, false).toBigInt();
+                    else if (typeof message.limit === "number")
+                        object.limit = options.longs === $String ? $String(message.limit) : message.limit;
+                    else
+                        object.limit = options.longs === $String ? $util.Long.prototype.toString.call(message.limit) : options.longs === $Number ? new $util.LongBits(message.limit.low >>> 0, message.limit.high >>> 0).toNumber() : message.limit;
+                    if (options.oneofs)
+                        object._limit = "limit";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CatalogQuery to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.CatalogQuery
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CatalogQuery.prototype.toJSON = function() {
+                return CatalogQuery.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CatalogQuery
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.CatalogQuery
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CatalogQuery.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.CatalogQuery";
+            };
+
+            return CatalogQuery;
+        })();
+
+        data_hub.CatalogRows = (function() {
+
+            /**
+             * Properties of a CatalogRows.
+             * @typedef {Object} northstar.data_hub.CatalogRows.$Properties
+             * @property {string|null} [snapshot_id] CatalogRows snapshot_id
+             * @property {string|null} [domain] CatalogRows domain
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [rows] CatalogRows rows
+             * @property {number|Long|null} [total] CatalogRows total
+             * @property {number|Long|null} [offset] CatalogRows offset
+             * @property {number|Long|null} [limit] CatalogRows limit
+             * @property {"snapshot_id"} [_snapshot_id] CatalogRows _snapshot_id
+             * @property {"domain"} [_domain] CatalogRows _domain
+             * @property {"total"} [_total] CatalogRows _total
+             * @property {"offset"} [_offset] CatalogRows _offset
+             * @property {"limit"} [_limit] CatalogRows _limit
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CatalogRows.
+             * @memberof northstar.data_hub
+             * @interface ICatalogRows
+             * @augments northstar.data_hub.CatalogRows.$Properties
+             * @deprecated Use northstar.data_hub.CatalogRows.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a CatalogRows.
+             * @typedef {{
+             *   snapshot_id?: string|null;
+             *   domain?: string|null;
+             *   rows?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   total?: number|Long|null;
+             *   offset?: number|Long|null;
+             *   limit?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
+             * ) & (
+             *   ({ _domain?: undefined; domain?: null }|{ _domain?: "domain"; domain: string })
+             * ) & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
+             * )} northstar.data_hub.CatalogRows.$Shape
+             */
+
+            /**
+             * Constructs a new CatalogRows.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a CatalogRows.
+             * @constructor
+             * @param {northstar.data_hub.CatalogRows.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CatalogRows = function (properties) {
+                this.rows = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CatalogRows snapshot_id.
+             * @member {string|null|undefined} snapshot_id
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            CatalogRows.prototype.snapshot_id = null;
+
+            /**
+             * CatalogRows domain.
+             * @member {string|null|undefined} domain
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            CatalogRows.prototype.domain = null;
+
+            /**
+             * CatalogRows rows.
+             * @member {Array.<google.protobuf.Struct.$Properties>} rows
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            CatalogRows.prototype.rows = $util.emptyArray;
+
+            /**
+             * CatalogRows total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            CatalogRows.prototype.total = null;
+
+            /**
+             * CatalogRows offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            CatalogRows.prototype.offset = null;
+
+            /**
+             * CatalogRows limit.
+             * @member {number|Long|null|undefined} limit
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            CatalogRows.prototype.limit = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * CatalogRows _snapshot_id.
+             * @member {"snapshot_id"|undefined} _snapshot_id
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            $Object.defineProperty(CatalogRows.prototype, "_snapshot_id", {
+                get: $util.oneOfGetter($oneOfFields = ["snapshot_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogRows _domain.
+             * @member {"domain"|undefined} _domain
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            $Object.defineProperty(CatalogRows.prototype, "_domain", {
+                get: $util.oneOfGetter($oneOfFields = ["domain"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogRows _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            $Object.defineProperty(CatalogRows.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogRows _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            $Object.defineProperty(CatalogRows.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CatalogRows _limit.
+             * @member {"limit"|undefined} _limit
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             */
+            $Object.defineProperty(CatalogRows.prototype, "_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CatalogRows instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.CatalogRows
+             * @static
+             * @param {northstar.data_hub.CatalogRows.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.CatalogRows} CatalogRows instance
+             * @type {{
+             *   (properties: northstar.data_hub.CatalogRows.$Shape): northstar.data_hub.CatalogRows & northstar.data_hub.CatalogRows.$Shape;
+             *   (properties?: northstar.data_hub.CatalogRows.$Properties): northstar.data_hub.CatalogRows;
+             * }}
+             */
+            CatalogRows.create = function(properties) {
+                return new CatalogRows(properties);
+            };
+
+            /**
+             * Encodes the specified CatalogRows message. Does not implicitly {@link northstar.data_hub.CatalogRows.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.CatalogRows
+             * @static
+             * @param {northstar.data_hub.CatalogRows.$Properties} message CatalogRows message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CatalogRows.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.snapshot_id);
+                if (message.domain != null && $Object.hasOwnProperty.call(message, "domain"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.domain);
+                if (message.rows != null && message.rows.length)
+                    for (let i = 0; i < message.rows.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.rows[i], writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int64(message.total);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).int64(message.offset);
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).int64(message.limit);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CatalogRows message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.CatalogRows
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.CatalogRows & northstar.data_hub.CatalogRows.$Shape} CatalogRows
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CatalogRows.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.CatalogRows();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.snapshot_id = reader.stringVerify();
+                            message._snapshot_id = "snapshot_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.domain = reader.stringVerify();
+                            message._domain = "domain";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.rows && message.rows.length))
+                                message.rows = [];
+                            message.rows.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 0)
+                                break;
+                            message.limit = reader.int64();
+                            message._limit = "limit";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CatalogRows message.
+             * @function verify
+             * @memberof northstar.data_hub.CatalogRows
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CatalogRows.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    properties._snapshot_id = 1;
+                    if (!$util.isString(message.snapshot_id))
+                        return "snapshot_id: string expected";
+                }
+                if (message.domain != null && $Object.hasOwnProperty.call(message, "domain")) {
+                    properties._domain = 1;
+                    if (!$util.isString(message.domain))
+                        return "domain: string expected";
+                }
+                if (message.rows != null && $Object.hasOwnProperty.call(message, "rows")) {
+                    if (!$Array.isArray(message.rows))
+                        return "rows: array expected";
+                    for (let i = 0; i < message.rows.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.rows[i], _depth + 1);
+                        if (error)
+                            return "rows." + error;
+                    }
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    properties._limit = 1;
+                    if (!$util.isInteger(message.limit) && !(message.limit && $util.isInteger(message.limit.low) && $util.isInteger(message.limit.high)))
+                        return "limit: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CatalogRows message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.CatalogRows
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.CatalogRows} CatalogRows
+             */
+            CatalogRows.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.CatalogRows)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.CatalogRows: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.CatalogRows();
+                if (object.snapshot_id != null)
+                    message.snapshot_id = $String(object.snapshot_id);
+                if (object.domain != null)
+                    message.domain = $String(object.domain);
+                if (object.rows) {
+                    if (!$Array.isArray(object.rows))
+                        throw $TypeError(".northstar.data_hub.CatalogRows.rows: array expected");
+                    message.rows = $Array(object.rows.length);
+                    for (let i = 0; i < object.rows.length; ++i) {
+                        if (!$util.isObject(object.rows[i]))
+                            throw $TypeError(".northstar.data_hub.CatalogRows.rows: object expected");
+                        message.rows[i] = $root.google.protobuf.Struct.fromObject(object.rows[i], _depth + 1);
+                    }
+                }
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.limit != null)
+                    if ($util.Long)
+                        message.limit = $util.Long.fromValue(object.limit, false);
+                    else if (typeof object.limit === "string")
+                        message.limit = $parseInt(object.limit, 10);
+                    else if (typeof object.limit === "number")
+                        message.limit = object.limit;
+                    else if (typeof object.limit === "object")
+                        message.limit = new $util.LongBits(object.limit.low >>> 0, object.limit.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CatalogRows message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.CatalogRows
+             * @static
+             * @param {northstar.data_hub.CatalogRows} message CatalogRows
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CatalogRows.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.rows = [];
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    object.snapshot_id = message.snapshot_id;
+                    if (options.oneofs)
+                        object._snapshot_id = "snapshot_id";
+                }
+                if (message.domain != null && $Object.hasOwnProperty.call(message, "domain")) {
+                    object.domain = message.domain;
+                    if (options.oneofs)
+                        object._domain = "domain";
+                }
+                if (message.rows && message.rows.length) {
+                    object.rows = $Array(message.rows.length);
+                    for (let j = 0; j < message.rows.length; ++j)
+                        object.rows[j] = $root.google.protobuf.Struct.toObject(message.rows[j], options, _depth + 1);
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.limit = typeof message.limit === "number" ? $BigInt(message.limit) : $util.Long.fromBits(message.limit.low >>> 0, message.limit.high >>> 0, false).toBigInt();
+                    else if (typeof message.limit === "number")
+                        object.limit = options.longs === $String ? $String(message.limit) : message.limit;
+                    else
+                        object.limit = options.longs === $String ? $util.Long.prototype.toString.call(message.limit) : options.longs === $Number ? new $util.LongBits(message.limit.low >>> 0, message.limit.high >>> 0).toNumber() : message.limit;
+                    if (options.oneofs)
+                        object._limit = "limit";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CatalogRows to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.CatalogRows
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CatalogRows.prototype.toJSON = function() {
+                return CatalogRows.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CatalogRows
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.CatalogRows
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CatalogRows.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.CatalogRows";
+            };
+
+            return CatalogRows;
+        })();
+
         return data_hub;
     })();
 

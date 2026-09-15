@@ -50,6 +50,16 @@ class PublishedDatasets:
             raise ValueError("restore is incomplete; refuse application startup")
         return cls(root, usages=usages)
 
+    def contract_snapshot(self, snapshot_id: str) -> dict[str, Any]:
+        from .contract_data.snapshots import load
+
+        return load(self.root, snapshot_id)
+
+    def contract_rows(self, snapshot_id: str, **query: Any) -> dict[str, Any]:
+        from .contract_data.snapshot_reading import query as read
+
+        return read(self.root, snapshot_id, **query)
+
     def publish(self, dataset: ResearchDataset) -> None:
         if dataset.details is None:
             raise ValueError("publication requires verified source and quality evidence")

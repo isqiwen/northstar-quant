@@ -93,11 +93,11 @@ not publish their remaining good rows.
 
 ## Complete retired-contract catalog
 
-Data Hub discovery and Research handoff require a contract package membership.
+Data Hub discovery and Research handoff require a contract snapshot membership.
 A validated supplier response alone is private processing evidence. Installed
-browser fixtures may explicitly pin synthetic package facts to exercise readers;
-never interpret those facts as supplier lifecycle acceptance. Verify package hash
-and deterministic reconstruction in joint backup/restore. Real admission must
+browser fixtures may explicitly pin synthetic snapshot facts to exercise readers;
+never interpret those facts as supplier lifecycle acceptance. Verify manifest and partition hashes
+and exact-byte restoration in joint backup/restore. Real admission must
 show verified listing/last-trading/last-delivery dates and all type-applicable required dataset completeness;
 unknown historical sessions or applicability keep publication blocked.
 
@@ -149,7 +149,7 @@ no-candidate case; LIMIT alone does not bound a join's scanned rows.
 
 
 For type-policy changes, exercise the same `contract_data.requirements` decision
-through planning, authenticated review and package input selection. Test DCE V_F
+through planning, authenticated review and snapshot input selection. Test DCE V_F
 with matching monthly-average/cash metadata, physical V, CFFEX stock-index/bond,
 INE EC and conflicting/unknown metadata. Missing warehouse for cash/bond types
 must not block; missing minute/settlement or UNKNOWN applicability must still block.
@@ -161,3 +161,15 @@ Data Hub writers before schema/files deletion, preserve authentication/token/sto
 identity, recreate btree_gist with the administrator and verify an empty baseline
 before enabling collection. Verify oldest eligible lifecycle and new attempt times;
 metadata discovery alone does not prove historical downloads have restarted.
+
+
+For domain catalog changes, use test_contract_snapshots.py and the authenticated
+standard-catalog drawer in check_browser.py. Remove private source files only in
+a disposable fixture and verify the fixed read still works; corrupt a referenced
+partition and require refusal. A new file in the same Hive partition must not
+change an old snapshot. Backup must pin normalized Parquet and manifest bytes,
+not rerun an encoder to reconstruct old hashes. Keep raw sources private, contract
+admission separate from physical partitioning, and unknown time/fee/identity
+semantics explicit. Renamed schema columns require the current baseline; do not
+introduce a fallback reader. Any reset or empty-baseline transition must retain
+workspace authentication and verify no collector resumed before deployment.

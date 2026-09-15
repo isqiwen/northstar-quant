@@ -86,10 +86,10 @@ def published(postgres_engine, clean_database, tmp_path, monkeypatch):
     return library, response
 
 
-def publish_read_fixture(library):
+def publish_read_fixture(library, *, latest_only=False):
     # Synthetic already-admitted publication facts for reader/restore regression.
     # This does not exercise or establish supplier whole-contract admission.
-    from northstar_quant.data_management.contract_data.packages import write_package
+    from northstar_quant.data_management.contract_data.snapshots import write_snapshot
     from northstar_quant.data_management.publications import PublishedDatasets
     from northstar_quant.data_management.tushare.store import serial
 
@@ -103,6 +103,8 @@ def publish_read_fixture(library):
             ORDER BY j.dataset,r.receipt_id""")
             ).mappings()
         ]
+        if latest_only:
+            inputs = sorted(inputs, key=lambda r: r["created_at"])[-1:]
         if not inputs:
             return
         manifest = dict(
@@ -112,17 +114,17 @@ def publish_read_fixture(library):
             product="RB",
             inputs=inputs,
         )
-        artifact = write_package(
+        artifact = write_snapshot(
             PublishedDatasets.from_environment().root, manifest, library._files
         )
         c.execute(
             text("""INSERT INTO data_contract_publications
-            (publication_id,scope,manifest,package_hash,package_bytes,path)
+            (publication_id,scope,manifest,manifest_hash,manifest_bytes,path)
             VALUES(:id,'RB2610.SHF',CAST(:manifest AS jsonb),:hash,:bytes,:path)
             ON CONFLICT DO NOTHING"""),
             dict(
                 id=artifact["publication_id"],
-                manifest=json.dumps(manifest),
+                manifest=json.dumps(artifact["manifest"]),
                 hash=artifact["sha256"],
                 bytes=artifact["bytes"],
                 path=artifact["path"],
@@ -478,5 +480,37 @@ def test_ordinary_reader_rejects_missing_or_modified_contract_package(published)
     with pytest.raises(ValueError, match="完整性检查失败"):
         query(library._engine, **values)
     package.unlink()
-    with pytest.raises(ValueError, match="发布包丢失"):
+    with pytest.raises(ValueError, match="快照目录文件丢失"):
         query(library._engine, **values)
+
+
+def test_standard_catalog_api_reads_fixed_domain_columns(published):
+    from northstar_quant.apps.data_hub.application import create_app
+    from tests.apps.browser import ProtocolClient
+    from tests.data_management.test_tushare import login_response
+
+    library, _ = published
+    with library._engine.connect() as c:
+        snapshot_id = c.scalar(
+            text(
+                "SELECT publication_id FROM data_contract_publications "
+                "ORDER BY created_at DESC LIMIT 1"
+            )
+        )
+    with ProtocolClient(
+        create_app(library._engine, library), base_url="http://127.0.0.1"
+    ) as client:
+        csrf = login_response(client).json()["csrf"]
+        client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
+        detail = client.get(f"/api/catalog/snapshots/{snapshot_id}")
+        assert detail.status_code == 200, detail.text
+        domains = [r["domain"] for r in detail.json()["files"]]
+        domain = next(d for d in domains if d.startswith("market/futures/contracts/"))
+        result = client.post(
+            f"/api/catalog/snapshots/{snapshot_id}/query",
+            json=dict(domain=domain, contract="RB2610", start="", end="", offset=0, limit=200),
+        )
+        assert result.status_code == 200, result.text
+        assert result.json()["total"] > 0
+        assert "volume" in result.json()["rows"][0]
+        assert "ts_code" not in result.json()["rows"][0]

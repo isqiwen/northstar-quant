@@ -346,6 +346,32 @@ export type PrepareResearchRequest = {
 export type AssembleResearchRequest = {
   snapshot_ids: (string)[];
 };
+export type CatalogSnapshot = {
+  snapshot_id: string;
+  exchange: string;
+  product: string;
+  contract: string;
+  files?: (Record<string, JsonValue>)[];
+  reference: Record<string, JsonValue>;
+  time_basis: string;
+  fee_basis: string;
+};
+export type CatalogQuery = {
+  domain: string;
+  contract: string;
+  start: string;
+  end: string;
+  offset: number;
+  limit: number;
+};
+export type CatalogRows = {
+  snapshot_id: string;
+  domain: string;
+  rows?: (Record<string, JsonValue>)[];
+  total: number;
+  offset: number;
+  limit: number;
+};
 export type Empty = {
 };
 export type Error = {

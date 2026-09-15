@@ -408,7 +408,42 @@ message AssembleResearchRequest {
   repeated string snapshot_ids = 1 [(northstar.web.required_field) = true];
 }
 
+message CatalogSnapshot {
+ optional string snapshot_id = 1 [(northstar.web.required_field) = true];
+ optional string exchange = 2 [(northstar.web.required_field) = true];
+ optional string product = 3 [(northstar.web.required_field) = true];
+ optional string contract = 4 [(northstar.web.required_field) = true];
+ repeated google.protobuf.Struct files = 5;
+ optional google.protobuf.Struct reference = 6 [(northstar.web.required_field) = true];
+ optional string time_basis = 7 [(northstar.web.required_field) = true];
+ optional string fee_basis = 8 [(northstar.web.required_field) = true];
+}
+message CatalogQuery {
+ optional string domain = 1 [(northstar.web.required_field) = true];
+ optional string contract = 2 [(northstar.web.required_field) = true];
+ optional string start = 3 [(northstar.web.required_field) = true];
+ optional string end = 4 [(northstar.web.required_field) = true];
+ optional int64 offset = 5 [(northstar.web.required_field) = true];
+ optional int64 limit = 6 [(northstar.web.required_field) = true];
+}
+message CatalogRows {
+ optional string snapshot_id = 1 [(northstar.web.required_field) = true];
+ optional string domain = 2 [(northstar.web.required_field) = true];
+ repeated google.protobuf.Struct rows = 3;
+ optional int64 total = 4 [(northstar.web.required_field) = true];
+ optional int64 offset = 5 [(northstar.web.required_field) = true];
+ optional int64 limit = 6 [(northstar.web.required_field) = true];
+}
+
 service BrowserApi {
+ rpc DescribeCatalogSnapshot(northstar.web.Empty) returns (CatalogSnapshot) {
+  option (northstar.web.http_method) = "GET";
+  option (northstar.web.http_path) = "/api/catalog/snapshots/{snapshot_id}";
+ }
+ rpc QueryCatalogSnapshot(CatalogQuery) returns (CatalogRows) {
+  option (northstar.web.http_method) = "POST";
+  option (northstar.web.http_path) = "/api/catalog/snapshots/{snapshot_id}/query";
+ }
   rpc AssembleResearch (AssembleResearchRequest) returns (DatasetDetails) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/research-inputs/assemble";

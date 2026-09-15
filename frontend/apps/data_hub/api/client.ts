@@ -5,8 +5,9 @@ import type { Query } from "../../../shared/data";
 import protocol from "./protocol.json";
 import codec from "./codec";
 registerProtocol(protocol, codec);
-export type GetPath = `/api/explorer/compactions/${string}` | `/api/datasets/${string}/lineage` | `/api/publications/${string}` | `/api/sync/receipts/${string}` | `/api/sync/jobs/${string}` | `/api/datasets/${string}` | `/api/attempts/${string}` | `/api/explorer/compactions` | `/api/sources/${string}` | `/api/processing/status` | `/api/browser-session` | `/api/publications` | `/api/rejections` | `/api/explorer` | `/api/attempts` | `/api/datasets` | `/api/sources` | `/api/sync`;
+export type GetPath = `/api/explorer/compactions/${string}` | `/api/catalog/snapshots/${string}` | `/api/datasets/${string}/lineage` | `/api/publications/${string}` | `/api/sync/receipts/${string}` | `/api/sync/jobs/${string}` | `/api/datasets/${string}` | `/api/attempts/${string}` | `/api/explorer/compactions` | `/api/sources/${string}` | `/api/processing/status` | `/api/browser-session` | `/api/publications` | `/api/rejections` | `/api/explorer` | `/api/attempts` | `/api/datasets` | `/api/sources` | `/api/sync`;
 export type GetResponse<P> = P extends `/api/explorer/compactions/${string}` ? messages.Compaction :
+P extends `/api/catalog/snapshots/${string}` ? messages.CatalogSnapshot :
 P extends `/api/datasets/${string}/lineage` ? messages.DatasetLineage :
 P extends `/api/publications/${string}` ? messages.PublicationManifest :
 P extends `/api/sync/receipts/${string}` ? messages.SyncEvidence :
@@ -24,9 +25,10 @@ P extends `/api/attempts` ? messages.GetApiAttemptsResponse :
 P extends `/api/datasets` ? messages.GetApiDatasetsResponse :
 P extends `/api/sources` ? messages.GetApiSourcesResponse :
 P extends `/api/sync` ? messages.SyncStatus : never;
-export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/research-inputs/assemble` | `/api/sync/contracts/review` | `/api/explorer/compactions` | `/api/sync/contracts/query` | `/api/explorer/instrument` | `/api/explorer/available` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/research-inputs` | `/api/explorer/export` | `/api/explorer/select` | `/api/sync/jobs/query` | `/api/explorer/query` | `/api/explorer/chart` | `/api/sync/reprocess` | `/api/explorer/open` | `/api/sync/settings` | `/api/sync/token` | `/api/logout` | `/api/setup` | `/api/login`;
+export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/catalog/snapshots/${string}/query` | `/api/research-inputs/assemble` | `/api/sync/contracts/review` | `/api/explorer/compactions` | `/api/sync/contracts/query` | `/api/explorer/instrument` | `/api/explorer/available` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/research-inputs` | `/api/explorer/export` | `/api/explorer/select` | `/api/sync/jobs/query` | `/api/explorer/query` | `/api/explorer/chart` | `/api/sync/reprocess` | `/api/explorer/open` | `/api/sync/settings` | `/api/sync/token` | `/api/logout` | `/api/setup` | `/api/login`;
 export type CommandResponse<P> = P extends `/api/explorer/compactions/${string}/export` ? messages.ExplorerRows :
 P extends `/api/explorer/compactions/${string}/query` ? messages.ExplorerRows :
+P extends `/api/catalog/snapshots/${string}/query` ? messages.CatalogRows :
 P extends `/api/research-inputs/assemble` ? messages.DatasetDetails :
 P extends `/api/sync/contracts/review` ? messages.ContractReview :
 P extends `/api/explorer/compactions` ? messages.Compaction :
@@ -52,6 +54,7 @@ P extends `/api/setup` ? messages.BrowserSession :
 P extends `/api/login` ? messages.BrowserSession : never;
 export type CommandBody<P> = P extends `/api/explorer/compactions/${string}/export` ? messages.CompactionPage :
 P extends `/api/explorer/compactions/${string}/query` ? messages.CompactionPage :
+P extends `/api/catalog/snapshots/${string}/query` ? messages.CatalogQuery :
 P extends `/api/research-inputs/assemble` ? messages.AssembleResearchRequest :
 P extends `/api/sync/contracts/review` ? messages.ContractReviewRequest :
 P extends `/api/explorer/compactions` ? messages.CompactionRequest :
