@@ -289,7 +289,13 @@ def main() -> None:
                     review = page.get_by_role("dialog", name="合约全生命周期验收", exact=True)
                     expect(review.get_by_text("按合约类型核验必需数据", exact=True)).to_be_visible()
                     expect(review.get_by_text("每日结算参数", exact=True)).to_be_visible()
-                    expect(review.get_by_text("整体验收待核验", exact=True)).to_be_visible()
+                    # This fixture has no speculative margin values. Actual row
+                    # review must explain that failure instead of a placeholder.
+                    settlement_row = review.get_by_role("row").filter(has_text="每日结算参数")
+                    expect(settlement_row.get_by_text("存在异常", exact=True)).to_be_visible()
+                    expect(
+                        settlement_row.get_by_text("缺少 long_margin_rate", exact=False)
+                    ).to_be_visible()
                     expect(review.get_by_text("上市 / 最后交易日", exact=True)).to_be_visible()
                     expect(review.get_by_text("交割月份 / 最后交割日", exact=True)).to_be_visible()
                     expect(

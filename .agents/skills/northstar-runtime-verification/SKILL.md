@@ -206,3 +206,20 @@ check to VERIFIED. Supplier-declared history bounds are not proof that every
 product is covered from that date; preserve listing history before the search floor.
 When a reset is conditional on finishing repairs, unresolved positive admission
 is not permission to wipe early. Report exact data/proof gaps and deployment state.
+
+
+## Project Tushare MCP diagnostics
+
+The local project `.codex/config.toml` may configure `tushareMcp`; its credential
+URL is private, mode 0600, and excluded through `.git/info/exclude`. Never print
+or commit that configuration. Discover tools before claiming coverage: on
+2026-09-15 the authenticated endpoint `/mcp/?token=...` returned 253 tools,
+with 17 futures/calendar tools enabled locally. Initialize and list tools first,
+then validate a bounded historical read. New project configuration is not proof
+that an existing Codex session has loaded its tools.
+
+MCP diagnostic results are fresh supplier observations, not original response
+history or contract publication evidence. Data Hub collection continues through
+its owned durable queue, quota control and retained source/receipt pipeline.
+The observed MCP ft_mins description did not establish historical bar labels or
+zero-volume rules. Do not treat another transport as evidence of complete data.
