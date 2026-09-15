@@ -1,9 +1,4 @@
-"""Detect missing trading days without claiming an unverified intraday grid.
-
-SHFE first introduced night trading on 2013-07-05. Before that date, timestamp
-calendar dates can be compared with daily observations without guessing night-day
-assignment. Later periods require a separately evidenced historical session map.
-"""
+"""Detect missing trading days without claiming an unverified intraday grid."""
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -15,20 +10,25 @@ from ..files import SourceFiles
 from .record_review import EvidenceUnavailable, fixed_rows
 
 REFERENCE = "https://www.shfe.com.cn/docview/docview_35218417.htm"
+DCE_REFERENCE = "https://www.dce.com.cn/dalianshangpin/resource/cms/2019/04/2019042612023697006.pdf"
 
 
 def inspect(
     c: Connection, scope: str, exchange: str, dataset: str, start: date, end: date
 ) -> dict[str, Any]:
-    evidence: dict[str, Any] = dict(
-        rule="shfe-day-session-presence/1", reference=REFERENCE, grid_verified=False
-    )
+    evidence: dict[str, Any] = dict(rule="day-session-presence/2", grid_verified=False)
     unresolved: dict[str, Any] = dict(
         status="RECEIVED",
         reason="尚缺供应商历史分钟标签、无成交分钟政策和逐时段规则；不能判定全部分钟完整",
         evidence=evidence,
     )
-    if exchange != "SHFE" or end >= date(2013, 7, 5):
+    if exchange == "SHFE" and end < date(2013, 7, 5):
+        evidence["reference"] = REFERENCE
+    elif exchange == "DCE" and end < date(2014, 7, 1):
+        # The exchange's March 2019 report dates its first night products to
+        # July 2014. Use the conservative month boundary, not a guessed first day.
+        evidence["reference"] = DCE_REFERENCE
+    else:
         return unresolved
     inputs = (
         c.execute(
@@ -49,6 +49,7 @@ def inspect(
     traded: set[date] = set()
     minute_days: set[date] = set()
     records = 0
+    labels: dict[date, set[str]] = {}
     try:
         files = SourceFiles.from_environment()
         for item in inputs:
@@ -67,6 +68,7 @@ def inspect(
                     day = datetime.fromisoformat(row["trade_time"]).date()
                     if start <= day <= end:
                         minute_days.add(day)
+                        labels.setdefault(day, set()).add(row["trade_time"])
                         records += 1
     except (ValueError, KeyError, OSError) as error:
         return dict(status="UNKNOWN", reason=f"分钟覆盖证据不可读取：{error}", evidence=evidence)
@@ -75,6 +77,9 @@ def inspect(
         observed_records=records,
         daily_traded_days=len(traded),
         minute_days=len(minute_days),
+        distinct_records=sum(len(values) for values in labels.values()),
+        min_labels_per_day=min((len(values) for values in labels.values()), default=0),
+        max_labels_per_day=max((len(values) for values in labels.values()), default=0),
         missing_dates=[d.isoformat() for d in missing[:20]],
     )
     if missing:

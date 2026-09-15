@@ -253,10 +253,21 @@ def test_missing_fixed_file_is_not_a_data_rejection_or_cleanup_permission(automa
 
 
 @pytest.mark.parametrize(
-    "dataset,missing",
-    [("limits", False), ("limits", True), ("settlement", False), ("settlement", True)],
+    "dataset,field,value,valid",
+    [
+        ("limits", "m_ratio", 10, True),
+        ("limits", "m_ratio", None, True),
+        ("limits", "m_ratio", -1, False),
+        ("limits", "up_limit", None, False),
+        ("limits", "down_limit", None, False),
+        ("settlement", "long_margin_rate", 0.1, True),
+        ("settlement", "long_margin_rate", None, False),
+        ("settlement", "short_margin_rate", None, False),
+    ],
 )
-def test_complete_daily_terms_require_actual_values(automatic, monkeypatch, dataset, missing):
+def test_complete_daily_terms_require_actual_values(
+    automatic, monkeypatch, dataset, field, value, valid
+):
     from northstar_quant.data_management.tushare import planning
 
     lifetime(automatic, end="20260901")
@@ -271,7 +282,7 @@ def test_complete_daily_terms_require_actual_values(automatic, monkeypatch, data
         )
     row = dict(ts_code="RB2610.SHF", trade_date="20260901")
     if dataset == "limits":
-        row.update(up_limit=3500, down_limit=2800, m_ratio=None if missing else 10)
+        row.update(up_limit=3500, down_limit=2800, m_ratio=10)
     else:
         from northstar_quant.data_management.tushare.catalog import BY_KEY
 
@@ -281,15 +292,30 @@ def test_complete_daily_terms_require_actual_values(automatic, monkeypatch, data
             settle=3100,
             trading_fee_rate=0.1,
             trading_fee=0,
-            long_margin_rate=None if missing else 10,
-            short_margin_rate=10,
+            long_margin_rate=0.1,
+            short_margin_rate=0.1,
         )
+    row[field] = value
     payload = json.dumps(dict(code=0, data=dict(fields=list(row), items=[list(row.values())])))
     monkeypatch.setattr(acquisition, "fetch", lambda *a: payload.encode())
     assert jobs.process_next(automatic)["status"] == "VALIDATED"
     result = review(automatic._engine, "RB2610.SHF")
     found = {r["dataset"]: r for r in result["requirements"]}
-    assert found[dataset]["status"] == ("INVALID" if missing else "VERIFIED")
+    assert found[dataset]["status"] == ("VERIFIED" if valid else "INVALID")
+    if dataset == "limits" and field == "m_ratio" and value is None:
+        assert found[dataset]["evidence"]["optional_unknown_fields"]["m_ratio"]["count"] == 1
+        from northstar_quant.data_management.contract_data.record_review import fixed_rows
+
+        with automatic._engine.connect() as c:
+            item = (
+                c.execute(
+                    text("""SELECT r.*,j.dataset,j.scope,j.parameters,j.start_at,j.end_at
+                FROM data_sync_receipts r JOIN data_sync_jobs j ON r.receipt_id=j.receipt_id""")
+                )
+                .mappings()
+                .one()
+            )
+            assert next(fixed_rows(automatic._files, dict(item)))["m_ratio"] is None
     assert not result["admitted"]
 
 

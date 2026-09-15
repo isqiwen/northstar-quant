@@ -9,7 +9,7 @@ from typing import Any
 
 from sqlalchemy import Connection, Engine, text
 
-from ..contract_data import minute_review, record_review
+from ..contract_data import minute_review, record_review, weekly_review
 from ..contract_data.lifecycle import completed, describe
 from ..contract_data.requirements import classify, record_checks, requirement
 from ..exploration.instruments import display_name
@@ -97,7 +97,13 @@ def review_connection(c: Connection, scope: str) -> dict[str, Any]:
         item = _requirement(c, dataset, scopes, start, end, scope)
         item.update(applicability=rule.applicability, reference=rule.reference)
         if item["status"] == "RECEIVED":
-            if calendar_complete and dataset.key in record_review.SUPPORTED:
+            if calendar_complete and dataset.key == "weekly_detail":
+                item.update(
+                    weekly_review.verify(
+                        c, scope, contract["exchange"], contract["product"], start, end
+                    )
+                )
+            elif calendar_complete and dataset.key in record_review.SUPPORTED:
                 item.update(
                     record_review.verify(c, scope, contract["exchange"], dataset.key, start, end)
                 )
@@ -236,8 +242,8 @@ def _requirement(
                 reason=(
                     f"{scope} 从 {cursor} 起尚无连续已校验响应；不能据此确认源端缺失"
                     + (
-                        "。Tushare 公布结算参数从 2012-01 开始；此前生命周期超出其声明范围，"
-                        "不能期待重试补齐，也不能缩短合约历史"
+                        "。Tushare 概述声明结算参数从 2012-01 开始，但已观察到更早的品种记录；"
+                        "须按本合约实际响应核查，不能据概述判定此前永久缺失或缩短合约历史"
                         if dataset.key == "settlement" and cursor < date(2012, 1, 1)
                         else ""
                     )

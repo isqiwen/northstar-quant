@@ -200,12 +200,29 @@ Storage/receipt corruption stays UNKNOWN rather than rejecting a contract and
 triggering source cleanup. Week/month API requests must include the final period
 label even when the real contract ends earlier; do not shorten a weekend endpoint
 back to Friday and introduce gaps into the request union. Keep metadata expiry fixed.
-SHFE pre-2013-07-05 daily/minute date comparison can detect an entirely missing
+SHFE pre-2013-07-05 and DCE pre-2014-07-01 daily/minute date comparison can detect an entirely missing
 traded day, but cannot prove a complete intraday grid. Never promote that partial
 check to VERIFIED. Supplier-declared history bounds are not proof that every
 product is covered from that date; preserve listing history before the search floor.
 When a reset is conditional on finishing repairs, unresolved positive admission
 is not permission to wipe early. Report exact data/proof gaps and deployment state.
+
+For native product weekly reports, run test_product_weekly_review.py. Historical
+week identifiers mix five/six digits and can differ from ISO weeks. Use the planned
+native-year envelopes and actual week_date; never reconstruct an absent date from
+the identifier. Verify conflicting reports, missing weeks, missing dates, malformed
+dates and wrong products independently. Day splitting of these envelopes repeats
+the same request and must not create a self-linked retry. Supplier year envelopes
+are collection bounds, not evidence that every expected report exists.
+
+The current user-approved margin policy requires daily long/short settlement margin
+rates, but permits a null ft_limit m_ratio. Preserve null values and bounded unknown
+field diagnostics; never fill them from a different margin concept. Non-null invalid
+m_ratio and missing daily price limits remain failures. Supplier summary history
+floors are not hard absence evidence: live DCE settlement rows preceded 2012.
+When native minute totals disagree with daily data, compare a bounded fresh raw
+response before blaming normalization. Keep diagnostics separate from original
+provenance and do not rescale volume or replace one native period with another.
 
 
 ## Project Tushare MCP diagnostics

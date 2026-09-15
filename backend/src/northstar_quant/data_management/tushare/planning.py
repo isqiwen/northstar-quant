@@ -204,6 +204,20 @@ def plan(engine: Engine) -> None:
                     continue
                 if dataset.scope in ("catalog", "calendar"):
                     continue
+                if dataset.key == "weekly_detail":
+                    # Historical supplier week identifiers are neither consistently
+                    # zero-padded nor ISO weeks. Read bounded native-year envelopes;
+                    # record review uses week_date, never a guessed ISO conversion.
+                    for year in range(start.year, end.year + 1):
+                        _window(
+                            connection,
+                            dataset.key,
+                            contract,
+                            date(year, 1, 1),
+                            date(year, 12, 31),
+                            owner=contract["ts_code"],
+                        )
+                    continue
                 window_start, window_end = start, end
                 # Calendar-month shards stay fixed. The open month uses daily shards,
                 # so the current cycle's endpoint never grows underneath a running task.
@@ -270,8 +284,9 @@ def _window(
         params = {
             "exchange": contract["exchange"],
             "prd": contract["product"],
-            "start_week": start.strftime("%G%V"),
-            "end_week": end.strftime("%G%V"),
+            "start_week": f"{start.year}00",
+            # Some year-start report identifiers label the preceding December.
+            "end_week": f"{end.year + 1}99",
         }
     identity = enqueue(connection, key, scope, params, start.isoformat(), end.isoformat())
     _link(connection, owner, identity)
@@ -287,6 +302,11 @@ def _link(connection: Connection, owner: str, identity: str | None) -> None:
 
 
 def split(connection: Connection, job: dict[str, Any]) -> bool:
+    if job["dataset"] == "weekly_detail":
+        # Splitting calendar days would reproduce the same native-year query and
+        # can link a truncated parent to itself. One product/two years is already
+        # bounded well below this API's 4000-row limit; overflow needs diagnosis.
+        return False
     start, end = date.fromisoformat(job["start_at"]), date.fromisoformat(job["end_at"])
     if start >= end:
         return False
@@ -295,8 +315,6 @@ def split(connection: Connection, job: dict[str, Any]) -> bool:
         params = dict(job["parameters"])
         if BY_KEY[job["dataset"]].api == "ft_mins":
             params.update(start_date=f"{a} 00:00:00", end_date=f"{b} 23:59:59")
-        elif BY_KEY[job["dataset"]].api == "fut_weekly_detail":
-            params.update(start_week=a.strftime("%G%V"), end_week=b.strftime("%G%V"))
         else:
             params.update(start_date=a.strftime("%Y%m%d"), end_date=b.strftime("%Y%m%d"))
         child = enqueue(

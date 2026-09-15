@@ -11,7 +11,7 @@ from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/12"
+RULE = "tushare-response/13"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
@@ -84,7 +84,7 @@ def _minute(value: Any) -> datetime:
 
 def _observed(raw: dict[str, Any]) -> dict[str, Any]:
     result: dict[str, Any] = {}
-    for name in ("trade_time", "trade_date", "end_date"):
+    for name in ("trade_time", "trade_date", "end_date", "week_date"):
         value = raw.get(name)
         if isinstance(value, str) and re.fullmatch(r"[0-9 :\-]{8,19}", value):
             result[name] = value
@@ -220,6 +220,14 @@ def _row(row: dict[str, Any], job: dict[str, Any]) -> tuple[tuple[str, ...], dic
     for field in ("ts_code", "exchange"):
         if field in parameters and field in row and row[field] != parameters[field]:
             raise InvalidResponse("返回的合约或交易所不属于请求范围", fields=(field,))
+    if job["dataset"] == "weekly_detail":
+        if row.get("prd") != parameters.get("prd"):
+            raise InvalidResponse("返回的周报品种不属于请求范围", fields=("prd",))
+        if row.get("week_date") is not None:
+            try:
+                _date(row["week_date"])
+            except InvalidResponse as error:
+                raise InvalidResponse(str(error), fields=("week_date",)) from error
     clock = row.get("trade_time", row.get("cal_date", row.get("trade_date")))
     if clock is not None:
         clock_field = (

@@ -12,9 +12,10 @@ def observe(connection: Connection, job: dict[str, Any], rows: list[dict[str, An
     days = []
     for row in rows:
         value = row.get("trade_time", row.get("cal_date", row.get("trade_date")))
-        if value is None and row.get("week"):
-            # A weekly statistic identifies a period, not an exact observation day.
-            value = datetime.strptime(str(row["week"]) + "1", "%G%V%u").strftime("%Y%m%d")
+        if value is None:
+            # Native week identifiers have mixed widths and historical offsets.
+            # A missing report date cannot be reconstructed from an ISO week.
+            value = row.get("week_date")
         if value is None:
             # Catalogs describe instrument lifetimes, not historical observations.
             continue

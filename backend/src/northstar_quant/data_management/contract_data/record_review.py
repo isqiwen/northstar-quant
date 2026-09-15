@@ -16,7 +16,7 @@ from sqlalchemy import Connection, text
 
 from ..files import SourceFiles
 
-RULE = "contract-records/1"
+RULE = "contract-records/2"
 
 
 class EvidenceUnavailable(ValueError):
@@ -69,6 +69,7 @@ def verify(
         execution_admission=False,
     )
     rows: dict[date, dict[str, Any]] = {}
+    unknown_margin_dates: set[date] = set()
     files = SourceFiles.from_environment()
     try:
         for item in inputs:
@@ -89,13 +90,26 @@ def verify(
                             f"{label} 计算截至 {cutoff}，未覆盖应有最后交易日 {required}"
                         )
                 _fields(row, dataset, label)
+                if dataset == "limits" and row.get("m_ratio") is None:
+                    unknown_margin_dates.add(label)
                 previous = rows.get(key)
                 if previous is not None and previous != row:
                     raise ValueError(f"{label} 多份固定响应含冲突记录")
                 rows[key] = row
         missing = sorted(periods - rows.keys())
         evidence.update(
-            actual_records=len(rows), missing_dates=[d.isoformat() for d in missing[:20]]
+            actual_records=len(rows),
+            missing_dates=[d.isoformat() for d in missing[:20]],
+            optional_unknown_fields=(
+                {
+                    "m_ratio": {
+                        "count": len(unknown_margin_dates),
+                        "dates": [d.isoformat() for d in sorted(unknown_margin_dates)[:20]],
+                    }
+                }
+                if unknown_margin_dates
+                else {}
+            ),
         )
         if missing:
             return dict(
@@ -114,7 +128,13 @@ def verify(
         status="VERIFIED",
         reason=(
             f"已逐条核对 {len(rows)} 个交易日/原生周期，日期齐全、身份及必需字段有效；"
-            "不代表回测准入"
+            + (
+                f"最低保证金率 {len(unknown_margin_dates)} 日未知，未填充；"
+                "每日多空保证金率由结算参数单独必检；"
+                if unknown_margin_dates
+                else ""
+            )
+            + "不代表回测准入"
         ),
         evidence=evidence,
     )
@@ -182,7 +202,8 @@ def _fields(row: dict[str, Any], dataset: str, label: date) -> None:
     elif dataset == "limits":
         if number("up_limit", positive=True) < number("down_limit", positive=True):
             raise ValueError(f"{label} 涨跌停价格倒置")
-        number("m_ratio", positive=True)
+        if row.get("m_ratio") is not None:
+            number("m_ratio", positive=True)
     else:
         volume = number("vol")
         if volume == 0:
