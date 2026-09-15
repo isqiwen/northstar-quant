@@ -13,6 +13,7 @@ def initialize(connection: Connection) -> None:
             singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),
             revision bigint NOT NULL DEFAULT 1,
             enabled boolean NOT NULL DEFAULT false,
+            selected_products text[] NOT NULL DEFAULT '{}',
             lookback integer NOT NULL DEFAULT 5 CHECK(lookback BETWEEN 1 AND 30),
             requests_per_minute integer NOT NULL DEFAULT 500 CHECK(requests_per_minute BETWEEN
                 1 AND 500),

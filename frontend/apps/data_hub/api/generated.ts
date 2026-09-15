@@ -142,6 +142,8 @@ export type ContractReview = {
 export type SyncSettingsRequest = {
   revision: number;
   enabled: boolean;
+  products?: (string)[];
+  retry_skipped?: boolean;
 };
 export type SyncReprocessRequest = {
   request_id: string;

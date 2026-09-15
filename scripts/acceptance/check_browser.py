@@ -177,7 +177,7 @@ def main() -> None:
                 )
                 with app.web("data-api") as data_url:
                     visit(data_url + "/sync")
-                    expect(page.get_by_role("heading", name="Tushare 自动同步")).to_be_visible()
+                    expect(page.get_by_role("heading", name="按品种下载")).to_be_visible()
                     expect(page.get_by_text("合约接纳与发布进度", exact=True)).to_be_visible()
                     expect(page.get_by_text("合约数据与进度", exact=True)).to_be_visible()
                     expect(page.get_by_text("内部采集记录", exact=True)).to_have_count(0)
@@ -197,8 +197,11 @@ def main() -> None:
                     page.reload()
                     page.get_by_text("采集设置与目录信息", exact=True).click()
                     expect(page.get_by_label("Tushare token", exact=True)).to_have_value("")
-                    page.get_by_role("button", name="开始同步全部数据", exact=True).click()
-                    expect(page.get_by_text("已启用", exact=True)).to_be_visible()
+                    expect(
+                        page.get_by_role("button", name="探查并下载所选品种", exact=True)
+                    ).to_be_disabled()
+                    page.get_by_role("button", name="更新品种目录", exact=True).click()
+                    expect(page.get_by_text("仅更新目录", exact=True)).to_be_visible()
                     visit("about:blank")
                 # Both frontend and API have exited. Only the independent processor
                 # now owns completion; reopening the Web reads its durable outcome.
@@ -227,6 +230,25 @@ def main() -> None:
                 seed_settlement(app)
                 seed_series(app)
                 with app.web("data-api") as data_url:
+                    visit(data_url + "/sync")
+                    expect(
+                        page.get_by_role("button", name="探查并下载所选品种", exact=True)
+                    ).to_be_disabled()
+                    choose("下载品种", "螺纹钢")
+                    expect(
+                        page.get_by_role("button", name="探查并下载所选品种", exact=True)
+                    ).to_be_enabled()
+                    page.get_by_role("button", name="探查并下载所选品种", exact=True).click()
+                    expect(page.get_by_text("后台采集中", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="暂停", exact=True).click()
+                    expect(page.get_by_text("已暂停", exact=True)).to_be_visible()
+                    page.reload()
+                    expect(
+                        page.get_by_role("button", name="探查并下载所选品种", exact=True)
+                    ).to_be_enabled()
+                    page.get_by_role("button", name="探查并下载所选品种", exact=True).click()
+                    expect(page.get_by_text("后台采集中", exact=True)).to_be_visible()
+                    screenshot("product-selection")
                     visit(data_url)
                     expect(page.get_by_role("heading", name="期货数据工作台")).to_be_visible()
                     expect(page.get_by_text("已规划结束合约", exact=True)).to_be_visible()

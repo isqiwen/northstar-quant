@@ -62,7 +62,9 @@ def test_monthly_average_planning_and_review_use_same_policy(automatic):
             ),
             {"d": json.dumps(details)},
         )
-        c.execute(text("UPDATE data_sync_settings SET enabled=true"))
+        c.execute(
+            text("UPDATE data_sync_settings SET enabled=true,selected_products=ARRAY['DCE:V_F']")
+        )
     test_contract_review.test_tushare.calendar_for_planning(automatic, exchange="DCE")
     planning.plan(automatic._engine)
     with automatic._engine.connect() as c:

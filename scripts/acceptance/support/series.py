@@ -18,6 +18,7 @@ from northstar_quant.data_management.tushare import acquisition,jobs,planning
 engine=open_database()
 library=DataLibrary(engine,SourceFiles.from_environment())
 with engine.begin() as c:
+    c.execute(text("UPDATE data_sync_settings SET selected_products=ARRAY['SHFE:RB','NH:CU.NH']"))
     c.execute(text("UPDATE data_sync_jobs SET next_at=now()+interval '365 days' "
                    "WHERE status IN ('PENDING','WAITING')"))
     c.execute(text("INSERT INTO data_series_collections "
@@ -36,6 +37,8 @@ for day in ('20260901','20260902'):
     assert result['status']=='VALIDATED',result
     result=processing.process_next(engine,library._files)
     assert result['published']==1,result
+with engine.begin() as c:
+    c.execute(text("UPDATE data_sync_settings SET selected_products='{}'"))
 """
     result = subprocess.run(
         [str(Path(app.executable).parent / "python"), "-c", code],

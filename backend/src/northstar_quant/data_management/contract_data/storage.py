@@ -12,6 +12,7 @@ def initialize(c: Connection) -> None:
             status text NOT NULL DEFAULT 'COLLECTING'
                 CHECK(status IN ('COLLECTING','VERIFYING','REJECTED','PUBLISHED')),
             reason text,
+            discovery_complete boolean NOT NULL DEFAULT false,
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
         );

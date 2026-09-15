@@ -4,41 +4,67 @@ from typing import Any
 
 from sqlalchemy import Engine, text
 
-from ..contract_data.lifecycle import SEARCH_START
 from ..maintenance import library_write
 from . import credentials, job_query, scheduling
+from . import products as product_selection
 from .catalog import DATASETS
 from .store import serial, settings
 
 
-def configure(engine: Engine, *, revision: int, enabled: bool) -> dict[str, Any]:
+def configure(
+    engine: Engine,
+    *,
+    revision: int,
+    enabled: bool,
+    products: list[str] | None = None,
+    retry_skipped: bool = False,
+) -> dict[str, Any]:
     if enabled and not credentials.configured():
         raise ValueError("请先在页面保存 Tushare token")
     with library_write(engine), engine.begin() as connection:
+        if products is not None:
+            product_selection.validate(connection, products)
         updated = connection.execute(
             text("""UPDATE data_sync_settings SET
             revision=revision+1,enabled=:enabled,refresh_at=now(),
+            selected_products=COALESCE(CAST(:products AS text[]),selected_products),
             planned_at=NULL,error=NULL,updated_at=now()
             WHERE revision=:revision RETURNING revision"""),
             {
                 "revision": revision,
                 "enabled": enabled,
+                "products": products,
             },
         ).scalar_one_or_none()
         if updated is None:
             raise ValueError("设置已被另一页面修改，请刷新后重试")
-        connection.execute(
-            text(
-                "UPDATE data_sync_jobs SET status='PENDING',attempts=0,next_at=now() WHERE "
-                "status='BLOCKED'"
+        if enabled:
+            # Explicit restart may follow a changed token. Revisit API permission
+            # failures; the scheduler still prevents unselected data downloads.
+            connection.execute(
+                text("""UPDATE data_sync_jobs SET status='PENDING',
+                attempts=0,next_at=now() WHERE status='BLOCKED'
+                AND (error LIKE 'Tushare 权限不足%' OR dataset='contracts' OR EXISTS (
+                    SELECT 1 FROM data_contract_requests cr
+                    JOIN data_contract_collections w ON w.scope=cr.scope
+                    JOIN data_sync_contracts d ON d.ts_code=w.scope
+                    WHERE cr.request_id=data_sync_jobs.request_id
+                    AND w.status IN ('COLLECTING','VERIFYING')
+                    AND d.exchange || ':' || d.product=ANY(
+                        (SELECT selected_products FROM data_sync_settings)::text[])))""")
             )
-        )
+        if retry_skipped:
+            if not enabled or not products:
+                raise ValueError("重新探查需要选择品种并启动采集")
+            product_selection.retry(connection, products)
     return status(engine)
 
 
 def status(engine: Engine) -> dict[str, Any]:
     config = settings(engine)
     with engine.connect() as connection:
+        config["products"] = product_selection.catalog(connection)
+        config["origins"] = product_selection.origins(connection)
         config["history_end"], lanes = scheduling.progress(connection)
         rows = [
             serial(row)
@@ -53,11 +79,11 @@ def status(engine: Engine) -> dict[str, Any]:
         unplanned = connection.scalar(
             text(
                 "SELECT count(*) FROM data_sync_contracts WHERE kind='1' "
-                "AND details->>'delist_date'>=:floor "
+                "AND exchange || ':' || product=ANY(CAST(:products AS text[])) "
                 "AND details->>'last_ddate'<to_char(CURRENT_DATE,'YYYYMMDD') "
                 "AND (planned_revision<>:r OR planning_error IS NOT NULL)"
             ),
-            {"r": config["revision"], "floor": SEARCH_START.strftime("%Y%m%d")},
+            {"r": config["revision"], "products": config["selected_products"]},
         )
         config["catalog_ready"] = connection.scalar(
             text("""SELECT coalesce(bool_and(status='VALIDATED'),false)

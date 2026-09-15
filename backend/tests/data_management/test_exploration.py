@@ -33,6 +33,7 @@ def published(postgres_engine, clean_database, tmp_path, monkeypatch):
     with engine.begin() as c:
         c.execute(
             text("""UPDATE data_sync_settings SET enabled=true,revision=1,
+            selected_products=ARRAY['SHFE:RB'],
             refresh_at=now()+interval '1 day',api_next_at='{}',next_request_at=now()""")
         )
         c.execute(

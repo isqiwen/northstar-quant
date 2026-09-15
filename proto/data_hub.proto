@@ -186,6 +186,8 @@ message ContractReview {
 message SyncSettingsRequest {
   optional int64 revision = 1 [(northstar.web.required_field) = true];
   optional bool enabled = 2 [(northstar.web.required_field) = true];
+  repeated string products = 3;
+  optional bool retry_skipped = 4;
 }
 message SyncReprocessRequest {
   optional string request_id = 1 [(northstar.web.required_field) = true];

@@ -337,12 +337,16 @@ class ContractReview(_message.Message):
     def __init__(self, completeness: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., contract_type: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., scope: _Optional[str] = ..., display_name: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., listing_date: _Optional[str] = ..., last_trade_date: _Optional[str] = ..., required_end: _Optional[str] = ..., status: _Optional[str] = ..., admitted: _Optional[bool] = ..., requirements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., reasons: _Optional[_Iterable[str]] = ..., policy: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ..., last_delivery_date: _Optional[str] = ..., first_delivery_date: _Optional[str] = ..., delivery_month: _Optional[str] = ..., lifecycle_status: _Optional[str] = ..., lifecycle_reason: _Optional[str] = ...) -> None: ...
 
 class SyncSettingsRequest(_message.Message):
-    __slots__ = ("revision", "enabled")
+    __slots__ = ("revision", "enabled", "products", "retry_skipped")
     REVISION_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
+    PRODUCTS_FIELD_NUMBER: _ClassVar[int]
+    RETRY_SKIPPED_FIELD_NUMBER: _ClassVar[int]
     revision: int
     enabled: bool
-    def __init__(self, revision: _Optional[int] = ..., enabled: _Optional[bool] = ...) -> None: ...
+    products: _containers.RepeatedScalarFieldContainer[str]
+    retry_skipped: bool
+    def __init__(self, revision: _Optional[int] = ..., enabled: _Optional[bool] = ..., products: _Optional[_Iterable[str]] = ..., retry_skipped: _Optional[bool] = ...) -> None: ...
 
 class SyncReprocessRequest(_message.Message):
     __slots__ = ("request_id", "source_generation")

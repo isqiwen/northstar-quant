@@ -268,7 +268,7 @@ export function Explorer({
               ? "覆盖与质量"
               : "版本与来源"
         }
-        description="Tushare · 固定历史版本。筛选仅用于查看，不改变全部自动同步范围。"
+        description="Tushare · 固定历史版本。筛选仅用于查看，不改变已选品种的下载范围。"
         actions={
           <Space>
             {mode === "browse" && (

@@ -187,7 +187,11 @@ export function SyncContracts({
                       : "blue"
                 }
               >
-                {states[String(row.status)]}
+                {row.status === "COLLECTING" && !row.discovery_complete
+                  ? "探查历史覆盖"
+                  : row.status === "REJECTED" && !row.discovery_complete
+                    ? "探查未通过 / 已跳过"
+                    : states[String(row.status)]}
               </Tag>
             ),
           },

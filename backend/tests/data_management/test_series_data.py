@@ -18,6 +18,14 @@ automatic = test_tushare.automatic
 
 def enqueue(library, dataset, scope, *, day="2026-09-01", exchange="", product=""):
     with library._engine.begin() as c:
+        if dataset == "index":
+            c.execute(
+                text(
+                    "UPDATE data_sync_settings SET selected_products="
+                    "array_append(selected_products,:key)"
+                ),
+                {"key": f"NH:{scope}"},
+            )
         c.execute(
             text("""INSERT INTO data_series_collections
             (dataset,scope,exchange,product,name,start_date)
@@ -112,8 +120,8 @@ def test_series_plan_uses_discovered_identity_and_oldest_dates(automatic):
             text("""INSERT INTO data_sync_contracts VALUES
         ('RB.SHF','SHFE','RB','2','{"list_date":"20090101"}',NULL,1)""")
         )
-    test_tushare.calendar_for_planning(automatic, start="2014-01-01", end="2015-12-31")
-    for _ in range(4):
+    test_tushare.calendar_for_planning(automatic, start="2008-01-01", end="2009-12-31")
+    for _ in range(3):
         planning.plan(automatic._engine)
     with automatic._engine.connect() as c:
         rows = c.execute(text("SELECT * FROM data_series_collections")).mappings().all()
@@ -122,15 +130,15 @@ def test_series_plan_uses_discovered_identity_and_oldest_dates(automatic):
             ("mapping", "RB.SHF"),
             ("adjusted", "RB.SHF"),
         }
-        assert {str(r["start_date"]) for r in rows} == {"2015-01-01"}
+        assert {str(r["start_date"]) for r in rows} == {"2009-01-01"}
         jobs = (
             c.execute(text("SELECT * FROM data_sync_jobs WHERE dataset<>'calendar'"))
             .mappings()
             .all()
         )
-        assert {r["start_at"] for r in jobs} == {"2015-01-01"}
+        assert {r["start_at"] for r in jobs} == {"2009-01-01"}
         assert all(r["parameters"].get("ts_code") == r["scope"] for r in jobs)
-        assert "CU.NH" in {r["scope"] for r in rows if r["dataset"] == "index"}
+        assert not any(r["dataset"] == "index" for r in rows)
         assert c.scalar(text("SELECT count(*) FROM data_contract_requests")) == 0
 
 

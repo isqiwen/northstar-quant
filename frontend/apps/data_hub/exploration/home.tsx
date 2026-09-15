@@ -51,7 +51,10 @@ export function DataOverview() {
             {sync.error || sync.loading
               ? "同步状态暂不可用"
               : sync.data?.settings.enabled
-                ? "后台自动同步已启用"
+                ? (sync.data.settings.selected_products as string[] | undefined)
+                    ?.length
+                  ? "所选品种后台采集中"
+                  : "仅更新品种目录"
                 : "自动同步尚未启用或已暂停"}
           </Tag>
           <span>浏览器关闭不影响同步进程。</span>

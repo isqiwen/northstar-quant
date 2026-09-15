@@ -51,6 +51,8 @@ class ContractReview(ApiModel):
 class SyncSettingsRequest(ApiModel):
     revision: int
     enabled: bool
+    products: list[str] = Field(default_factory=list, max_length=200)
+    retry_skipped: bool = False
 
 
 class SyncReprocessRequest(ApiModel):

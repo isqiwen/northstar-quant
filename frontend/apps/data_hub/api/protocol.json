@@ -975,6 +975,21 @@
           "type": "bool",
           "required": true,
           "nullable": false
+        },
+        "products": {
+          "id": 3,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "retry_skipped": {
+          "id": 4,
+          "presence": true,
+          "type": "bool",
+          "required": false,
+          "nullable": false
         }
       },
       "array": false,

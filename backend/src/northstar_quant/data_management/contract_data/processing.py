@@ -14,7 +14,7 @@ def process_next(engine: Engine) -> str | None:
                 (status='PUBLISHED' AND EXISTS (
                     SELECT 1 FROM data_contract_requests cr JOIN data_sync_jobs j USING(request_id)
                     WHERE cr.scope=w.scope AND j.updated_at>w.updated_at)))
-            AND updated_at<now()-interval '1 minute'
+            AND discovery_complete AND updated_at<now()-interval '1 minute'
             ORDER BY updated_at,scope LIMIT 1 FOR UPDATE SKIP LOCKED""")
         )
         if scope is None:

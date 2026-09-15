@@ -1,6 +1,7 @@
 "use client";
 import { StorageAlert } from "./storage-alert";
 import { ContractReview } from "./contract-review";
+import { SyncProducts } from "./sync-products";
 import { SyncContracts } from "./sync-contracts";
 
 import {
@@ -73,29 +74,10 @@ export function TushareSync() {
     !!config?.catalog_ready &&
     !!config?.planned_at &&
     data?.unplanned_contracts === 0;
-  async function enabled(value: boolean) {
-    setBusy(true);
-    try {
-      await mutate("/api/sync/settings", {
-        revision: Number(config?.revision),
-        enabled: value,
-      });
-      current.refresh();
-      message.success(
-        value
-          ? "自动同步已启用，后台按已结束合约采集完整生命周期"
-          : "已暂停；当前请求完成后停止领取新任务",
-      );
-    } catch (e) {
-      message.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <>
       <Heading
-        title="Tushare 自动同步"
+        title="按品种下载"
         description="交易所 → 品种 → 合约。核心接纳通过后按合约发布，行情和结算资料归入合约详情。"
       />
       <Failure error={current.error} />
@@ -106,25 +88,12 @@ export function TushareSync() {
           {String(config.error)}
         </Card>
       )}
+      <SyncProducts
+        config={config}
+        tokenConfigured={!!data?.token_configured}
+        onSaved={current.refresh}
+      />
       <Space wrap>
-        <Tag color={config?.enabled ? "blue" : "default"}>
-          {config?.enabled ? "已启用" : "已暂停"}
-        </Tag>
-        <Button
-          type="primary"
-          disabled={!data?.token_configured || !config}
-          loading={busy}
-          onClick={() => enabled(true)}
-        >
-          {config?.enabled ? "重试异常任务" : "开始同步全部数据"}
-        </Button>
-        <Button
-          disabled={!config?.enabled}
-          loading={busy}
-          onClick={() => enabled(false)}
-        >
-          暂停
-        </Button>
         <Button onClick={current.refresh}>刷新</Button>
         <Button onClick={() => showRequests("")}>采集服务诊断</Button>
       </Space>
@@ -237,9 +206,7 @@ export function TushareSync() {
                     </p>
 
                     <p className="muted">
-                      从 2015-01-01 起查找历史合约，按最后交易日从早到晚下载。
-                      先取得完整交易日历，再规划下载；跨起点合约保留上市以来的历史。
-                      跨越起点的合约保留上市日起的完整数据。最后交易日和最后交割日均已结束才可下载，日期不明则等待核实。
+                      仅下载已选择品种，不设统一历史日期。先取得交易日历，按真实合约上市区间探查各核心接口，再采集完整生命周期。上市首段暂不可用的合约跳过；最后交易日和最后交割日均已结束才可下载，日期不明则等待核实。
                     </p>
                     <p>
                       {planned

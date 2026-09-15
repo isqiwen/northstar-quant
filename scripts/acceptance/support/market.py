@@ -119,7 +119,8 @@ library=DataLibrary(engine,SourceFiles.from_environment())
 with engine.begin() as c:
     c.execute(text("UPDATE data_sync_jobs SET next_at=now()+interval '365 days' "
         "WHERE status IN ('PENDING','WAITING')"))
-    c.execute(text("UPDATE data_sync_settings SET enabled=true,revision=1,"
+    c.execute(text("UPDATE data_sync_settings SET selected_products=ARRAY['SHFE:RB'], "
+        "enabled=true,revision=1,"
         "refresh_at=now()+interval '1 day',api_next_at='{}',next_request_at=now()"))
     c.execute(text("INSERT INTO data_sync_contracts(ts_code,exchange,product,"
         "kind,details,planned_revision) "

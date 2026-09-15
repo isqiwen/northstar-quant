@@ -77,9 +77,13 @@ while clearing it when the owning artifact identity changes.
 `POST /api/sync/contracts/review` reports a real contract's listing-to-expiry
 requirements. Check actual listing, last trading and last delivery dates separately.
 Active or delivery-in-progress contracts are ineligible; missing/conflicting metadata stays unknown.
-Search last trading dates from 2015-01-01 ascending, preserving pre-2015 listing history.
-Exercise both planning and claiming against an existing newer queue; changing only SQL planning
-order leaves already queued downloads ahead of historical candidates. Unknown lifecycle metadata
+Download only explicitly selected exchange:product keys; there is no fixed year floor.
+Verify empty selection refreshes metadata only, and changing selection also gates already queued
+real and independent-series requests. First-month core probes reuse normal archived requests;
+empty/invalid responses skip the candidate, while permission/transport errors remain pending.
+Probe success never bypasses whole-lifetime review; earliest observed records are not a proven
+supplier inception boundary. Exercise explicit retry of skipped candidates and identity preservation.
+Use `backend/tests/data_management/test_product_collection.py` for the PostgreSQL vertical path. Unknown lifecycle metadata
 must also block rejected-source cleanup, not just new planning.
 Use the browser's “整体验收” action on downloaded contract data. Check a complete
 calendar through the candidate cutoff; an old maximum open day is insufficient.

@@ -5,8 +5,6 @@ from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-SEARCH_START = date(2015, 1, 1)
-
 
 def local_today() -> date:
     return datetime.now(ZoneInfo("Asia/Shanghai")).date()

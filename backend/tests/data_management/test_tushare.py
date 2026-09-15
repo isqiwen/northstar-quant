@@ -29,7 +29,7 @@ def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
     with postgres_engine.begin() as connection:
         initialize_sync(connection)
         connection.execute(
-            text("""UPDATE data_sync_settings SET enabled=true,
+            text("""UPDATE data_sync_settings SET enabled=true,selected_products=ARRAY['SHFE:RB'],
             refresh_at=now()+interval '1 day',api_next_at='{}',next_request_at=now(),revision=1""")
         )
     secret = tmp_path / "secrets"
@@ -48,8 +48,9 @@ def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
             VALUES('RB2610.SHF','SHFE','RB','1','{"list_date":"19900101","delist_date":"20260902","last_ddate":"20260903"}',1)""")
         )
         connection.execute(
-            text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
-            VALUES('RB2610.SHF','1990-01-01','2026-09-02')""")
+            text("""INSERT INTO data_contract_collections
+            (scope,start_date,end_date,discovery_complete)
+            VALUES('RB2610.SHF','1990-01-01','2026-09-02',true)""")
         )
         connection.execute(
             text(
@@ -406,12 +407,16 @@ def test_ui_token_is_write_only_and_manual_interfaces_are_absent(automatic, monk
             "/api/sync/settings",
             json={"revision": config["revision"], "enabled": False, "products": ["RB"]},
         ).status_code in (400, 422)
-        assert (
-            client.post(
-                "/api/sync/settings", json={"revision": config["revision"], "enabled": False}
-            ).status_code
-            == 200
+        changed = client.post(
+            "/api/sync/settings",
+            json={
+                "revision": config["revision"],
+                "enabled": False,
+                "products": [],
+                "retry_skipped": False,
+            },
         )
+        assert changed.status_code == 200, changed.text
     assert (credentials.root() / "tushare.token").stat().st_mode & 0o077 == 0
 
 
@@ -457,6 +462,9 @@ def test_planning_applicable_data_is_idempotent_and_stops_at_expiry(automatic, m
             )
     calendar_for_planning(automatic)
     calendar_for_planning(automatic, exchange="DCE")
+    planning.plan(automatic._engine)
+    with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_contract_collections SET discovery_complete=true"))
     planning.plan(automatic._engine)
     with automatic._engine.connect() as connection:
         rows = connection.execute(text("SELECT * FROM data_sync_jobs")).mappings().all()
@@ -830,7 +838,7 @@ def test_retained_reprocessing_survives_pause_and_preserves_versions(automatic, 
     with library._engine.begin() as connection:
         connection.execute(
             text(
-                "UPDATE data_sync_settings SET enabled=true, "
+                "UPDATE data_sync_settings SET enabled=true,selected_products=ARRAY['SHFE:RB'], "
                 "api_next_at=jsonb_build_object('fut_daily',now()+interval '1 day'), "
                 "next_request_at=now()+interval '1 day'"
             )
@@ -1020,10 +1028,14 @@ def test_catalog_arrival_keeps_real_and_series_request_ownership_separate(automa
 
     monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
     with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_settings SET selected_products=ARRAY['DCE:A']"))
         c.execute(text("DELETE FROM data_contract_collections"))
         c.execute(text("DELETE FROM data_sync_contracts"))
         c.execute(
-            text("INSERT INTO data_sync_contracts VALUES ('A.DCE','DCE','A','2','{}',NULL,0)")
+            text(
+                "INSERT INTO data_sync_contracts VALUES "
+                "('A.DCE','DCE','A','2','{\"list_date\":\"20260901\"}',NULL,0)"
+            )
         )
     calendar_for_planning(automatic)
     calendar_for_planning(automatic, exchange="DCE")
@@ -1111,6 +1123,7 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
 
     monkeypatch.setattr(planning, "target_day", lambda: date(2015, 2, 2))
     with automatic._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_settings SET selected_products=ARRAY['SHFE:AL']"))
         c.execute(text("DELETE FROM data_contract_collections"))
         c.execute(text("DELETE FROM data_sync_contracts"))
         for code, kind, begin, end in [
@@ -1147,12 +1160,10 @@ def test_only_expired_contracts_are_planned_without_truncating_lifetime(automati
         )
         assert rows
         assert min(r["start_at"] for r in rows if r["dataset"] != "calendar") == "2013-01-01"
-        assert any(r["scope"] == "AL1501.SHF" for r in rows)
-        assert not any(r["scope"] == "AL1412.SHF" for r in rows)
+        assert any(r["scope"] == "AL1412.SHF" for r in rows)
+        assert not any(r["scope"] == "AL1501.SHF" for r in rows)
         assert not any(r["scope"] == "AL1502.SHF" for r in rows)
-        assert {"calendar", "daily", "1min", "holdings", "warehouse"} <= {
-            r["dataset"] for r in rows
-        }
+        assert {"calendar", "daily", "1min", "settlement", "limits"} <= {r["dataset"] for r in rows}
         assert (
             c.scalar(
                 text("SELECT count(*) FROM data_sync_contracts WHERE planning_error IS NOT NULL")
@@ -1244,7 +1255,7 @@ def test_provider_rate_reply_cools_whole_api_without_blocking_daily(automatic, m
     assert calls == ["ft_mins", "fut_daily"]
 
 
-def test_historical_candidate_preempts_existing_newer_collection(automatic, monkeypatch):
+def test_selecting_different_product_preempts_existing_queue(automatic, monkeypatch):
     from datetime import date
 
     from northstar_quant.data_management.tushare.scheduling import choose
@@ -1265,6 +1276,8 @@ def test_historical_candidate_preempts_existing_newer_collection(automatic, monk
                 ),
             )
     with automatic._engine.begin() as c:
+        assert choose(c, download_ready=True)["scope"] == "RB2610.SHF"
+        c.execute(text("UPDATE data_sync_settings SET selected_products=ARRAY['SHFE:AL']"))
         assert choose(c, download_ready=True) is None
     planning.plan(automatic._engine)
     with automatic._engine.begin() as c:

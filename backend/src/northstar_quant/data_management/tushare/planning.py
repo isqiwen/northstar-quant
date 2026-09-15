@@ -11,7 +11,7 @@ from sqlalchemy import Connection, Engine, text
 
 from northstar_quant import code_revision
 
-from ..contract_data.lifecycle import SEARCH_START, completed
+from ..contract_data.lifecycle import completed
 from ..contract_data.requirements import classify, requirement
 from .catalog import BY_KEY, DATASETS, EXCHANGES
 from .request_calendar import RequestCalendar
@@ -116,7 +116,7 @@ def plan(engine: Engine) -> None:
     with engine.begin() as connection:
         connection.execute(
             text("""UPDATE data_contract_collections w SET status='VERIFYING',
-            updated_at=now() WHERE status='COLLECTING' AND NOT EXISTS(
+            updated_at=now() WHERE status='COLLECTING' AND discovery_complete AND NOT EXISTS(
                 SELECT 1 FROM data_contract_requests cr JOIN data_sync_jobs j USING(request_id)
                 WHERE cr.scope=w.scope AND j.status IN ('PENDING','RUNNING'))""")
         )
@@ -133,13 +133,14 @@ def plan(engine: Engine) -> None:
             WHERE planned_revision<>:revision AND kind='1'
             AND (w.scope IS NULL OR w.status IN ('COLLECTING','VERIFYING'))
             AND details->>'delist_date' ~ '^[0-9]{8}$'
-            AND details->>'delist_date'>=:search_start
+            AND d.exchange || ':' || d.product=ANY(CAST(:products AS text[]))
             AND details->>'delist_date'<:today
-            ORDER BY details->>'delist_date',exchange,product,ts_code LIMIT 1 FOR UPDATE OF d"""),
+            ORDER BY array_position(CAST(:products AS text[]),d.exchange || ':' || d.product),
+                details->>'list_date',details->>'delist_date',ts_code LIMIT 1 FOR UPDATE OF d"""),
                 dict(
                     revision=config["revision"],
                     today=target.strftime("%Y%m%d"),
-                    search_start=SEARCH_START.strftime("%Y%m%d"),
+                    products=config["selected_products"],
                 ),
             )
             .mappings()
@@ -156,26 +157,11 @@ def plan(engine: Engine) -> None:
                 )
                 continue
             start, end = lifetime.start, lifetime.end
-            # Existing newer work cannot block an older candidate after priority changes.
-            if connection.scalar(
-                text("""SELECT EXISTS(SELECT 1
-                FROM data_contract_collections w JOIN data_sync_contracts d ON d.ts_code=w.scope
-                WHERE w.status='COLLECTING' AND w.end_date>=:floor AND w.end_date<=:end
-                AND d.planned_revision=:revision AND d.planning_error IS NULL
-                AND w.scope<>:scope)"""),
-                dict(
-                    floor=SEARCH_START,
-                    end=end,
-                    revision=config["revision"],
-                    scope=contract["ts_code"],
-                ),
-            ):
-                return
             connection.execute(
                 text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
                 VALUES(:scope,:start,:end) ON CONFLICT(scope) DO UPDATE
                 SET start_date=excluded.start_date,end_date=excluded.end_date,
-                    status='COLLECTING',reason=NULL,updated_at=now()
+                    status='COLLECTING',discovery_complete=false,reason=NULL,updated_at=now()
                 WHERE (data_contract_collections.start_date,data_contract_collections.end_date)
                     IS DISTINCT FROM (excluded.start_date,excluded.end_date)"""),
                 dict(scope=contract["ts_code"], start=start, end=end),
@@ -204,6 +190,10 @@ def plan(engine: Engine) -> None:
             calendar = load_calendar(connection, contract["exchange"], start, end)
             if calendar is None:
                 # Keep planned_revision unchanged so the next calendar arrival resumes planning.
+                return
+            from .products import probe
+
+            if not probe(connection, contract, start, end, calendar):
                 return
             for dataset in DATASETS:
                 if not requirement(classify(contract), dataset.key).collect:

@@ -17,6 +17,7 @@ def candidate(library):
     with library._engine.begin() as c:
         c.execute(text("DELETE FROM data_contract_collections"))
         c.execute(text("DELETE FROM data_sync_contracts"))
+        c.execute(text("UPDATE data_sync_settings SET selected_products=ARRAY['SHFE:AL']"))
         c.execute(
             text("""INSERT INTO data_sync_contracts
             (ts_code,exchange,product,kind,details) VALUES
@@ -41,6 +42,7 @@ def test_calendar_arrival_unlocks_requests_with_friday_night_and_no_weekend_requ
     with automatic._engine.begin() as c:
         c.execute(text("INSERT INTO data_sync_calendar VALUES('SHFE','2014-12-28',false)"))
         c.execute(text("UPDATE data_sync_calendar SET is_open=false WHERE cal_date='2015-01-01'"))
+        c.execute(text("UPDATE data_contract_collections SET discovery_complete=true"))
     planning.plan(automatic._engine)
     with automatic._engine.begin() as c:
         rows = (
@@ -112,22 +114,22 @@ def test_minute_split_preserves_actual_night_bounds_and_rejects_outside_rows(aut
         quality.normalize(raw("2014-12-25 21:01:00"), job)
 
 
-def test_old_queued_contract_cannot_bypass_2015_floor(automatic):
+def test_unselected_product_cannot_bypass_collection_selection(automatic):
     candidate(automatic)
     with automatic._engine.begin() as c:
         c.execute(
             text("""INSERT INTO data_sync_contracts
         (ts_code,exchange,product,kind,details,planned_revision)
-        VALUES('AL1401.SHF','SHFE','AL','1',
+        VALUES('CU1401.SHF','SHFE','CU','1',
         '{"list_date":"20130101","delist_date":"20140115","last_ddate":"20140120"}',1)""")
         )
         c.execute(
             text(
                 "INSERT INTO data_contract_collections(scope,start_date,end_date) "
-                "VALUES('AL1401.SHF','2013-01-01','2014-01-15')"
+                "VALUES('CU1401.SHF','2013-01-01','2014-01-15')"
             )
         )
-        planning.enqueue(c, "daily", "AL1401.SHF", {}, "2013-01-01", "2013-01-31")
+        planning.enqueue(c, "daily", "CU1401.SHF", {}, "2013-01-01", "2013-01-31")
         assert choose(c, download_ready=True) is None
     planning.plan(automatic._engine)
     with automatic._engine.begin() as c:

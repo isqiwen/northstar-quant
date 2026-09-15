@@ -10306,8 +10306,11 @@ export const northstar = $root.northstar = (() => {
              * @typedef {Object} northstar.data_hub.SyncSettingsRequest.$Properties
              * @property {number|Long|null} [revision] SyncSettingsRequest revision
              * @property {boolean|null} [enabled] SyncSettingsRequest enabled
+             * @property {Array.<string>|null} [products] SyncSettingsRequest products
+             * @property {boolean|null} [retry_skipped] SyncSettingsRequest retry_skipped
              * @property {"revision"} [_revision] SyncSettingsRequest _revision
              * @property {"enabled"} [_enabled] SyncSettingsRequest _enabled
+             * @property {"retry_skipped"} [_retry_skipped] SyncSettingsRequest _retry_skipped
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -10324,11 +10327,15 @@ export const northstar = $root.northstar = (() => {
              * @typedef {{
              *   revision?: number|Long|null;
              *   enabled?: boolean|null;
+             *   products?: Array.<string>|null;
+             *   retry_skipped?: boolean|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _revision?: undefined; revision?: null }|{ _revision?: "revision"; revision: number|Long })
              * ) & (
              *   ({ _enabled?: undefined; enabled?: null }|{ _enabled?: "enabled"; enabled: boolean })
+             * ) & (
+             *   ({ _retry_skipped?: undefined; retry_skipped?: null }|{ _retry_skipped?: "retry_skipped"; retry_skipped: boolean })
              * )} northstar.data_hub.SyncSettingsRequest.$Shape
              */
 
@@ -10341,6 +10348,7 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
             const SyncSettingsRequest = function (properties) {
+                this.products = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -10362,6 +10370,22 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             SyncSettingsRequest.prototype.enabled = null;
+
+            /**
+             * SyncSettingsRequest products.
+             * @member {Array.<string>} products
+             * @memberof northstar.data_hub.SyncSettingsRequest
+             * @instance
+             */
+            SyncSettingsRequest.prototype.products = $util.emptyArray;
+
+            /**
+             * SyncSettingsRequest retry_skipped.
+             * @member {boolean|null|undefined} retry_skipped
+             * @memberof northstar.data_hub.SyncSettingsRequest
+             * @instance
+             */
+            SyncSettingsRequest.prototype.retry_skipped = null;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -10385,6 +10409,17 @@ export const northstar = $root.northstar = (() => {
              */
             $Object.defineProperty(SyncSettingsRequest.prototype, "_enabled", {
                 get: $util.oneOfGetter($oneOfFields = ["enabled"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncSettingsRequest _retry_skipped.
+             * @member {"retry_skipped"|undefined} _retry_skipped
+             * @memberof northstar.data_hub.SyncSettingsRequest
+             * @instance
+             */
+            $Object.defineProperty(SyncSettingsRequest.prototype, "_retry_skipped", {
+                get: $util.oneOfGetter($oneOfFields = ["retry_skipped"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -10424,6 +10459,11 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 1, wireType 0 =*/8).int64(message.revision);
                 if (message.enabled != null && $Object.hasOwnProperty.call(message, "enabled"))
                     writer.uint32(/* id 2, wireType 0 =*/16).bool(message.enabled);
+                if (message.products != null && message.products.length)
+                    for (let i = 0; i < message.products.length; ++i)
+                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.products[i]);
+                if (message.retry_skipped != null && $Object.hasOwnProperty.call(message, "retry_skipped"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).bool(message.retry_skipped);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -10482,6 +10522,21 @@ export const northstar = $root.northstar = (() => {
                             message._enabled = "enabled";
                             continue;
                         }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.products && message.products.length))
+                                message.products = [];
+                            message.products.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 0)
+                                break;
+                            message.retry_skipped = reader.bool();
+                            message._retry_skipped = "retry_skipped";
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -10525,6 +10580,18 @@ export const northstar = $root.northstar = (() => {
                     if (typeof message.enabled !== "boolean")
                         return "enabled: boolean expected";
                 }
+                if (message.products != null && $Object.hasOwnProperty.call(message, "products")) {
+                    if (!$Array.isArray(message.products))
+                        return "products: array expected";
+                    for (let i = 0; i < message.products.length; ++i)
+                        if (!$util.isString(message.products[i]))
+                            return "products: string[] expected";
+                }
+                if (message.retry_skipped != null && $Object.hasOwnProperty.call(message, "retry_skipped")) {
+                    properties._retry_skipped = 1;
+                    if (typeof message.retry_skipped !== "boolean")
+                        return "retry_skipped: boolean expected";
+                }
                 return null;
             };
 
@@ -10557,6 +10624,15 @@ export const northstar = $root.northstar = (() => {
                         message.revision = new $util.LongBits(object.revision.low >>> 0, object.revision.high >>> 0).toNumber();
                 if (object.enabled != null)
                     message.enabled = $Boolean(object.enabled);
+                if (object.products) {
+                    if (!$Array.isArray(object.products))
+                        throw $TypeError(".northstar.data_hub.SyncSettingsRequest.products: array expected");
+                    message.products = $Array(object.products.length);
+                    for (let i = 0; i < object.products.length; ++i)
+                        message.products[i] = $String(object.products[i]);
+                }
+                if (object.retry_skipped != null)
+                    message.retry_skipped = $Boolean(object.retry_skipped);
                 return message;
             };
 
@@ -10577,6 +10653,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let object = {};
+                if (options.arrays || options.defaults)
+                    object.products = [];
                 if (message.revision != null && $Object.hasOwnProperty.call(message, "revision")) {
                     if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
                         object.revision = typeof message.revision === "number" ? $BigInt(message.revision) : $util.Long.fromBits(message.revision.low >>> 0, message.revision.high >>> 0, false).toBigInt();
@@ -10591,6 +10669,16 @@ export const northstar = $root.northstar = (() => {
                     object.enabled = message.enabled;
                     if (options.oneofs)
                         object._enabled = "enabled";
+                }
+                if (message.products && message.products.length) {
+                    object.products = $Array(message.products.length);
+                    for (let j = 0; j < message.products.length; ++j)
+                        object.products[j] = message.products[j];
+                }
+                if (message.retry_skipped != null && $Object.hasOwnProperty.call(message, "retry_skipped")) {
+                    object.retry_skipped = message.retry_skipped;
+                    if (options.oneofs)
+                        object._retry_skipped = "retry_skipped";
                 }
                 return object;
             };
