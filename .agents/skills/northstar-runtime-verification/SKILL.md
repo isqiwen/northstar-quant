@@ -128,3 +128,9 @@ raw file is corruption; rejected unreferenced originals may have been intentiona
 released. New reports retain bounded numeric/time samples, not arbitrary provider text.
 Do not present a fresh supplier probe as the original historical response. Distinguish
 response rejection, collection gaps and unresolved session evidence in contract reasons.
+
+If the worker repeatedly exits inside rejected-source candidate selection, inspect
+PostgreSQL's original error. A failed shared-memory resize may come from parallel
+hash joins in the maintenance query, even when ordinary storage is healthy. Keep
+that bounded scan serial with transaction-local settings; do not globally disable
+parallel query or delete data to recover space without diagnosing the allocation.

@@ -19,7 +19,7 @@ _BAR_APIS = normalization.BAR_APIS
 
 
 class InvalidResponse(ValueError):
-    """Bounded diagnostics reference raw row positions, never echo supplier values."""
+    """Bounded diagnostics retain row positions and whitelisted numeric/time evidence."""
 
     def __init__(
         self,

@@ -28,6 +28,9 @@ def release_rejected(engine: Engine, files: SourceFiles) -> int:
                 eligible.append(contract["ts_code"])
             if not eligible:
                 return 0
+            # This bounded maintenance scan must not exhaust the container's shared
+            # memory through PostgreSQL parallel hash joins and stop all collectors.
+            c.execute(text("SET LOCAL max_parallel_workers_per_gather=0"))
             candidates = (
                 c.execute(
                     text("""SELECT DISTINCT s.source_id,s.content_hash,s.byte_count,w.scope
