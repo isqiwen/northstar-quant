@@ -37,7 +37,11 @@ class PublishedDatasets:
         *,
         usages: Callable[[Sequence[UUID]], list[dict[str, object]]] | None = None,
     ) -> None:
-        self.root = root
+        if root.is_symlink():
+            raise ValueError("发布根目录不能是符号链接")
+        # Normalize configured ancestor aliases (e.g. macOS /tmp). Catalog child
+        # paths are still checked component by component before every access.
+        self.root = root.resolve()
         self._usages = usages
 
     @classmethod

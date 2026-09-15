@@ -131,6 +131,27 @@ def test_snapshot_path_cannot_escape_through_metadata_or_symlinks(tmp_path):
     assert list(outside.iterdir()) == []
 
 
+def test_bound_storage_resolves_system_parent_alias_but_not_catalog_links(tmp_path):
+    from northstar_quant.data_management.publications import PublishedDatasets
+
+    actual = tmp_path / "actual"
+    actual.mkdir()
+    root = actual / "market"
+    root.mkdir()
+    alias = tmp_path / "alias"
+    alias.symlink_to(actual, target_is_directory=True)
+    catalog = PublishedDatasets(alias / "market")
+    source = SourceFiles(tmp_path / "source")
+    artifact = write_snapshot(
+        catalog.root, dict(exchange="SHFE", product="RB", scope="RB2501.SHF", inputs=[]), source
+    )
+    assert catalog.contract_snapshot(artifact["publication_id"])["scope"] == "RB2501.SHF"
+    link = tmp_path / "linked-root"
+    link.symlink_to(root, target_is_directory=True)
+    with pytest.raises(ValueError, match="符号链接"):
+        PublishedDatasets(link)
+
+
 @pytest.mark.parametrize("protected", [False, True])
 def test_rejected_raw_cleanup_preserves_fixed_receipts(automatic, monkeypatch, protected):
     from uuid import UUID

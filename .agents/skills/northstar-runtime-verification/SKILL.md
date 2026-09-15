@@ -173,3 +173,8 @@ admission separate from physical partitioning, and unknown time/fee/identity
 semantics explicit. Renamed schema columns require the current baseline; do not
 introduce a fallback reader. Any reset or empty-baseline transition must retain
 workspace authentication and verify no collector resumed before deployment.
+
+Configured storage may use a platform ancestor alias such as macOS /tmp. Resolve
+the bound root once in PublishedDatasets, reject a symlink root itself, and continue
+to reject links inside the catalog. Exercise this through the installed browser
+fixture; pytest temporary paths may already be canonical and miss this failure.
