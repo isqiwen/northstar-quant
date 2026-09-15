@@ -9,6 +9,9 @@ from ..contract_data.requirements import CORE_DATASETS, classify, requirement
 from .catalog import BY_KEY
 from .request_calendar import RequestCalendar
 
+# User-selected collection boundary, not a supplier coverage claim.
+LISTING_START = date(2025, 1, 1)
+
 
 def catalog(c: Connection) -> list[dict[str, Any]]:
     rows = c.execute(

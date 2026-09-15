@@ -40,7 +40,7 @@ def published(postgres_engine, clean_database, tmp_path, monkeypatch):
             text("""INSERT INTO data_sync_contracts
             (ts_code,exchange,product,kind,details,planned_revision)
             VALUES ('RB2610.SHF','SHFE','RB','1',
-            '{"list_date":"20200101","delist_date":"20260903","last_ddate":"20260904"}',1)""")
+            '{"list_date":"20250101","delist_date":"20260903","last_ddate":"20260904"}',1)""")
         )
         c.execute(
             text("""INSERT INTO data_sync_calendar VALUES
@@ -48,7 +48,7 @@ def published(postgres_engine, clean_database, tmp_path, monkeypatch):
         )
         c.execute(
             text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
-            VALUES('RB2610.SHF','2020-01-01','2026-09-03')""")
+            VALUES('RB2610.SHF','2025-01-01','2026-09-03')""")
         )
         planning.enqueue(
             c, "1min", "RB2610.SHF", {"ts_code": "RB2610.SHF"}, "2026-09-01", "2026-09-03"

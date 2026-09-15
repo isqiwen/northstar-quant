@@ -13,6 +13,7 @@ from northstar_quant import code_revision
 
 from ..contract_data.lifecycle import completed
 from ..contract_data.requirements import classify, requirement
+from . import products
 from .catalog import BY_KEY, DATASETS, EXCHANGES
 from .request_calendar import RequestCalendar
 from .request_calendar import load as load_calendar
@@ -135,10 +136,13 @@ def plan(engine: Engine) -> None:
             AND details->>'delist_date' ~ '^[0-9]{8}$'
             AND d.exchange || ':' || d.product=ANY(CAST(:products AS text[]))
             AND details->>'delist_date'<:today
+            AND (COALESCE(details->>'list_date','') !~ '^[0-9]{8}$'
+                OR details->>'list_date'>=:listing_start)
             ORDER BY array_position(CAST(:products AS text[]),d.exchange || ':' || d.product),
                 details->>'list_date',details->>'delist_date',ts_code LIMIT 1 FOR UPDATE OF d"""),
                 dict(
                     revision=config["revision"],
+                    listing_start=products.LISTING_START.strftime("%Y%m%d"),
                     today=target.strftime("%Y%m%d"),
                     products=config["selected_products"],
                 ),

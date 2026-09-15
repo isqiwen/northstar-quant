@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from sqlalchemy import Connection, Engine, text
 
 from ..contract_data.lifecycle import metadata_date
+from ..tushare import products
 from ..tushare.planning import enqueue, target_day
 from ..tushare.request_calendar import load as load_calendar
 
@@ -51,7 +52,7 @@ def plan(engine: Engine) -> None:
                         exchange=r["exchange"],
                         product=r["product"],
                         name=r["details"].get("name") or r["ts_code"],
-                        start=start,
+                        start=max(start, products.LISTING_START),
                     ),
                 )
         if (
@@ -87,6 +88,7 @@ def plan(engine: Engine) -> None:
             if row["planned_through"]
             else row["start_date"]
         )
+        start = max(start, products.LISTING_START)
         following = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
         end = min(following - timedelta(days=1), target)
         dataset, scope = row["dataset"], row["scope"]

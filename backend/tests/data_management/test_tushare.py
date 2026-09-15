@@ -1,6 +1,7 @@
 """Automatic sync durability, secret isolation and immutable provider revisions."""
 
 import json
+from datetime import date
 
 import httpx2
 import pytest
@@ -24,7 +25,12 @@ TOKEN = "private-test-token-never-returned"
 
 @pytest.fixture
 def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
+    from northstar_quant.data_management.tushare import products
     from northstar_quant.data_management.tushare.store import initialize as initialize_sync
+
+    # Historical fixtures exercise archived lifecycle/calendar semantics. Dedicated
+    # collection-boundary tests restore the production floor explicitly.
+    monkeypatch.setattr(products, "LISTING_START", date(1990, 1, 1))
 
     with postgres_engine.begin() as connection:
         initialize_sync(connection)
@@ -45,12 +51,12 @@ def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
         connection.execute(
             text("""INSERT INTO data_sync_contracts
             (ts_code,exchange,product,kind,details,planned_revision)
-            VALUES('RB2610.SHF','SHFE','RB','1','{"list_date":"19900101","delist_date":"20260902","last_ddate":"20260903"}',1)""")
+            VALUES('RB2610.SHF','SHFE','RB','1','{"list_date":"20250101","delist_date":"20260902","last_ddate":"20260903"}',1)""")
         )
         connection.execute(
             text("""INSERT INTO data_contract_collections
             (scope,start_date,end_date,discovery_complete)
-            VALUES('RB2610.SHF','1990-01-01','2026-09-02',true)""")
+            VALUES('RB2610.SHF','2025-01-01','2026-09-02',true)""")
         )
         connection.execute(
             text(

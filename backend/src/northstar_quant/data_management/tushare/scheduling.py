@@ -6,6 +6,7 @@ from sqlalchemy import Connection, text
 
 from ..contract_data.lifecycle import completed
 from ..contract_data.requirements import CORE_DATASETS
+from . import products
 from .catalog import BY_KEY
 
 
@@ -21,7 +22,9 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
                 (SELECT selected_products FROM data_sync_settings)::text[])""")
     ).mappings():
         try:
-            completed(contract)
+            lifetime = completed(contract)
+            if lifetime.start < products.LISTING_START:
+                continue
         except ValueError:
             continue
         eligible.append(contract["ts_code"])
@@ -31,6 +34,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
         "apis": [d.api for d in BY_KEY.values()],
         "download_ready": download_ready,
         "core": list(CORE_DATASETS),
+        "listing_start": products.LISTING_START.isoformat(),
     }
     # Catalog refresh discovers newly retired contracts and never represents a
     # collection/publication itself. All price/product requests require an owner.
@@ -49,6 +53,7 @@ def choose(connection: Connection, *, download_ready: bool) -> Any:
             JOIN unnest(CAST(:datasets AS text[]),CAST(:apis AS text[])) d(dataset,api)
                 ON j.dataset=d.dataset
             LEFT JOIN data_series_requests sr ON sr.request_id=j.request_id
+                AND (j.dataset='calendar' OR j.start_at>=:listing_start)
                 AND EXISTS (SELECT 1 FROM data_series_collections sc
                     WHERE sc.dataset=sr.dataset AND sc.scope=sr.scope
                     AND (CASE WHEN sc.dataset='index' THEN 'NH:' || sc.scope

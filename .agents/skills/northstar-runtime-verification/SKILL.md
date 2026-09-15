@@ -77,7 +77,7 @@ while clearing it when the owning artifact identity changes.
 `POST /api/sync/contracts/review` reports a real contract's listing-to-expiry
 requirements. Check actual listing, last trading and last delivery dates separately.
 Active or delivery-in-progress contracts are ineligible; missing/conflicting metadata stays unknown.
-Download only explicitly selected exchange:product keys; there is no fixed year floor.
+Download only explicitly selected exchange:product keys; all products require actual listing_date >= 2025-01-01.
 Verify empty selection refreshes metadata only, and changing selection also gates already queued
 real and independent-series requests. First-month core probes reuse normal archived requests;
 empty/invalid responses skip the candidate, while permission/transport errors remain pending.

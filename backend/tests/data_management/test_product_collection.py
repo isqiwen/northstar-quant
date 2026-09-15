@@ -1,6 +1,7 @@
 """Product selection and historical preflight cannot grant incomplete publications."""
 
 import json
+from datetime import date
 from uuid import uuid4
 
 import pytest
@@ -142,3 +143,73 @@ def test_observed_origins_keep_each_dataset_and_contract_identity(automatic):
         assert all(r["product"] == "AL" and not r["complete_history"] for r in found)
         c.execute(text("UPDATE data_sync_settings SET selected_products='{}'"))
         assert products.origins(c) == []
+
+
+@pytest.mark.parametrize("exchange,product", [("SHFE", "AL"), ("DCE", "C"), ("CZCE", "MA")])
+def test_listing_floor_filters_planning_and_existing_queue(
+    automatic, monkeypatch, exchange, product
+):
+    monkeypatch.setattr(products, "LISTING_START", date(2025, 1, 1))
+    with automatic._engine.begin() as c:
+        c.execute(text("DELETE FROM data_contract_collections"))
+        c.execute(text("DELETE FROM data_sync_contracts"))
+        c.execute(
+            text("UPDATE data_sync_settings SET selected_products=ARRAY[:p]"),
+            {"p": f"{exchange}:{product}"},
+        )
+        for scope, listing, end in [
+            ("OLD", "20241231", "20250601"),
+            ("BOUNDARY", "20250101", "20250601"),
+            ("ACTIVE", "20250102", "20990601"),
+        ]:
+            c.execute(
+                text("""INSERT INTO data_sync_contracts
+                (ts_code,exchange,product,kind,details) VALUES(:s,:e,:p,'1',CAST(:d AS jsonb))"""),
+                dict(
+                    s=scope,
+                    e=exchange,
+                    p=product,
+                    d=json.dumps(
+                        dict(
+                            list_date=listing,
+                            delist_date=end,
+                            last_ddate=end,
+                            d_mode_desc="实物交割",
+                        )
+                    ),
+                ),
+            )
+        c.execute(
+            text("""INSERT INTO data_contract_collections(scope,start_date,end_date)
+            VALUES('OLD','2024-12-31','2025-06-01')""")
+        )
+        planning.enqueue(
+            c,
+            "daily",
+            "OLD",
+            dict(ts_code="OLD", start_date="20250102", end_date="20250102"),
+            "2025-01-02",
+            "2025-01-02",
+        )
+        assert choose(c, download_ready=True) is None
+    calendar_for_planning(automatic, exchange, start="2024-01-01", end="2025-12-31")
+    planning.plan(automatic._engine)
+    with automatic._engine.begin() as c:
+        assert set(c.scalars(text("SELECT scope FROM data_contract_collections"))) == {
+            "OLD",
+            "BOUNDARY",
+        }
+        assert (
+            str(
+                c.scalar(
+                    text("SELECT start_date FROM data_contract_collections WHERE scope='BOUNDARY'")
+                )
+            )
+            == "2025-01-01"
+        )
+        job = choose(c, download_ready=True)
+        assert job is not None
+        assert job["scope"] != "OLD"
+        assert not c.scalar(
+            text("SELECT EXISTS(SELECT 1 FROM data_sync_jobs WHERE scope='ACTIVE')")
+        )
